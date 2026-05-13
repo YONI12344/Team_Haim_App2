@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -21,15 +21,19 @@ import {
   parseISO,
   isToday,
 } from 'date-fns'
-import { ChevronLeft, ChevronRight, Clock, Activity, Check, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Clock, Activity, Check, X, CheckCircle2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { AssignedWorkout, WorkoutType } from '@/lib/types'
+import type { AssignedWorkout, WorkoutLog, WorkoutType } from '@/lib/types'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { WorkoutLogForm } from '@/components/athlete/workout-log-form'
+import { collection, getDocs, query, where } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
+import { useAuth } from '@/contexts/auth-context'
 
 const workoutTypeColors: Record<WorkoutType, string> = {
   easy: 'bg-emerald-100 text-emerald-700 border-emerald-200',
@@ -64,9 +68,42 @@ const workoutTypeLabels: Record<WorkoutType, string> = {
 type ViewMode = 'week' | 'month'
 
 export function AthleteSchedule() {
+  const { user } = useAuth()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [viewMode, setViewMode] = useState<ViewMode>('week')
   const [selectedWorkout, setSelectedWorkout] = useState<AssignedWorkout | null>(null)
+  const [logs, setLogs] = useState<WorkoutLog[]>([])
+
+  // Load all logs for current athlete
+  useEffect(() => {
+    if (!user?.id) return
+    const loadLogs = async () => {
+      try {
+        const q = query(collection(db, 'logs'), where('athleteId', '==', user.id))
+        const snapshot = await getDocs(q)
+        const loadedLogs: WorkoutLog[] = snapshot.docs.map(d => ({
+          id: d.id,
+          athleteId: d.data().athleteId || user.id,
+          workoutId: d.data().workoutId || '',
+          date: d.data().date || '',
+          actualDistance: d.data().actualDistance ?? undefined,
+          actualPace: d.data().actualPace ?? undefined,
+          effort: d.data().effort || 'easy',
+          comment: d.data().comment || '',
+          createdAt: d.data().createdAt?.toDate?.() || new Date(),
+        }))
+        setLogs(loadedLogs)
+      } catch (error) {
+        console.error('Error loading logs:', error)
+        setLogs([])
+      }
+    }
+    loadLogs()
+  }, [user?.id])
+
+  const getLogForWorkout = (workoutId: string): WorkoutLog | undefined => {
+    return logs.find(l => l.workoutId === workoutId)
+  }
 
   const navigatePrevious = () => {
     if (viewMode === 'week') {
@@ -205,6 +242,11 @@ export function AthleteSchedule() {
                                 <X className="h-3 w-3 text-red-600" />
                               </div>
                             )}
+                            {getLogForWorkout(workout.id) && (
+                              <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center" title="Logged">
+                                <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                              </div>
+                            )}
                           </div>
                           <p className="text-sm text-muted-foreground line-clamp-1 mb-2">
                             {workout.workout.description}
@@ -223,6 +265,29 @@ export function AthleteSchedule() {
                               </span>
                             )}
                           </div>
+                          {/* Log summary */}
+                          {(() => {
+                            const log = getLogForWorkout(workout.id)
+                            return log ? (
+                              <div className="mt-2 text-xs text-muted-foreground border-t border-border/50 pt-2">
+                                <span className={cn(
+                                  'inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium mr-2',
+                                  log.effort === 'easy'
+                                    ? 'bg-emerald-100 text-emerald-700'
+                                    : log.effort === 'medium'
+                                    ? 'bg-amber-100 text-amber-700'
+                                    : 'bg-red-100 text-red-700'
+                                )}>
+                                  {log.effort}
+                                </span>
+                                {log.actualDistance && <span>{log.actualDistance}km</span>}
+                                {log.actualPace && <span className="ml-1">@ {log.actualPace}/km</span>}
+                                {log.comment && (
+                                  <p className="mt-1 line-clamp-1 italic">&ldquo;{log.comment}&rdquo;</p>
+                                )}
+                              </div>
+                            ) : null
+                          })()}
                         </div>
                       ) : (
                         <div className="flex items-center text-muted-foreground">
@@ -311,7 +376,7 @@ export function AthleteSchedule() {
 
       {/* Workout Detail Dialog */}
       <Dialog open={!!selectedWorkout} onOpenChange={() => setSelectedWorkout(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           {selectedWorkout && (
             <>
               <DialogHeader>
@@ -424,6 +489,15 @@ export function AthleteSchedule() {
                       {selectedWorkout.coachFeedback}
                     </p>
                   </div>
+                )}
+
+                {/* Workout Log Form */}
+                {user?.id && (
+                  <WorkoutLogForm
+                    workoutId={selectedWorkout.id}
+                    athleteId={user.id}
+                    scheduledDate={selectedWorkout.scheduledDate}
+                  />
                 )}
               </div>
             </>

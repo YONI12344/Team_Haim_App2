@@ -32,36 +32,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setFirebaseUser(fbUser)
       
       if (fbUser) {
-        // Fetch or create user profile from Firestore
-        const userRef = doc(db, 'users', fbUser.uid)
-        const userSnap = await getDoc(userRef)
-        
-        if (userSnap.exists()) {
-          const userData = userSnap.data()
-          setUser({
-            id: fbUser.uid,
-            email: fbUser.email || '',
-            name: userData.name || fbUser.displayName || '',
-            role: userData.role || 'athlete',
-            photoURL: userData.photoURL || fbUser.photoURL || undefined,
-            createdAt: userData.createdAt?.toDate() || new Date(),
-            updatedAt: userData.updatedAt?.toDate() || new Date(),
-          })
-        } else {
-          // Create new user profile
-          const newUser: Omit<User, 'id' | 'createdAt' | 'updatedAt'> & { createdAt: ReturnType<typeof serverTimestamp>, updatedAt: ReturnType<typeof serverTimestamp> } = {
-            email: fbUser.email || '',
-            name: fbUser.displayName || '',
-            role: 'athlete', // Default role
-            photoURL: fbUser.photoURL || undefined,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
+        try {
+          // Fetch or create user profile from Firestore
+          const userRef = doc(db, 'users', fbUser.uid)
+          const userSnap = await getDoc(userRef)
+          
+          const safeName = fbUser.displayName || fbUser.email?.split('@')[0] || 'User'
+
+          if (userSnap.exists()) {
+            const userData = userSnap.data()
+            setUser({
+              id: fbUser.uid,
+              email: fbUser.email || '',
+              name: userData.name || safeName,
+              role: userData.role || 'athlete',
+              photoURL: userData.photoURL || fbUser.photoURL || undefined,
+              createdAt: userData.createdAt?.toDate() || new Date(),
+              updatedAt: userData.updatedAt?.toDate() || new Date(),
+            })
+          } else {
+            // Create new user profile
+            const newUser: Omit<User, 'id' | 'createdAt' | 'updatedAt'> & { createdAt: ReturnType<typeof serverTimestamp>, updatedAt: ReturnType<typeof serverTimestamp> } = {
+              email: fbUser.email || '',
+              name: safeName,
+              role: 'athlete', // Default role
+              photoURL: fbUser.photoURL || undefined,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+            }
+            await setDoc(userRef, newUser)
+            setUser({
+              id: fbUser.uid,
+              email: fbUser.email || '',
+              name: safeName,
+              role: 'athlete',
+              photoURL: fbUser.photoURL || undefined,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            })
           }
-          await setDoc(userRef, newUser)
+        } catch (error) {
+          console.error('Error loading user profile from Firestore:', error)
+          // Fall back to basic Firebase Auth data so the app still works
+          const safeName = fbUser.displayName || fbUser.email?.split('@')[0] || 'User'
           setUser({
             id: fbUser.uid,
             email: fbUser.email || '',
-            name: fbUser.displayName || '',
+            name: safeName,
             role: 'athlete',
             photoURL: fbUser.photoURL || undefined,
             createdAt: new Date(),
@@ -100,11 +117,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const updateUserRole = async (role: UserRole) => {
     if (!firebaseUser) return
     
-    const userRef = doc(db, 'users', firebaseUser.uid)
-    await setDoc(userRef, { role, updatedAt: serverTimestamp() }, { merge: true })
-    
-    if (user) {
-      setUser({ ...user, role, updatedAt: new Date() })
+    try {
+      const userRef = doc(db, 'users', firebaseUser.uid)
+      await setDoc(userRef, { role, updatedAt: serverTimestamp() }, { merge: true })
+      
+      if (user) {
+        setUser({ ...user, role, updatedAt: new Date() })
+      }
+    } catch (error) {
+      console.error('Error updating user role:', error)
+      // Still update local state so navigation works
+      if (user) {
+        setUser({ ...user, role, updatedAt: new Date() })
+      }
     }
   }
 

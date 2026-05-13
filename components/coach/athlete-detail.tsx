@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -16,7 +17,7 @@ import {
   MapPin,
   Award,
   Activity,
-  ChevronRight,
+  MessageCircle,
 } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
@@ -29,7 +30,9 @@ import {
   Tooltip, 
   ResponsiveContainer 
 } from 'recharts'
-import type { WorkoutType } from '@/lib/types'
+import type { WorkoutType, WorkoutLog } from '@/lib/types'
+import { collection, getDocs, query, where } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
 
 const workoutTypeColors: Record<WorkoutType, string> = {
   easy: 'bg-emerald-100 text-emerald-700 border-emerald-200',
@@ -69,14 +72,45 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
   const athlete = mockAthletes.find(a => a.id === athleteId) || mockAthletes[0]
   const athleteWorkouts = mockAssignedWorkouts.filter(w => w.athleteId === athleteId || w.athleteId === 'athlete-1')
   const weeklyStats = mockWeeklyStats
+  const [logs, setLogs] = useState<WorkoutLog[]>([])
 
-  const getInitials = (name: string) => {
-    return name
+  useEffect(() => {
+    const loadLogs = async () => {
+      try {
+        const q = query(collection(db, 'logs'), where('athleteId', '==', athleteId))
+        const snapshot = await getDocs(q)
+        const loadedLogs: WorkoutLog[] = snapshot.docs.map(d => ({
+          id: d.id,
+          athleteId: d.data().athleteId || athleteId,
+          workoutId: d.data().workoutId || '',
+          date: d.data().date || '',
+          actualDistance: d.data().actualDistance ?? undefined,
+          actualPace: d.data().actualPace ?? undefined,
+          effort: d.data().effort || 'easy',
+          comment: d.data().comment || '',
+          createdAt: d.data().createdAt?.toDate?.() || new Date(),
+        }))
+        setLogs(loadedLogs)
+      } catch (error) {
+        console.error('Error loading athlete logs:', error)
+        setLogs([])
+      }
+    }
+    loadLogs()
+  }, [athleteId])
+
+  const getLogForWorkout = (workoutId: string): WorkoutLog | undefined => {
+    return logs.find(l => l.workoutId === workoutId)
+  }
+
+  const getInitials = (name: string | undefined | null) => {
+    const safeName = name || '?'
+    return safeName
       .split(' ')
-      .map((n) => n[0])
+      .map((n) => n[0] || '')
       .join('')
       .toUpperCase()
-      .slice(0, 2)
+      .slice(0, 2) || '?'
   }
 
   return (
@@ -183,44 +217,82 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {athleteWorkouts.slice(0, 7).map((workout) => (
-                  <div
-                    key={workout.id}
-                    className="flex items-center justify-between p-4 rounded-lg border border-border"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-lg bg-muted flex flex-col items-center justify-center">
-                        <span className="text-xs text-muted-foreground">
-                          {format(parseISO(workout.scheduledDate), 'EEE')}
-                        </span>
-                        <span className="text-lg font-bold text-navy">
-                          {format(parseISO(workout.scheduledDate), 'd')}
-                        </span>
-                      </div>
-                      <div>
-                        <p className="font-medium text-navy">{workout.workout.title}</p>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          {workout.workout.duration && (
-                            <span className="flex items-center gap-1">
-                              <Clock className="h-3.5 w-3.5" />
-                              {workout.workout.duration} min
+                {athleteWorkouts.slice(0, 7).map((workout) => {
+                  const log = getLogForWorkout(workout.id)
+                  return (
+                    <div
+                      key={workout.id}
+                      className="rounded-lg border border-border overflow-hidden"
+                    >
+                      <div className="flex items-center justify-between p-4">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-lg bg-muted flex flex-col items-center justify-center">
+                            <span className="text-xs text-muted-foreground">
+                              {format(parseISO(workout.scheduledDate), 'EEE')}
                             </span>
+                            <span className="text-lg font-bold text-navy">
+                              {format(parseISO(workout.scheduledDate), 'd')}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="font-medium text-navy">{workout.workout.title}</p>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              {workout.workout.duration && (
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3.5 w-3.5" />
+                                  {workout.workout.duration} min
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <Badge className={cn('border', workoutTypeColors[workout.workout.type])}>
+                            {workoutTypeLabels[workout.workout.type]}
+                          </Badge>
+                          {workout.status === 'completed' && (
+                            <Badge variant="outline" className="bg-emerald-100 text-emerald-700">
+                              Done
+                            </Badge>
+                          )}
+                          {log && (
+                            <Badge variant="outline" className={cn(
+                              'capitalize',
+                              log.effort === 'easy' ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                              : log.effort === 'medium' ? 'bg-amber-100 text-amber-700 border-amber-200'
+                              : 'bg-red-100 text-red-700 border-red-200'
+                            )}>
+                              {log.effort}
+                            </Badge>
                           )}
                         </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Badge className={cn('border', workoutTypeColors[workout.workout.type])}>
-                        {workoutTypeLabels[workout.workout.type]}
-                      </Badge>
-                      {workout.status === 'completed' && (
-                        <Badge variant="outline" className="bg-emerald-100 text-emerald-700">
-                          Done
-                        </Badge>
+                      {/* Athlete log comment (visible to coach) */}
+                      {log && (log.comment || log.actualDistance || log.actualPace) && (
+                        <div className="px-4 pb-4 pt-0 border-t border-border/50 bg-muted/30">
+                          <div className="flex items-center gap-1 mb-1">
+                            <MessageCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span className="text-xs font-medium text-muted-foreground">Athlete Log</span>
+                          </div>
+                          <div className="text-xs text-muted-foreground space-y-0.5">
+                            {(log.actualDistance || log.actualPace) && (
+                              <p>
+                                {log.actualDistance && <span>{log.actualDistance}km</span>}
+                                {log.actualPace && <span className="ml-1">@ {log.actualPace}/km</span>}
+                              </p>
+                            )}
+                            {log.comment && <p className="italic">&ldquo;{log.comment}&rdquo;</p>}
+                          </div>
+                        </div>
                       )}
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
+                {athleteWorkouts.length === 0 && (
+                  <p className="text-center text-muted-foreground py-8">
+                    No workouts assigned yet
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>

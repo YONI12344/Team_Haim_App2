@@ -45,13 +45,14 @@ export function AthleteNav() {
     router.push('/')
   }
 
-  const getInitials = (name: string) => {
-    return name
+  const getInitials = (name: string | undefined | null) => {
+    const safeName = name || 'U'
+    return safeName
       .split(' ')
-      .map((n) => n[0])
+      .map((n) => n[0] || '')
       .join('')
       .toUpperCase()
-      .slice(0, 2)
+      .slice(0, 2) || 'U'
   }
 
   return (
@@ -97,11 +98,11 @@ export function AthleteNav() {
                 <Avatar className="h-8 w-8">
                   <AvatarImage src={user?.photoURL} alt={user?.name} />
                   <AvatarFallback className="bg-gold/10 text-gold text-sm">
-                    {user?.name ? getInitials(user.name) : 'U'}
+                    {getInitials(user?.name)}
                   </AvatarFallback>
                 </Avatar>
                 <span className="hidden sm:block text-sm font-medium text-foreground">
-                  {user?.name?.split(' ')[0]}
+                  {(user?.name || user?.email?.split('@')[0] || 'User').split(' ')[0]}
                 </span>
                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
               </Button>
@@ -135,7 +136,7 @@ export function AthleteNav() {
                     <Avatar className="h-10 w-10">
                       <AvatarImage src={user?.photoURL} alt={user?.name} />
                       <AvatarFallback className="bg-gold/10 text-gold">
-                        {user?.name ? getInitials(user.name) : 'U'}
+                        {getInitials(user?.name)}
                       </AvatarFallback>
                     </Avatar>
                     <div>
