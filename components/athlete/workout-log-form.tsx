@@ -14,6 +14,7 @@ import {
   updateDoc,
   doc,
   serverTimestamp,
+  limit,
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { CheckCircle2, Loader2 } from 'lucide-react'
@@ -44,7 +45,8 @@ export function WorkoutLogForm({ workoutId, athleteId, scheduledDate }: WorkoutL
         const q = query(
           collection(db, 'logs'),
           where('workoutId', '==', workoutId),
-          where('athleteId', '==', athleteId)
+          where('athleteId', '==', athleteId),
+          limit(1)
         )
         const snapshot = await getDocs(q)
         if (!snapshot.empty) {
@@ -83,40 +85,54 @@ export function WorkoutLogForm({ workoutId, athleteId, scheduledDate }: WorkoutL
       return
     }
 
+    // Validate distance: empty is ok, otherwise must be a finite non-negative number
+    let parsedDistance: number | null = null
+    if (actualDistance.trim() !== '') {
+      const n = parseFloat(actualDistance)
+      if (!Number.isFinite(n) || n < 0) {
+        toast.error('Please enter a valid distance in km')
+        return
+      }
+      parsedDistance = n
+    }
+
     setSaving(true)
     try {
-      const logData = {
+      const baseData = {
         athleteId,
         workoutId,
         date: scheduledDate,
-        actualDistance: actualDistance ? parseFloat(actualDistance) : null,
-        actualPace: actualPace || null,
+        actualDistance: parsedDistance,
+        actualPace: actualPace.trim() || null,
         effort,
         comment,
-        createdAt: serverTimestamp(),
       }
 
       if (existingLog?.id) {
+        // Preserve original createdAt; only update updatedAt
         await updateDoc(doc(db, 'logs', existingLog.id), {
-          ...logData,
+          ...baseData,
           updatedAt: serverTimestamp(),
         })
         setExistingLog({
           ...existingLog,
-          actualDistance: logData.actualDistance ?? undefined,
-          actualPace: logData.actualPace ?? undefined,
+          actualDistance: parsedDistance ?? undefined,
+          actualPace: baseData.actualPace ?? undefined,
           effort,
           comment,
         })
       } else {
-        const docRef = await addDoc(collection(db, 'logs'), logData)
+        const docRef = await addDoc(collection(db, 'logs'), {
+          ...baseData,
+          createdAt: serverTimestamp(),
+        })
         setExistingLog({
           id: docRef.id,
           athleteId,
           workoutId,
           date: scheduledDate,
-          actualDistance: logData.actualDistance ?? undefined,
-          actualPace: logData.actualPace ?? undefined,
+          actualDistance: parsedDistance ?? undefined,
+          actualPace: baseData.actualPace ?? undefined,
           effort,
           comment,
           createdAt: new Date(),
