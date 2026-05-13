@@ -31,8 +31,23 @@ import {
   ResponsiveContainer 
 } from 'recharts'
 import type { WorkoutType, WorkoutLog } from '@/lib/types'
-import { collection, getDocs, query, where } from 'firebase/firestore'
+import { collection, getDocs, query, where, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+
+function mapDocToWorkoutLog(d: QueryDocumentSnapshot<DocumentData>, fallbackAthleteId: string): WorkoutLog {
+  const data = d.data()
+  return {
+    id: d.id,
+    athleteId: data.athleteId || fallbackAthleteId,
+    workoutId: data.workoutId || '',
+    date: data.date || '',
+    actualDistance: data.actualDistance ?? undefined,
+    actualPace: data.actualPace ?? undefined,
+    effort: data.effort || 'easy',
+    comment: data.comment || '',
+    createdAt: data.createdAt?.toDate?.() || new Date(),
+  }
+}
 
 const workoutTypeColors: Record<WorkoutType, string> = {
   easy: 'bg-emerald-100 text-emerald-700 border-emerald-200',
@@ -79,17 +94,7 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
       try {
         const q = query(collection(db, 'logs'), where('athleteId', '==', athleteId))
         const snapshot = await getDocs(q)
-        const loadedLogs: WorkoutLog[] = snapshot.docs.map(d => ({
-          id: d.id,
-          athleteId: d.data().athleteId || athleteId,
-          workoutId: d.data().workoutId || '',
-          date: d.data().date || '',
-          actualDistance: d.data().actualDistance ?? undefined,
-          actualPace: d.data().actualPace ?? undefined,
-          effort: d.data().effort || 'easy',
-          comment: d.data().comment || '',
-          createdAt: d.data().createdAt?.toDate?.() || new Date(),
-        }))
+        const loadedLogs: WorkoutLog[] = snapshot.docs.map(d => mapDocToWorkoutLog(d, athleteId))
         setLogs(loadedLogs)
       } catch (error) {
         console.error('Error loading athlete logs:', error)

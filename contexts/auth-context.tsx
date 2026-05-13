@@ -22,6 +22,10 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+function getSafeName(fbUser: FirebaseUser): string {
+  return fbUser.displayName || fbUser.email?.split('@')[0] || 'User'
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null)
@@ -37,7 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const userRef = doc(db, 'users', fbUser.uid)
           const userSnap = await getDoc(userRef)
           
-          const safeName = fbUser.displayName || fbUser.email?.split('@')[0] || 'User'
+          const safeName = getSafeName(fbUser)
 
           if (userSnap.exists()) {
             const userData = userSnap.data()
@@ -74,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch (error) {
           console.error('Error loading user profile from Firestore:', error)
           // Fall back to basic Firebase Auth data so the app still works
-          const safeName = fbUser.displayName || fbUser.email?.split('@')[0] || 'User'
+          const safeName = getSafeName(fbUser)
           setUser({
             id: fbUser.uid,
             email: fbUser.email || '',

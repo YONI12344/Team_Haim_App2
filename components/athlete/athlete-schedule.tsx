@@ -31,9 +31,24 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { WorkoutLogForm } from '@/components/athlete/workout-log-form'
-import { collection, getDocs, query, where } from 'firebase/firestore'
+import { collection, getDocs, query, where, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/auth-context'
+
+function mapDocToWorkoutLog(d: QueryDocumentSnapshot<DocumentData>, fallbackAthleteId: string): WorkoutLog {
+  const data = d.data()
+  return {
+    id: d.id,
+    athleteId: data.athleteId || fallbackAthleteId,
+    workoutId: data.workoutId || '',
+    date: data.date || '',
+    actualDistance: data.actualDistance ?? undefined,
+    actualPace: data.actualPace ?? undefined,
+    effort: data.effort || 'easy',
+    comment: data.comment || '',
+    createdAt: data.createdAt?.toDate?.() || new Date(),
+  }
+}
 
 const workoutTypeColors: Record<WorkoutType, string> = {
   easy: 'bg-emerald-100 text-emerald-700 border-emerald-200',
@@ -81,17 +96,7 @@ export function AthleteSchedule() {
       try {
         const q = query(collection(db, 'logs'), where('athleteId', '==', user.id))
         const snapshot = await getDocs(q)
-        const loadedLogs: WorkoutLog[] = snapshot.docs.map(d => ({
-          id: d.id,
-          athleteId: d.data().athleteId || user.id,
-          workoutId: d.data().workoutId || '',
-          date: d.data().date || '',
-          actualDistance: d.data().actualDistance ?? undefined,
-          actualPace: d.data().actualPace ?? undefined,
-          effort: d.data().effort || 'easy',
-          comment: d.data().comment || '',
-          createdAt: d.data().createdAt?.toDate?.() || new Date(),
-        }))
+        const loadedLogs: WorkoutLog[] = snapshot.docs.map(d => mapDocToWorkoutLog(d, user.id))
         setLogs(loadedLogs)
       } catch (error) {
         console.error('Error loading logs:', error)
