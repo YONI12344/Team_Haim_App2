@@ -163,3 +163,16 @@ export interface MonthlyStats {
   workoutsCompleted: number
   prsAchieved: number
 }
+
+// Workout Log (submitted by athlete after completing a workout)
+export interface WorkoutLog {
+  id: string
+  athleteId: string
+  workoutId: string    // ID of the assigned workout
+  date: string         // ISO date string (scheduled date)
+  actualDistance?: number
+  actualPace?: string  // e.g. "5:30/km"
+  effort: 'easy' | 'medium' | 'hard'
+  comment: string
+  createdAt: Date
+}

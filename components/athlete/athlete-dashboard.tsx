@@ -72,7 +72,7 @@ export function AthleteDashboard() {
       {/* Header */}
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl md:text-3xl font-serif font-bold text-navy">
-          Welcome back, {profile.name.split(' ')[0]}
+          Welcome back, {(profile.name || 'Athlete').split(' ')[0]}
         </h1>
         <p className="text-muted-foreground">
           {format(new Date(), 'EEEE, MMMM d, yyyy')}

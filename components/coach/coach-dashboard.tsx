@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -14,15 +15,83 @@ import {
   ChevronRight,
   Activity,
   Check,
+  Loader2,
 } from 'lucide-react'
 import Link from 'next/link'
+import { collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
+import type { AthleteProfile, Workout, AssignedWorkout } from '@/lib/types'
 
 export function CoachDashboard() {
-  const athletes = mockAthletes
-  const workouts = mockWorkouts
+  const [athletes, setAthletes] = useState<AthleteProfile[]>([])
+  const [workouts, setWorkouts] = useState<Workout[]>([])
+  const [assignedWorkouts, setAssignedWorkouts] = useState<AssignedWorkout[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const loadData = async () => {
+      // Load athletes from Firestore
+      try {
+        const athletesSnap = await getDocs(
+          query(collection(db, 'users'), where('role', '==', 'athlete'))
+        )
+        if (!athletesSnap.empty) {
+          const firestoreAthletes = athletesSnap.docs.map(d => ({
+            ...d.data(),
+            id: d.id,
+          })) as AthleteProfile[]
+          setAthletes(firestoreAthletes)
+        } else {
+          setAthletes(mockAthletes)
+        }
+      } catch {
+        setAthletes(mockAthletes)
+      }
+
+      // Load workouts from Firestore
+      try {
+        const workoutsSnap = await getDocs(
+          query(collection(db, 'workouts'), orderBy('createdAt', 'desc'), limit(20))
+        )
+        if (!workoutsSnap.empty) {
+          const firestoreWorkouts = workoutsSnap.docs.map(d => ({
+            ...d.data(),
+            id: d.id,
+          })) as Workout[]
+          setWorkouts(firestoreWorkouts)
+        } else {
+          setWorkouts(mockWorkouts)
+        }
+      } catch {
+        setWorkouts(mockWorkouts)
+      }
+
+      // Load assigned workouts (use mock data as fallback)
+      try {
+        const assignedSnap = await getDocs(
+          query(collection(db, 'assignedWorkouts'), orderBy('scheduledDate', 'asc'))
+        )
+        if (!assignedSnap.empty) {
+          const firestoreAssigned = assignedSnap.docs.map(d => ({
+            ...d.data(),
+            id: d.id,
+          })) as AssignedWorkout[]
+          setAssignedWorkouts(firestoreAssigned)
+        } else {
+          setAssignedWorkouts(mockAssignedWorkouts)
+        }
+      } catch {
+        setAssignedWorkouts(mockAssignedWorkouts)
+      }
+
+      setLoading(false)
+    }
+
+    loadData()
+  }, [])
   
   // Get today's workouts across all athletes
-  const todaysWorkouts = mockAssignedWorkouts.filter(
+  const todaysWorkouts = assignedWorkouts.filter(
     w => isToday(parseISO(w.scheduledDate))
   )
 
@@ -30,13 +99,22 @@ export function CoachDashboard() {
   const completedToday = todaysWorkouts.filter(w => w.status === 'completed').length
   const pendingToday = todaysWorkouts.filter(w => w.status === 'scheduled').length
 
-  const getInitials = (name: string) => {
-    return name
+  const getInitials = (name: string | undefined | null) => {
+    const safeName = name || '?'
+    return safeName
       .split(' ')
-      .map((n) => n[0])
+      .map((n) => n[0] || '')
       .join('')
       .toUpperCase()
-      .slice(0, 2)
+      .slice(0, 2) || '?'
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-gold" />
+      </div>
+    )
   }
 
   return (
