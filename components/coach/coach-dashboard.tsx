@@ -18,9 +18,32 @@ import {
   Loader2,
 } from 'lucide-react'
 import Link from 'next/link'
-import { collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore'
+import { collection, getDocs, query, where, orderBy, limit, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import type { AthleteProfile, Workout, AssignedWorkout } from '@/lib/types'
+
+function mapDocToAthlete(d: QueryDocumentSnapshot<DocumentData>): AthleteProfile {
+  const data = d.data()
+  return {
+    id: d.id,
+    userId: data.userId || d.id,
+    name: data.name || '',
+    email: data.email || '',
+    photoURL: data.photoURL,
+    dateOfBirth: data.dateOfBirth,
+    gender: data.gender,
+    height: data.height,
+    weight: data.weight,
+    events: Array.isArray(data.events) ? data.events : [],
+    personalRecords: Array.isArray(data.personalRecords) ? data.personalRecords : [],
+    seasonBests: Array.isArray(data.seasonBests) ? data.seasonBests : [],
+    trainingPaces: Array.isArray(data.trainingPaces) ? data.trainingPaces : [],
+    goals: Array.isArray(data.goals) ? data.goals : [],
+    coachId: data.coachId,
+    createdAt: data.createdAt?.toDate?.() || new Date(),
+    updatedAt: data.updatedAt?.toDate?.() || new Date(),
+  }
+}
 
 export function CoachDashboard() {
   const [athletes, setAthletes] = useState<AthleteProfile[]>([])
@@ -36,10 +59,7 @@ export function CoachDashboard() {
           query(collection(db, 'users'), where('role', '==', 'athlete'))
         )
         if (!athletesSnap.empty) {
-          const firestoreAthletes = athletesSnap.docs.map(d => ({
-            ...d.data(),
-            id: d.id,
-          })) as AthleteProfile[]
+          const firestoreAthletes = athletesSnap.docs.map(mapDocToAthlete)
           setAthletes(firestoreAthletes)
         } else {
           setAthletes(mockAthletes)
