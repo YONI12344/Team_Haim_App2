@@ -44,7 +44,7 @@ export function ChatRoom({
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const messagesRef = ref(realtimeDb, `chats/${chatId}/messages`)
+    const messagesRef = ref(realtimeDb, `conversations/${chatId}/messages`)
     const messagesQuery = query(messagesRef, orderByChild("timestamp"), limitToLast(100))
 
     const unsubscribe = onValue(messagesQuery, (snapshot) => {
@@ -71,7 +71,7 @@ export function ChatRoom({
   const sendMessage = async () => {
     if (!newMessage.trim()) return
 
-    const messagesRef = ref(realtimeDb, `chats/${chatId}/messages`)
+    const messagesRef = ref(realtimeDb, `conversations/${chatId}/messages`)
     await push(messagesRef, {
       senderId: currentUserId,
       senderName: currentUserName,

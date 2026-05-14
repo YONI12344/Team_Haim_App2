@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,11 +13,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { ArrowLeft, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import type { WorkoutType, WorkoutSet } from '@/lib/types'
+import type { Workout, WorkoutType, WorkoutSet } from '@/lib/types'
+import {
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  serverTimestamp,
+  updateDoc,
+} from 'firebase/firestore'
+import { db } from '@/lib/firebase'
+import { useAuth } from '@/contexts/auth-context'
+import { isCoachEmail } from '@/lib/constants'
 
 const workoutTypes: { value: WorkoutType; label: string }[] = [
   { value: 'easy', label: 'Easy Run' },
@@ -34,8 +45,15 @@ const workoutTypes: { value: WorkoutType; label: string }[] = [
   { value: 'time_trial', label: 'Time Trial' },
 ]
 
-export function WorkoutBuilder() {
+interface WorkoutBuilderProps {
+  workoutId?: string
+}
+
+export function WorkoutBuilder({ workoutId }: WorkoutBuilderProps) {
   const router = useRouter()
+  const { user } = useAuth()
+  const isCoach = isCoachEmail(user?.email)
+
   const [title, setTitle] = useState('')
   const [type, setType] = useState<WorkoutType>('easy')
   const [description, setDescription] = useState('')
@@ -46,15 +64,50 @@ export function WorkoutBuilder() {
   const [notes, setNotes] = useState('')
   const [sets, setSets] = useState<Partial<WorkoutSet>[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [loading, setLoading] = useState(!!workoutId)
+
+  // Load existing workout when editing
+  useEffect(() => {
+    if (!workoutId) return
+    const load = async () => {
+      try {
+        const snap = await getDoc(doc(db, 'workouts', workoutId))
+        if (snap.exists()) {
+          const data = snap.data() as Workout
+          setTitle(data.title || '')
+          setType((data.type as WorkoutType) || 'easy')
+          setDescription(data.description || '')
+          setDuration(data.duration ? String(data.duration) : '')
+          setDistance(data.distance ? String(data.distance) : '')
+          setWarmup(data.warmup || '')
+          setCooldown(data.cooldown || '')
+          setNotes(data.notes || '')
+          setSets(Array.isArray(data.sets) ? data.sets : [])
+        } else {
+          toast.error('Workout not found')
+          router.push('/coach/workouts')
+        }
+      } catch (err) {
+        console.error('Error loading workout:', err)
+        toast.error('Failed to load workout')
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [workoutId, router])
 
   const addSet = () => {
-    setSets([...sets, { 
-      id: `set-${Date.now()}`,
-      reps: 1, 
-      distance: '', 
-      pace: '', 
-      rest: '' 
-    }])
+    setSets([
+      ...sets,
+      {
+        id: `set-${Date.now()}`,
+        reps: 1,
+        distance: '',
+        pace: '',
+        rest: '',
+      },
+    ])
   }
 
   const updateSet = (index: number, field: keyof WorkoutSet, value: string | number) => {
@@ -69,20 +122,66 @@ export function WorkoutBuilder() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!title.trim()) {
       toast.error('Please enter a workout title')
       return
     }
 
+    if (!isCoach) {
+      toast.error('Only the coach account can save workouts')
+      return
+    }
+
     setIsSubmitting(true)
-    
-    // In a real app, this would save to Firebase
-    // For now, we'll just show a success message
-    setTimeout(() => {
-      toast.success('Workout created successfully!')
+    try {
+      const payload = {
+        title: title.trim(),
+        type,
+        description: description.trim(),
+        duration: duration ? Number(duration) : null,
+        distance: distance ? Number(distance) : null,
+        warmup: warmup.trim() || null,
+        cooldown: cooldown.trim() || null,
+        notes: notes.trim() || null,
+        sets: sets.map((s, i) => ({
+          id: s.id || `set-${i}`,
+          reps: s.reps || 1,
+          distance: s.distance || '',
+          duration: s.duration || '',
+          pace: s.pace || '',
+          rest: s.rest || '',
+        })),
+        updatedAt: serverTimestamp(),
+        updatedBy: user?.id || null,
+      }
+
+      if (workoutId) {
+        await updateDoc(doc(db, 'workouts', workoutId), payload)
+        toast.success('Workout updated!')
+      } else {
+        await addDoc(collection(db, 'workouts'), {
+          ...payload,
+          createdAt: serverTimestamp(),
+          createdBy: user?.id || null,
+        })
+        toast.success('Workout created!')
+      }
       router.push('/coach/workouts')
-    }, 500)
+    } catch (err) {
+      console.error('Error saving workout:', err)
+      toast.error('Failed to save workout')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-gold" />
+      </div>
+    )
   }
 
   return (
@@ -98,10 +197,12 @@ export function WorkoutBuilder() {
       {/* Header */}
       <div>
         <h1 className="text-2xl md:text-3xl font-serif font-bold text-navy">
-          Create Workout
+          {workoutId ? 'Edit Workout' : 'Create Workout'}
         </h1>
         <p className="text-muted-foreground">
-          Build a new workout template for your athletes
+          {workoutId
+            ? 'Update this workout template'
+            : 'Build a new workout template for your athletes'}
         </p>
       </div>
 
@@ -245,7 +346,9 @@ export function WorkoutBuilder() {
                           type="number"
                           min="1"
                           value={set.reps || ''}
-                          onChange={(e) => updateSet(index, 'reps', parseInt(e.target.value) || 1)}
+                          onChange={(e) =>
+                            updateSet(index, 'reps', parseInt(e.target.value) || 1)
+                          }
                         />
                       </div>
                       <div className="space-y-2">
@@ -299,10 +402,16 @@ export function WorkoutBuilder() {
         <div className="flex gap-4">
           <Button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || !isCoach}
             className="bg-gold hover:bg-gold/90 text-navy"
           >
-            {isSubmitting ? 'Creating...' : 'Create Workout'}
+            {isSubmitting
+              ? workoutId
+                ? 'Updating...'
+                : 'Creating...'
+              : workoutId
+              ? 'Update Workout'
+              : 'Create Workout'}
           </Button>
           <Link href="/coach/workouts">
             <Button type="button" variant="outline">
@@ -310,6 +419,11 @@ export function WorkoutBuilder() {
             </Button>
           </Link>
         </div>
+        {!isCoach && (
+          <p className="text-sm text-destructive">
+            Only the coach account can save workouts.
+          </p>
+        )}
       </form>
     </div>
   )

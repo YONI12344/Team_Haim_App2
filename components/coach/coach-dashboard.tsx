@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { mockAthletes, mockAssignedWorkouts, mockWorkouts } from '@/lib/mock-data'
 import { format, isToday, parseISO } from 'date-fns'
 import { 
   Users, 
@@ -58,14 +57,10 @@ export function CoachDashboard() {
         const athletesSnap = await getDocs(
           query(collection(db, 'users'), where('role', '==', 'athlete'))
         )
-        if (!athletesSnap.empty) {
-          const firestoreAthletes = athletesSnap.docs.map(mapDocToAthlete)
-          setAthletes(firestoreAthletes)
-        } else {
-          setAthletes(mockAthletes)
-        }
-      } catch {
-        setAthletes(mockAthletes)
+        setAthletes(athletesSnap.docs.map(mapDocToAthlete))
+      } catch (err) {
+        console.error('Error loading athletes:', err)
+        setAthletes([])
       }
 
       // Load workouts from Firestore
@@ -73,35 +68,31 @@ export function CoachDashboard() {
         const workoutsSnap = await getDocs(
           query(collection(db, 'workouts'), orderBy('createdAt', 'desc'), limit(20))
         )
-        if (!workoutsSnap.empty) {
-          const firestoreWorkouts = workoutsSnap.docs.map(d => ({
-            ...d.data(),
+        setWorkouts(
+          workoutsSnap.docs.map((d) => ({
+            ...(d.data() as Workout),
             id: d.id,
-          })) as Workout[]
-          setWorkouts(firestoreWorkouts)
-        } else {
-          setWorkouts(mockWorkouts)
-        }
-      } catch {
-        setWorkouts(mockWorkouts)
+          })),
+        )
+      } catch (err) {
+        console.error('Error loading workouts:', err)
+        setWorkouts([])
       }
 
-      // Load assigned workouts (use mock data as fallback)
+      // Load assigned workouts
       try {
         const assignedSnap = await getDocs(
           query(collection(db, 'assignedWorkouts'), orderBy('scheduledDate', 'asc'))
         )
-        if (!assignedSnap.empty) {
-          const firestoreAssigned = assignedSnap.docs.map(d => ({
-            ...d.data(),
+        setAssignedWorkouts(
+          assignedSnap.docs.map((d) => ({
+            ...(d.data() as AssignedWorkout),
             id: d.id,
-          })) as AssignedWorkout[]
-          setAssignedWorkouts(firestoreAssigned)
-        } else {
-          setAssignedWorkouts(mockAssignedWorkouts)
-        }
-      } catch {
-        setAssignedWorkouts(mockAssignedWorkouts)
+          })),
+        )
+      } catch (err) {
+        console.error('Error loading assigned workouts:', err)
+        setAssignedWorkouts([])
       }
 
       setLoading(false)

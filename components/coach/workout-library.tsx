@@ -1,21 +1,45 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { mockWorkouts } from '@/lib/mock-data'
-import { 
-  Search, 
-  Plus, 
+import {
+  Search,
+  Plus,
   Clock,
   Activity,
   ChevronRight,
+  Pencil,
+  Trash2,
+  Loader2,
 } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
-import type { WorkoutType } from '@/lib/types'
+import type { Workout, WorkoutType } from '@/lib/types'
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  orderBy,
+  query,
+} from 'firebase/firestore'
+import { db } from '@/lib/firebase'
+import { useAuth } from '@/contexts/auth-context'
+import { isCoachEmail } from '@/lib/constants'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { toast } from 'sonner'
 
 const workoutTypeColors: Record<WorkoutType, string> = {
   easy: 'bg-emerald-100 text-emerald-700 border-emerald-200',
@@ -48,18 +72,73 @@ const workoutTypeLabels: Record<WorkoutType, string> = {
 }
 
 export function WorkoutLibrary() {
+  const { user } = useAuth()
+  const isCoach = isCoachEmail(user?.email)
+
   const [searchQuery, setSearchQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<WorkoutType | 'all'>('all')
-  const workouts = mockWorkouts
+  const [workouts, setWorkouts] = useState<Workout[]>([])
+  const [loading, setLoading] = useState(true)
+  const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
-  const filteredWorkouts = workouts.filter(workout => {
-    const matchesSearch = workout.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      workout.description.toLowerCase().includes(searchQuery.toLowerCase())
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true)
+      try {
+        const snap = await getDocs(
+          query(collection(db, 'workouts'), orderBy('createdAt', 'desc')),
+        )
+        setWorkouts(
+          snap.docs.map((d) => ({
+            ...(d.data() as Workout),
+            id: d.id,
+          })),
+        )
+      } catch (err) {
+        console.error('Error loading workouts:', err)
+        setWorkouts([])
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [])
+
+  const filteredWorkouts = workouts.filter((workout) => {
+    const matchesSearch =
+      (workout.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (workout.description || '').toLowerCase().includes(searchQuery.toLowerCase())
     const matchesType = typeFilter === 'all' || workout.type === typeFilter
     return matchesSearch && matchesType
   })
 
-  const workoutTypes: (WorkoutType | 'all')[] = ['all', 'easy', 'long_run', 'tempo', 'intervals', 'hill_repeats', 'fartlek', 'rest']
+  const workoutTypes: (WorkoutType | 'all')[] = [
+    'all',
+    'easy',
+    'long_run',
+    'tempo',
+    'intervals',
+    'hill_repeats',
+    'fartlek',
+    'rest',
+  ]
+
+  const handleDelete = async () => {
+    if (!deleteId) return
+    setDeleting(true)
+    try {
+      await deleteDoc(doc(db, 'workouts', deleteId))
+      setWorkouts((prev) => prev.filter((w) => w.id !== deleteId))
+      toast.success('Workout deleted')
+    } catch (err) {
+      console.error('Error deleting workout:', err)
+      toast.error('Failed to delete workout')
+    } finally {
+      setDeleting(false)
+      setDeleteId(null)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -73,12 +152,14 @@ export function WorkoutLibrary() {
             Create and manage your workout templates
           </p>
         </div>
-        <Link href="/coach/workouts/new">
-          <Button className="bg-gold hover:bg-gold/90 text-navy">
-            <Plus className="h-4 w-4 mr-2" />
-            Create Workout
-          </Button>
-        </Link>
+        {isCoach && (
+          <Link href="/coach/workouts/new">
+            <Button className="bg-gold hover:bg-gold/90 text-navy">
+              <Plus className="h-4 w-4 mr-2" />
+              Create Workout
+            </Button>
+          </Link>
+        )}
       </div>
 
       {/* Search and Filters */}
@@ -99,9 +180,7 @@ export function WorkoutLibrary() {
               variant="outline"
               size="sm"
               onClick={() => setTypeFilter(type)}
-              className={cn(
-                type === typeFilter && 'bg-gold/10 border-gold text-gold'
-              )}
+              className={cn(type === typeFilter && 'bg-gold/10 border-gold text-gold')}
             >
               {type === 'all' ? 'All' : workoutTypeLabels[type]}
             </Button>
@@ -109,69 +188,134 @@ export function WorkoutLibrary() {
         </div>
       </div>
 
-      {/* Workouts Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {filteredWorkouts.map((workout) => (
-          <Card key={workout.id} className="hover:shadow-md transition-luxury">
-            <CardHeader className="pb-2">
-              <div className="flex items-start justify-between">
-                <Badge className={cn('border', workoutTypeColors[workout.type])}>
-                  {workoutTypeLabels[workout.type]}
-                </Badge>
-              </div>
-              <CardTitle className="text-lg font-semibold text-navy mt-2">
-                {workout.title}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
-                {workout.description}
-              </p>
-              
-              <div className="flex flex-wrap gap-3 text-sm text-muted-foreground mb-4">
-                {workout.duration && (
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-4 w-4" />
-                    {workout.duration} min
-                  </span>
-                )}
-                {workout.distance && (
-                  <span className="flex items-center gap-1">
-                    <Activity className="h-4 w-4" />
-                    {workout.distance} km
-                  </span>
-                )}
-              </div>
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-gold" />
+        </div>
+      ) : (
+        <>
+          {/* Workouts Grid */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {filteredWorkouts.map((workout) => (
+              <Card key={workout.id} className="hover:shadow-md transition-luxury">
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between">
+                    <Badge className={cn('border', workoutTypeColors[workout.type])}>
+                      {workoutTypeLabels[workout.type]}
+                    </Badge>
+                    {isCoach && (
+                      <div className="flex items-center gap-1">
+                        <Link href={`/coach/workouts/${workout.id}/edit`}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            aria-label="Edit workout"
+                          >
+                            <Pencil className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        </Link>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => setDeleteId(workout.id)}
+                          aria-label="Delete workout"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  <CardTitle className="text-lg font-semibold text-navy mt-2">
+                    {workout.title}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
+                    {workout.description}
+                  </p>
 
-              {workout.sets && workout.sets.length > 0 && (
-                <div className="mb-4 p-3 rounded-lg bg-muted/50 text-sm">
-                  <span className="font-medium text-navy">
-                    {workout.sets[0].reps}x {workout.sets[0].distance || workout.sets[0].duration}
-                  </span>
-                  {workout.sets[0].pace && (
-                    <span className="text-muted-foreground ml-2">@ {workout.sets[0].pace}</span>
+                  <div className="flex flex-wrap gap-3 text-sm text-muted-foreground mb-4">
+                    {workout.duration && (
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-4 w-4" />
+                        {workout.duration} min
+                      </span>
+                    )}
+                    {workout.distance && (
+                      <span className="flex items-center gap-1">
+                        <Activity className="h-4 w-4" />
+                        {workout.distance} km
+                      </span>
+                    )}
+                  </div>
+
+                  {workout.sets && workout.sets.length > 0 && (
+                    <div className="mb-4 p-3 rounded-lg bg-muted/50 text-sm">
+                      <span className="font-medium text-navy">
+                        {workout.sets[0].reps}x{' '}
+                        {workout.sets[0].distance || workout.sets[0].duration}
+                      </span>
+                      {workout.sets[0].pace && (
+                        <span className="text-muted-foreground ml-2">
+                          @ {workout.sets[0].pace}
+                        </span>
+                      )}
+                    </div>
                   )}
-                </div>
-              )}
 
-              <Link href={`/coach/workouts/${workout.id}/assign`}>
-                <Button variant="outline" className="w-full text-gold hover:text-gold/80">
-                  Assign to Athlete
-                  <ChevronRight className="h-4 w-4 ml-1" />
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                  <Link href={`/coach/workouts/${workout.id}/assign`}>
+                    <Button variant="outline" className="w-full text-gold hover:text-gold/80">
+                      Assign to Athlete
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
 
-      {filteredWorkouts.length === 0 && (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">No workouts found matching your search.</p>
-          </CardContent>
-        </Card>
+          {filteredWorkouts.length === 0 && (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <p className="text-muted-foreground">
+                  {workouts.length === 0
+                    ? 'No workouts yet — create your first one.'
+                    : 'No workouts found matching your search.'}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </>
       )}
+
+      {/* Delete confirmation */}
+      <AlertDialog
+        open={!!deleteId}
+        onOpenChange={(open) => !open && setDeleteId(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this workout?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes the workout template from Firestore.
+              Existing assigned workouts that referenced it will keep their
+              embedded copy.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? 'Deleting…' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

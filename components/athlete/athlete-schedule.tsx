@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { mockAssignedWorkouts } from '@/lib/mock-data'
 import { 
   format, 
   startOfWeek, 
@@ -23,7 +22,7 @@ import {
 } from 'date-fns'
 import { ChevronLeft, ChevronRight, Clock, Activity, Check, X, CheckCircle2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { AssignedWorkout, WorkoutLog, WorkoutType } from '@/lib/types'
+import type { AssignedWorkout, Workout, WorkoutLog, WorkoutType } from '@/lib/types'
 import {
   Dialog,
   DialogContent,
@@ -34,6 +33,27 @@ import { WorkoutLogForm } from '@/components/athlete/workout-log-form'
 import { collection, getDocs, query, where, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/auth-context'
+
+function mapDocToAssignedWorkout(d: QueryDocumentSnapshot<DocumentData>): AssignedWorkout {
+  const data = d.data()
+  return {
+    id: d.id,
+    workoutId: data.workoutId || '',
+    workout: (data.workout || {}) as Workout,
+    athleteId: data.athleteId || '',
+    assignedBy: data.assignedBy || '',
+    scheduledDate: data.scheduledDate || '',
+    status: data.status || 'scheduled',
+    athleteNotes: data.athleteNotes,
+    coachFeedback: data.coachFeedback,
+    completedAt: data.completedAt?.toDate?.(),
+    actualDuration: data.actualDuration,
+    actualDistance: data.actualDistance,
+    perceivedEffort: data.perceivedEffort,
+    createdAt: data.createdAt?.toDate?.() || new Date(),
+    updatedAt: data.updatedAt?.toDate?.() || new Date(),
+  }
+}
 
 function mapDocToWorkoutLog(d: QueryDocumentSnapshot<DocumentData>, fallbackAthleteId: string): WorkoutLog {
   const data = d.data()
@@ -88,6 +108,26 @@ export function AthleteSchedule() {
   const [viewMode, setViewMode] = useState<ViewMode>('week')
   const [selectedWorkout, setSelectedWorkout] = useState<AssignedWorkout | null>(null)
   const [logs, setLogs] = useState<WorkoutLog[]>([])
+  const [assigned, setAssigned] = useState<AssignedWorkout[]>([])
+
+  // Load assigned workouts for current athlete
+  useEffect(() => {
+    if (!user?.id) return
+    const loadAssigned = async () => {
+      try {
+        const q = query(
+          collection(db, 'assignedWorkouts'),
+          where('athleteId', '==', user.id),
+        )
+        const snap = await getDocs(q)
+        setAssigned(snap.docs.map(mapDocToAssignedWorkout))
+      } catch (error) {
+        console.error('Error loading assigned workouts:', error)
+        setAssigned([])
+      }
+    }
+    loadAssigned()
+  }, [user?.id])
 
   // Load all logs for current athlete
   useEffect(() => {
@@ -131,8 +171,8 @@ export function AthleteSchedule() {
   }
 
   const getWorkoutForDate = (date: Date): AssignedWorkout | undefined => {
-    return mockAssignedWorkouts.find(w => 
-      isSameDay(parseISO(w.scheduledDate), date)
+    return assigned.find(w => 
+      w.scheduledDate && isSameDay(parseISO(w.scheduledDate), date)
     )
   }
 

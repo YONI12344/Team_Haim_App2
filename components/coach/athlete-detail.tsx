@@ -6,8 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { mockAthletes, mockAssignedWorkouts, mockWeeklyStats } from '@/lib/mock-data'
-import { format, parseISO } from 'date-fns'
+import { format, parseISO, startOfWeek } from 'date-fns'
 import { 
   ArrowLeft, 
   Trophy,
@@ -18,6 +17,7 @@ import {
   Award,
   Activity,
   MessageCircle,
+  Loader2,
 } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
@@ -30,8 +30,8 @@ import {
   Tooltip, 
   ResponsiveContainer 
 } from 'recharts'
-import type { WorkoutType, WorkoutLog } from '@/lib/types'
-import { collection, getDocs, query, where, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore'
+import type { AssignedWorkout, AthleteProfile, Workout, WorkoutType, WorkoutLog } from '@/lib/types'
+import { collection, doc, getDoc, getDocs, query, where, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 
 function mapDocToWorkoutLog(d: QueryDocumentSnapshot<DocumentData>, fallbackAthleteId: string): WorkoutLog {
@@ -46,6 +46,27 @@ function mapDocToWorkoutLog(d: QueryDocumentSnapshot<DocumentData>, fallbackAthl
     effort: data.effort || 'easy',
     comment: data.comment || '',
     createdAt: data.createdAt?.toDate?.() || new Date(),
+  }
+}
+
+function mapDocToAssignedWorkout(d: QueryDocumentSnapshot<DocumentData>): AssignedWorkout {
+  const data = d.data()
+  return {
+    id: d.id,
+    workoutId: data.workoutId || '',
+    workout: (data.workout || {}) as Workout,
+    athleteId: data.athleteId || '',
+    assignedBy: data.assignedBy || '',
+    scheduledDate: data.scheduledDate || '',
+    status: data.status || 'scheduled',
+    athleteNotes: data.athleteNotes,
+    coachFeedback: data.coachFeedback,
+    completedAt: data.completedAt?.toDate?.(),
+    actualDuration: data.actualDuration,
+    actualDistance: data.actualDistance,
+    perceivedEffort: data.perceivedEffort,
+    createdAt: data.createdAt?.toDate?.() || new Date(),
+    updatedAt: data.updatedAt?.toDate?.() || new Date(),
   }
 }
 
@@ -84,29 +105,86 @@ interface AthleteDetailProps {
 }
 
 export function AthleteDetail({ athleteId }: AthleteDetailProps) {
-  const athlete = mockAthletes.find(a => a.id === athleteId) || mockAthletes[0]
-  const athleteWorkouts = mockAssignedWorkouts.filter(w => w.athleteId === athleteId || w.athleteId === 'athlete-1')
-  const weeklyStats = mockWeeklyStats
+  const [athlete, setAthlete] = useState<AthleteProfile | null>(null)
+  const [athleteWorkouts, setAthleteWorkouts] = useState<AssignedWorkout[]>([])
   const [logs, setLogs] = useState<WorkoutLog[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const loadLogs = async () => {
+    const load = async () => {
+      setLoading(true)
+      try {
+        const profileSnap = await getDoc(doc(db, 'users', athleteId))
+        if (profileSnap.exists()) {
+          const data = profileSnap.data()
+          setAthlete({
+            id: profileSnap.id,
+            userId: data.userId || profileSnap.id,
+            name: data.name || data.email || 'Athlete',
+            email: data.email || '',
+            photoURL: data.photoURL,
+            dateOfBirth: data.dateOfBirth,
+            gender: data.gender,
+            height: data.height,
+            weight: data.weight,
+            events: Array.isArray(data.events) ? data.events : [],
+            personalRecords: Array.isArray(data.personalRecords) ? data.personalRecords : [],
+            seasonBests: Array.isArray(data.seasonBests) ? data.seasonBests : [],
+            trainingPaces: Array.isArray(data.trainingPaces) ? data.trainingPaces : [],
+            goals: Array.isArray(data.goals) ? data.goals : [],
+            coachId: data.coachId,
+            createdAt: data.createdAt?.toDate?.() || new Date(),
+            updatedAt: data.updatedAt?.toDate?.() || new Date(),
+          })
+        } else {
+          setAthlete(null)
+        }
+      } catch (err) {
+        console.error('Error loading athlete:', err)
+        setAthlete(null)
+      }
+
+      try {
+        const aw = await getDocs(
+          query(collection(db, 'assignedWorkouts'), where('athleteId', '==', athleteId)),
+        )
+        setAthleteWorkouts(aw.docs.map(mapDocToAssignedWorkout))
+      } catch (err) {
+        console.error('Error loading assigned workouts:', err)
+        setAthleteWorkouts([])
+      }
+
       try {
         const q = query(collection(db, 'logs'), where('athleteId', '==', athleteId))
         const snapshot = await getDocs(q)
-        const loadedLogs: WorkoutLog[] = snapshot.docs.map(d => mapDocToWorkoutLog(d, athleteId))
-        setLogs(loadedLogs)
+        setLogs(snapshot.docs.map((d) => mapDocToWorkoutLog(d, athleteId)))
       } catch (error) {
         console.error('Error loading athlete logs:', error)
         setLogs([])
       }
+
+      setLoading(false)
     }
-    loadLogs()
+    load()
   }, [athleteId])
 
   const getLogForWorkout = (workoutId: string): WorkoutLog | undefined => {
     return logs.find(l => l.workoutId === workoutId)
   }
+
+  // Aggregate weekly distance from logs for the progress chart
+  const weeklyStats = (() => {
+    const map = new Map<string, { week: string; totalDistance: number }>()
+    for (const log of logs) {
+      if (!log.date) continue
+      const start = startOfWeek(parseISO(log.date), { weekStartsOn: 1 })
+      const key = start.toISOString().slice(0, 10)
+      const cur = map.get(key) || { week: format(start, 'MMM d'), totalDistance: 0 }
+      cur.totalDistance += log.actualDistance || 0
+      map.set(key, cur)
+    }
+    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([, v]) => v)
+  })()
 
   const getInitials = (name: string | undefined | null) => {
     const safeName = name || '?'
@@ -116,6 +194,32 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
       .join('')
       .toUpperCase()
       .slice(0, 2) || '?'
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-gold" />
+      </div>
+    )
+  }
+
+  if (!athlete) {
+    return (
+      <div className="space-y-6">
+        <Link href="/coach/athletes">
+          <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Athletes
+          </Button>
+        </Link>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-muted-foreground">Athlete not found.</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (

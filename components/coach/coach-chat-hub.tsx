@@ -1,20 +1,21 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { ref, onValue, query, orderByChild, limitToLast } from "firebase/database"
-import { realtimeDb } from "@/lib/firebase"
+import { realtimeDb, db } from "@/lib/firebase"
+import { collection, getDocs, query as fsQuery, where } from "firebase/firestore"
 import { Card } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { MessageSquare, Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
-import { mockAthletes } from "@/lib/mock-data"
+import { conversationId } from "@/lib/coach"
 
 interface ChatPreview {
-  odatId: string
-  odatName: string
-  odatAvatar?: string
+  athleteId: string
+  athleteName: string
+  athleteAvatar?: string
   lastMessage?: string
   lastMessageTime?: number
   unreadCount: number
@@ -30,46 +31,61 @@ export function CoachChatHub({ coachId }: CoachChatHubProps) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Initialize chat previews with all athletes
-    const previews: ChatPreview[] = mockAthletes.map((athlete) => ({
-      odatId: athlete.id,
-      odatName: athlete.name,
-      odatAvatar: athlete.avatar,
-      unreadCount: 0,
-    }))
-
-    // Listen for chat updates for each athlete
+    if (!coachId) return
     const unsubscribes: (() => void)[] = []
 
-    mockAthletes.forEach((athlete, index) => {
-      const chatId = `coach-${coachId}-athlete-${athlete.id}`
-      const messagesRef = ref(realtimeDb, `chats/${chatId}/messages`)
-      const messagesQuery = query(messagesRef, orderByChild("timestamp"), limitToLast(1))
+    const load = async () => {
+      try {
+        const snap = await getDocs(
+          fsQuery(collection(db, "users"), where("role", "==", "athlete")),
+        )
+        const previews: ChatPreview[] = snap.docs.map((d) => {
+          const data = d.data()
+          return {
+            athleteId: d.id,
+            athleteName: data.name || data.email || "Athlete",
+            athleteAvatar: data.photoURL,
+            unreadCount: 0,
+          }
+        })
+        setChatPreviews(previews)
 
-      const unsubscribe = onValue(messagesQuery, (snapshot) => {
-        const data = snapshot.val()
-        if (data) {
-          const lastMsg = Object.values(data)[0] as any
-          setChatPreviews((prev) => {
-            const updated = [...prev]
-            const idx = updated.findIndex((p) => p.odatId === athlete.id)
-            if (idx !== -1) {
-              updated[idx] = {
-                ...updated[idx],
-                lastMessage: lastMsg.content,
-                lastMessageTime: lastMsg.timestamp,
-              }
+        // Listen for last message per conversation
+        previews.forEach((preview) => {
+          const cid = conversationId(coachId, preview.athleteId)
+          const messagesRef = ref(realtimeDb, `conversations/${cid}/messages`)
+          const messagesQuery = query(messagesRef, orderByChild("timestamp"), limitToLast(1))
+
+          const unsubscribe = onValue(messagesQuery, (snapshot) => {
+            const data = snapshot.val()
+            if (!data) return
+            const lastMsg = Object.values(data)[0] as {
+              content?: string
+              timestamp?: number
             }
-            return updated
+            setChatPreviews((prev) =>
+              prev.map((p) =>
+                p.athleteId === preview.athleteId
+                  ? {
+                      ...p,
+                      lastMessage: lastMsg.content,
+                      lastMessageTime: lastMsg.timestamp,
+                    }
+                  : p,
+              ),
+            )
           })
-        }
-      })
 
-      unsubscribes.push(unsubscribe)
-    })
+          unsubscribes.push(unsubscribe)
+        })
+      } catch (err) {
+        console.error("Error loading chat previews:", err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
 
-    setChatPreviews(previews)
-    setIsLoading(false)
+    load()
 
     return () => {
       unsubscribes.forEach((unsub) => unsub())
@@ -77,7 +93,7 @@ export function CoachChatHub({ coachId }: CoachChatHubProps) {
   }, [coachId])
 
   const filteredPreviews = chatPreviews.filter((chat) =>
-    chat.odatName.toLowerCase().includes(searchQuery.toLowerCase())
+    chat.athleteName.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
   const sortedPreviews = [...filteredPreviews].sort((a, b) => {
@@ -86,7 +102,7 @@ export function CoachChatHub({ coachId }: CoachChatHubProps) {
     }
     if (a.lastMessageTime) return -1
     if (b.lastMessageTime) return 1
-    return a.odatName.localeCompare(b.odatName)
+    return a.athleteName.localeCompare(b.athleteName)
   })
 
   const formatTime = (timestamp?: number) => {
@@ -138,24 +154,31 @@ export function CoachChatHub({ coachId }: CoachChatHubProps) {
           </div>
           <h3 className="font-semibold text-foreground mb-1">No conversations found</h3>
           <p className="text-sm text-muted-foreground">
-            {searchQuery ? "Try a different search term" : "Start chatting with your athletes"}
+            {searchQuery
+              ? "Try a different search term"
+              : "Athletes will appear here when they sign up"}
           </p>
         </Card>
       ) : (
         <div className="space-y-2">
           {sortedPreviews.map((chat) => (
-            <Link key={chat.odatId} href={`/coach/chat/${chat.odatId}`}>
+            <Link key={chat.athleteId} href={`/coach/chat/${chat.athleteId}`}>
               <Card className="p-4 bg-card border-border hover:bg-accent/50 transition-colors cursor-pointer">
                 <div className="flex items-center gap-4">
                   <Avatar className="h-12 w-12 ring-2 ring-primary/20">
-                    <AvatarImage src={chat.odatAvatar} />
+                    <AvatarImage src={chat.athleteAvatar} />
                     <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                      {chat.odatName.split(" ").map(n => n[0]).join("")}
+                      {chat.athleteName
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <h3 className="font-semibold text-foreground truncate">{chat.odatName}</h3>
+                      <h3 className="font-semibold text-foreground truncate">
+                        {chat.athleteName}
+                      </h3>
                       {chat.lastMessageTime && (
                         <span className="text-xs text-muted-foreground whitespace-nowrap">
                           {formatTime(chat.lastMessageTime)}
