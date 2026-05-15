@@ -20,5 +20,14 @@ service cloud.firestore {
     match /messages/{messageId} {
       allow read, write: if request.auth != null;
     }
+    // Goals: athletes manage their own; coaches can read/write all.
+    match /goals/{goalId} {
+      allow read, write: if request.auth != null;
+    }
+    // Google Sheets sync settings - coach-only write, signed-in read.
+    match /settings/googleSheets {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.token.email == 'info.teamhaim@gmail.com';
+    }
   }
 }
