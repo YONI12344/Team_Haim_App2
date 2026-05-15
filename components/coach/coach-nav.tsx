@@ -23,6 +23,7 @@ import {
   LogOut,
   ChevronDown,
   User,
+  Settings,
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -31,6 +32,7 @@ const coachNavItems = [
   { href: '/coach/athletes', label: 'Athletes', icon: Users },
   { href: '/coach/workouts', label: 'Workouts', icon: Dumbbell },
   { href: '/coach/chat', label: 'Chat', icon: MessageCircle },
+  { href: '/coach/settings', label: 'Settings', icon: Settings },
 ]
 
 export function CoachNav() {

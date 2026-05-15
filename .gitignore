@@ -17,6 +17,14 @@ node_modules
 # TypeScript build cache
 *.tsbuildinfo
 
-# Use pnpm; ignore other lockfiles
-package-lock.json
+# Use pnpm; ignore other lockfiles (functions/ uses npm and ships its own lockfile)
+/package-lock.json
 yarn.lock
+
+# Firebase Cloud Functions build output
+functions/lib/
+functions/node_modules/
+
+# Firebase tooling
+.firebase/
+firebase-debug.log
