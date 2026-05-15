@@ -20,7 +20,7 @@
  *   - GOOGLE_PRIVATE_KEY  (with literal "\n" sequences for newlines)
  */
 
-import * as functions from 'firebase-functions'
+import * as functions from 'firebase-functions/v1'
 import * as admin from 'firebase-admin'
 import {google, sheets_v4} from 'googleapis'
 
