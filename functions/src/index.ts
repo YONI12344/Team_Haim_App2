@@ -116,6 +116,108 @@ export const syncAllAthletesNow = functions.https.onCall(async (_data, context) 
   return {total: athleteIds.length, succeeded, errors}
 })
 
+/**
+ * Manual test trigger for the Google Sheets sync.
+ *
+ * Callable from the client (or `firebase functions:shell`) with:
+ *   - `{ athleteId: "<id>" }` to sync a single athlete, or
+ *   - `{}` to sync every athlete.
+ *
+ * Emits clearly-tagged INFO / ERROR logs at every step so you can confirm in
+ * the Firebase console (Functions > Logs) whether the sync succeeded or
+ * failed, and how long it took.
+ */
+export const testSheetsSync = functions.https.onCall(async (data, context) => {
+  const startedAt = Date.now()
+  const callerUid = context.auth?.uid ?? 'anonymous'
+  const requestedAthleteId =
+    typeof data?.athleteId === 'string' && data.athleteId.trim() ?
+      data.athleteId.trim() :
+      null
+
+  functions.logger.info(
+    '[testSheetsSync] START',
+    {caller: callerUid, athleteId: requestedAthleteId ?? 'ALL'}
+  )
+
+  if (!context.auth) {
+    functions.logger.error(
+      '[testSheetsSync] FAILED - unauthenticated caller'
+    )
+    throw new functions.https.HttpsError(
+      'unauthenticated',
+      'Must be signed in to trigger a test sync.'
+    )
+  }
+
+  // Verify the master sheet is configured up-front so we can log it clearly.
+  const settingsSnap = await db.doc(SETTINGS_DOC).get()
+  const spreadsheetId = settingsSnap.exists ?
+    (settingsSnap.data()?.sheetId as string | undefined) :
+    undefined
+  if (!spreadsheetId) {
+    functions.logger.error(
+      '[testSheetsSync] FAILED - no master sheet ID configured in settings/googleSheets'
+    )
+    throw new functions.https.HttpsError(
+      'failed-precondition',
+      'No master Google Sheet ID is configured. Save one in coach settings first.'
+    )
+  }
+  functions.logger.info('[testSheetsSync] using spreadsheet', {spreadsheetId})
+
+  // Build the list of athletes to sync.
+  let athleteIds: string[]
+  if (requestedAthleteId) {
+    athleteIds = [requestedAthleteId]
+  } else {
+    const usersSnap = await db.collection('users').get()
+    athleteIds = usersSnap.docs
+      .filter((d) => {
+        const role = d.data().role
+        return !role || role === 'athlete'
+      })
+      .map((d) => d.id)
+  }
+
+  let succeeded = 0
+  const errors: Array<{athleteId: string; message: string}> = []
+  for (const id of athleteIds) {
+    try {
+      await syncAthleteToSheet(id)
+      succeeded++
+      functions.logger.info('[testSheetsSync] athlete OK', {athleteId: id})
+    } catch (err) {
+      const message = (err as Error)?.message ?? String(err)
+      errors.push({athleteId: id, message})
+      functions.logger.error(
+        '[testSheetsSync] athlete FAILED',
+        {athleteId: id, message, err}
+      )
+    }
+  }
+
+  const durationMs = Date.now() - startedAt
+  const ok = errors.length === 0
+  const result = {
+    ok,
+    total: athleteIds.length,
+    succeeded,
+    failed: errors.length,
+    errors,
+    durationMs,
+    spreadsheetId,
+  }
+
+  if (ok) {
+    functions.logger.info('[testSheetsSync] SUCCESS', result)
+  } else {
+    functions.logger.error('[testSheetsSync] COMPLETED WITH ERRORS', result)
+  }
+
+  return result
+})
+
 // ---------------------------------------------------------------------------
 // Sync implementation
 // ---------------------------------------------------------------------------
@@ -124,6 +226,9 @@ export const syncAllAthletesNow = functions.https.onCall(async (_data, context) 
 async function safeSync(athleteId: string, source: string): Promise<void> {
   try {
     await syncAthleteToSheet(athleteId)
+    functions.logger.info(
+      `Google Sheets sync OK (source=${source}, athlete=${athleteId})`
+    )
   } catch (err) {
     functions.logger.error(
       `Google Sheets sync failed (source=${source}, athlete=${athleteId})`,
@@ -176,6 +281,9 @@ const WORKOUT_COLORS: Record<string, {red: number; green: number; blue: number}>
 
 export async function syncAthleteToSheet(athleteId: string): Promise<void> {
   if (!athleteId) return
+
+  const startedAt = Date.now()
+  functions.logger.info(`[syncAthleteToSheet] start athlete=${athleteId}`)
 
   const settingsSnap = await db.doc(SETTINGS_DOC).get()
   const spreadsheetId = settingsSnap.exists ?
@@ -327,6 +435,11 @@ export async function syncAthleteToSheet(athleteId: string): Promise<void> {
       lastSyncAthleteId: athleteId,
     },
     {merge: true}
+  )
+
+  functions.logger.info(
+    `[syncAthleteToSheet] done athlete=${athleteId} rows=${rows.length} ` +
+    `durationMs=${Date.now() - startedAt}`
   )
 }
 
