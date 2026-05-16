@@ -462,6 +462,19 @@ export function AthleteProfile() {
                     <Camera className="h-6 w-6" />
                   )}
                 </span>
+                <input
+                  id="profile-photo-input"
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  disabled={uploadingPhoto}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    if (f) handlePhotoSelect(f)
+                    e.target.value = ''
+                  }}
+                />
               </label>
 
               {avatarUrl && !uploadingPhoto && (
@@ -484,20 +497,6 @@ export function AthleteProfile() {
                   <X className="h-3.5 w-3.5" />
                 </Button>
               )}
-
-              <input
-                id="profile-photo-input"
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="sr-only"
-                disabled={uploadingPhoto}
-                onChange={(e) => {
-                  const f = e.target.files?.[0]
-                  if (f) handlePhotoSelect(f)
-                  e.target.value = ''
-                }}
-              />
             </div>
 
             <div className="flex-1 space-y-4 w-full">
