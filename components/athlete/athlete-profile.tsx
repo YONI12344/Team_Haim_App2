@@ -31,9 +31,10 @@ import {
   Camera,
   X,
   Heart,
+  Download,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, query, setDoc, serverTimestamp, where } from 'firebase/firestore'
 import {
   ref as storageRef,
   uploadBytes,
@@ -50,7 +51,19 @@ import type {
   PersonalRecord,
   TrainingPace,
   Goal,
+  WorkoutLog,
+  AssignedWorkout,
+  Workout,
 } from '@/lib/types'
+import { legacyEffortToNumber } from '@/lib/types'
+import { listJourneys } from '@/lib/journey'
+import {
+  buildAthleteWorkbook,
+  setWorkbookProperties,
+  downloadWorkbook,
+  athleteFilename,
+  type ExportAthleteData,
+} from '@/lib/export'
 import { TrainingZonesCard } from './training-zones-card'
 import { PaceEditor, RecordEditor } from './profile-editors'
 
@@ -102,6 +115,7 @@ export function AthleteProfile() {
   const { user, firebaseUser } = useAuth()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [hasProfile, setHasProfile] = useState(false)
   const [editing, setEditing] = useState(false)
   const [photoURL, setPhotoURL] = useState<string | undefined>(undefined)
@@ -372,6 +386,112 @@ export function AthleteProfile() {
       .toUpperCase()
       .slice(0, 2) || '?'
 
+  const handleExport = async () => {
+    if (!user?.id) return
+    setExporting(true)
+    try {
+      // Fetch workout logs
+      let workoutLogs: ExportAthleteData['workoutLogs'] = []
+      try {
+        const logsSnap = await getDocs(
+          query(collection(db, 'logs'), where('athleteId', '==', user.id)),
+        )
+        workoutLogs = logsSnap.docs.map((d) => {
+          const data = d.data()
+          const aw = data as { date?: string; workoutTitle?: string; actualDistance?: number; actualPace?: string; effort?: 'easy' | 'medium' | 'hard' | number | undefined | null; comment?: string }
+          return {
+            date: aw.date || '',
+            workoutTitle: aw.workoutTitle || '',
+            distance: aw.actualDistance,
+            pace: aw.actualPace,
+            effort: legacyEffortToNumber(aw.effort),
+            comment: aw.comment || '',
+          }
+        })
+      } catch { /* ignore */ }
+
+      // Fetch assigned workouts
+      let assignedWorkouts: ExportAthleteData['assignedWorkouts'] = []
+      try {
+        const awSnap = await getDocs(
+          query(collection(db, 'assignedWorkouts'), where('athleteId', '==', user.id)),
+        )
+        assignedWorkouts = awSnap.docs.map((d) => {
+          const data = d.data() as {
+            scheduledDate?: string
+            workout?: Workout
+            status?: string
+            coachFeedback?: string
+          }
+          const w = (data.workout || {}) as Workout
+          return {
+            date: data.scheduledDate || '',
+            workoutTitle: w.title || '',
+            type: w.type || '',
+            status: data.status || '',
+            duration: w.duration,
+            distance: w.distance,
+            coachFeedback: data.coachFeedback || '',
+          }
+        })
+      } catch { /* ignore */ }
+
+      // Fetch journey stages
+      let journeyStages: ExportAthleteData['journeyStages'] = []
+      try {
+        const journeys = await listJourneys(user.id)
+        journeyStages = journeys.flatMap((j) =>
+          j.stages.map((s) => ({
+            stageName: s.name,
+            type: s.type,
+            startDate: s.startDate,
+            endDate: s.endDate,
+            focus: s.focus,
+            weeklyVolumeKm: s.weeklyVolumeKm,
+            keyWorkouts: s.keyWorkouts?.join('; ') || '',
+            milestones: s.milestones?.join('; ') || '',
+          })),
+        )
+      } catch { /* ignore */ }
+
+      const exportData: ExportAthleteData = {
+        name: form.name || user.name || 'Athlete',
+        email: user.email || '',
+        dateOfBirth: form.dateOfBirth || undefined,
+        gender: form.gender || undefined,
+        height: form.height ? Number(form.height) : undefined,
+        weight: form.weight ? Number(form.weight) : undefined,
+        discipline: form.discipline,
+        events: form.events.split(',').map((e) => e.trim()).filter(Boolean),
+        experienceLevel: form.experienceLevel || undefined,
+        weeklyMileage: form.weeklyMileage ? Number(form.weeklyMileage) : undefined,
+        restingHR: form.restingHR ? Number(form.restingHR) : undefined,
+        maxHR: form.maxHR ? Number(form.maxHR) : undefined,
+        goalRaceEvent: form.goalRaceEvent || undefined,
+        goalRaceDate: form.goalRaceDate || undefined,
+        goalRaceTarget: form.goalRaceTarget || undefined,
+        personalRecords,
+        seasonBests,
+        trainingPaces,
+        goals,
+        workoutLogs,
+        assignedWorkouts,
+        journeyStages,
+      }
+
+      const wb = buildAthleteWorkbook(exportData)
+      setWorkbookProperties(wb, exportData.name)
+      const filename = athleteFilename(exportData.name)
+      downloadWorkbook(wb, filename)
+      toast.success(`Exported ${filename}`)
+    } catch (err) {
+      console.error('Export error:', err)
+      toast.error('Export failed. Please try again.')
+    } finally {
+      setExporting(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -400,12 +520,27 @@ export function AthleteProfile() {
           </p>
         </div>
         {!editing ? (
-          <Button
-            onClick={() => setEditing(true)}
-            className="bg-gold hover:bg-gold/90 text-navy"
-          >
-            {hasProfile ? 'Edit Profile' : 'Complete your profile'}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleExport}
+              disabled={exporting}
+              className="border-gold/40 text-navy hover:border-gold"
+            >
+              {exporting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4 mr-2" />
+              )}
+              {exporting ? 'Generating…' : 'Export my data'}
+            </Button>
+            <Button
+              onClick={() => setEditing(true)}
+              className="bg-gold hover:bg-gold/90 text-navy"
+            >
+              {hasProfile ? 'Edit Profile' : 'Complete your profile'}
+            </Button>
+          </div>
         ) : null}
       </div>
 
