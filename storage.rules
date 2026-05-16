@@ -1,0 +1,29 @@
+rules_version = '2';
+// Storage rules for Team Haim. Deploy via:
+//   firebase deploy --only storage
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Profile photos: each athlete may upload only their own.
+    // Any signed-in user may read (avatars are not private).
+    match /profilePhotos/{userId}/{file=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+    // Single-file variant (e.g. profilePhotos/{uid}.jpg).
+    match /profilePhotos/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && fileName.matches(request.auth.uid + '\\..*')
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+    // Coach can manage any profile photo.
+    match /profilePhotos/{path=**} {
+      allow write: if request.auth != null
+        && request.auth.token.email == 'info.teamhaim@gmail.com';
+    }
+  }
+}

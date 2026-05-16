@@ -31,8 +31,11 @@ import {
   ResponsiveContainer 
 } from 'recharts'
 import type { AssignedWorkout, AthleteProfile, Workout, WorkoutType, WorkoutLog } from '@/lib/types'
-import { collection, doc, getDoc, getDocs, query, where, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore'
+import { 
+  collection, doc, getDoc, getDocs, query, where, DocumentData, QueryDocumentSnapshot,
+} from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+import { TrainingZonesCard } from '@/components/athlete/training-zones-card'
 
 function mapDocToWorkoutLog(d: QueryDocumentSnapshot<DocumentData>, fallbackAthleteId: string): WorkoutLog {
   const data = d.data()
@@ -128,6 +131,14 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
             height: data.height,
             weight: data.weight,
             events: Array.isArray(data.events) ? data.events : [],
+            discipline: Array.isArray(data.discipline) ? data.discipline : undefined,
+            experienceLevel: data.experienceLevel,
+            weeklyMileage: data.weeklyMileage,
+            restingHR: data.restingHR,
+            maxHR: data.maxHR,
+            goalRaceEvent: data.goalRaceEvent,
+            goalRaceDate: data.goalRaceDate,
+            goalRaceTarget: data.goalRaceTarget,
             personalRecords: Array.isArray(data.personalRecords) ? data.personalRecords : [],
             seasonBests: Array.isArray(data.seasonBests) ? data.seasonBests : [],
             trainingPaces: Array.isArray(data.trainingPaces) ? data.trainingPaces : [],
@@ -252,6 +263,11 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
                   <p className="text-muted-foreground">{athlete.email}</p>
                 </div>
                 <div className="flex gap-2">
+                  <Link href={`/coach/athletes/${athleteId}/journey`}>
+                    <Button variant="outline" className="border-coral/40 text-coral hover:bg-coral-light">
+                      Journey
+                    </Button>
+                  </Link>
                   <Link href={`/coach/athletes/${athleteId}/assign`}>
                     <Button className="bg-gold hover:bg-gold/90 text-navy">
                       Assign Workout
@@ -303,6 +319,14 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Training zones (coach view shows formula) */}
+      <TrainingZonesCard
+        personalRecords={athlete.personalRecords}
+        restingHR={athlete.restingHR}
+        maxHR={athlete.maxHR}
+        showFormula
+      />
 
       {/* Tabs */}
       <Tabs defaultValue="schedule" className="space-y-6">

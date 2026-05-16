@@ -12,6 +12,12 @@ export interface User {
   updatedAt: Date
 }
 
+// Discipline / running style
+export type Discipline = 'track' | 'road' | 'jogger' | 'trail' | 'mixed'
+
+// Experience level
+export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced' | 'professional'
+
 // Athlete profile with detailed info
 export interface AthleteProfile {
   id: string
@@ -23,7 +29,15 @@ export interface AthleteProfile {
   gender?: 'male' | 'female' | 'other'
   height?: number // in cm
   weight?: number // in kg
+  discipline?: Discipline[]
   events: string[] // e.g., ['100m', '200m', '400m']
+  experienceLevel?: ExperienceLevel
+  weeklyMileage?: number // km / week
+  restingHR?: number // bpm
+  maxHR?: number // bpm
+  goalRaceDate?: string // ISO date
+  goalRaceEvent?: string
+  goalRaceTarget?: string // free-text target time
   personalRecords: PersonalRecord[]
   seasonBests: PersonalRecord[]
   trainingPaces: TrainingPace[]
@@ -162,6 +176,43 @@ export interface MonthlyStats {
   totalDuration: number
   workoutsCompleted: number
   prsAchieved: number
+}
+
+// --- Season Journey ---
+
+export type JourneyStageType =
+  | 'base'
+  | 'build'
+  | 'peak'
+  | 'taper'
+  | 'race_week'
+  | 'recovery'
+  | 'custom'
+
+export interface JourneyStage {
+  id: string
+  name: string
+  type: JourneyStageType
+  startDate: string // ISO date
+  endDate: string // ISO date
+  focus: string
+  weeklyVolumeKm?: number
+  keyWorkouts: string[]
+  milestones?: string[]
+  notes?: string
+}
+
+export interface JourneyDoc {
+  id: string
+  title: string
+  goalRaceEvent: string
+  goalRaceDate: string // ISO date
+  goalRaceTarget?: string
+  startDate: string // ISO date
+  stages: JourneyStage[]
+  createdBy: string // uid
+  createdAt: Date
+  updatedAt: Date
 }
 
 // Workout Log (submitted by athlete after completing a workout)
