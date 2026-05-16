@@ -27,6 +27,151 @@ interface Translations {
   startConversation: string
   sendMessageTo: string
   typeMessage: string
+
+  // Journey stage editor
+  stageNameLabel: string
+  stageTypeLabel: string
+  stageStartDate: string
+  stageEndDate: string
+  stageFocusLabel: string
+  stageFocusPlaceholder: string
+  weeklyVolumeLabel: string
+  weeklyVolumePlaceholder: string
+  keyWorkoutsLabel: string
+  milestonesLabel: string
+  milestonesPlaceholder: string
+  saveStageBtn: string
+
+  // Coach chat hub
+  messagesTitle: string
+  chatWithAthletes: string
+  searchAthletesPh: string
+  loadingConversations: string
+  noConversationsFound: string
+  tryDifferentSearch: string
+  athletesWillAppear: string
+  startAConversation: string
+
+  // Athlete roster
+  athletesTitle: string
+  athletesSubtitle: string
+  generatingDots: string
+  exportAllAthletes: string
+  searchAthletesEventsPh: string
+  viewProfileBtn: string
+  exportAria: string
+  exportingAria: string
+  exportingDots: string
+  exportToExcel: string
+  editBtn: string
+  removeBtn: string
+  noAthletesSignedUp: string
+  noAthletesMatching: string
+  editAthleteTitle: string
+  nameLabel: string
+  emailLabel: string
+  removeAthleteTitle: string
+  removeAthleteDesc: string
+  removingDots: string
+
+  // Coach settings
+  settingsTitle: string
+  googleSheetsAutoSync: string
+  beforeYouStart: string
+  sheetsStep1Pre: string
+  sheetsStep1Share: string
+  sheetsStep1Mid: string
+  sheetsStep1Editor: string
+  sheetsStep2Save: string
+  sheetsStep2SyncAll: string
+  masterSheetId: string
+
+  // Coach journey editor
+  selectJourneyPh: string
+  journeyTitleLabel: string
+  goalRaceEventLabel: string
+  startDateLabel: string
+  goalRaceDateLabel2: string
+  stageDialogTitle: string
+  startLabel: string
+  focusLabel: string
+  notesLabel: string
+
+  // Workout builder
+  basicInformation: string
+  descriptionLabel: string
+  describeWorkoutPh: string
+  warmupLabel: string
+  cooldownLabel: string
+  workoutSetsTitle: string
+  additionalNotesTitle: string
+  additionalNotesPh: string
+  backToLibrary: string
+  editWorkoutTitle: string
+  createWorkoutTitle: string
+  updateWorkoutTemplate: string
+  buildNewWorkoutTemplate: string
+  workoutTitleLabel: string
+  workoutTitlePh: string
+  workoutTypeLabel: string
+  durationMinutesLabel: string
+  distanceKmLabel: string
+  warmupCooldownTitle: string
+  warmupPh: string
+  cooldownPh: string
+  addSetBtn: string
+  noSetsAdded: string
+  setLabel: string
+  repsLabel: string
+  distanceDurationLabel: string
+  distanceDurationPh: string
+  paceEffortLabel: string
+  paceEffortPh: string
+  restLabel: string
+  restPh: string
+  updatingDots: string
+  creatingDots: string
+  updateWorkoutBtn: string
+  onlyCoachCanSave: string
+
+  // Workout library
+  searchWorkoutsPh: string
+  workoutLibrarySubtitle: string
+  editWorkoutAria: string
+  deleteWorkoutAria: string
+  assignToAthleteBtn: string
+  noWorkoutsYet: string
+  noWorkoutsMatching: string
+  deleteWorkoutTitle: string
+  deleteWorkoutDesc: string
+  deleteBtn: string
+  deletingDots: string
+
+  // Workout assign
+  selectWorkoutTitle: string
+  selectAthletesTitle: string
+  selectDateTitle: string
+  assignmentSummaryTitle: string
+  backBtn: string
+  assignWorkoutTitle: string
+  assignWorkoutSubtitle: string
+  noWorkoutsInLibrary: string
+  workoutColon: string
+  athletesColon: string
+  dateColon: string
+  notSelected: string
+  athletesSelectedSuffix: string
+  noneSelected: string
+  assigningDots: string
+  assignWorkoutBtn: string
+  onlyCoachCanAssign: string
+
+  // Athlete detail
+  scheduleTab: string
+  pacesTab: string
+  progressTab: string
+  upcomingWorkoutsTitle: string
+  athleteLogLabel: string
   // Landing page
   welcome: string
   signInDescription: string
@@ -402,6 +547,142 @@ const translations: Record<Language, Translations> = {
     sendMessageTo: 'Send a message to',
     typeMessage: 'Type a message...',
 
+    stageNameLabel: 'Stage name',
+    stageTypeLabel: 'Type',
+    stageStartDate: 'Start date',
+    stageEndDate: 'End date',
+    stageFocusLabel: 'Focus',
+    stageFocusPlaceholder: 'e.g. aerobic base, threshold work',
+    weeklyVolumeLabel: 'Weekly volume (km)',
+    weeklyVolumePlaceholder: 'e.g. 60',
+    keyWorkoutsLabel: 'Key workouts (one per line)',
+    milestonesLabel: 'Milestones (one per line)',
+    milestonesPlaceholder: '10K time trial\nLong run 30 km',
+    saveStageBtn: 'Save stage',
+
+    messagesTitle: 'Messages',
+    chatWithAthletes: 'Chat with your athletes',
+    searchAthletesPh: 'Search athletes...',
+    loadingConversations: 'Loading conversations...',
+    noConversationsFound: 'No conversations found',
+    tryDifferentSearch: 'Try a different search term',
+    athletesWillAppear: 'Athletes will appear here when they sign up',
+    startAConversation: 'Start a conversation...',
+
+    athletesTitle: 'Athletes',
+    athletesSubtitle: 'Manage your roster and view athlete profiles',
+    generatingDots: 'Generating…',
+    exportAllAthletes: 'Export all athletes',
+    searchAthletesEventsPh: 'Search athletes or events...',
+    viewProfileBtn: 'View Profile',
+    exportAria: 'Export',
+    exportingAria: 'Exporting',
+    exportingDots: 'Exporting…',
+    exportToExcel: 'Export to Excel',
+    editBtn: 'Edit',
+    removeBtn: 'Remove',
+    noAthletesSignedUp: 'No athletes have signed up yet.',
+    noAthletesMatching: 'No athletes found matching your search.',
+    editAthleteTitle: 'Edit athlete',
+    nameLabel: 'Name',
+    emailLabel: 'Email',
+    removeAthleteTitle: 'Remove this athlete?',
+    removeAthleteDesc: 'This permanently deletes the athlete from the team in Firestore. Their profile and goals will be lost.',
+    removingDots: 'Removing…',
+
+    settingsTitle: 'Settings',
+    googleSheetsAutoSync: 'Google Sheets Auto Sync',
+    beforeYouStart: 'Before you start',
+    sheetsStep1Pre: 'Click ',
+    sheetsStep1Share: 'Share',
+    sheetsStep1Mid: ' and add the service account below as an ',
+    sheetsStep1Editor: 'Editor',
+    sheetsStep2Save: 'Save',
+    sheetsStep2SyncAll: 'Sync All Now',
+    masterSheetId: 'Master Google Sheet ID',
+
+    selectJourneyPh: 'Select journey',
+    journeyTitleLabel: 'Title',
+    goalRaceEventLabel: 'Goal race event',
+    startDateLabel: 'Start date',
+    goalRaceDateLabel2: 'Goal race date',
+    stageDialogTitle: 'Stage',
+    startLabel: 'Start',
+    focusLabel: 'Focus',
+    notesLabel: 'Notes',
+
+    basicInformation: 'Basic Information',
+    descriptionLabel: 'Description',
+    describeWorkoutPh: 'Describe the workout objective and focus...',
+    warmupLabel: 'Warmup',
+    cooldownLabel: 'Cooldown',
+    workoutSetsTitle: 'Workout Sets',
+    additionalNotesTitle: 'Additional Notes',
+    additionalNotesPh: 'Any additional instructions or notes for the athlete...',
+    backToLibrary: 'Back to Library',
+    editWorkoutTitle: 'Edit Workout',
+    createWorkoutTitle: 'Create Workout',
+    updateWorkoutTemplate: 'Update this workout template',
+    buildNewWorkoutTemplate: 'Build a new workout template for your athletes',
+    workoutTitleLabel: 'Workout Title',
+    workoutTitlePh: 'e.g., 800m Intervals',
+    workoutTypeLabel: 'Workout Type',
+    durationMinutesLabel: 'Duration (minutes)',
+    distanceKmLabel: 'Distance (km)',
+    warmupCooldownTitle: 'Warmup & Cooldown',
+    warmupPh: 'e.g., 2 mile easy jog, dynamic stretching, 4x100m strides',
+    cooldownPh: 'e.g., 1.5 mile easy jog, stretching',
+    addSetBtn: 'Add Set',
+    noSetsAdded: 'No sets added. Click "Add Set" to build interval or structured workouts.',
+    setLabel: 'Set',
+    repsLabel: 'Reps',
+    distanceDurationLabel: 'Distance/Duration',
+    distanceDurationPh: 'e.g., 400m or 2:00',
+    paceEffortLabel: 'Pace/Effort',
+    paceEffortPh: 'e.g., 68-70 sec',
+    restLabel: 'Rest',
+    restPh: 'e.g., 90 sec jog',
+    updatingDots: 'Updating...',
+    creatingDots: 'Creating...',
+    updateWorkoutBtn: 'Update Workout',
+    onlyCoachCanSave: 'Only the coach account can save workouts.',
+
+    searchWorkoutsPh: 'Search workouts...',
+    workoutLibrarySubtitle: 'Create and manage your workout templates',
+    editWorkoutAria: 'Edit workout',
+    deleteWorkoutAria: 'Delete workout',
+    assignToAthleteBtn: 'Assign to Athlete',
+    noWorkoutsYet: 'No workouts yet — create your first one.',
+    noWorkoutsMatching: 'No workouts found matching your search.',
+    deleteWorkoutTitle: 'Delete this workout?',
+    deleteWorkoutDesc: 'This permanently removes the workout template from Firestore. Existing assigned workouts that referenced it will keep their embedded copy.',
+    deleteBtn: 'Delete',
+    deletingDots: 'Deleting…',
+
+    selectWorkoutTitle: 'Select Workout',
+    selectAthletesTitle: 'Select Athletes',
+    selectDateTitle: 'Select Date',
+    assignmentSummaryTitle: 'Assignment Summary',
+    backBtn: 'Back',
+    assignWorkoutTitle: 'Assign Workout',
+    assignWorkoutSubtitle: 'Select a workout, athletes, and date to schedule',
+    noWorkoutsInLibrary: 'No workouts in the library yet.',
+    workoutColon: 'Workout:',
+    athletesColon: 'Athletes:',
+    dateColon: 'Date:',
+    notSelected: 'Not selected',
+    athletesSelectedSuffix: 'athlete(s) selected',
+    noneSelected: 'None selected',
+    assigningDots: 'Assigning...',
+    assignWorkoutBtn: 'Assign Workout',
+    onlyCoachCanAssign: 'Only the coach account can assign workouts.',
+
+    scheduleTab: 'Schedule',
+    pacesTab: 'Paces',
+    progressTab: 'Progress',
+    upcomingWorkoutsTitle: 'Upcoming Workouts',
+    athleteLogLabel: 'Athlete Log',
+
     welcome: 'Welcome',
     signInDescription: 'Sign in to access your training dashboard',
     continueWithGoogle: 'Continue with Google',
@@ -755,6 +1036,142 @@ const translations: Record<Language, Translations> = {
     startConversation: 'התחל שיחה',
     sendMessageTo: 'שלח הודעה אל',
     typeMessage: 'הקלד הודעה...',
+
+    stageNameLabel: 'שם השלב',
+    stageTypeLabel: 'סוג',
+    stageStartDate: 'תאריך התחלה',
+    stageEndDate: 'תאריך סיום',
+    stageFocusLabel: 'דגש',
+    stageFocusPlaceholder: 'לדוגמה: בסיס אירובי, סף אנאירובי',
+    weeklyVolumeLabel: 'נפח שבועי (ק"מ)',
+    weeklyVolumePlaceholder: 'לדוגמה: 60',
+    keyWorkoutsLabel: 'אימונים מרכזיים (אחד לשורה)',
+    milestonesLabel: 'אבני דרך (אחת לשורה)',
+    milestonesPlaceholder: 'מבחן 10 ק"מ\nריצה ארוכה 30 ק"מ',
+    saveStageBtn: 'שמור שלב',
+
+    messagesTitle: 'הודעות',
+    chatWithAthletes: 'שוחח עם הספורטאים שלך',
+    searchAthletesPh: 'חיפוש ספורטאים...',
+    loadingConversations: 'טוען שיחות...',
+    noConversationsFound: 'לא נמצאו שיחות',
+    tryDifferentSearch: 'נסה מונח חיפוש אחר',
+    athletesWillAppear: 'ספורטאים יופיעו כאן לאחר ההרשמה',
+    startAConversation: 'התחל שיחה...',
+
+    athletesTitle: 'ספורטאים',
+    athletesSubtitle: 'נהל את הרשימה וצפה בפרופילי הספורטאים',
+    generatingDots: 'יוצר…',
+    exportAllAthletes: 'ייצא את כל הספורטאים',
+    searchAthletesEventsPh: 'חיפוש ספורטאים או אירועים...',
+    viewProfileBtn: 'הצג פרופיל',
+    exportAria: 'ייצא',
+    exportingAria: 'מייצא',
+    exportingDots: 'מייצא…',
+    exportToExcel: 'ייצא לאקסל',
+    editBtn: 'ערוך',
+    removeBtn: 'הסר',
+    noAthletesSignedUp: 'עדיין לא נרשמו ספורטאים.',
+    noAthletesMatching: 'לא נמצאו ספורטאים התואמים לחיפוש שלך.',
+    editAthleteTitle: 'ערוך ספורטאי',
+    nameLabel: 'שם',
+    emailLabel: 'אימייל',
+    removeAthleteTitle: 'להסיר את הספורטאי?',
+    removeAthleteDesc: 'פעולה זו תמחק לצמיתות את הספורטאי מהקבוצה ב-Firestore. הפרופיל והמטרות שלו יאבדו.',
+    removingDots: 'מסיר…',
+
+    settingsTitle: 'הגדרות',
+    googleSheetsAutoSync: 'סנכרון אוטומטי ל-Google Sheets',
+    beforeYouStart: 'לפני שמתחילים',
+    sheetsStep1Pre: 'לחץ ',
+    sheetsStep1Share: 'שתף',
+    sheetsStep1Mid: ' והוסף את חשבון השירות שלמטה כ-',
+    sheetsStep1Editor: 'עורך',
+    sheetsStep2Save: 'שמור',
+    sheetsStep2SyncAll: 'סנכרן הכל עכשיו',
+    masterSheetId: 'מזהה Google Sheet ראשי',
+
+    selectJourneyPh: 'בחר מסע',
+    journeyTitleLabel: 'כותרת',
+    goalRaceEventLabel: 'אירוע מירוץ היעד',
+    startDateLabel: 'תאריך התחלה',
+    goalRaceDateLabel2: 'תאריך מירוץ היעד',
+    stageDialogTitle: 'שלב',
+    startLabel: 'התחלה',
+    focusLabel: 'דגש',
+    notesLabel: 'הערות',
+
+    basicInformation: 'מידע בסיסי',
+    descriptionLabel: 'תיאור',
+    describeWorkoutPh: 'תאר את מטרת האימון והדגשים...',
+    warmupLabel: 'חימום',
+    cooldownLabel: 'שחרור',
+    workoutSetsTitle: 'סטים של האימון',
+    additionalNotesTitle: 'הערות נוספות',
+    additionalNotesPh: 'הוראות או הערות נוספות לספורטאי...',
+    backToLibrary: 'חזרה לספרייה',
+    editWorkoutTitle: 'ערוך אימון',
+    createWorkoutTitle: 'צור אימון',
+    updateWorkoutTemplate: 'עדכן תבנית אימון זו',
+    buildNewWorkoutTemplate: 'בנה תבנית אימון חדשה לספורטאים שלך',
+    workoutTitleLabel: 'כותרת האימון',
+    workoutTitlePh: 'לדוגמה: אינטרוולים 800 מ\'',
+    workoutTypeLabel: 'סוג האימון',
+    durationMinutesLabel: 'משך (דקות)',
+    distanceKmLabel: 'מרחק (ק"מ)',
+    warmupCooldownTitle: 'חימום ושחרור',
+    warmupPh: 'לדוגמה: ריצה קלה 3 ק"מ, מתיחות דינמיות, 4x100 מ\' זינוקים',
+    cooldownPh: 'לדוגמה: ריצה קלה 2 ק"מ, מתיחות',
+    addSetBtn: 'הוסף סט',
+    noSetsAdded: 'לא נוספו סטים. לחץ "הוסף סט" כדי לבנות אימוני אינטרוולים או אימונים מובנים.',
+    setLabel: 'סט',
+    repsLabel: 'חזרות',
+    distanceDurationLabel: 'מרחק/משך',
+    distanceDurationPh: 'לדוגמה: 400 מ\' או 2:00',
+    paceEffortLabel: 'קצב/מאמץ',
+    paceEffortPh: 'לדוגמה: 68-70 שניות',
+    restLabel: 'מנוחה',
+    restPh: 'לדוגמה: 90 שניות ריצה קלה',
+    updatingDots: 'מעדכן...',
+    creatingDots: 'יוצר...',
+    updateWorkoutBtn: 'עדכן אימון',
+    onlyCoachCanSave: 'רק חשבון המאמן יכול לשמור אימונים.',
+
+    searchWorkoutsPh: 'חיפוש אימונים...',
+    workoutLibrarySubtitle: 'צור ונהל תבניות אימון',
+    editWorkoutAria: 'ערוך אימון',
+    deleteWorkoutAria: 'מחק אימון',
+    assignToAthleteBtn: 'הקצה לספורטאי',
+    noWorkoutsYet: 'אין עדיין אימונים — צור את הראשון.',
+    noWorkoutsMatching: 'לא נמצאו אימונים התואמים לחיפוש שלך.',
+    deleteWorkoutTitle: 'למחוק את האימון?',
+    deleteWorkoutDesc: 'פעולה זו מסירה לצמיתות את תבנית האימון מ-Firestore. אימונים שהוקצו ומפנים אליה ישמרו את העותק המוטמע.',
+    deleteBtn: 'מחק',
+    deletingDots: 'מוחק…',
+
+    selectWorkoutTitle: 'בחר אימון',
+    selectAthletesTitle: 'בחר ספורטאים',
+    selectDateTitle: 'בחר תאריך',
+    assignmentSummaryTitle: 'סיכום הקצאה',
+    backBtn: 'חזור',
+    assignWorkoutTitle: 'הקצה אימון',
+    assignWorkoutSubtitle: 'בחר אימון, ספורטאים ותאריך לתזמון',
+    noWorkoutsInLibrary: 'אין עדיין אימונים בספרייה.',
+    workoutColon: 'אימון:',
+    athletesColon: 'ספורטאים:',
+    dateColon: 'תאריך:',
+    notSelected: 'לא נבחר',
+    athletesSelectedSuffix: 'ספורטאים נבחרו',
+    noneSelected: 'לא נבחר אף אחד',
+    assigningDots: 'מקצה...',
+    assignWorkoutBtn: 'הקצה אימון',
+    onlyCoachCanAssign: 'רק חשבון המאמן יכול להקצות אימונים.',
+
+    scheduleTab: 'לו"ז',
+    pacesTab: 'קצבים',
+    progressTab: 'התקדמות',
+    upcomingWorkoutsTitle: 'אימונים קרובים',
+    athleteLogLabel: 'יומן ספורטאי',
 
     welcome: 'ברוכים הבאים',
     signInDescription: 'התחבר כדי לגשת ללוח האימונים שלך',

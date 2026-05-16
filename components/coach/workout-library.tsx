@@ -120,17 +120,17 @@ export function WorkoutLibrary() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl md:text-3xl font-serif font-bold text-navy">
-            Workout Library
+            {t.workoutLibraryCardTitle}
           </h1>
           <p className="text-muted-foreground">
-            Create and manage your workout templates
+            {t.workoutLibrarySubtitle}
           </p>
         </div>
         {isCoach && (
           <Link href="/coach/workouts/new">
             <Button className="bg-gold hover:bg-gold/90 text-navy">
               <Plus className="h-4 w-4 mr-2" />
-              Create Workout
+              {t.createWorkoutAction}
             </Button>
           </Link>
         )}
@@ -141,7 +141,7 @@ export function WorkoutLibrary() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search workouts..."
+            placeholder={t.searchWorkoutsPh}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"
@@ -184,7 +184,7 @@ export function WorkoutLibrary() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8"
-                            aria-label="Edit workout"
+                            aria-label={t.editWorkoutAria}
                           >
                             <Pencil className="h-4 w-4 text-muted-foreground" />
                           </Button>
@@ -194,7 +194,7 @@ export function WorkoutLibrary() {
                           size="icon"
                           className="h-8 w-8 text-destructive hover:text-destructive"
                           onClick={() => setDeleteId(workout.id)}
-                          aria-label="Delete workout"
+                          aria-label={t.deleteWorkoutAria}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -214,13 +214,13 @@ export function WorkoutLibrary() {
                     {workout.duration && (
                       <span className="flex items-center gap-1">
                         <Clock className="h-4 w-4" />
-                        {workout.duration} min
+                        {workout.duration} {t.min}
                       </span>
                     )}
                     {workout.distance && (
                       <span className="flex items-center gap-1">
                         <Activity className="h-4 w-4" />
-                        {workout.distance} km
+                        {workout.distance} {t.km}
                       </span>
                     )}
                   </div>
@@ -241,7 +241,7 @@ export function WorkoutLibrary() {
 
                   <Link href={`/coach/workouts/${workout.id}/assign`}>
                     <Button variant="outline" className="w-full text-gold hover:text-gold/80">
-                      Assign to Athlete
+                      {t.assignToAthleteBtn}
                       <ChevronRight className="h-4 w-4 ml-1" />
                     </Button>
                   </Link>
@@ -255,8 +255,8 @@ export function WorkoutLibrary() {
               <CardContent className="py-12 text-center">
                 <p className="text-muted-foreground">
                   {workouts.length === 0
-                    ? 'No workouts yet — create your first one.'
-                    : 'No workouts found matching your search.'}
+                    ? t.noWorkoutsYet
+                    : t.noWorkoutsMatching}
                 </p>
               </CardContent>
             </Card>
@@ -271,21 +271,19 @@ export function WorkoutLibrary() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this workout?</AlertDialogTitle>
+            <AlertDialogTitle>{t.deleteWorkoutTitle}</AlertDialogTitle>
             <AlertDialogDescription>
-              This permanently removes the workout template from Firestore.
-              Existing assigned workouts that referenced it will keep their
-              embedded copy.
+              {t.deleteWorkoutDesc}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>{t.cancel}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleting ? 'Deleting…' : 'Delete'}
+              {deleting ? t.deletingDots : t.deleteBtn}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
