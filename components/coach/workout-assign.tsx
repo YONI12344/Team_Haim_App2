@@ -26,36 +26,7 @@ import {
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/auth-context'
 import { isCoachEmail } from '@/lib/constants'
-
-const workoutTypeColors: Record<WorkoutType, string> = {
-  easy: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  long_run: 'bg-blue-100 text-blue-700 border-blue-200',
-  tempo: 'bg-amber-100 text-amber-700 border-amber-200',
-  intervals: 'bg-red-100 text-red-700 border-red-200',
-  hill_repeats: 'bg-orange-100 text-orange-700 border-orange-200',
-  fartlek: 'bg-purple-100 text-purple-700 border-purple-200',
-  recovery: 'bg-teal-100 text-teal-700 border-teal-200',
-  strength: 'bg-slate-100 text-slate-700 border-slate-200',
-  cross_training: 'bg-cyan-100 text-cyan-700 border-cyan-200',
-  rest: 'bg-gray-100 text-gray-600 border-gray-200',
-  race: 'bg-gold/20 text-gold border-gold/30',
-  time_trial: 'bg-rose-100 text-rose-700 border-rose-200',
-}
-
-const workoutTypeLabels: Record<WorkoutType, string> = {
-  easy: 'Easy',
-  long_run: 'Long Run',
-  tempo: 'Tempo',
-  intervals: 'Intervals',
-  hill_repeats: 'Hills',
-  fartlek: 'Fartlek',
-  recovery: 'Recovery',
-  strength: 'Strength',
-  cross_training: 'Cross Train',
-  rest: 'Rest',
-  race: 'Race',
-  time_trial: 'Time Trial',
-}
+import { workoutTypeColors, useWorkoutTypeLabels } from '@/lib/workout-labels'
 
 interface WorkoutAssignProps {
   workoutId?: string
@@ -65,6 +36,7 @@ interface WorkoutAssignProps {
 export function WorkoutAssign({ workoutId, athleteId }: WorkoutAssignProps) {
   const router = useRouter()
   const { user } = useAuth()
+  const workoutTypeLabels = useWorkoutTypeLabels()
   const isCoach = isCoachEmail(user?.email)
 
   const [athletes, setAthletes] = useState<AthleteProfile[]>([])

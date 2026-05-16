@@ -16,6 +16,7 @@ interface Translations {
   today: string
   week: string
   month: string
+  all: string
   languageToggle: string
   languageToggleAria: string
 
@@ -120,6 +121,7 @@ const translations: Record<Language, Translations> = {
     today: 'Today',
     week: 'Week',
     month: 'Month',
+    all: 'All',
     languageToggle: 'עברית',
     languageToggleAria: 'Switch language to Hebrew',
 
@@ -215,6 +217,7 @@ const translations: Record<Language, Translations> = {
     today: 'היום',
     week: 'שבוע',
     month: 'חודש',
+    all: 'הכל',
     languageToggle: 'English',
     languageToggleAria: 'החלף שפה לאנגלית',
 

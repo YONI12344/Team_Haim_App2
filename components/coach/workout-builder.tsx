@@ -29,20 +29,21 @@ import {
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/auth-context'
 import { isCoachEmail } from '@/lib/constants'
+import { useWorkoutTypeLabels } from '@/lib/workout-labels'
 
-const workoutTypes: { value: WorkoutType; label: string }[] = [
-  { value: 'easy', label: 'Easy Run' },
-  { value: 'long_run', label: 'Long Run' },
-  { value: 'tempo', label: 'Tempo' },
-  { value: 'intervals', label: 'Intervals' },
-  { value: 'hill_repeats', label: 'Hill Repeats' },
-  { value: 'fartlek', label: 'Fartlek' },
-  { value: 'recovery', label: 'Recovery' },
-  { value: 'strength', label: 'Strength' },
-  { value: 'cross_training', label: 'Cross Training' },
-  { value: 'rest', label: 'Rest Day' },
-  { value: 'race', label: 'Race' },
-  { value: 'time_trial', label: 'Time Trial' },
+const workoutTypeOrder: WorkoutType[] = [
+  'easy',
+  'long_run',
+  'tempo',
+  'intervals',
+  'hill_repeats',
+  'fartlek',
+  'recovery',
+  'strength',
+  'cross_training',
+  'rest',
+  'race',
+  'time_trial',
 ]
 
 interface WorkoutBuilderProps {
@@ -52,6 +53,11 @@ interface WorkoutBuilderProps {
 export function WorkoutBuilder({ workoutId }: WorkoutBuilderProps) {
   const router = useRouter()
   const { user } = useAuth()
+  const workoutTypeLabels = useWorkoutTypeLabels()
+  const workoutTypes = workoutTypeOrder.map((value) => ({
+    value,
+    label: workoutTypeLabels[value],
+  }))
   const isCoach = isCoachEmail(user?.email)
 
   const [title, setTitle] = useState('')
