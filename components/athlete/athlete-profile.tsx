@@ -467,7 +467,7 @@ export function AthleteProfile() {
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"
-                  className="sr-only"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   disabled={uploadingPhoto}
                   onChange={(e) => {
                     const f = e.target.files?.[0]
