@@ -23,27 +23,30 @@ export const metadata: Metadata = {
   generator: 'v0.app',
   keywords: ['athletics', 'coaching', 'training', 'performance', 'track and field'],
   // To change the app icon (favicon / launcher / Safari pinned tab), replace
-  // /public/icon.svg. The same artwork is also used by the in-app header logo
-  // via /public/team-haim-logo.svg. PNG fallbacks live next to icon.svg.
+  // /public/team-haim-logo.png. PNG icon sizes live at
+  // /public/icon-{size}x{size}.png and apple-icon.png.
   // The `?v=` query string forces browsers and OS launchers to fetch the new
   // artwork instead of serving a previously cached icon. Bump this value any
   // time the icon assets are replaced.
   icons: {
     icon: [
       {
-        url: '/icon.svg?v=2',
-        type: 'image/svg+xml',
+        url: '/icon-32x32.png?v=3',
+        sizes: '32x32',
+        type: 'image/png',
       },
       {
-        url: '/icon-light-32x32.png?v=2',
-        media: '(prefers-color-scheme: light)',
+        url: '/icon-192x192.png?v=3',
+        sizes: '192x192',
+        type: 'image/png',
       },
       {
-        url: '/icon-dark-32x32.png?v=2',
-        media: '(prefers-color-scheme: dark)',
+        url: '/icon-512x512.png?v=3',
+        sizes: '512x512',
+        type: 'image/png',
       },
     ],
-    apple: '/apple-icon.png?v=2',
+    apple: '/apple-icon.png?v=3',
   },
 }
 
