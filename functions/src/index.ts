@@ -141,6 +141,8 @@ export const syncAllAthletesNow = onCall(async (request) => {
   return {
     success,
     total: athleteIds.length,
+    // `succeeded` kept for backward-compat with existing coach-settings.tsx consumer;
+    // `athletesSynced` is the alias requested by the problem spec.
     succeeded,
     athletesSynced: succeeded,
     rowsWritten,
@@ -183,12 +185,7 @@ export const testSheetsSync = onCall(async (request) => {
   }
 
   // Verify the master sheet is configured up-front so we can log it clearly.
-  const spreadsheetId =
-    process.env.MASTER_SHEET_ID?.trim() ||
-    (() => {
-      // synchronous read path not available here; we'll let syncAthleteToSheet handle it
-      return undefined
-    })()
+  const spreadsheetId = process.env.MASTER_SHEET_ID?.trim() || undefined
 
   if (spreadsheetId) {
     logger.info('[testSheetsSync] using spreadsheet from env', {spreadsheetId})

@@ -35,7 +35,8 @@ MASTER_SHEET_ID=1EDW4R1sIg-491HsXPJx9hNYJR5CVBerUsfBf-8XlFGw
 # Service account used by Eventarc to generate OIDC tokens for the cross-region
 # Pub/Sub push subscription.  Use the default compute SA of the project:
 #   PROJECT_NUMBER-compute@developer.gserviceaccount.com
-TRIGGER_SERVICE_ACCOUNT=57632152447-compute@developer.gserviceaccount.com
+# Replace PROJECT_NUMBER with your GCP project number (found in Cloud Console).
+TRIGGER_SERVICE_ACCOUNT=PROJECT_NUMBER-compute@developer.gserviceaccount.com
 ```
 
 > **Tip:** Firebase shows `Loaded environment variables from .env.` during
@@ -45,20 +46,20 @@ TRIGGER_SERVICE_ACCOUNT=57632152447-compute@developer.gserviceaccount.com
 
 ## Required IAM Roles
 
-### On the Compute Service Account (`57632152447-compute@developer.gserviceaccount.com`)
+### On the Compute Service Account (`PROJECT_NUMBER-compute@developer.gserviceaccount.com`)
 
 This is the default Cloud Run / Compute SA used for every function.
+Replace `PROJECT_NUMBER` with your GCP project number.
 
 | Role | Why |
 |---|---|
 | `roles/run.invoker` | Allows Eventarc / Pub/Sub to invoke the Cloud Run service |
 | `roles/eventarc.eventReceiver` | Required for 2nd-gen Eventarc triggers |
-| `roles/iam.serviceAccountTokenCreator` | (optional) needed if the SA must impersonate itself |
 
 Grant via gcloud:
 ```bash
 PROJECT=team-haim
-SA=57632152447-compute@developer.gserviceaccount.com
+SA=PROJECT_NUMBER-compute@developer.gserviceaccount.com  # replace PROJECT_NUMBER
 
 gcloud projects add-iam-policy-binding $PROJECT \
   --member="serviceAccount:$SA" --role="roles/run.invoker"
@@ -67,19 +68,20 @@ gcloud projects add-iam-policy-binding $PROJECT \
   --member="serviceAccount:$SA" --role="roles/eventarc.eventReceiver"
 ```
 
-### On the Cloud Pub/Sub Service Agent (`service-57632152447@gcp-sa-pubsub.iam.gserviceaccount.com`)
+### On the Cloud Pub/Sub Service Agent (`service-PROJECT_NUMBER@gcp-sa-pubsub.iam.gserviceaccount.com`)
 
 This SA is used by Pub/Sub to mint OIDC tokens for the cross-region push
 subscription.  **This is the most common missing piece for cross-region
 Eventarc triggers.**
+Replace `PROJECT_NUMBER` with your GCP project number.
 
 | Role | Why |
 |---|---|
-| `roles/iam.serviceAccountTokenCreator` | Allows Pub/Sub to create OIDC tokens on behalf of the trigger SA |
+| `roles/iam.serviceAccountTokenCreator` | Allows Pub/Sub to create OIDC tokens on behalf of the trigger SA, enabling authenticated Cloud Run invocations |
 
 Grant via gcloud:
 ```bash
-PUBSUB_SA=service-57632152447@gcp-sa-pubsub.iam.gserviceaccount.com
+PUBSUB_SA=service-PROJECT_NUMBER@gcp-sa-pubsub.iam.gserviceaccount.com  # replace PROJECT_NUMBER
 
 gcloud projects add-iam-policy-binding $PROJECT \
   --member="serviceAccount:$PUBSUB_SA" \
@@ -89,7 +91,7 @@ gcloud projects add-iam-policy-binding $PROJECT \
 Or in Cloud Console:
 1. Open **IAM & Admin → IAM** for the `team-haim` project.
 2. Tick **Include Google-provided role grants**.
-3. Find `service-57632152447@gcp-sa-pubsub.iam.gserviceaccount.com`.
+3. Find `service-PROJECT_NUMBER@gcp-sa-pubsub.iam.gserviceaccount.com`.
 4. Add role **Service Account Token Creator**.
 
 ---
