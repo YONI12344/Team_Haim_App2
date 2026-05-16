@@ -35,6 +35,9 @@ export interface AthleteProfile {
   weeklyMileage?: number // km / week
   restingHR?: number // bpm
   maxHR?: number // bpm
+  currentHR?: number // bpm – most recent measured / typical training HR
+  targetHR?: number // bpm – target average HR for key efforts
+  targetPaceKm?: string // target race pace, e.g. "4:30/km"
   goalRaceDate?: string // ISO date
   goalRaceEvent?: string
   goalRaceTarget?: string // free-text target time
@@ -223,7 +226,27 @@ export interface WorkoutLog {
   date: string         // ISO date string (scheduled date)
   actualDistance?: number
   actualPace?: string  // e.g. "5:30/km"
-  effort: 'easy' | 'medium' | 'hard'
+  /**
+   * Perceived effort on a 1–10 scale (whole numbers).
+   *
+   * Older logs stored a coarser label (`'easy' | 'medium' | 'hard'`).
+   * Those values are migrated to numbers on read:
+   *   easy → 3, medium → 6, hard → 9.
+   */
+  effort: number
   comment: string
   createdAt: Date
+}
+
+/** Map a legacy string effort label to its numeric (1–10) equivalent. */
+export function legacyEffortToNumber(
+  v: 'easy' | 'medium' | 'hard' | number | undefined | null,
+): number {
+  if (typeof v === 'number' && Number.isFinite(v)) {
+    return Math.min(10, Math.max(1, Math.round(v)))
+  }
+  if (v === 'easy') return 3
+  if (v === 'medium') return 6
+  if (v === 'hard') return 9
+  return 5
 }

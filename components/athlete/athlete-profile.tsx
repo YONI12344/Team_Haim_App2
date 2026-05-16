@@ -52,6 +52,7 @@ import type {
   Goal,
 } from '@/lib/types'
 import { TrainingZonesCard } from './training-zones-card'
+import { PaceEditor, RecordEditor } from './profile-editors'
 
 const paceTypeColors: Record<string, string> = {
   easy: 'bg-emerald-100 text-emerald-700',
@@ -89,6 +90,9 @@ interface ProfileForm {
   weeklyMileage: string
   restingHR: string
   maxHR: string
+  currentHR: string
+  targetHR: string
+  targetPaceKm: string
   goalRaceEvent: string
   goalRaceDate: string
   goalRaceTarget: string
@@ -116,6 +120,9 @@ export function AthleteProfile() {
     weeklyMileage: '',
     restingHR: '',
     maxHR: '',
+    currentHR: '',
+    targetHR: '',
+    targetPaceKm: '',
     goalRaceEvent: '',
     goalRaceDate: '',
     goalRaceTarget: '',
@@ -154,6 +161,9 @@ export function AthleteProfile() {
             weeklyMileage: data.weeklyMileage ? String(data.weeklyMileage) : '',
             restingHR: data.restingHR ? String(data.restingHR) : '',
             maxHR: data.maxHR ? String(data.maxHR) : '',
+            currentHR: data.currentHR ? String(data.currentHR) : '',
+            targetHR: data.targetHR ? String(data.targetHR) : '',
+            targetPaceKm: data.targetPaceKm || '',
             goalRaceEvent: data.goalRaceEvent || '',
             goalRaceDate: data.goalRaceDate || '',
             goalRaceTarget: data.goalRaceTarget || '',
@@ -202,7 +212,20 @@ export function AthleteProfile() {
       const rawExt = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '')
       const ext = allowed.has(rawExt) ? rawExt : 'jpg'
       const ref = storageRef(storage, `profilePhotos/${user.id}.${ext}`)
-      await uploadBytes(ref, file, { contentType: file.type })
+      // Always send an image/* content type — some mobile pickers leave
+      // `file.type` blank, which would otherwise fail the storage rule.
+      const extToMime: Record<string, string> = {
+        png: 'image/png',
+        gif: 'image/gif',
+        webp: 'image/webp',
+        jpg: 'image/jpeg',
+        jpeg: 'image/jpeg',
+      }
+      const safeContentType =
+        file.type && file.type.startsWith('image/')
+          ? file.type
+          : extToMime[ext] || 'image/jpeg'
+      await uploadBytes(ref, file, { contentType: safeContentType })
       const url = await getDownloadURL(ref)
       setPhotoURL(url)
       await setDoc(
@@ -262,6 +285,9 @@ export function AthleteProfile() {
         weeklyMileage: form.weeklyMileage ? Number(form.weeklyMileage) : null,
         restingHR: form.restingHR ? Number(form.restingHR) : null,
         maxHR: form.maxHR ? Number(form.maxHR) : null,
+        currentHR: form.currentHR ? Number(form.currentHR) : null,
+        targetHR: form.targetHR ? Number(form.targetHR) : null,
+        targetPaceKm: form.targetPaceKm.trim() || null,
         goalRaceEvent: form.goalRaceEvent || null,
         goalRaceDate: form.goalRaceDate || null,
         goalRaceTarget: form.goalRaceTarget || null,
@@ -277,6 +303,65 @@ export function AthleteProfile() {
     } finally {
       setSaving(false)
     }
+  }
+
+  const persistField = async (
+    field: 'personalRecords' | 'seasonBests' | 'trainingPaces',
+    value: unknown[],
+  ) => {
+    if (!user?.id) return
+    try {
+      await setDoc(
+        doc(db, 'users', user.id),
+        { [field]: value, updatedAt: serverTimestamp() },
+        { merge: true },
+      )
+    } catch (err) {
+      console.error(`Error saving ${field}:`, err)
+      toast.error('Failed to save changes')
+    }
+  }
+
+  const upsertRecord = async (
+    field: 'personalRecords' | 'seasonBests',
+    record: PersonalRecord,
+  ) => {
+    const list = field === 'personalRecords' ? personalRecords : seasonBests
+    const setter = field === 'personalRecords' ? setPersonalRecords : setSeasonBests
+    const exists = list.some((r) => r.id === record.id)
+    const next = exists
+      ? list.map((r) => (r.id === record.id ? record : r))
+      : [...list, record]
+    setter(next)
+    await persistField(field, next)
+    toast.success(exists ? 'Updated' : 'Added')
+  }
+
+  const removeRecord = async (
+    field: 'personalRecords' | 'seasonBests',
+    id: string,
+  ) => {
+    const list = field === 'personalRecords' ? personalRecords : seasonBests
+    const setter = field === 'personalRecords' ? setPersonalRecords : setSeasonBests
+    const next = list.filter((r) => r.id !== id)
+    setter(next)
+    await persistField(field, next)
+  }
+
+  const upsertPace = async (pace: TrainingPace) => {
+    const exists = trainingPaces.some((p) => p.id === pace.id)
+    const next = exists
+      ? trainingPaces.map((p) => (p.id === pace.id ? pace : p))
+      : [...trainingPaces, pace]
+    setTrainingPaces(next)
+    await persistField('trainingPaces', next)
+    toast.success(exists ? 'Updated' : 'Added')
+  }
+
+  const removePace = async (id: string) => {
+    const next = trainingPaces.filter((p) => p.id !== id)
+    setTrainingPaces(next)
+    await persistField('trainingPaces', next)
   }
 
   const getInitials = (name: string) =>
@@ -374,19 +459,36 @@ export function AthleteProfile() {
                       <X className="h-3.5 w-3.5" />
                     </Button>
                   )}
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0]
-                      if (f) handlePhotoSelect(f)
-                      e.target.value = ''
-                    }}
-                  />
                 </div>
               )}
+              {!editing && (
+                <Button
+                  type="button"
+                  size="icon"
+                  className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full bg-navy text-gold hover:bg-navy/90"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingPhoto}
+                  aria-label="Upload profile photo"
+                  title="Change photo"
+                >
+                  {uploadingPhoto ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Camera className="h-3.5 w-3.5" />
+                  )}
+                </Button>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0]
+                  if (f) handlePhotoSelect(f)
+                  e.target.value = ''
+                }}
+              />
             </div>
 
             <div className="flex-1 space-y-4 w-full">
@@ -467,6 +569,23 @@ export function AthleteProfile() {
                           {form.restingHR ? `${form.restingHR}` : '—'}
                           {' / '}
                           {form.maxHR ? `${form.maxHR}` : '—'} bpm
+                        </span>
+                      </div>
+                    )}
+                    {(form.currentHR || form.targetHR) && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Heart className="h-4 w-4 text-coral" />
+                        <span className="text-muted-foreground">
+                          {form.currentHR ? `now ${form.currentHR}` : '—'}
+                          {form.targetHR ? ` · target ${form.targetHR}` : ''} bpm
+                        </span>
+                      </div>
+                    )}
+                    {form.targetPaceKm && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-muted-foreground font-mono">
+                          target {form.targetPaceKm}/km
                         </span>
                       </div>
                     )}
@@ -581,6 +700,35 @@ export function AthleteProfile() {
                       onChange={(e) => setForm({ ...form, maxHR: e.target.value })}
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="profile-chr">Current HR (bpm)</Label>
+                    <Input
+                      id="profile-chr"
+                      type="number"
+                      placeholder="recent training avg"
+                      value={form.currentHR}
+                      onChange={(e) => setForm({ ...form, currentHR: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="profile-thr">Target HR (bpm)</Label>
+                    <Input
+                      id="profile-thr"
+                      type="number"
+                      placeholder="goal effort HR"
+                      value={form.targetHR}
+                      onChange={(e) => setForm({ ...form, targetHR: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="profile-target-pace">Target pace (min/km)</Label>
+                    <Input
+                      id="profile-target-pace"
+                      placeholder="e.g. 4:30"
+                      value={form.targetPaceKm}
+                      onChange={(e) => setForm({ ...form, targetPaceKm: e.target.value })}
+                    />
+                  </div>
                   <div className="space-y-2 md:col-span-2">
                     <Label>Discipline</Label>
                     <div className="flex flex-wrap gap-2">
@@ -690,9 +838,15 @@ export function AthleteProfile() {
                 Personal Records
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-6">
+              <RecordEditor
+                kind="pr"
+                records={personalRecords}
+                onAdd={(r) => upsertRecord('personalRecords', r)}
+                onRemove={(id) => removeRecord('personalRecords', id)}
+              />
               {personalRecords.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">
+                <p className="text-muted-foreground text-center py-6">
                   No personal records yet
                 </p>
               ) : (
@@ -741,7 +895,13 @@ export function AthleteProfile() {
                 {new Date().getFullYear()} Season Bests
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-6">
+              <RecordEditor
+                kind="sb"
+                records={seasonBests}
+                onAdd={(r) => upsertRecord('seasonBests', r)}
+                onRemove={(id) => removeRecord('seasonBests', id)}
+              />
               {seasonBests.length > 0 ? (
                 <div className="grid gap-4 md:grid-cols-2">
                   {seasonBests.map((sb) => (
@@ -783,9 +943,14 @@ export function AthleteProfile() {
                 Training Paces
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-6">
+              <PaceEditor
+                paces={trainingPaces}
+                onAdd={upsertPace}
+                onRemove={removePace}
+              />
               {trainingPaces.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">
+                <p className="text-muted-foreground text-center py-6">
                   No training paces yet
                 </p>
               ) : (

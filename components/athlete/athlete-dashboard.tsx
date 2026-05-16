@@ -38,6 +38,7 @@ import type {
   WorkoutLog,
   WorkoutType,
 } from '@/lib/types'
+import { legacyEffortToNumber } from '@/lib/types'
 
 const workoutTypeColors: Record<WorkoutType, string> = {
   easy: 'bg-emerald-100 text-emerald-700 border-emerald-200',
@@ -145,7 +146,7 @@ export function AthleteDashboard() {
               date: data.date || '',
               actualDistance: data.actualDistance ?? undefined,
               actualPace: data.actualPace ?? undefined,
-              effort: data.effort || 'easy',
+              effort: legacyEffortToNumber(data.effort),
               comment: data.comment || '',
               createdAt: data.createdAt?.toDate?.() || new Date(),
             }
@@ -188,11 +189,7 @@ export function AthleteDashboard() {
   const totalDistance = logs.reduce((s, l) => s + (l.actualDistance || 0), 0)
   const effortCount = logs.length
   const avgEffortNumeric = effortCount
-    ? logs.reduce(
-        (s, l) =>
-          s + (l.effort === 'easy' ? 3 : l.effort === 'medium' ? 6 : 9),
-        0,
-      ) / effortCount
+    ? logs.reduce((s, l) => s + legacyEffortToNumber(l.effort), 0) / effortCount
     : 0
   const totalDurationMin = assigned
     .filter((w) => w.status === 'completed')

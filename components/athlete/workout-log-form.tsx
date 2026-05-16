@@ -19,6 +19,7 @@ import {
 import { db } from '@/lib/firebase'
 import { CheckCircle2, Loader2 } from 'lucide-react'
 import type { WorkoutLog } from '@/lib/types'
+import { legacyEffortToNumber } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -36,7 +37,7 @@ export function WorkoutLogForm({ workoutId, athleteId, scheduledDate }: WorkoutL
 
   const [actualDistance, setActualDistance] = useState('')
   const [actualPace, setActualPace] = useState('')
-  const [effort, setEffort] = useState<'easy' | 'medium' | 'hard' | null>(null)
+  const [effort, setEffort] = useState<number | null>(null)
   const [comment, setComment] = useState('')
 
   useEffect(() => {
@@ -51,6 +52,7 @@ export function WorkoutLogForm({ workoutId, athleteId, scheduledDate }: WorkoutL
         const snapshot = await getDocs(q)
         if (!snapshot.empty) {
           const logData = snapshot.docs[0].data()
+          const effortNum = legacyEffortToNumber(logData.effort)
           const log: WorkoutLog = {
             id: snapshot.docs[0].id,
             athleteId: logData.athleteId || athleteId,
@@ -58,7 +60,7 @@ export function WorkoutLogForm({ workoutId, athleteId, scheduledDate }: WorkoutL
             date: logData.date || scheduledDate,
             actualDistance: logData.actualDistance ?? undefined,
             actualPace: logData.actualPace ?? undefined,
-            effort: logData.effort || 'easy',
+            effort: effortNum,
             comment: logData.comment || '',
             createdAt: logData.createdAt?.toDate?.() || new Date(),
           }
@@ -80,8 +82,8 @@ export function WorkoutLogForm({ workoutId, athleteId, scheduledDate }: WorkoutL
   }, [workoutId, athleteId, scheduledDate])
 
   const handleSave = async () => {
-    if (!effort) {
-      toast.error('Please select an effort level')
+    if (!effort || effort < 1 || effort > 10) {
+      toast.error('Please rate your effort from 1 to 10')
       return
     }
 
@@ -98,13 +100,14 @@ export function WorkoutLogForm({ workoutId, athleteId, scheduledDate }: WorkoutL
 
     setSaving(true)
     try {
+      const effortNum = effort // narrowed above
       const baseData = {
         athleteId,
         workoutId,
         date: scheduledDate,
         actualDistance: parsedDistance,
         actualPace: actualPace.trim() || null,
-        effort,
+        effort: effortNum,
         comment,
       }
 
@@ -118,7 +121,7 @@ export function WorkoutLogForm({ workoutId, athleteId, scheduledDate }: WorkoutL
           ...existingLog,
           actualDistance: parsedDistance ?? undefined,
           actualPace: baseData.actualPace ?? undefined,
-          effort,
+          effort: effortNum,
           comment,
         })
       } else {
@@ -133,7 +136,7 @@ export function WorkoutLogForm({ workoutId, athleteId, scheduledDate }: WorkoutL
           date: scheduledDate,
           actualDistance: parsedDistance ?? undefined,
           actualPace: baseData.actualPace ?? undefined,
-          effort,
+          effort: effortNum,
           comment,
           createdAt: new Date(),
         })
@@ -201,33 +204,55 @@ export function WorkoutLogForm({ workoutId, athleteId, scheduledDate }: WorkoutL
       </div>
 
       <div className="space-y-1">
-        <Label className="text-sm">Effort Level</Label>
-        <div className="flex gap-2">
-          {(['easy', 'medium', 'hard'] as const).map((level) => (
-            <button
-              key={level}
-              type="button"
-              onClick={() => setEffort(level)}
-              className={cn(
-                'flex-1 py-2 px-3 rounded-lg border text-sm font-medium capitalize transition-colors',
-                effort === level
-                  ? level === 'easy'
-                    ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
-                    : level === 'medium'
-                    ? 'bg-amber-100 text-amber-700 border-amber-300'
-                    : 'bg-red-100 text-red-700 border-red-300'
-                  : 'border-border hover:bg-muted/50 text-muted-foreground'
-              )}
-            >
-              {level}
-            </button>
-          ))}
+        <div className="flex items-baseline justify-between">
+          <Label className="text-sm">Effort (1–10)</Label>
+          {effort != null && (
+            <span className="text-sm font-semibold text-navy">{effort}/10</span>
+          )}
         </div>
+        <div
+          role="radiogroup"
+          aria-label="Perceived effort from 1 to 10"
+          className="grid grid-cols-10 gap-1"
+        >
+          {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => {
+            const active = effort === n
+            // Light → strong color ramp so the scale reads visually.
+            const tone =
+              n <= 3
+                ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
+                : n <= 6
+                ? 'bg-amber-100 text-amber-700 border-amber-300'
+                : n <= 8
+                ? 'bg-orange-100 text-orange-700 border-orange-300'
+                : 'bg-red-100 text-red-700 border-red-300'
+            return (
+              <button
+                key={n}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                onClick={() => setEffort(n)}
+                className={cn(
+                  'h-9 rounded-md border text-sm font-semibold transition-colors',
+                  active
+                    ? tone
+                    : 'border-border bg-background text-muted-foreground hover:bg-muted/50',
+                )}
+              >
+                {n}
+              </button>
+            )
+          })}
+        </div>
+        <p className="text-xs text-muted-foreground pt-0.5">
+          1 = very easy · 5 = moderate · 10 = max effort
+        </p>
       </div>
 
       <div className="space-y-1">
         <Label htmlFor="comment" className="text-sm">
-          Comment
+          Comment (optional)
         </Label>
         <Textarea
           id="comment"
@@ -240,7 +265,7 @@ export function WorkoutLogForm({ workoutId, athleteId, scheduledDate }: WorkoutL
 
       <Button
         onClick={handleSave}
-        disabled={saving || !effort}
+        disabled={saving || effort == null}
         className="w-full bg-gold hover:bg-gold/90 text-navy"
       >
         {saving ? (

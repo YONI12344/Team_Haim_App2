@@ -31,6 +31,7 @@ import {
   ResponsiveContainer 
 } from 'recharts'
 import type { AssignedWorkout, AthleteProfile, Workout, WorkoutType, WorkoutLog } from '@/lib/types'
+import { legacyEffortToNumber } from '@/lib/types'
 import { 
   collection, doc, getDoc, getDocs, query, where, DocumentData, QueryDocumentSnapshot,
 } from 'firebase/firestore'
@@ -46,7 +47,7 @@ function mapDocToWorkoutLog(d: QueryDocumentSnapshot<DocumentData>, fallbackAthl
     date: data.date || '',
     actualDistance: data.actualDistance ?? undefined,
     actualPace: data.actualPace ?? undefined,
-    effort: data.effort || 'easy',
+    effort: legacyEffortToNumber(data.effort),
     comment: data.comment || '',
     createdAt: data.createdAt?.toDate?.() || new Date(),
   }
@@ -390,12 +391,12 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
                           )}
                           {log && (
                             <Badge variant="outline" className={cn(
-                              'capitalize',
-                              log.effort === 'easy' ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
-                              : log.effort === 'medium' ? 'bg-amber-100 text-amber-700 border-amber-200'
+                              log.effort <= 3 ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                              : log.effort <= 6 ? 'bg-amber-100 text-amber-700 border-amber-200'
+                              : log.effort <= 8 ? 'bg-orange-100 text-orange-700 border-orange-200'
                               : 'bg-red-100 text-red-700 border-red-200'
                             )}>
-                              {log.effort}
+                              Effort {log.effort}/10
                             </Badge>
                           )}
                         </div>

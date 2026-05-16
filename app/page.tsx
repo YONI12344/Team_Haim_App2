@@ -58,8 +58,15 @@ export default function LoginPage() {
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-12">
         {/* Logo */}
         <div className="mb-12 text-center">
-          <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-navy mb-6">
-            <span className="text-4xl font-serif font-bold text-gold">TH</span>
+          <div className="inline-flex items-center justify-center w-24 h-24 rounded-full overflow-hidden mb-6 bg-navy">
+            {/* To change the launcher / hero logo, replace /public/team-haim-logo.svg */}
+            <img
+              src="/team-haim-logo.svg"
+              alt="Team Haim"
+              width={96}
+              height={96}
+              className="w-24 h-24 object-cover"
+            />
           </div>
           <h1 className="text-4xl md:text-5xl font-serif font-bold text-navy mb-2 text-balance">
             Team Haim

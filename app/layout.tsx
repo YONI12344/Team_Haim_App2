@@ -22,8 +22,15 @@ export const metadata: Metadata = {
   description: 'Premium athletic coaching and performance tracking platform for elite athletes and coaches.',
   generator: 'v0.app',
   keywords: ['athletics', 'coaching', 'training', 'performance', 'track and field'],
+  // To change the app icon (favicon / launcher / Safari pinned tab), replace
+  // /public/icon.svg. The same artwork is also used by the in-app header logo
+  // via /public/team-haim-logo.svg. PNG fallbacks live next to icon.svg.
   icons: {
     icon: [
+      {
+        url: '/icon.svg',
+        type: 'image/svg+xml',
+      },
       {
         url: '/icon-light-32x32.png',
         media: '(prefers-color-scheme: light)',
@@ -31,10 +38,6 @@ export const metadata: Metadata = {
       {
         url: '/icon-dark-32x32.png',
         media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
       },
     ],
     apple: '/apple-icon.png',
