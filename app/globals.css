@@ -132,12 +132,17 @@
 }
 
 @theme inline {
-  /* Body is the calm sans-serif; serif is reserved for hero titles via
-     the .font-serif utility on a per-element basis. */
-  --font-sans: 'Inter', 'Geist', system-ui, sans-serif;
-  --font-serif: 'Playfair Display', 'Georgia', serif;
+  /* Body uses Heebo — bilingual (Latin + Hebrew), highly legible humanist
+     sans designed for screens. Display uses Rubik — a friendly bilingual
+     geometric face that gives the UI a sporty "running club" feel.
+     Playfair is kept around only for the brand wordmark / decorative
+     hero titles via the .font-display-serif utility. */
+  --font-sans: var(--font-heebo), 'Heebo', 'Inter', system-ui, sans-serif;
+  --font-serif: var(--font-rubik), 'Rubik', 'Heebo', system-ui, sans-serif;
   --font-mono: 'Geist Mono', 'Geist Mono Fallback', monospace;
-  --font-body: 'Inter', 'Geist', system-ui, sans-serif;
+  --font-body: var(--font-heebo), 'Heebo', 'Inter', system-ui, sans-serif;
+  --font-display: var(--font-rubik), 'Rubik', 'Heebo', system-ui, sans-serif;
+  --font-display-serif: var(--font-playfair), 'Playfair Display', 'Georgia', serif;
   
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -194,14 +199,28 @@
     @apply bg-background text-foreground;
     font-family: var(--font-body);
     font-weight: 400;
+    font-feature-settings: 'cv11', 'ss01', 'ss03';
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    line-height: 1.55;
   }
-  /* Headings default to semibold sans-serif. Add `.font-serif` explicitly
-     on hero titles where you want the decorative Playfair face. */
+  /* Headings now use the sporty Rubik display face by default. Add the
+     `.font-display-serif` utility on the brand wordmark / hero titles
+     where the decorative Playfair face is wanted. */
   h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-sans);
+    font-family: var(--font-display);
     font-weight: 600;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.015em;
+    color: var(--navy);
+  }
+  h1 { letter-spacing: -0.02em; }
+
+  /* RTL polish: tighten letter-spacing a touch in Hebrew where the
+     default Latin tracking can feel airy. */
+  [dir='rtl'] h1, [dir='rtl'] h2, [dir='rtl'] h3,
+  [dir='rtl'] h4, [dir='rtl'] h5, [dir='rtl'] h6 {
+    letter-spacing: 0;
   }
 }
 
@@ -260,6 +279,50 @@
   }
   .bg-hero-gold {
     background: linear-gradient(135deg, var(--gold-light) 0%, transparent 70%);
+  }
+
+  /* More navy-forward backdrops — mostly white with subtle navy color play */
+  .bg-navy-radial {
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 0%, color-mix(in oklch, var(--navy) 10%, transparent) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 50% at 90% 100%, color-mix(in oklch, var(--navy) 6%, transparent) 0%, transparent 70%),
+      var(--background);
+  }
+  .bg-navy-gradient {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+  }
+  .bg-navy-soft {
+    background: linear-gradient(180deg, var(--navy-tint) 0%, var(--background) 100%);
+  }
+  .text-navy-light {
+    color: var(--navy-light);
+  }
+  .border-navy-soft {
+    border-color: color-mix(in oklch, var(--navy) 18%, transparent);
+  }
+  .ring-navy {
+    --tw-ring-color: var(--navy);
+  }
+
+  /* Decorative navy underline used under hero titles for a "team" / track
+     stripe feeling. Keeps the page mostly white while injecting navy. */
+  .navy-rule {
+    display: inline-block;
+    width: 4rem;
+    height: 4px;
+    border-radius: 9999px;
+    background: linear-gradient(90deg, var(--navy) 0%, var(--navy-light) 100%);
+  }
+
+  /* Display font helpers. Use `.font-display` for sporty Rubik headings
+     and `.font-display-serif` to keep the decorative Playfair wordmark
+     where wanted (brand lockup). */
+  .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.015em;
+  }
+  .font-display-serif {
+    font-family: var(--font-display-serif);
   }
 
   /* Friendlier card surface */

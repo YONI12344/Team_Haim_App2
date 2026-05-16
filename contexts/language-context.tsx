@@ -16,14 +16,39 @@ interface Translations {
   today: string
   week: string
   month: string
-  
+  languageToggle: string
+  languageToggleAria: string
+
+  // Landing page
+  welcome: string
+  signInDescription: string
+  continueWithGoogle: string
+  termsNotice: string
+  selectYourRole: string
+  chooseHowYoull: string
+  athlete: string
+  coach: string
+  athleteRoleDesc: string
+  coachRoleDesc: string
+  settingUpAccount: string
+  trackProgress: string
+  trackProgressDesc: string
+  smartScheduling: string
+  smartSchedulingDesc: string
+  directCommunication: string
+  directCommunicationDesc: string
+  allRightsReserved: string
+
   // Navigation
   dashboard: string
   schedule: string
+  journey: string
   statistics: string
   chat: string
   athletes: string
   workouts: string
+  settings: string
+  coachPortal: string
   
   // Schedule
   weeklySchedule: string
@@ -95,13 +120,37 @@ const translations: Record<Language, Translations> = {
     today: 'Today',
     week: 'Week',
     month: 'Month',
-    
+    languageToggle: 'עברית',
+    languageToggleAria: 'Switch language to Hebrew',
+
+    welcome: 'Welcome',
+    signInDescription: 'Sign in to access your training dashboard',
+    continueWithGoogle: 'Continue with Google',
+    termsNotice: 'By signing in, you agree to our Terms of Service and Privacy Policy',
+    selectYourRole: 'Select Your Role',
+    chooseHowYoull: "Choose how you'll use Team Haim",
+    athlete: 'Athlete',
+    coach: 'Coach',
+    athleteRoleDesc: 'View workouts, track progress, chat with coach',
+    coachRoleDesc: 'Manage athletes, create workouts, track team',
+    settingUpAccount: 'Setting up your account...',
+    trackProgress: 'Track Progress',
+    trackProgressDesc: 'Monitor your performance with detailed statistics and PR tracking',
+    smartScheduling: 'Smart Scheduling',
+    smartSchedulingDesc: 'View and manage workouts with weekly and monthly calendars',
+    directCommunication: 'Direct Communication',
+    directCommunicationDesc: 'Real-time chat between athletes and coaches',
+    allRightsReserved: 'All rights reserved.',
+
     dashboard: 'Dashboard',
     schedule: 'Schedule',
+    journey: 'Journey',
     statistics: 'Statistics',
     chat: 'Chat',
     athletes: 'Athletes',
     workouts: 'Workouts',
+    settings: 'Settings',
+    coachPortal: 'Coach Portal',
     
     weeklySchedule: 'Weekly Schedule',
     totalPlanned: 'Total Planned',
@@ -166,13 +215,37 @@ const translations: Record<Language, Translations> = {
     today: 'היום',
     week: 'שבוע',
     month: 'חודש',
-    
+    languageToggle: 'English',
+    languageToggleAria: 'החלף שפה לאנגלית',
+
+    welcome: 'ברוכים הבאים',
+    signInDescription: 'התחבר כדי לגשת ללוח האימונים שלך',
+    continueWithGoogle: 'המשך עם Google',
+    termsNotice: 'בהתחברות, אתה מסכים לתנאי השימוש ולמדיניות הפרטיות שלנו',
+    selectYourRole: 'בחר את התפקיד שלך',
+    chooseHowYoull: 'בחר כיצד תשתמש ב-Team Haim',
+    athlete: 'ספורטאי',
+    coach: 'מאמן',
+    athleteRoleDesc: 'צפה באימונים, עקוב אחר התקדמות, שוחח עם המאמן',
+    coachRoleDesc: 'נהל ספורטאים, צור אימונים, עקוב אחר הקבוצה',
+    settingUpAccount: 'מגדיר את החשבון שלך...',
+    trackProgress: 'עקוב אחר ההתקדמות',
+    trackProgressDesc: 'עקוב אחר הביצועים שלך עם סטטיסטיקות מפורטות ושיאים אישיים',
+    smartScheduling: 'תזמון חכם',
+    smartSchedulingDesc: 'צפה ונהל אימונים עם לוחות שבועיים וחודשיים',
+    directCommunication: 'תקשורת ישירה',
+    directCommunicationDesc: 'צ\'אט בזמן אמת בין ספורטאים למאמנים',
+    allRightsReserved: 'כל הזכויות שמורות.',
+
     dashboard: 'לוח בקרה',
     schedule: 'לוח זמנים',
+    journey: 'המסע',
     statistics: 'סטטיסטיקות',
-    chat: 'צאט',
+    chat: 'צ\'אט',
     athletes: 'ספורטאים',
     workouts: 'אימונים',
+    settings: 'הגדרות',
+    coachPortal: 'אזור המאמן',
     
     weeklySchedule: 'לוח שבועי',
     totalPlanned: 'סה"כ מתוכנן',

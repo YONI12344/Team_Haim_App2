@@ -1,8 +1,10 @@
 'use client'
 
 import { useAuth } from '@/contexts/auth-context'
+import { useLanguage } from '@/contexts/language-context'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { LanguageToggle } from '@/components/language-toggle'
 import { Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -10,6 +12,7 @@ import type { UserRole } from '@/lib/types'
 
 export default function LoginPage() {
   const { user, loading, signInWithGoogle, updateUserRole } = useAuth()
+  const { t } = useLanguage()
   const router = useRouter()
   const [isSigningIn, setIsSigningIn] = useState(false)
   const [showRoleSelection, setShowRoleSelection] = useState(false)
@@ -47,42 +50,48 @@ export default function LoginPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="h-8 w-8 animate-spin text-navy" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-navy-radial">
+      {/* Top bar with language toggle */}
+      <div className="w-full flex justify-end px-4 pt-4">
+        <LanguageToggle variant="outline" />
+      </div>
+
       {/* Hero Section */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-12">
         {/* Logo */}
         <div className="mb-12 text-center">
-          <div className="inline-flex items-center justify-center w-24 h-24 mb-6">
+          <div className="inline-flex items-center justify-center w-24 h-24 mb-6 rounded-2xl bg-white shadow-md ring-1 ring-navy/10">
             {/* To change the launcher / hero logo, replace /public/team-haim-logo.png */}
             <img
               src="/team-haim-logo.png?v=3"
-              alt="Team Haim"
+              alt={t.teamHaim}
               width={96}
               height={96}
-              className="w-24 h-24 object-contain"
+              className="w-20 h-20 object-contain"
             />
           </div>
-          <h1 className="text-4xl md:text-5xl font-serif font-bold text-navy mb-2 text-balance">
-            Team Haim
+          <h1 className="font-display-serif text-4xl md:text-5xl font-bold text-navy mb-3 text-balance">
+            {t.teamHaim}
           </h1>
-          <p className="text-muted-foreground text-lg">
-            Elite Athletic Performance
+          <div className="navy-rule mb-3" aria-hidden />
+          <p className="text-navy-light text-lg font-medium">
+            {t.eliteAthletic}
           </p>
         </div>
 
         {/* Login Card */}
         {!showRoleSelection ? (
-          <Card className="w-full max-w-md border-border/50 shadow-lg">
+          <Card className="w-full max-w-md border-navy/15 shadow-lg bg-white">
             <CardHeader className="text-center pb-2">
-              <CardTitle className="text-2xl font-serif text-navy">Welcome</CardTitle>
+              <CardTitle className="font-display text-2xl text-navy">{t.welcome}</CardTitle>
               <CardDescription className="text-muted-foreground">
-                Sign in to access your training dashboard
+                {t.signInDescription}
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
@@ -113,65 +122,65 @@ export default function LoginPage() {
                     />
                   </svg>
                 )}
-                Continue with Google
+                {t.continueWithGoogle}
               </Button>
-              
+
               <div className="mt-6 text-center">
                 <p className="text-sm text-muted-foreground">
-                  By signing in, you agree to our Terms of Service and Privacy Policy
+                  {t.termsNotice}
                 </p>
               </div>
             </CardContent>
           </Card>
         ) : (
-          <Card className="w-full max-w-md border-border/50 shadow-lg">
+          <Card className="w-full max-w-md border-navy/15 shadow-lg bg-white">
             <CardHeader className="text-center pb-2">
-              <CardTitle className="text-2xl font-serif text-navy">Select Your Role</CardTitle>
+              <CardTitle className="font-display text-2xl text-navy">{t.selectYourRole}</CardTitle>
               <CardDescription className="text-muted-foreground">
-                Choose how you&apos;ll use Team Haim
+                {t.chooseHowYoull}
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-6 space-y-4">
               <button
                 onClick={() => handleRoleSelection('athlete')}
                 disabled={selectedRole !== null}
-                className="w-full p-6 rounded-lg border-2 border-border hover:border-gold hover:bg-accent transition-luxury text-left group disabled:opacity-50"
+                className="w-full p-6 rounded-lg border-2 border-border hover:border-navy hover:bg-navy-tint transition-luxury text-start group disabled:opacity-50"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-gold/10 flex items-center justify-center group-hover:bg-gold/20 transition-luxury">
-                    <svg className="w-6 h-6 text-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="w-12 h-12 rounded-full bg-navy/10 flex items-center justify-center group-hover:bg-navy/20 transition-luxury">
+                    <svg className="w-6 h-6 text-navy" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                     </svg>
                   </div>
                   <div>
-                    <h3 className="font-semibold text-navy text-lg">Athlete</h3>
-                    <p className="text-sm text-muted-foreground">View workouts, track progress, chat with coach</p>
+                    <h3 className="font-display font-semibold text-navy text-lg">{t.athlete}</h3>
+                    <p className="text-sm text-muted-foreground">{t.athleteRoleDesc}</p>
                   </div>
                 </div>
               </button>
-              
+
               <button
                 onClick={() => handleRoleSelection('coach')}
                 disabled={selectedRole !== null}
-                className="w-full p-6 rounded-lg border-2 border-border hover:border-gold hover:bg-accent transition-luxury text-left group disabled:opacity-50"
+                className="w-full p-6 rounded-lg border-2 border-border hover:border-navy hover:bg-navy-tint transition-luxury text-start group disabled:opacity-50"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-gold/10 flex items-center justify-center group-hover:bg-gold/20 transition-luxury">
-                    <svg className="w-6 h-6 text-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="w-12 h-12 rounded-full bg-navy/10 flex items-center justify-center group-hover:bg-navy/20 transition-luxury">
+                    <svg className="w-6 h-6 text-navy" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                     </svg>
                   </div>
                   <div>
-                    <h3 className="font-semibold text-navy text-lg">Coach</h3>
-                    <p className="text-sm text-muted-foreground">Manage athletes, create workouts, track team</p>
+                    <h3 className="font-display font-semibold text-navy text-lg">{t.coach}</h3>
+                    <p className="text-sm text-muted-foreground">{t.coachRoleDesc}</p>
                   </div>
                 </div>
               </button>
-              
+
               {selectedRole && (
                 <div className="flex items-center justify-center pt-4">
-                  <Loader2 className="h-5 w-5 animate-spin text-gold mr-2" />
-                  <span className="text-muted-foreground">Setting up your account...</span>
+                  <Loader2 className="h-5 w-5 animate-spin text-navy mr-2" />
+                  <span className="text-muted-foreground">{t.settingUpAccount}</span>
                 </div>
               )}
             </CardContent>
@@ -181,41 +190,41 @@ export default function LoginPage() {
         {/* Features Preview */}
         <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl w-full px-4">
           <div className="text-center">
-            <div className="w-12 h-12 rounded-full bg-gold/10 flex items-center justify-center mx-auto mb-4">
-              <svg className="w-6 h-6 text-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="w-12 h-12 rounded-full bg-navy/10 flex items-center justify-center mx-auto mb-4">
+              <svg className="w-6 h-6 text-navy" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
             </div>
-            <h3 className="font-semibold text-navy mb-2">Track Progress</h3>
-            <p className="text-sm text-muted-foreground">Monitor your performance with detailed statistics and PR tracking</p>
+            <h3 className="font-display font-semibold text-navy mb-2">{t.trackProgress}</h3>
+            <p className="text-sm text-muted-foreground">{t.trackProgressDesc}</p>
           </div>
-          
+
           <div className="text-center">
-            <div className="w-12 h-12 rounded-full bg-gold/10 flex items-center justify-center mx-auto mb-4">
-              <svg className="w-6 h-6 text-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="w-12 h-12 rounded-full bg-navy/10 flex items-center justify-center mx-auto mb-4">
+              <svg className="w-6 h-6 text-navy" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
             </div>
-            <h3 className="font-semibold text-navy mb-2">Smart Scheduling</h3>
-            <p className="text-sm text-muted-foreground">View and manage workouts with weekly and monthly calendars</p>
+            <h3 className="font-display font-semibold text-navy mb-2">{t.smartScheduling}</h3>
+            <p className="text-sm text-muted-foreground">{t.smartSchedulingDesc}</p>
           </div>
-          
+
           <div className="text-center">
-            <div className="w-12 h-12 rounded-full bg-gold/10 flex items-center justify-center mx-auto mb-4">
-              <svg className="w-6 h-6 text-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="w-12 h-12 rounded-full bg-navy/10 flex items-center justify-center mx-auto mb-4">
+              <svg className="w-6 h-6 text-navy" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
             </div>
-            <h3 className="font-semibold text-navy mb-2">Direct Communication</h3>
-            <p className="text-sm text-muted-foreground">Real-time chat between athletes and coaches</p>
+            <h3 className="font-display font-semibold text-navy mb-2">{t.directCommunication}</h3>
+            <p className="text-sm text-muted-foreground">{t.directCommunicationDesc}</p>
           </div>
         </div>
       </div>
 
       {/* Footer */}
-      <footer className="py-6 text-center border-t border-border">
+      <footer className="py-6 text-center border-t border-navy/10">
         <p className="text-sm text-muted-foreground">
-          &copy; {new Date().getFullYear()} Team Haim. All rights reserved.
+          &copy; {new Date().getFullYear()} {t.teamHaim}. {t.allRightsReserved}
         </p>
       </footer>
     </div>
