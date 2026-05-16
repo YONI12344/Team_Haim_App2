@@ -90,7 +90,7 @@ export function CoachSettings() {
     }
     setSyncing(true)
     try {
-      const functions = getFunctions()
+      const functions = getFunctions(undefined, 'europe-west1')
       const call = httpsCallable<unknown, { total: number; succeeded: number; errors: unknown[] }>(
         functions,
         'syncAllAthletesNow'
