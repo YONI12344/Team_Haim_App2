@@ -14,12 +14,19 @@ interface Translations {
   cancel: string
   close: string
   today: string
+  yesterday: string
   week: string
   month: string
   all: string
   languageToggle: string
   languageToggleAria: string
 
+  // Chat
+  directMessage: string
+  loadingMessages: string
+  startConversation: string
+  sendMessageTo: string
+  typeMessage: string
   // Landing page
   welcome: string
   signInDescription: string
@@ -107,6 +114,269 @@ interface Translations {
   min: string
   completed: string
   scheduled: string
+
+  // Profile page
+  myProfile: string
+  yourAthleticProfile: string
+  editProfile: string
+  completeYourProfile: string
+  completeYourProfileDesc: string
+  exportMyData: string
+  generating: string
+  saveProfile: string
+  changePhoto: string
+  removePhotoAria: string
+  noEventsListed: string
+  goalLabel: string
+  targetWord: string
+  inWord: string
+  athleteFallback: string
+
+  // Profile form
+  fieldName: string
+  fieldDateOfBirth: string
+  fieldGender: string
+  selectPlaceholder: string
+  male: string
+  female: string
+  otherGender: string
+  fieldHeight: string
+  fieldWeight: string
+  fieldWeeklyMileage: string
+  fieldRestingHR: string
+  fieldMaxHR: string
+  fieldCurrentHR: string
+  fieldTargetHR: string
+  fieldTargetPace: string
+  fieldExperienceLevel: string
+  fieldDiscipline: string
+  fieldEvents: string
+  fieldGoalRaceEvent: string
+  fieldGoalRaceDate: string
+  fieldTargetTime: string
+  placeholderRecentHR: string
+  placeholderGoalHR: string
+  placeholderPace430: string
+  placeholderEvents: string
+  placeholderGoalRace: string
+  placeholderTargetTime: string
+
+  // Experience levels
+  beginner: string
+  intermediate: string
+  advanced: string
+  professional: string
+
+  // Disciplines
+  disciplineTrack: string
+  disciplineRoad: string
+  disciplineJogger: string
+  disciplineTrail: string
+  disciplineMixed: string
+
+  // Profile tabs / sections
+  tabPRs: string
+  tabSeasonBest: string
+  tabPaces: string
+  tabGoals: string
+  personalRecordsTitle: string
+  seasonBestsTitle: string
+  trainingPacesTitle: string
+  goalsTitle: string
+  noPRsYet: string
+  noSeasonBestsYet: string
+  noTrainingPacesYet: string
+  noGoalsYet: string
+
+  // PR / Pace editors
+  recordPR: string
+  recordSB: string
+  addRecord: string
+  eventDistance: string
+  timeLabel: string
+  dateField: string
+  locationOptional: string
+  placeholderEvent5K: string
+  placeholderTime1845: string
+  placeholderLocationTLV: string
+  addTrainingPace: string
+  paceTypeLabel: string
+  pacePerKm: string
+  noteOptional: string
+  savePaceBtn: string
+  placeholderPace500: string
+  placeholderPaceDesc: string
+
+  // Pace types
+  paceEasy: string
+  paceTempo: string
+  paceThreshold: string
+  paceInterval: string
+  paceRepetition: string
+  paceRace: string
+
+  // Toasts
+  toastProfilePhotoUpdated: string
+  toastProfilePhotoRemoved: string
+  toastProfileSaved: string
+  toastProfileSaveFailed: string
+  toastPhotoUploadFailed: string
+  toastPhotoRemoveFailed: string
+  toastChooseImage: string
+  toastImageTooBig: string
+  toastSaveChangesFailed: string
+  toastUpdated: string
+  toastAdded: string
+
+  // Athlete dashboard
+  welcomeBack: string
+  welcomeTeamHaim: string
+  coachWillAssign: string
+  completeProfileBtn: string
+  todaysWorkoutTitle: string
+  viewFullDetails: string
+  thisWeekStat: string
+  workoutsCompletedCaption: string
+  distanceStat: string
+  kmLoggedCaption: string
+  prsStat: string
+  personalRecordsCaption: string
+  goalsStat: string
+  activeGoalsCaption: string
+  upcomingWorkouts: string
+  viewAll: string
+  noUpcomingWorkouts: string
+  tomorrow: string
+  weeklyProgress: string
+  workoutsCompletedLabel: string
+  ofWord: string
+  avgEffortLabel: string
+  totalTimeLabel: string
+  activeGoalsTitle: string
+  noActiveGoals: string
+
+  // Workout log form
+  workoutLogHeading: string
+  loggedBadge: string
+  actualDistanceKm: string
+  actualPaceKm: string
+  examplePlaceholder10: string
+  examplePlaceholder530: string
+  effortRange: string
+  effortHelper: string
+  commentOptional: string
+  commentPlaceholder: string
+  savingDots: string
+  updateLog: string
+  saveLog: string
+  toastEffortRequired: string
+  toastDistanceInvalid: string
+  toastWorkoutLogged: string
+  toastSaveLogFailed: string
+
+  // Training zones
+  trainingZonesTitle: string
+  toggleZonesAria: string
+  zonesCalcFrom: string
+  zonesAddPR: string
+  zonesNoReference: string
+  heartRateZones: string
+  badgeKarvonen: string
+  badgePercentMax: string
+  howCalculated: string
+  zonesFormulaIntro: string
+  zonesFormulaTargets: string
+  zonesFormulaHR: string
+
+  // Schedule view
+  scheduleTitle: string
+  scheduleSubtitle: string
+  noWorkoutScheduled: string
+  warmupHeading: string
+  workoutHeading: string
+  cooldownHeading: string
+  notesHeading: string
+  yourNotesHeading: string
+  coachFeedbackHeading: string
+  restPrefix: string
+  effortBadgeTitle: string
+  effortBadge: string
+
+  // Stats
+  statisticsTitle: string
+  statisticsSubtitle: string
+  totalKm: string
+  totalHours: string
+  avgEffortStat: string
+  workoutsLoggedStat: string
+  logToSeeCharts: string
+  weeklyTab: string
+  monthlyTab: string
+  weeklyDistance: string
+  monthlyDistance: string
+  averageEffortLevel: string
+  prsAchievedChart: string
+  recentPersonalRecords: string
+
+  // Journey
+  seasonJourneyHeading: string
+  roadToGoalRace: string
+  roadToGoalRaceLong: string
+  startSeasonJourney: string
+  planRoadDesc: string
+  goalRaceLabel: string
+  goalRacePlaceholder: string
+  goalRaceDateLabel: string
+  createMyJourney: string
+  addStageBtn: string
+  toastJourneyCreated: string
+  toastStageSaved: string
+  toastPickGoalDate: string
+  toastLoadJourneyFailed: string
+  toastSaveJourneyFailed: string
+  mySeasonDefault: string
+
+  // Journey timeline
+  seasonJourneyUpper: string
+  goalRaceFallback: string
+  targetPrefix: string
+  daysToRace: string
+  progressLabel: string
+  currentlyIn: string
+  nextStage: string
+  onWord: string
+  noStagesYet: string
+  useAddStage: string
+  coachNotSetup: string
+  nowBadge: string
+  keyWorkouts: string
+  milestones: string
+  stageProgress: string
+  raceDay: string
+
+  // Coach dashboard
+  coachDashboardTitle: string
+  athletesStat: string
+  workoutLibraryStat: string
+  completedToday: string
+  pendingToday: string
+  athletesCardTitle: string
+  viewAllAction: string
+  todaysWorkoutsCard: string
+  doneBadge: string
+  pendingBadge: string
+  noWorkoutsToday: string
+  quickActions: string
+  createWorkoutAction: string
+  manageAthletesAction: string
+  messagesAction: string
+  viewProgressAction: string
+  workoutLibraryCardTitle: string
+
+  // Goal status
+  goalActive: string
+  goalAchieved: string
+  goalArchived: string
 }
 
 const translations: Record<Language, Translations> = {
@@ -119,11 +389,18 @@ const translations: Record<Language, Translations> = {
     cancel: 'Cancel',
     close: 'Close',
     today: 'Today',
+    yesterday: 'Yesterday',
     week: 'Week',
     month: 'Month',
     all: 'All',
     languageToggle: 'עברית',
     languageToggleAria: 'Switch language to Hebrew',
+
+    directMessage: 'Direct Message',
+    loadingMessages: 'Loading messages...',
+    startConversation: 'Start the conversation',
+    sendMessageTo: 'Send a message to',
+    typeMessage: 'Type a message...',
 
     welcome: 'Welcome',
     signInDescription: 'Sign in to access your training dashboard',
@@ -205,6 +482,257 @@ const translations: Record<Language, Translations> = {
     min: 'min',
     completed: 'Completed',
     scheduled: 'Scheduled',
+
+    myProfile: 'My Profile',
+    yourAthleticProfile: 'Your athletic profile and training information',
+    editProfile: 'Edit Profile',
+    completeYourProfile: 'Complete your profile',
+    completeYourProfileDesc: 'Add your details so your coach can tailor your training.',
+    exportMyData: 'Export my data',
+    generating: 'Generating…',
+    saveProfile: 'Save Profile',
+    changePhoto: 'Change photo',
+    removePhotoAria: 'Remove profile photo',
+    noEventsListed: 'No events listed yet',
+    goalLabel: 'Goal:',
+    targetWord: 'target',
+    inWord: 'in',
+    athleteFallback: 'Athlete',
+
+    fieldName: 'Name',
+    fieldDateOfBirth: 'Date of Birth',
+    fieldGender: 'Gender',
+    selectPlaceholder: 'Select…',
+    male: 'Male',
+    female: 'Female',
+    otherGender: 'Other',
+    fieldHeight: 'Height (cm)',
+    fieldWeight: 'Weight (kg)',
+    fieldWeeklyMileage: 'Weekly mileage (km)',
+    fieldRestingHR: 'Resting HR (bpm)',
+    fieldMaxHR: 'Max HR (bpm)',
+    fieldCurrentHR: 'Current HR (bpm)',
+    fieldTargetHR: 'Target HR (bpm)',
+    fieldTargetPace: 'Target pace (min/km)',
+    fieldExperienceLevel: 'Experience level',
+    fieldDiscipline: 'Discipline',
+    fieldEvents: 'Events (comma separated)',
+    fieldGoalRaceEvent: 'Goal race event',
+    fieldGoalRaceDate: 'Goal race date',
+    fieldTargetTime: 'Target time',
+    placeholderRecentHR: 'recent training avg',
+    placeholderGoalHR: 'goal effort HR',
+    placeholderPace430: 'e.g. 4:30',
+    placeholderEvents: 'e.g. 800m, 1500m, 3000m',
+    placeholderGoalRace: 'e.g. Tel Aviv Half',
+    placeholderTargetTime: 'e.g. 1:35:00',
+
+    beginner: 'Beginner',
+    intermediate: 'Intermediate',
+    advanced: 'Advanced',
+    professional: 'Professional',
+
+    disciplineTrack: 'Track & Field',
+    disciplineRoad: 'Distance / Road',
+    disciplineJogger: 'Jogger',
+    disciplineTrail: 'Trail',
+    disciplineMixed: 'Mixed',
+
+    tabPRs: 'PRs',
+    tabSeasonBest: 'Season Best',
+    tabPaces: 'Paces',
+    tabGoals: 'Goals',
+    personalRecordsTitle: 'Personal Records',
+    seasonBestsTitle: 'Season Bests',
+    trainingPacesTitle: 'Training Paces',
+    goalsTitle: 'Goals',
+    noPRsYet: 'No personal records yet',
+    noSeasonBestsYet: 'No season bests recorded yet',
+    noTrainingPacesYet: 'No training paces yet',
+    noGoalsYet: 'No goals yet',
+
+    recordPR: 'Personal Record',
+    recordSB: 'Season Best',
+    addRecord: 'Add',
+    eventDistance: 'Event / distance',
+    timeLabel: 'Time',
+    dateField: 'Date',
+    locationOptional: 'Location (optional)',
+    placeholderEvent5K: 'e.g. 5K',
+    placeholderTime1845: 'e.g. 18:45',
+    placeholderLocationTLV: 'e.g. Tel Aviv',
+    addTrainingPace: 'Add training pace',
+    paceTypeLabel: 'Type',
+    pacePerKm: 'Pace (min/km)',
+    noteOptional: 'Note (optional)',
+    savePaceBtn: 'Save pace',
+    placeholderPace500: 'e.g. 5:00',
+    placeholderPaceDesc: 'e.g. half-marathon goal pace',
+
+    paceEasy: 'Easy',
+    paceTempo: 'Tempo',
+    paceThreshold: 'Threshold',
+    paceInterval: 'Interval',
+    paceRepetition: 'Repetition',
+    paceRace: 'Race',
+
+    toastProfilePhotoUpdated: 'Profile photo updated',
+    toastProfilePhotoRemoved: 'Profile photo removed',
+    toastProfileSaved: 'Profile saved!',
+    toastProfileSaveFailed: 'Failed to save profile',
+    toastPhotoUploadFailed: 'Failed to upload photo',
+    toastPhotoRemoveFailed: 'Failed to remove photo',
+    toastChooseImage: 'Please choose an image file',
+    toastImageTooBig: 'Image is larger than 5 MB',
+    toastSaveChangesFailed: 'Failed to save changes',
+    toastUpdated: 'Updated',
+    toastAdded: 'Added',
+
+    welcomeBack: 'Welcome back',
+    welcomeTeamHaim: 'Welcome to Team Haim!',
+    coachWillAssign: 'Your coach will assign your first workout soon.',
+    completeProfileBtn: 'Complete your profile',
+    todaysWorkoutTitle: "Today's Workout",
+    viewFullDetails: 'View full details',
+    thisWeekStat: 'This Week',
+    workoutsCompletedCaption: 'workouts completed',
+    distanceStat: 'Distance',
+    kmLoggedCaption: 'km logged',
+    prsStat: 'PRs',
+    personalRecordsCaption: 'personal records',
+    goalsStat: 'Goals',
+    activeGoalsCaption: 'active goals',
+    upcomingWorkouts: 'Upcoming Workouts',
+    viewAll: 'View all',
+    noUpcomingWorkouts: 'No upcoming workouts yet.',
+    tomorrow: 'Tomorrow',
+    weeklyProgress: 'Weekly Progress',
+    workoutsCompletedLabel: 'Workouts Completed',
+    ofWord: 'of',
+    avgEffortLabel: 'Avg Effort',
+    totalTimeLabel: 'Total Time',
+    activeGoalsTitle: 'Active Goals',
+    noActiveGoals: 'No goals yet — add some on your profile.',
+
+    workoutLogHeading: 'Workout Log',
+    loggedBadge: 'Logged',
+    actualDistanceKm: 'Actual Distance (km)',
+    actualPaceKm: 'Actual Pace (/km)',
+    examplePlaceholder10: 'e.g. 10',
+    examplePlaceholder530: 'e.g. 5:30',
+    effortRange: 'Effort (1–10)',
+    effortHelper: '1 = very easy · 5 = moderate · 10 = max effort',
+    commentOptional: 'Comment (optional)',
+    commentPlaceholder: 'How did it feel? What did you notice?',
+    savingDots: 'Saving...',
+    updateLog: 'Update Log',
+    saveLog: 'Save Log',
+    toastEffortRequired: 'Please rate your effort from 1 to 10',
+    toastDistanceInvalid: 'Please enter a valid distance in km',
+    toastWorkoutLogged: 'Workout logged!',
+    toastSaveLogFailed: 'Failed to save log. Please try again.',
+
+    trainingZonesTitle: 'Training Zones',
+    toggleZonesAria: 'Toggle zones',
+    zonesCalcFrom: 'Calculated from',
+    zonesAddPR: 'Add a recent PR (e.g. 5K, 10K) to compute your training paces.',
+    zonesNoReference: 'No reference race yet — add a PR or set one manually in your profile.',
+    heartRateZones: 'Heart-rate zones',
+    badgeKarvonen: 'Karvonen',
+    badgePercentMax: '% max HR',
+    howCalculated: 'How is this calculated?',
+    zonesFormulaIntro:
+      "We use Jack Daniels' VDOT model. From the athlete's reference race we derive their VO₂max:",
+    zonesFormulaTargets:
+      'Each zone has a target %VO2max (Easy ~70%, Marathon ~84%, Threshold ~88%, Interval ~98%, Repetition ~105%). We invert the cost equation to find the pace that matches each anchor.',
+    zonesFormulaHR:
+      'Heart-rate zones use the Karvonen reserve formula when resting HR is known: zone = resting + pct × (max − resting); otherwise we fall back to %max HR.',
+
+    scheduleTitle: 'Schedule',
+    scheduleSubtitle: 'View and track your training plan',
+    noWorkoutScheduled: 'No workout scheduled',
+    warmupHeading: 'Warmup',
+    workoutHeading: 'Workout',
+    cooldownHeading: 'Cooldown',
+    notesHeading: 'Notes',
+    yourNotesHeading: 'Your Notes',
+    coachFeedbackHeading: 'Coach Feedback',
+    restPrefix: 'Rest:',
+    effortBadgeTitle: 'Perceived effort (1–10)',
+    effortBadge: 'Effort',
+
+    statisticsTitle: 'Statistics',
+    statisticsSubtitle: 'Track your training progress and performance trends',
+    totalKm: 'Total km',
+    totalHours: 'Total hours',
+    avgEffortStat: 'Avg effort (1-10)',
+    workoutsLoggedStat: 'Workouts logged',
+    logToSeeCharts: 'Log workouts to see your progress charts here.',
+    weeklyTab: 'Weekly',
+    monthlyTab: 'Monthly',
+    weeklyDistance: 'Weekly Distance (km)',
+    monthlyDistance: 'Monthly Distance (km)',
+    averageEffortLevel: 'Average Effort Level',
+    prsAchievedChart: 'PRs Achieved',
+    recentPersonalRecords: 'Recent Personal Records',
+
+    seasonJourneyHeading: 'Season Journey',
+    roadToGoalRace: 'Your road to the next goal race.',
+    roadToGoalRaceLong:
+      'Your road to the next goal race. Distances are in km, paces in min/km.',
+    startSeasonJourney: 'Start your season journey',
+    planRoadDesc:
+      'Plan your road to your next goal race. You can add and update stages and milestones any time.',
+    goalRaceLabel: 'Goal race',
+    goalRacePlaceholder: 'e.g. Tel Aviv Half',
+    goalRaceDateLabel: 'Goal race date',
+    createMyJourney: 'Create my journey',
+    addStageBtn: 'Add stage',
+    toastJourneyCreated: 'Journey created — add your first stage',
+    toastStageSaved: 'Stage saved',
+    toastPickGoalDate: 'Pick a goal race date first',
+    toastLoadJourneyFailed: 'Failed to load your journey',
+    toastSaveJourneyFailed: 'Failed to save journey',
+    mySeasonDefault: 'My Season',
+
+    seasonJourneyUpper: 'Season Journey',
+    goalRaceFallback: 'Goal race',
+    targetPrefix: 'Target',
+    daysToRace: 'days to race',
+    progressLabel: 'Progress',
+    currentlyIn: 'Currently in',
+    nextStage: 'next:',
+    onWord: 'on',
+    noStagesYet: 'No stages yet.',
+    useAddStage: 'Use “Add stage” to begin.',
+    coachNotSetup: 'Your coach hasn’t set this up yet.',
+    nowBadge: 'Now',
+    keyWorkouts: 'Key workouts',
+    milestones: 'Milestones',
+    stageProgress: 'Stage progress',
+    raceDay: 'Race day',
+
+    coachDashboardTitle: 'Coach Dashboard',
+    athletesStat: 'Athletes',
+    workoutLibraryStat: 'Workout Library',
+    completedToday: 'Completed Today',
+    pendingToday: 'Pending Today',
+    athletesCardTitle: 'Athletes',
+    viewAllAction: 'View All',
+    todaysWorkoutsCard: "Today's Workouts",
+    doneBadge: 'Done',
+    pendingBadge: 'Pending',
+    noWorkoutsToday: 'No workouts scheduled for today',
+    quickActions: 'Quick Actions',
+    createWorkoutAction: 'Create Workout',
+    manageAthletesAction: 'Manage Athletes',
+    messagesAction: 'Messages',
+    viewProgressAction: 'View Progress',
+    workoutLibraryCardTitle: 'Workout Library',
+
+    goalActive: 'Active',
+    goalAchieved: 'Achieved',
+    goalArchived: 'Archived',
   },
   he: {
     teamHaim: 'צוות חיים',
@@ -215,11 +743,18 @@ const translations: Record<Language, Translations> = {
     cancel: 'בטל',
     close: 'סגור',
     today: 'היום',
+    yesterday: 'אתמול',
     week: 'שבוע',
     month: 'חודש',
     all: 'הכל',
     languageToggle: 'English',
     languageToggleAria: 'החלף שפה לאנגלית',
+
+    directMessage: 'הודעה ישירה',
+    loadingMessages: 'טוען הודעות...',
+    startConversation: 'התחל שיחה',
+    sendMessageTo: 'שלח הודעה אל',
+    typeMessage: 'הקלד הודעה...',
 
     welcome: 'ברוכים הבאים',
     signInDescription: 'התחבר כדי לגשת ללוח האימונים שלך',
@@ -301,6 +836,252 @@ const translations: Record<Language, Translations> = {
     min: 'דק',
     completed: 'הושלם',
     scheduled: 'מתוכנן',
+
+    myProfile: 'הפרופיל שלי',
+    yourAthleticProfile: 'הפרופיל הספורטיבי ומידע האימון שלך',
+    editProfile: 'ערוך פרופיל',
+    completeYourProfile: 'השלם את הפרופיל שלך',
+    completeYourProfileDesc: 'הוסף את הפרטים שלך כדי שהמאמן יוכל להתאים את האימונים.',
+    exportMyData: 'ייצא את הנתונים שלי',
+    generating: 'מייצא…',
+    saveProfile: 'שמור פרופיל',
+    changePhoto: 'החלף תמונה',
+    removePhotoAria: 'הסר תמונת פרופיל',
+    noEventsListed: 'עדיין לא נרשמו אירועים',
+    goalLabel: 'יעד:',
+    targetWord: 'יעד',
+    inWord: 'ב-',
+    athleteFallback: 'ספורטאי',
+
+    fieldName: 'שם',
+    fieldDateOfBirth: 'תאריך לידה',
+    fieldGender: 'מגדר',
+    selectPlaceholder: 'בחר…',
+    male: 'זכר',
+    female: 'נקבה',
+    otherGender: 'אחר',
+    fieldHeight: 'גובה (ס"מ)',
+    fieldWeight: 'משקל (ק"ג)',
+    fieldWeeklyMileage: 'נפח שבועי (ק"מ)',
+    fieldRestingHR: 'דופק מנוחה (פעימות/דקה)',
+    fieldMaxHR: 'דופק מקסימלי (פעימות/דקה)',
+    fieldCurrentHR: 'דופק נוכחי (פעימות/דקה)',
+    fieldTargetHR: 'דופק יעד (פעימות/דקה)',
+    fieldTargetPace: 'קצב יעד (דק׳/ק"מ)',
+    fieldExperienceLevel: 'רמת ניסיון',
+    fieldDiscipline: 'דיסציפלינה',
+    fieldEvents: 'אירועים (מופרדים בפסיק)',
+    fieldGoalRaceEvent: 'מירוץ יעד',
+    fieldGoalRaceDate: 'תאריך מירוץ היעד',
+    fieldTargetTime: 'זמן יעד',
+    placeholderRecentHR: 'ממוצע אימונים אחרונים',
+    placeholderGoalHR: 'דופק יעד למאמץ',
+    placeholderPace430: 'לדוגמה 4:30',
+    placeholderEvents: 'לדוגמה 800 מ׳, 1500 מ׳, 3000 מ׳',
+    placeholderGoalRace: 'לדוגמה חצי מרתון תל אביב',
+    placeholderTargetTime: 'לדוגמה 1:35:00',
+
+    beginner: 'מתחיל',
+    intermediate: 'בינוני',
+    advanced: 'מתקדם',
+    professional: 'מקצועני',
+
+    disciplineTrack: 'אתלטיקה',
+    disciplineRoad: 'ריצת כביש / מרחקים',
+    disciplineJogger: 'ריצת בריאות',
+    disciplineTrail: 'שטח',
+    disciplineMixed: 'מעורב',
+
+    tabPRs: 'שיאים',
+    tabSeasonBest: 'שיא עונה',
+    tabPaces: 'קצבים',
+    tabGoals: 'יעדים',
+    personalRecordsTitle: 'שיאים אישיים',
+    seasonBestsTitle: 'שיאי עונה',
+    trainingPacesTitle: 'קצבי אימון',
+    goalsTitle: 'יעדים',
+    noPRsYet: 'עדיין אין שיאים אישיים',
+    noSeasonBestsYet: 'עדיין לא נרשמו שיאי עונה',
+    noTrainingPacesYet: 'עדיין אין קצבי אימון',
+    noGoalsYet: 'עדיין אין יעדים',
+
+    recordPR: 'שיא אישי',
+    recordSB: 'שיא עונה',
+    addRecord: 'הוסף',
+    eventDistance: 'אירוע / מרחק',
+    timeLabel: 'זמן',
+    dateField: 'תאריך',
+    locationOptional: 'מיקום (לא חובה)',
+    placeholderEvent5K: 'לדוגמה 5 ק"מ',
+    placeholderTime1845: 'לדוגמה 18:45',
+    placeholderLocationTLV: 'לדוגמה תל אביב',
+    addTrainingPace: 'הוסף קצב אימון',
+    paceTypeLabel: 'סוג',
+    pacePerKm: 'קצב (דק׳/ק"מ)',
+    noteOptional: 'הערה (לא חובה)',
+    savePaceBtn: 'שמור קצב',
+    placeholderPace500: 'לדוגמה 5:00',
+    placeholderPaceDesc: 'לדוגמה קצב יעד לחצי מרתון',
+
+    paceEasy: 'קל',
+    paceTempo: 'טמפו',
+    paceThreshold: 'סף',
+    paceInterval: 'אינטרוול',
+    paceRepetition: 'חזרה',
+    paceRace: 'תחרות',
+
+    toastProfilePhotoUpdated: 'תמונת הפרופיל עודכנה',
+    toastProfilePhotoRemoved: 'תמונת הפרופיל הוסרה',
+    toastProfileSaved: 'הפרופיל נשמר!',
+    toastProfileSaveFailed: 'שמירת הפרופיל נכשלה',
+    toastPhotoUploadFailed: 'העלאת התמונה נכשלה',
+    toastPhotoRemoveFailed: 'הסרת התמונה נכשלה',
+    toastChooseImage: 'יש לבחור קובץ תמונה',
+    toastImageTooBig: 'התמונה גדולה מ-5 מגה',
+    toastSaveChangesFailed: 'שמירת השינויים נכשלה',
+    toastUpdated: 'עודכן',
+    toastAdded: 'נוסף',
+
+    welcomeBack: 'ברוך שובך',
+    welcomeTeamHaim: 'ברוך הבא לצוות חיים!',
+    coachWillAssign: 'המאמן ישבץ לך אימון בקרוב.',
+    completeProfileBtn: 'השלם את הפרופיל שלך',
+    todaysWorkoutTitle: 'אימון היום',
+    viewFullDetails: 'צפה בפרטים המלאים',
+    thisWeekStat: 'השבוע',
+    workoutsCompletedCaption: 'אימונים הושלמו',
+    distanceStat: 'מרחק',
+    kmLoggedCaption: 'ק"מ שתועדו',
+    prsStat: 'שיאים',
+    personalRecordsCaption: 'שיאים אישיים',
+    goalsStat: 'יעדים',
+    activeGoalsCaption: 'יעדים פעילים',
+    upcomingWorkouts: 'אימונים קרובים',
+    viewAll: 'צפה בהכל',
+    noUpcomingWorkouts: 'אין עדיין אימונים קרובים.',
+    tomorrow: 'מחר',
+    weeklyProgress: 'התקדמות שבועית',
+    workoutsCompletedLabel: 'אימונים שהושלמו',
+    ofWord: 'מתוך',
+    avgEffortLabel: 'מאמץ ממוצע',
+    totalTimeLabel: 'זמן כולל',
+    activeGoalsTitle: 'יעדים פעילים',
+    noActiveGoals: 'אין יעדים — הוסף אותם בפרופיל שלך.',
+
+    workoutLogHeading: 'תיעוד אימון',
+    loggedBadge: 'תועד',
+    actualDistanceKm: 'מרחק בפועל (ק"מ)',
+    actualPaceKm: 'קצב בפועל (/ק"מ)',
+    examplePlaceholder10: 'לדוגמה 10',
+    examplePlaceholder530: 'לדוגמה 5:30',
+    effortRange: 'מאמץ (1–10)',
+    effortHelper: '1 = קל מאוד · 5 = בינוני · 10 = מאמץ מקסימלי',
+    commentOptional: 'הערה (לא חובה)',
+    commentPlaceholder: 'איך הרגשת? מה שמת לב?',
+    savingDots: 'שומר...',
+    updateLog: 'עדכן תיעוד',
+    saveLog: 'שמור תיעוד',
+    toastEffortRequired: 'יש לדרג את המאמץ בין 1 ל-10',
+    toastDistanceInvalid: 'יש להזין מרחק תקין בק"מ',
+    toastWorkoutLogged: 'האימון תועד!',
+    toastSaveLogFailed: 'שמירת התיעוד נכשלה. נסה שוב.',
+
+    trainingZonesTitle: 'אזורי אימון',
+    toggleZonesAria: 'הצג/הסתר אזורים',
+    zonesCalcFrom: 'מחושב לפי',
+    zonesAddPR: 'הוסף שיא עדכני (לדוגמה 5 ק"מ, 10 ק"מ) כדי לחשב את קצבי האימון.',
+    zonesNoReference: 'אין מירוץ ייחוס — הוסף שיא או הגדר אחד ידנית בפרופיל.',
+    heartRateZones: 'אזורי דופק',
+    badgeKarvonen: 'קרוונן',
+    badgePercentMax: '% דופק מירבי',
+    howCalculated: 'איך זה מחושב?',
+    zonesFormulaIntro: 'אנחנו משתמשים במודל VDOT של ג׳ק דניאלס. ממירוץ הייחוס של הספורטאי אנו גוזרים את ה-VO₂max:',
+    zonesFormulaTargets: 'לכל אזור יש יעד %VO2max (קל ~70%, מרתון ~84%, סף ~88%, אינטרוול ~98%, חזרות ~105%). אנו הופכים את משוואת המאמץ כדי למצוא את הקצב המתאים.',
+    zonesFormulaHR: 'אזורי דופק משתמשים בנוסחת הרזרבה של קרוונן כאשר דופק המנוחה ידוע: אזור = מנוחה + אחוז × (מירבי − מנוחה); אחרת חוזרים ל-%דופק מירבי.',
+
+    scheduleTitle: 'לוח אימונים',
+    scheduleSubtitle: 'צפה ועקוב אחר תוכנית האימון שלך',
+    noWorkoutScheduled: 'לא משובץ אימון',
+    warmupHeading: 'חימום',
+    workoutHeading: 'אימון',
+    cooldownHeading: 'שחרור',
+    notesHeading: 'הערות',
+    yourNotesHeading: 'ההערות שלך',
+    coachFeedbackHeading: 'משוב מהמאמן',
+    restPrefix: 'מנוחה:',
+    effortBadgeTitle: 'מאמץ נתפס (1–10)',
+    effortBadge: 'מאמץ',
+
+    statisticsTitle: 'סטטיסטיקות',
+    statisticsSubtitle: 'עקוב אחר התקדמות האימונים והביצועים שלך',
+    totalKm: 'סה"כ ק"מ',
+    totalHours: 'סה"כ שעות',
+    avgEffortStat: 'מאמץ ממוצע (1-10)',
+    workoutsLoggedStat: 'אימונים תועדו',
+    logToSeeCharts: 'תעד אימונים כדי לראות כאן את גרפי ההתקדמות.',
+    weeklyTab: 'שבועי',
+    monthlyTab: 'חודשי',
+    weeklyDistance: 'מרחק שבועי (ק"מ)',
+    monthlyDistance: 'מרחק חודשי (ק"מ)',
+    averageEffortLevel: 'רמת מאמץ ממוצעת',
+    prsAchievedChart: 'שיאים שהושגו',
+    recentPersonalRecords: 'שיאים אישיים אחרונים',
+
+    seasonJourneyHeading: 'מסע העונה',
+    roadToGoalRace: 'הדרך שלך למירוץ הבא.',
+    roadToGoalRaceLong: 'הדרך שלך למירוץ הבא. המרחקים בק"מ, הקצבים בדק׳/ק"מ.',
+    startSeasonJourney: 'התחל את מסע העונה',
+    planRoadDesc: 'תכנן את הדרך למירוץ הבא. אפשר להוסיף ולעדכן שלבים ותחנות בכל זמן.',
+    goalRaceLabel: 'מירוץ יעד',
+    goalRacePlaceholder: 'לדוגמה חצי מרתון תל אביב',
+    goalRaceDateLabel: 'תאריך מירוץ היעד',
+    createMyJourney: 'צור את המסע שלי',
+    addStageBtn: 'הוסף שלב',
+    toastJourneyCreated: 'המסע נוצר — הוסף את השלב הראשון',
+    toastStageSaved: 'השלב נשמר',
+    toastPickGoalDate: 'בחר תחילה תאריך למירוץ היעד',
+    toastLoadJourneyFailed: 'טעינת המסע נכשלה',
+    toastSaveJourneyFailed: 'שמירת המסע נכשלה',
+    mySeasonDefault: 'העונה שלי',
+
+    seasonJourneyUpper: 'מסע העונה',
+    goalRaceFallback: 'מירוץ יעד',
+    targetPrefix: 'יעד',
+    daysToRace: 'ימים למירוץ',
+    progressLabel: 'התקדמות',
+    currentlyIn: 'כעת בשלב',
+    nextStage: 'הבא:',
+    onWord: 'ב-',
+    noStagesYet: 'עדיין אין שלבים.',
+    useAddStage: 'השתמש ב„הוסף שלב” כדי להתחיל.',
+    coachNotSetup: 'המאמן עדיין לא הגדיר זאת.',
+    nowBadge: 'עכשיו',
+    keyWorkouts: 'אימוני מפתח',
+    milestones: 'תחנות דרך',
+    stageProgress: 'התקדמות בשלב',
+    raceDay: 'יום המירוץ',
+
+    coachDashboardTitle: 'לוח בקרה למאמן',
+    athletesStat: 'ספורטאים',
+    workoutLibraryStat: 'ספריית אימונים',
+    completedToday: 'הושלמו היום',
+    pendingToday: 'ממתינים להיום',
+    athletesCardTitle: 'ספורטאים',
+    viewAllAction: 'הצג הכל',
+    todaysWorkoutsCard: 'אימוני היום',
+    doneBadge: 'בוצע',
+    pendingBadge: 'ממתין',
+    noWorkoutsToday: 'אין אימונים מתוכננים להיום',
+    quickActions: 'פעולות מהירות',
+    createWorkoutAction: 'צור אימון',
+    manageAthletesAction: 'נהל ספורטאים',
+    messagesAction: 'הודעות',
+    viewProgressAction: 'צפה בהתקדמות',
+    workoutLibraryCardTitle: 'ספריית אימונים',
+
+    goalActive: 'פעיל',
+    goalAchieved: 'הושג',
+    goalArchived: 'בארכיון',
   },
 }
 

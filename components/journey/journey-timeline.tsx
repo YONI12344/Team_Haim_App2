@@ -9,6 +9,7 @@ import { format, isValid, parseISO } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { computeJourneyProgress, computeStageProgress } from '@/lib/journey'
 import type { JourneyDoc, JourneyStage, JourneyStageType } from '@/lib/types'
+import { useLanguage } from '@/contexts/language-context'
 
 const stageColors: Record<JourneyStageType, string> = {
   base: 'bg-emerald-100 text-emerald-700 border-emerald-200',
@@ -33,7 +34,27 @@ interface Props {
 }
 
 export function JourneyTimeline({ journey, renderStageActions, className }: Props) {
+  const { t, language } = useLanguage()
   const progress = useMemo(() => computeJourneyProgress(journey), [journey])
+  const stageTypeLabel: Record<JourneyStageType, string> = language === 'he'
+    ? {
+        base: 'בסיס',
+        build: 'בנייה',
+        peak: 'שיא',
+        taper: 'הפחתה',
+        race_week: 'שבוע מירוץ',
+        recovery: 'התאוששות',
+        custom: 'מותאם',
+      }
+    : {
+        base: 'base',
+        build: 'build',
+        peak: 'peak',
+        taper: 'taper',
+        race_week: 'race week',
+        recovery: 'recovery',
+        custom: 'custom',
+      }
 
   return (
     <div className={cn('space-y-6', className)}>
@@ -42,49 +63,49 @@ export function JourneyTimeline({ journey, renderStageActions, className }: Prop
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                Season Journey
+                {t.seasonJourneyUpper}
               </p>
               <h2 className="font-serif text-2xl font-semibold text-navy">
-                {journey.title || 'My Season'}
+                {journey.title || t.mySeasonDefault}
               </h2>
               <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1">
-                  <Flag className="h-3.5 w-3.5" /> {journey.goalRaceEvent || 'Goal race'}
+                  <Flag className="h-3.5 w-3.5" /> {journey.goalRaceEvent || t.goalRaceFallback}
                 </span>
                 <span className="flex items-center gap-1">
                   <Calendar className="h-3.5 w-3.5" /> {fmt(journey.goalRaceDate)}
                 </span>
                 {journey.goalRaceTarget && (
                   <span className="flex items-center gap-1">
-                    <Target className="h-3.5 w-3.5" /> Target {journey.goalRaceTarget}
+                    <Target className="h-3.5 w-3.5" /> {t.targetPrefix} {journey.goalRaceTarget}
                   </span>
                 )}
               </p>
             </div>
             <div className="flex items-center gap-3">
               <Badge className="bg-coral text-white">
-                {progress.daysToRace} days to race
+                {progress.daysToRace} {t.daysToRace}
               </Badge>
             </div>
           </div>
           <div>
             <div className="mb-1 flex justify-between text-xs text-muted-foreground">
-              <span>Progress</span>
+              <span>{t.progressLabel}</span>
               <span>{progress.percent}%</span>
             </div>
             <Progress value={progress.percent} className="h-2" />
           </div>
           {progress.activeStage && (
             <p className="text-sm">
-              <span className="text-muted-foreground">Currently in </span>
+              <span className="text-muted-foreground">{t.currentlyIn} </span>
               <span className="font-semibold text-navy">{progress.activeStage.name}</span>
               {progress.nextStage && (
                 <span className="text-muted-foreground">
-                  {' · next: '}
+                  {' · '}{t.nextStage}{' '}
                   <span className="font-medium text-foreground">
                     {progress.nextStage.name}
                   </span>{' '}
-                  on {fmt(progress.nextStage.startDate)}
+                  {t.onWord} {fmt(progress.nextStage.startDate)}
                 </span>
               )}
             </p>
@@ -99,10 +120,10 @@ export function JourneyTimeline({ journey, renderStageActions, className }: Prop
             <li>
               <Card className="rounded-2xl border-dashed">
                 <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                  No stages yet.{' '}
+                  {t.noStagesYet}{' '}
                   {renderStageActions
-                    ? 'Use “Add stage” to begin.'
-                    : 'Your coach hasn’t set this up yet.'}
+                    ? t.useAddStage
+                    : t.coachNotSetup}
                 </CardContent>
               </Card>
             </li>
@@ -132,15 +153,15 @@ export function JourneyTimeline({ journey, renderStageActions, className }: Prop
                           <h3 className="text-base font-semibold text-navy">{stage.name}</h3>
                           <Badge
                             variant="outline"
-                            className={cn('capitalize', stageColors[stage.type])}
+                            className={cn(stageColors[stage.type])}
                           >
-                            {stage.type.replace('_', ' ')}
+                            {stageTypeLabel[stage.type]}
                           </Badge>
-                          {active && <Badge className="bg-coral text-white">Now</Badge>}
+                          {active && <Badge className="bg-coral text-white">{t.nowBadge}</Badge>}
                         </div>
                         <p className="mt-1 text-xs text-muted-foreground">
                           {fmt(stage.startDate)} → {fmt(stage.endDate)}
-                          {stage.weeklyVolumeKm ? ` · ~${stage.weeklyVolumeKm} km/wk` : ''}
+                          {stage.weeklyVolumeKm ? ` · ~${stage.weeklyVolumeKm} ${t.km}/wk` : ''}
                         </p>
                       </div>
                       {renderStageActions && (
@@ -153,7 +174,7 @@ export function JourneyTimeline({ journey, renderStageActions, className }: Prop
                     {stage.keyWorkouts.length > 0 && (
                       <div>
                         <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                          Key workouts
+                          {t.keyWorkouts}
                         </p>
                         <ul className="mt-1 flex flex-wrap gap-1.5">
                           {stage.keyWorkouts.map((k, idx) => (
@@ -170,7 +191,7 @@ export function JourneyTimeline({ journey, renderStageActions, className }: Prop
                     {stage.milestones && stage.milestones.length > 0 && (
                       <div>
                         <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                          Milestones
+                          {t.milestones}
                         </p>
                         <ul className="mt-1 space-y-1 text-sm">
                           {stage.milestones.map((m, idx) => (
@@ -186,7 +207,7 @@ export function JourneyTimeline({ journey, renderStageActions, className }: Prop
                     {active && (
                       <div>
                         <div className="mb-1 flex justify-between text-xs text-muted-foreground">
-                          <span>Stage progress</span>
+                          <span>{t.stageProgress}</span>
                           <span>{stagePct}%</span>
                         </div>
                         <Progress value={stagePct} className="h-1.5" />
@@ -210,13 +231,13 @@ export function JourneyTimeline({ journey, renderStageActions, className }: Prop
             <Card className="rounded-2xl border-coral/40 bg-coral-light/40">
               <CardContent className="flex items-center justify-between gap-4 pt-5">
                 <div>
-                  <p className="text-xs uppercase tracking-wide text-coral">Goal race</p>
+                  <p className="text-xs uppercase tracking-wide text-coral">{t.goalRaceLabel}</p>
                   <h3 className="font-serif text-lg font-semibold text-navy">
-                    {journey.goalRaceEvent || 'Race day'}
+                    {journey.goalRaceEvent || t.raceDay}
                   </h3>
                   <p className="text-xs text-muted-foreground">
                     {fmt(journey.goalRaceDate)}
-                    {journey.goalRaceTarget ? ` · target ${journey.goalRaceTarget}` : ''}
+                    {journey.goalRaceTarget ? ` · ${t.targetPrefix} ${journey.goalRaceTarget}` : ''}
                   </p>
                 </div>
                 <Trophy className="h-8 w-8 text-coral" />
