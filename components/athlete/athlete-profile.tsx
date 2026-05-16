@@ -398,13 +398,13 @@ export function AthleteProfile() {
         )
         workoutLogs = logsSnap.docs.map((d) => {
           const data = d.data()
-          const aw = data as { date?: string; workoutTitle?: string; actualDistance?: number; actualPace?: string; effort?: unknown; comment?: string }
+          const aw = data as { date?: string; workoutTitle?: string; actualDistance?: number; actualPace?: string; effort?: 'easy' | 'medium' | 'hard' | number | undefined | null; comment?: string }
           return {
             date: aw.date || '',
             workoutTitle: aw.workoutTitle || '',
             distance: aw.actualDistance,
             pace: aw.actualPace,
-            effort: legacyEffortToNumber(aw.effort as Parameters<typeof legacyEffortToNumber>[0]),
+            effort: legacyEffortToNumber(aw.effort),
             comment: aw.comment || '',
           }
         })
