@@ -20,11 +20,14 @@
  *   - GOOGLE_PRIVATE_KEY  (with literal "\n" sequences for newlines)
  */
 
-import * as functions from 'firebase-functions/v1'
+import {onDocumentWritten} from 'firebase-functions/v2/firestore'
+import {onCall, HttpsError} from 'firebase-functions/v2/https'
+import {logger, setGlobalOptions} from 'firebase-functions/v2'
 import * as admin from 'firebase-admin'
 import {google, sheets_v4} from 'googleapis'
 
 admin.initializeApp()
+setGlobalOptions({region: 'europe-west1', maxInstances: 10})
 
 const db = admin.firestore()
 
@@ -45,50 +48,42 @@ const SETTINGS_DOC = 'settings/googleSheets'
 // ---------------------------------------------------------------------------
 
 // Trigger 1: When athlete saves or edits workout log
-export const syncLogToSheets = functions.region('europe-west1').firestore
-  .document('logs/{logId}')
-  .onWrite(async (change) => {
-    const log = change.after.exists ? change.after.data() : null
-    const athleteId = log?.athleteId ||
-      (change.before.exists ? change.before.data()?.athleteId : undefined)
-    if (!athleteId) return
-    await safeSync(athleteId, 'log')
-  })
+export const syncLogToSheets = onDocumentWritten('logs/{logId}', async (event) => {
+  const log = event.data?.after?.exists ? event.data.after.data() : null
+  const athleteId = log?.athleteId ||
+    (event.data?.before?.exists ? event.data.before.data()?.athleteId : undefined)
+  if (!athleteId) return
+  await safeSync(athleteId, 'log')
+})
 
 // Trigger 2: When coach assigns or edits workout
-export const syncWorkoutToSheets = functions.region('europe-west1').firestore
-  .document('workouts/{workoutId}')
-  .onWrite(async (change) => {
-    const workout = change.after.exists ? change.after.data() : null
-    const athleteId = workout?.assignedTo ||
-      (change.before.exists ? change.before.data()?.assignedTo : undefined)
-    if (!athleteId) return
-    await safeSync(athleteId, 'workout')
-  })
+export const syncWorkoutToSheets = onDocumentWritten('workouts/{workoutId}', async (event) => {
+  const workout = event.data?.after?.exists ? event.data.after.data() : null
+  const athleteId = workout?.assignedTo ||
+    (event.data?.before?.exists ? event.data.before.data()?.assignedTo : undefined)
+  if (!athleteId) return
+  await safeSync(athleteId, 'workout')
+})
 
 // Trigger 3: When athlete profile is updated
-export const syncProfileToSheets = functions.region('europe-west1').firestore
-  .document('users/{userId}')
-  .onWrite(async (change, context) => {
-    if (!change.after.exists) return
-    await safeSync(context.params.userId as string, 'profile')
-  })
+export const syncProfileToSheets = onDocumentWritten('users/{userId}', async (event) => {
+  if (!event.data?.after?.exists) return
+  await safeSync(event.params.userId, 'profile')
+})
 
 // Trigger 4: When goals are updated
-export const syncGoalsToSheets = functions.region('europe-west1').firestore
-  .document('goals/{goalId}')
-  .onWrite(async (change) => {
-    const goal = change.after.exists ? change.after.data() : null
-    const athleteId = goal?.athleteId ||
-      (change.before.exists ? change.before.data()?.athleteId : undefined)
-    if (!athleteId) return
-    await safeSync(athleteId, 'goal')
-  })
+export const syncGoalsToSheets = onDocumentWritten('goals/{goalId}', async (event) => {
+  const goal = event.data?.after?.exists ? event.data.after.data() : null
+  const athleteId = goal?.athleteId ||
+    (event.data?.before?.exists ? event.data.before.data()?.athleteId : undefined)
+  if (!athleteId) return
+  await safeSync(athleteId, 'goal')
+})
 
 // Manual / "Sync All Now" callable used by the coach settings page.
-export const syncAllAthletesNow = functions.region('europe-west1').https.onCall(async (_data, context) => {
-  if (!context.auth) {
-    throw new functions.https.HttpsError(
+export const syncAllAthletesNow = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError(
       'unauthenticated',
       'Must be signed in to trigger a sync.'
     )
@@ -127,24 +122,24 @@ export const syncAllAthletesNow = functions.region('europe-west1').https.onCall(
  * the Firebase console (Functions > Logs) whether the sync succeeded or
  * failed, and how long it took.
  */
-export const testSheetsSync = functions.region('europe-west1').https.onCall(async (data, context) => {
+export const testSheetsSync = onCall(async (request) => {
   const startedAt = Date.now()
-  const callerUid = context.auth?.uid ?? 'anonymous'
+  const callerUid = request.auth?.uid ?? 'anonymous'
   const requestedAthleteId =
-    typeof data?.athleteId === 'string' && data.athleteId.trim() ?
-      data.athleteId.trim() :
+    typeof request.data?.athleteId === 'string' && request.data.athleteId.trim() ?
+      request.data.athleteId.trim() :
       null
 
-  functions.logger.info(
+  logger.info(
     '[testSheetsSync] START',
     {caller: callerUid, athleteId: requestedAthleteId ?? 'ALL'}
   )
 
-  if (!context.auth) {
-    functions.logger.error(
+  if (!request.auth) {
+    logger.error(
       '[testSheetsSync] FAILED - unauthenticated caller'
     )
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'unauthenticated',
       'Must be signed in to trigger a test sync.'
     )
@@ -156,15 +151,15 @@ export const testSheetsSync = functions.region('europe-west1').https.onCall(asyn
     (settingsSnap.data()?.sheetId as string | undefined) :
     undefined
   if (!spreadsheetId) {
-    functions.logger.error(
+    logger.error(
       '[testSheetsSync] FAILED - no master sheet ID configured in settings/googleSheets'
     )
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'failed-precondition',
       'No master Google Sheet ID is configured. Save one in coach settings first.'
     )
   }
-  functions.logger.info('[testSheetsSync] using spreadsheet', {spreadsheetId})
+  logger.info('[testSheetsSync] using spreadsheet', {spreadsheetId})
 
   // Build the list of athletes to sync.
   let athleteIds: string[]
@@ -186,11 +181,11 @@ export const testSheetsSync = functions.region('europe-west1').https.onCall(asyn
     try {
       await syncAthleteToSheet(id)
       succeeded++
-      functions.logger.info('[testSheetsSync] athlete OK', {athleteId: id})
+      logger.info('[testSheetsSync] athlete OK', {athleteId: id})
     } catch (err) {
       const message = (err as Error)?.message ?? String(err)
       errors.push({athleteId: id, message})
-      functions.logger.error(
+      logger.error(
         '[testSheetsSync] athlete FAILED',
         {athleteId: id, message, err}
       )
@@ -210,9 +205,9 @@ export const testSheetsSync = functions.region('europe-west1').https.onCall(asyn
   }
 
   if (ok) {
-    functions.logger.info('[testSheetsSync] SUCCESS', result)
+    logger.info('[testSheetsSync] SUCCESS', result)
   } else {
-    functions.logger.error('[testSheetsSync] COMPLETED WITH ERRORS', result)
+    logger.error('[testSheetsSync] COMPLETED WITH ERRORS', result)
   }
 
   return result
@@ -226,11 +221,11 @@ export const testSheetsSync = functions.region('europe-west1').https.onCall(asyn
 async function safeSync(athleteId: string, source: string): Promise<void> {
   try {
     await syncAthleteToSheet(athleteId)
-    functions.logger.info(
+    logger.info(
       `Google Sheets sync OK (source=${source}, athlete=${athleteId})`
     )
   } catch (err) {
-    functions.logger.error(
+    logger.error(
       `Google Sheets sync failed (source=${source}, athlete=${athleteId})`,
       err
     )
@@ -283,7 +278,7 @@ export async function syncAthleteToSheet(athleteId: string): Promise<void> {
   if (!athleteId) return
 
   const startedAt = Date.now()
-  functions.logger.info(`[syncAthleteToSheet] start athlete=${athleteId}`)
+  logger.info(`[syncAthleteToSheet] start athlete=${athleteId}`)
 
   const settingsSnap = await db.doc(SETTINGS_DOC).get()
   const spreadsheetId = settingsSnap.exists ?
@@ -291,7 +286,7 @@ export async function syncAthleteToSheet(athleteId: string): Promise<void> {
     undefined
 
   if (!spreadsheetId) {
-    functions.logger.info(
+    logger.info(
       'Skipping sync - no master sheet ID configured in settings/googleSheets.'
     )
     return
@@ -299,7 +294,7 @@ export async function syncAthleteToSheet(athleteId: string): Promise<void> {
 
   const userSnap = await db.doc(`users/${athleteId}`).get()
   if (!userSnap.exists) {
-    functions.logger.warn(`No user document for athleteId=${athleteId}`)
+    logger.warn(`No user document for athleteId=${athleteId}`)
     return
   }
   const user = userSnap.data() as Record<string, unknown>
@@ -437,7 +432,7 @@ export async function syncAthleteToSheet(athleteId: string): Promise<void> {
     {merge: true}
   )
 
-  functions.logger.info(
+  logger.info(
     `[syncAthleteToSheet] done athlete=${athleteId} rows=${rows.length} ` +
     `durationMs=${Date.now() - startedAt}`
   )
