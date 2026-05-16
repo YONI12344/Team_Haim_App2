@@ -61,7 +61,7 @@ export default function LoginPage() {
           <div className="inline-flex items-center justify-center w-24 h-24 rounded-full overflow-hidden mb-6 bg-navy">
             {/* To change the launcher / hero logo, replace /public/team-haim-logo.svg */}
             <img
-              src="/team-haim-logo.svg"
+              src="/team-haim-logo.svg?v=2"
               alt="Team Haim"
               width={96}
               height={96}

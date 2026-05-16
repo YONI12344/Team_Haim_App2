@@ -25,22 +25,25 @@ export const metadata: Metadata = {
   // To change the app icon (favicon / launcher / Safari pinned tab), replace
   // /public/icon.svg. The same artwork is also used by the in-app header logo
   // via /public/team-haim-logo.svg. PNG fallbacks live next to icon.svg.
+  // The `?v=` query string forces browsers and OS launchers to fetch the new
+  // artwork instead of serving a previously cached icon. Bump this value any
+  // time the icon assets are replaced.
   icons: {
     icon: [
       {
-        url: '/icon.svg',
+        url: '/icon.svg?v=2',
         type: 'image/svg+xml',
       },
       {
-        url: '/icon-light-32x32.png',
+        url: '/icon-light-32x32.png?v=2',
         media: '(prefers-color-scheme: light)',
       },
       {
-        url: '/icon-dark-32x32.png',
+        url: '/icon-dark-32x32.png?v=2',
         media: '(prefers-color-scheme: dark)',
       },
     ],
-    apple: '/apple-icon.png',
+    apple: '/apple-icon.png?v=2',
   },
 }
 
