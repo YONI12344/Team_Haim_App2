@@ -3,31 +3,64 @@ rules_version = '2';
 // Or via: firebase deploy --only firestore:rules
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+    // Helper: the single coach account.
+    function isCoach() {
+      return request.auth != null
+        && request.auth.token.email == 'info.teamhaim@gmail.com';
     }
+    function isSelf(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    // Users: athletes can read/write their own profile; coach can read/write any.
+    match /users/{userId} {
+      allow read, write: if isSelf(userId) || isCoach();
+
+      // Season Journey subcollection.
+      // Athletes can manage their own journeys; coach can manage anyone's.
+      match /journey/{journeyId} {
+        allow read, write: if isSelf(userId) || isCoach();
+      }
+    }
+
+    // Workouts: any signed-in user can read; only coach can write.
     match /workouts/{workoutId} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.token.email == 'info.teamhaim@gmail.com';
+      allow write: if isCoach();
     }
+
+    // Assigned workouts: any signed-in user can read; only coach can write.
     match /assignedWorkouts/{docId} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.token.email == 'info.teamhaim@gmail.com';
+      allow write: if isCoach();
     }
+
+    // Workout logs: athletes write their own logs (athleteId == auth.uid),
+    // can read their own; coach can read/write all.
     match /logs/{logId} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null
+        && (isCoach() || resource.data.athleteId == request.auth.uid);
+      allow create: if request.auth != null
+        && (isCoach() || request.resource.data.athleteId == request.auth.uid);
+      allow update, delete: if isCoach()
+        || (request.auth != null && resource.data.athleteId == request.auth.uid);
     }
+
+    // Chat metadata (chat messages themselves live in Realtime DB).
     match /messages/{messageId} {
       allow read, write: if request.auth != null;
     }
-    // Goals: athletes manage their own; coaches can read/write all.
+
+    // Standalone goals (legacy collection; athletes own them, coach can read/write all).
     match /goals/{goalId} {
       allow read, write: if request.auth != null;
     }
+
     // Google Sheets sync settings - coach-only write, signed-in read.
     match /settings/googleSheets {
       allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.token.email == 'info.teamhaim@gmail.com';
+      allow write: if isCoach();
     }
   }
 }

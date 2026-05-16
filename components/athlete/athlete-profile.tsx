@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -8,6 +8,13 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { format } from 'date-fns'
 import {
   User,
@@ -21,18 +28,30 @@ import {
   Award,
   Loader2,
   Save,
+  Camera,
+  X,
+  Heart,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
+import {
+  ref as storageRef,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject,
+} from 'firebase/storage'
+import { db, storage } from '@/lib/firebase'
 import { useAuth } from '@/contexts/auth-context'
 import { toast } from 'sonner'
 import type {
   AthleteProfile as AthleteProfileType,
+  Discipline,
+  ExperienceLevel,
   PersonalRecord,
   TrainingPace,
   Goal,
 } from '@/lib/types'
+import { TrainingZonesCard } from './training-zones-card'
 
 const paceTypeColors: Record<string, string> = {
   easy: 'bg-emerald-100 text-emerald-700',
@@ -43,13 +62,36 @@ const paceTypeColors: Record<string, string> = {
   race: 'bg-gold/20 text-gold',
 }
 
+const disciplineOptions: { value: Discipline; label: string }[] = [
+  { value: 'track', label: 'Track & Field' },
+  { value: 'road', label: 'Distance / Road' },
+  { value: 'jogger', label: 'Jogger' },
+  { value: 'trail', label: 'Trail' },
+  { value: 'mixed', label: 'Mixed' },
+]
+
+const experienceOptions: { value: ExperienceLevel; label: string }[] = [
+  { value: 'beginner', label: 'Beginner' },
+  { value: 'intermediate', label: 'Intermediate' },
+  { value: 'advanced', label: 'Advanced' },
+  { value: 'professional', label: 'Professional' },
+]
+
 interface ProfileForm {
   name: string
   dateOfBirth: string
-  gender: string
+  gender: '' | 'male' | 'female' | 'other'
   height: string
   weight: string
   events: string
+  discipline: Discipline[]
+  experienceLevel: ExperienceLevel | ''
+  weeklyMileage: string
+  restingHR: string
+  maxHR: string
+  goalRaceEvent: string
+  goalRaceDate: string
+  goalRaceTarget: string
 }
 
 export function AthleteProfile() {
@@ -58,6 +100,9 @@ export function AthleteProfile() {
   const [saving, setSaving] = useState(false)
   const [hasProfile, setHasProfile] = useState(false)
   const [editing, setEditing] = useState(false)
+  const [photoURL, setPhotoURL] = useState<string | undefined>(undefined)
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const [form, setForm] = useState<ProfileForm>({
     name: '',
@@ -66,6 +111,14 @@ export function AthleteProfile() {
     height: '',
     weight: '',
     events: '',
+    discipline: [],
+    experienceLevel: '',
+    weeklyMileage: '',
+    restingHR: '',
+    maxHR: '',
+    goalRaceEvent: '',
+    goalRaceDate: '',
+    goalRaceTarget: '',
   })
 
   const [personalRecords, setPersonalRecords] = useState<PersonalRecord[]>([])
@@ -88,13 +141,22 @@ export function AthleteProfile() {
             !!data.weight ||
             (Array.isArray(data.events) && data.events.length > 0)
           setHasProfile(meaningful)
+          setPhotoURL(data.photoURL || user.photoURL || undefined)
           setForm({
             name: data.name || user.name || '',
             dateOfBirth: data.dateOfBirth || '',
-            gender: data.gender || '',
+            gender: (data.gender as ProfileForm['gender']) || '',
             height: data.height ? String(data.height) : '',
             weight: data.weight ? String(data.weight) : '',
             events: Array.isArray(data.events) ? data.events.join(', ') : '',
+            discipline: Array.isArray(data.discipline) ? data.discipline : [],
+            experienceLevel: (data.experienceLevel as ExperienceLevel) || '',
+            weeklyMileage: data.weeklyMileage ? String(data.weeklyMileage) : '',
+            restingHR: data.restingHR ? String(data.restingHR) : '',
+            maxHR: data.maxHR ? String(data.maxHR) : '',
+            goalRaceEvent: data.goalRaceEvent || '',
+            goalRaceDate: data.goalRaceDate || '',
+            goalRaceTarget: data.goalRaceTarget || '',
           })
           setPersonalRecords(Array.isArray(data.personalRecords) ? data.personalRecords : [])
           setSeasonBests(Array.isArray(data.seasonBests) ? data.seasonBests : [])
@@ -111,7 +173,75 @@ export function AthleteProfile() {
       }
     }
     load()
-  }, [user?.id, user?.name])
+  }, [user?.id, user?.name, user?.photoURL])
+
+  const toggleDiscipline = (d: Discipline) => {
+    setForm((f) => ({
+      ...f,
+      discipline: f.discipline.includes(d)
+        ? f.discipline.filter((x) => x !== d)
+        : [...f.discipline, d],
+    }))
+  }
+
+  const handlePhotoSelect = async (file: File) => {
+    if (!user?.id) return
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please choose an image file')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image is larger than 5 MB')
+      return
+    }
+    setUploadingPhoto(true)
+    try {
+      // Only accept a small whitelist of image extensions to avoid surprises
+      // even if the content-type header was tampered with.
+      const allowed = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif'])
+      const rawExt = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '')
+      const ext = allowed.has(rawExt) ? rawExt : 'jpg'
+      const ref = storageRef(storage, `profilePhotos/${user.id}.${ext}`)
+      await uploadBytes(ref, file, { contentType: file.type })
+      const url = await getDownloadURL(ref)
+      setPhotoURL(url)
+      await setDoc(
+        doc(db, 'users', user.id),
+        { photoURL: url, updatedAt: serverTimestamp() },
+        { merge: true },
+      )
+      toast.success('Profile photo updated')
+    } catch (err) {
+      console.error('Error uploading photo:', err)
+      toast.error('Failed to upload photo')
+    } finally {
+      setUploadingPhoto(false)
+    }
+  }
+
+  const handlePhotoRemove = async () => {
+    if (!user?.id) return
+    try {
+      // Best-effort delete; ignore if not found / extensions differ.
+      for (const ext of ['jpg', 'jpeg', 'png', 'webp']) {
+        try {
+          await deleteObject(storageRef(storage, `profilePhotos/${user.id}.${ext}`))
+        } catch {
+          /* ignore */
+        }
+      }
+      await setDoc(
+        doc(db, 'users', user.id),
+        { photoURL: null, updatedAt: serverTimestamp() },
+        { merge: true },
+      )
+      setPhotoURL(undefined)
+      toast.success('Profile photo removed')
+    } catch (err) {
+      console.error('Error removing photo:', err)
+      toast.error('Failed to remove photo')
+    }
+  }
 
   const handleSave = async () => {
     if (!user?.id) return
@@ -127,6 +257,14 @@ export function AthleteProfile() {
           .split(',')
           .map((e) => e.trim())
           .filter(Boolean),
+        discipline: form.discipline,
+        experienceLevel: form.experienceLevel || null,
+        weeklyMileage: form.weeklyMileage ? Number(form.weeklyMileage) : null,
+        restingHR: form.restingHR ? Number(form.restingHR) : null,
+        maxHR: form.maxHR ? Number(form.maxHR) : null,
+        goalRaceEvent: form.goalRaceEvent || null,
+        goalRaceDate: form.goalRaceDate || null,
+        goalRaceTarget: form.goalRaceTarget || null,
         updatedAt: serverTimestamp(),
       }
       await setDoc(doc(db, 'users', user.id), updates, { merge: true })
@@ -162,16 +300,17 @@ export function AthleteProfile() {
     .split(',')
     .map((e) => e.trim())
     .filter(Boolean)
+  const avatarUrl = photoURL || firebaseUser?.photoURL || undefined
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-serif font-bold text-navy">
+          <h1 className="font-serif text-2xl md:text-3xl font-semibold text-navy">
             My Profile
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Your athletic profile and training information
           </p>
         </div>
@@ -186,7 +325,7 @@ export function AthleteProfile() {
       </div>
 
       {!hasProfile && !editing && (
-        <Card className="border-gold/30 bg-gold/5">
+        <Card className="rounded-2xl border-gold/30 bg-gold/5">
           <CardContent className="pt-6">
             <p className="text-navy font-medium">Complete your profile</p>
             <p className="text-muted-foreground text-sm mt-1">
@@ -197,27 +336,80 @@ export function AthleteProfile() {
       )}
 
       {/* Profile Card */}
-      <Card>
+      <Card className="rounded-2xl">
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row items-start gap-6">
-            <Avatar className="w-24 h-24 border-4 border-gold/20">
-              <AvatarImage src={user?.photoURL || firebaseUser?.photoURL || undefined} alt={displayName} />
-              <AvatarFallback className="bg-gold/10 text-gold text-2xl font-serif">
-                {getInitials(displayName)}
-              </AvatarFallback>
-            </Avatar>
+            <div className="relative">
+              <Avatar className="w-24 h-24 border-4 border-gold/20">
+                <AvatarImage src={avatarUrl} alt={displayName} />
+                <AvatarFallback className="bg-gold/10 text-gold text-2xl font-serif">
+                  {getInitials(displayName)}
+                </AvatarFallback>
+              </Avatar>
+              {editing && (
+                <div className="absolute -bottom-2 -right-2 flex gap-1">
+                  <Button
+                    type="button"
+                    size="icon"
+                    className="h-8 w-8 rounded-full bg-navy text-gold hover:bg-navy/90"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingPhoto}
+                    aria-label="Upload profile photo"
+                  >
+                    {uploadingPhoto ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Camera className="h-3.5 w-3.5" />
+                    )}
+                  </Button>
+                  {avatarUrl && (
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="outline"
+                      className="h-8 w-8 rounded-full"
+                      onClick={handlePhotoRemove}
+                      aria-label="Remove profile photo"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0]
+                      if (f) handlePhotoSelect(f)
+                      e.target.value = ''
+                    }}
+                  />
+                </div>
+              )}
+            </div>
 
             <div className="flex-1 space-y-4 w-full">
               {!editing ? (
                 <>
                   <div>
-                    <h2 className="text-2xl font-serif font-bold text-navy">
+                    <h2 className="font-serif text-2xl font-semibold text-navy">
                       {displayName}
                     </h2>
-                    <p className="text-muted-foreground">{user?.email}</p>
+                    <p className="text-muted-foreground text-sm">{user?.email}</p>
                   </div>
 
                   <div className="flex flex-wrap gap-2">
+                    {form.experienceLevel && (
+                      <Badge className="bg-coral text-white capitalize">
+                        {form.experienceLevel}
+                      </Badge>
+                    )}
+                    {form.discipline.map((d) => (
+                      <Badge key={d} variant="outline" className="border-navy/30 text-navy">
+                        {disciplineOptions.find((o) => o.value === d)?.label || d}
+                      </Badge>
+                    ))}
                     {eventsArray.length === 0 ? (
                       <span className="text-sm text-muted-foreground">
                         No events listed yet
@@ -260,7 +452,34 @@ export function AthleteProfile() {
                         <span className="text-muted-foreground">{form.weight} kg</span>
                       </div>
                     )}
+                    {form.weeklyMileage && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Target className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">
+                          {form.weeklyMileage} km/wk
+                        </span>
+                      </div>
+                    )}
+                    {(form.restingHR || form.maxHR) && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Heart className="h-4 w-4 text-coral" />
+                        <span className="text-muted-foreground">
+                          {form.restingHR ? `${form.restingHR}` : '—'}
+                          {' / '}
+                          {form.maxHR ? `${form.maxHR}` : '—'} bpm
+                        </span>
+                      </div>
+                    )}
                   </div>
+
+                  {form.goalRaceEvent && (
+                    <div className="rounded-xl bg-coral-light/50 p-3 text-sm">
+                      <span className="font-semibold text-navy">Goal: </span>
+                      {form.goalRaceEvent}
+                      {form.goalRaceTarget ? ` in ${form.goalRaceTarget}` : ''}
+                      {form.goalRaceDate ? ` · ${format(new Date(form.goalRaceDate), 'MMM d, yyyy')}` : ''}
+                    </div>
+                  )}
                 </>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2">
@@ -283,12 +502,39 @@ export function AthleteProfile() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="profile-gender">Gender</Label>
-                    <Input
-                      id="profile-gender"
-                      placeholder="male / female / other"
-                      value={form.gender}
-                      onChange={(e) => setForm({ ...form, gender: e.target.value })}
-                    />
+                    <Select
+                      value={form.gender || undefined}
+                      onValueChange={(v) => setForm({ ...form, gender: v as ProfileForm['gender'] })}
+                    >
+                      <SelectTrigger id="profile-gender">
+                        <SelectValue placeholder="Select…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="male">Male</SelectItem>
+                        <SelectItem value="female">Female</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="profile-level">Experience level</Label>
+                    <Select
+                      value={form.experienceLevel || undefined}
+                      onValueChange={(v) =>
+                        setForm({ ...form, experienceLevel: v as ExperienceLevel })
+                      }
+                    >
+                      <SelectTrigger id="profile-level">
+                        <SelectValue placeholder="Select…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {experienceOptions.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>
+                            {o.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="profile-height">Height (cm)</Label>
@@ -308,6 +554,57 @@ export function AthleteProfile() {
                       onChange={(e) => setForm({ ...form, weight: e.target.value })}
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="profile-mileage">Weekly mileage (km)</Label>
+                    <Input
+                      id="profile-mileage"
+                      type="number"
+                      value={form.weeklyMileage}
+                      onChange={(e) => setForm({ ...form, weeklyMileage: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="profile-rhr">Resting HR (bpm)</Label>
+                    <Input
+                      id="profile-rhr"
+                      type="number"
+                      value={form.restingHR}
+                      onChange={(e) => setForm({ ...form, restingHR: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="profile-mhr">Max HR (bpm)</Label>
+                    <Input
+                      id="profile-mhr"
+                      type="number"
+                      value={form.maxHR}
+                      onChange={(e) => setForm({ ...form, maxHR: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Discipline</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {disciplineOptions.map((d) => {
+                        const active = form.discipline.includes(d.value)
+                        return (
+                          <button
+                            type="button"
+                            key={d.value}
+                            onClick={() => toggleDiscipline(d.value)}
+                            aria-pressed={active}
+                            className={cn(
+                              'rounded-full border px-3 py-1 text-sm transition-luxury',
+                              active
+                                ? 'border-navy bg-navy text-white'
+                                : 'border-border bg-background text-muted-foreground hover:border-navy/40',
+                            )}
+                          >
+                            {d.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
                   <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="profile-events">Events (comma separated)</Label>
                     <Input
@@ -315,6 +612,33 @@ export function AthleteProfile() {
                       placeholder="e.g. 800m, 1500m, 3000m"
                       value={form.events}
                       onChange={(e) => setForm({ ...form, events: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="profile-goal-event">Goal race event</Label>
+                    <Input
+                      id="profile-goal-event"
+                      placeholder="e.g. Tel Aviv Half"
+                      value={form.goalRaceEvent}
+                      onChange={(e) => setForm({ ...form, goalRaceEvent: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="profile-goal-date">Goal race date</Label>
+                    <Input
+                      id="profile-goal-date"
+                      type="date"
+                      value={form.goalRaceDate}
+                      onChange={(e) => setForm({ ...form, goalRaceDate: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="profile-goal-target">Target time</Label>
+                    <Input
+                      id="profile-goal-target"
+                      placeholder="e.g. 1:35:00"
+                      value={form.goalRaceTarget}
+                      onChange={(e) => setForm({ ...form, goalRaceTarget: e.target.value })}
                     />
                   </div>
                   <div className="flex gap-2 md:col-span-2">
@@ -340,6 +664,13 @@ export function AthleteProfile() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Training zones */}
+      <TrainingZonesCard
+        personalRecords={personalRecords}
+        restingHR={form.restingHR ? Number(form.restingHR) : undefined}
+        maxHR={form.maxHR ? Number(form.maxHR) : undefined}
+      />
 
       {/* Tabs */}
       <Tabs defaultValue="prs" className="space-y-6">

@@ -23,12 +23,14 @@ import {
   Menu,
   LogOut,
   ChevronDown,
+  Compass,
 } from 'lucide-react'
 import { useState } from 'react'
 
 const athleteNavItems = [
   { href: '/athlete', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/athlete/schedule', label: 'Schedule', icon: Calendar },
+  { href: '/athlete/journey', label: 'Journey', icon: Compass },
   { href: '/athlete/profile', label: 'Profile', icon: User },
   { href: '/athlete/stats', label: 'Statistics', icon: BarChart3 },
   { href: '/athlete/chat', label: 'Chat', icon: MessageCircle },

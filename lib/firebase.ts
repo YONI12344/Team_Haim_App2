@@ -2,6 +2,7 @@ import { initializeApp, getApps } from 'firebase/app'
 import { getAuth, GoogleAuthProvider } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
 import { getDatabase } from 'firebase/database'
+import { getStorage } from 'firebase/storage'
 
 // Read configuration from NEXT_PUBLIC_* env vars when available, falling back
 // to the team-haim project values so local development works out of the box.
@@ -39,5 +40,8 @@ export const db = getFirestore(app)
 
 // Realtime Database (for chat)
 export const realtimeDb = getDatabase(app)
+
+// Storage (for profile photos & uploaded media)
+export const storage = getStorage(app)
 
 export default app
