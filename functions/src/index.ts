@@ -45,7 +45,7 @@ const SETTINGS_DOC = 'settings/googleSheets'
 // ---------------------------------------------------------------------------
 
 // Trigger 1: When athlete saves or edits workout log
-export const syncLogToSheets = functions.region('me-west1').firestore
+export const syncLogToSheets = functions.region('europe-west1').firestore
   .document('logs/{logId}')
   .onWrite(async (change) => {
     const log = change.after.exists ? change.after.data() : null
@@ -56,7 +56,7 @@ export const syncLogToSheets = functions.region('me-west1').firestore
   })
 
 // Trigger 2: When coach assigns or edits workout
-export const syncWorkoutToSheets = functions.region('me-west1').firestore
+export const syncWorkoutToSheets = functions.region('europe-west1').firestore
   .document('workouts/{workoutId}')
   .onWrite(async (change) => {
     const workout = change.after.exists ? change.after.data() : null
@@ -67,7 +67,7 @@ export const syncWorkoutToSheets = functions.region('me-west1').firestore
   })
 
 // Trigger 3: When athlete profile is updated
-export const syncProfileToSheets = functions.region('me-west1').firestore
+export const syncProfileToSheets = functions.region('europe-west1').firestore
   .document('users/{userId}')
   .onWrite(async (change, context) => {
     if (!change.after.exists) return
@@ -75,7 +75,7 @@ export const syncProfileToSheets = functions.region('me-west1').firestore
   })
 
 // Trigger 4: When goals are updated
-export const syncGoalsToSheets = functions.region('me-west1').firestore
+export const syncGoalsToSheets = functions.region('europe-west1').firestore
   .document('goals/{goalId}')
   .onWrite(async (change) => {
     const goal = change.after.exists ? change.after.data() : null
@@ -86,7 +86,7 @@ export const syncGoalsToSheets = functions.region('me-west1').firestore
   })
 
 // Manual / "Sync All Now" callable used by the coach settings page.
-export const syncAllAthletesNow = functions.region('me-west1').https.onCall(async (_data, context) => {
+export const syncAllAthletesNow = functions.region('europe-west1').https.onCall(async (_data, context) => {
   if (!context.auth) {
     throw new functions.https.HttpsError(
       'unauthenticated',
@@ -127,7 +127,7 @@ export const syncAllAthletesNow = functions.region('me-west1').https.onCall(asyn
  * the Firebase console (Functions > Logs) whether the sync succeeded or
  * failed, and how long it took.
  */
-export const testSheetsSync = functions.region('me-west1').https.onCall(async (data, context) => {
+export const testSheetsSync = functions.region('europe-west1').https.onCall(async (data, context) => {
   const startedAt = Date.now()
   const callerUid = context.auth?.uid ?? 'anonymous'
   const requestedAthleteId =

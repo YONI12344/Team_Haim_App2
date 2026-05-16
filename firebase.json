@@ -1,9 +1,10 @@
 {
   "functions": {
     "source": "functions",
-    "runtime": "nodejs18",
+    "runtime": "nodejs22",
     "artifactRegistry": {
-      "cleanupPolicyDays": 30
+      "cleanupPolicyDays": 30,
+      "location": "europe-west1"
     },
     "predeploy": [
       "npm --prefix \"$RESOURCE_DIR\" run build"
