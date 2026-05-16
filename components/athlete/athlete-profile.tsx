@@ -212,17 +212,19 @@ export function AthleteProfile() {
       const rawExt = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '')
       const ext = allowed.has(rawExt) ? rawExt : 'jpg'
       const ref = storageRef(storage, `profilePhotos/${user.id}.${ext}`)
-      // Always send an image/* content type — some mobile pickers leave `file.type`
-      // blank, which would otherwise fail the storage security rule.
-      const safeContentType = file.type && file.type.startsWith('image/')
-        ? file.type
-        : ext === 'png'
-          ? 'image/png'
-          : ext === 'gif'
-            ? 'image/gif'
-            : ext === 'webp'
-              ? 'image/webp'
-              : 'image/jpeg'
+      // Always send an image/* content type — some mobile pickers leave
+      // `file.type` blank, which would otherwise fail the storage rule.
+      const extToMime: Record<string, string> = {
+        png: 'image/png',
+        gif: 'image/gif',
+        webp: 'image/webp',
+        jpg: 'image/jpeg',
+        jpeg: 'image/jpeg',
+      }
+      const safeContentType =
+        file.type && file.type.startsWith('image/')
+          ? file.type
+          : extToMime[ext] || 'image/jpeg'
       await uploadBytes(ref, file, { contentType: safeContentType })
       const url = await getDownloadURL(ref)
       setPhotoURL(url)

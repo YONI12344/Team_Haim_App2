@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -47,6 +47,22 @@ export function StageEditor({ stage, onSave, onCancel }: StageEditorProps) {
   const [keyWorkouts, setKeyWorkouts] = useState(
     (stage.keyWorkouts ?? []).join('\n'),
   )
+
+  // When the caller switches which stage is being edited (e.g. clicking
+  // "edit" on a different stage), reseed the local form fields so we don't
+  // leak the previous stage's values.
+  useEffect(() => {
+    setName(stage.name)
+    setType(stage.type)
+    setStartDate(stage.startDate)
+    setEndDate(stage.endDate)
+    setFocus(stage.focus)
+    setWeeklyVolumeKm(
+      stage.weeklyVolumeKm != null ? String(stage.weeklyVolumeKm) : '',
+    )
+    setMilestones((stage.milestones ?? []).join('\n'))
+    setKeyWorkouts((stage.keyWorkouts ?? []).join('\n'))
+  }, [stage.id, stage.name, stage.type, stage.startDate, stage.endDate, stage.focus, stage.weeklyVolumeKm, stage.milestones, stage.keyWorkouts])
 
   const handleSave = async () => {
     if (!name.trim() || !startDate || !endDate) return

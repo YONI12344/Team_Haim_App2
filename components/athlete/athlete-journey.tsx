@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Loader2, Compass, Plus } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -168,8 +168,7 @@ export function AthleteJourneyView() {
     )
   }
 
-  // Eagerly compute count to avoid re-renders confusing the empty-state UI.
-  const journeyCount = useMemo(() => journeys.length, [journeys])
+  // (length is O(1); no useMemo needed)
 
   if (loading) {
     return (
@@ -179,7 +178,7 @@ export function AthleteJourneyView() {
     )
   }
 
-  if (journeyCount === 0) {
+  if (journeys.length === 0) {
     return (
       <div className="space-y-6">
         <div>
