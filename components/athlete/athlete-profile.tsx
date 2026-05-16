@@ -425,70 +425,78 @@ export function AthleteProfile() {
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row items-start gap-6">
             <div className="relative">
-              <Avatar className="w-24 h-24 border-4 border-gold/20">
-                <AvatarImage src={avatarUrl} alt={displayName} />
-                <AvatarFallback className="bg-gold/10 text-gold text-2xl font-serif">
-                  {getInitials(displayName)}
-                </AvatarFallback>
-              </Avatar>
-              {editing && (
-                <div className="absolute -bottom-2 -right-2 flex gap-1">
-                  <Button
-                    type="button"
-                    size="icon"
-                    className="h-8 w-8 rounded-full bg-navy text-gold hover:bg-navy/90"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploadingPhoto}
-                    aria-label="Upload profile photo"
-                  >
-                    {uploadingPhoto ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Camera className="h-3.5 w-3.5" />
-                    )}
-                  </Button>
-                  {avatarUrl && (
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="outline"
-                      className="h-8 w-8 rounded-full"
-                      onClick={handlePhotoRemove}
-                      aria-label="Remove profile photo"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </Button>
+              {/*
+                Using a native <label htmlFor> tied to a real file input is the
+                most reliable way to open the device photo picker on every
+                platform (especially iOS Safari and in-app webviews where a
+                programmatic `inputRef.click()` is often silently ignored).
+              */}
+              <label
+                htmlFor="profile-photo-input"
+                className={cn(
+                  'group relative block w-24 h-24 rounded-full overflow-hidden',
+                  'cursor-pointer focus-within:ring-2 focus-within:ring-gold/60',
+                  uploadingPhoto && 'pointer-events-none opacity-80',
+                )}
+                title="Change photo"
+                aria-label="Change profile photo"
+              >
+                <Avatar className="w-24 h-24 border-4 border-gold/20">
+                  <AvatarImage src={avatarUrl} alt={displayName} />
+                  <AvatarFallback className="bg-gold/10 text-gold text-2xl font-serif">
+                    {getInitials(displayName)}
+                  </AvatarFallback>
+                </Avatar>
+                <span
+                  className={cn(
+                    'absolute inset-0 flex items-center justify-center rounded-full',
+                    'bg-navy/0 text-transparent transition-colors',
+                    'group-hover:bg-navy/40 group-hover:text-white',
+                    'group-focus-within:bg-navy/40 group-focus-within:text-white',
                   )}
-                </div>
-              )}
-              {!editing && (
+                  aria-hidden="true"
+                >
+                  {uploadingPhoto ? (
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  ) : (
+                    <Camera className="h-6 w-6" />
+                  )}
+                </span>
+                <input
+                  id="profile-photo-input"
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  disabled={uploadingPhoto}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    if (f) handlePhotoSelect(f)
+                    e.target.value = ''
+                  }}
+                />
+              </label>
+
+              {avatarUrl && !uploadingPhoto && (
                 <Button
                   type="button"
                   size="icon"
-                  className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full bg-navy text-gold hover:bg-navy/90"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingPhoto}
-                  aria-label="Upload profile photo"
-                  title="Change photo"
+                  variant="outline"
+                  className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full bg-background"
+                  onClick={(e) => {
+                    // Stop the click from bubbling up to the label which would
+                    // otherwise open the file picker right after removing the
+                    // photo.
+                    e.preventDefault()
+                    e.stopPropagation()
+                    handlePhotoRemove()
+                  }}
+                  aria-label="Remove profile photo"
+                  title="Remove photo"
                 >
-                  {uploadingPhoto ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Camera className="h-3.5 w-3.5" />
-                  )}
+                  <X className="h-3.5 w-3.5" />
                 </Button>
               )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0]
-                  if (f) handlePhotoSelect(f)
-                  e.target.value = ''
-                }}
-              />
             </div>
 
             <div className="flex-1 space-y-4 w-full">

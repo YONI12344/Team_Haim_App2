@@ -1,10 +1,43 @@
-<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Team Haim brand: gold "TH" monogram on navy. -->
-  <rect width="180" height="180" rx="32" fill="#1a2744" />
-  <g transform="translate(35 38)">
-    <!-- T -->
-    <path d="M0 0 H50 V14 H32 V70 H18 V14 H0 Z" fill="#c9a14a" />
-    <!-- H -->
-    <path d="M55 0 H70 V28 H96 V0 H110 V70 H96 V42 H70 V70 H55 Z" fill="#c9a14a" />
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Team Haim launcher / favicon mark: gold "TH" monogram on navy rounded square.
+    Keep this file in sync with /public/team-haim-logo.svg (same artwork, with
+    the navy backdrop baked in for use as a standalone app icon).
+  -->
+  <defs>
+    <linearGradient id="thGoldIcon" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e6c876" />
+      <stop offset="45%" stop-color="#c9a14a" />
+      <stop offset="100%" stop-color="#9a7a2e" />
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="48" fill="#1a2744" />
+  <g>
+    <!-- H (rear layer) -->
+    <path
+      d="M 50 40
+         L 92 40
+         L 92 116
+         L 164 116
+         L 164 40
+         L 206 40
+         L 206 216
+         L 164 216
+         L 164 150
+         L 92 150
+         L 92 216
+         L 50 216 Z"
+      fill="url(#thGoldIcon)" />
+    <!-- T (front layer) -->
+    <path
+      d="M 36 40
+         L 220 40
+         L 220 82
+         L 149 82
+         L 149 216
+         L 107 216
+         L 107 82
+         L 36 82 Z"
+      fill="url(#thGoldIcon)" />
   </g>
 </svg>

@@ -65,7 +65,7 @@ export function AthleteNav() {
           <span className="block w-10 h-10 rounded-full overflow-hidden bg-navy">
             {/* To change the in-app logo, replace /public/team-haim-logo.svg */}
             <img
-              src="/team-haim-logo.svg"
+              src="/team-haim-logo.svg?v=2"
               alt="Team Haim"
               width={40}
               height={40}
