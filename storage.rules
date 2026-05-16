@@ -10,6 +10,7 @@ service firebase.storage {
       allow write: if request.auth != null
         && request.auth.uid == userId
         && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType != null
         && request.resource.contentType.matches('image/.*');
     }
     // Single-file variant (e.g. profilePhotos/{uid}.jpg).
@@ -18,6 +19,7 @@ service firebase.storage {
       allow write: if request.auth != null
         && fileName.matches(request.auth.uid + '\\..*')
         && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType != null
         && request.resource.contentType.matches('image/.*');
     }
     // Coach can manage any profile photo.

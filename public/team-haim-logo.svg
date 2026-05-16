@@ -1,0 +1,16 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Team Haim primary mark.
+    To swap the brand asset across the app, replace this file (keep the same path
+    and filename) and the favicon at public/icon.svg with your new artwork.
+    Recommended exports for the launcher / favicon: 32x32, 180x180, 512x512.
+  -->
+  <rect width="512" height="512" rx="96" fill="#1a2744" />
+  <g transform="translate(96 120)">
+    <!-- T -->
+    <path d="M0 0 H148 V40 H94 V200 H54 V40 H0 Z" fill="#c9a14a" />
+    <!-- H -->
+    <path d="M164 0 H204 V80 H276 V0 H316 V200 H276 V120 H204 V200 H164 Z" fill="#c9a14a" />
+  </g>
+  <text x="256" y="430" text-anchor="middle" font-family="serif" font-size="48" font-weight="700" fill="#ffffff" letter-spacing="6">TEAM HAIM</text>
+</svg>

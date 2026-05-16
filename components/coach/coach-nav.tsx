@@ -61,9 +61,16 @@ export function CoachNav() {
       <div className="container flex h-16 items-center justify-between px-4">
         {/* Logo */}
         <Link href="/coach" className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-navy flex items-center justify-center">
-            <span className="text-lg font-serif font-bold text-gold">TH</span>
-          </div>
+          <span className="block w-10 h-10 rounded-full overflow-hidden bg-navy">
+            {/* To change the in-app logo, replace /public/team-haim-logo.svg */}
+            <img
+              src="/team-haim-logo.svg"
+              alt="Team Haim"
+              width={40}
+              height={40}
+              className="w-10 h-10 object-cover"
+            />
+          </span>
           <div className="hidden sm:block">
             <span className="font-serif font-semibold text-navy text-lg">
               Team Haim

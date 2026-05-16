@@ -23,6 +23,7 @@ import {
 import { ChevronLeft, ChevronRight, Clock, Activity, Check, X, CheckCircle2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { AssignedWorkout, Workout, WorkoutLog, WorkoutType } from '@/lib/types'
+import { legacyEffortToNumber } from '@/lib/types'
 import {
   Dialog,
   DialogContent,
@@ -64,7 +65,7 @@ function mapDocToWorkoutLog(d: QueryDocumentSnapshot<DocumentData>, fallbackAthl
     date: data.date || '',
     actualDistance: data.actualDistance ?? undefined,
     actualPace: data.actualPace ?? undefined,
-    effort: data.effort || 'easy',
+    effort: legacyEffortToNumber(data.effort),
     comment: data.comment || '',
     createdAt: data.createdAt?.toDate?.() || new Date(),
   }
@@ -313,17 +314,25 @@ export function AthleteSchedule() {
                           {/* Log summary */}
                           {(() => {
                             const log = getLogForWorkout(workout.id)
-                            return log ? (
+                            if (!log) return null
+                            const tone =
+                              log.effort <= 3
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : log.effort <= 6
+                                ? 'bg-amber-100 text-amber-700'
+                                : log.effort <= 8
+                                ? 'bg-orange-100 text-orange-700'
+                                : 'bg-red-100 text-red-700'
+                            return (
                               <div className="mt-2 text-xs text-muted-foreground border-t border-border/50 pt-2">
-                                <span className={cn(
-                                  'inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium mr-2',
-                                  log.effort === 'easy'
-                                    ? 'bg-emerald-100 text-emerald-700'
-                                    : log.effort === 'medium'
-                                    ? 'bg-amber-100 text-amber-700'
-                                    : 'bg-red-100 text-red-700'
-                                )}>
-                                  {log.effort}
+                                <span
+                                  className={cn(
+                                    'inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold mr-2',
+                                    tone,
+                                  )}
+                                  title="Perceived effort (1–10)"
+                                >
+                                  Effort {log.effort}/10
                                 </span>
                                 {log.actualDistance && <span>{log.actualDistance}km</span>}
                                 {log.actualPace && <span className="ml-1">@ {log.actualPace}/km</span>}
@@ -331,7 +340,7 @@ export function AthleteSchedule() {
                                   <p className="mt-1 line-clamp-1 italic">&ldquo;{log.comment}&rdquo;</p>
                                 )}
                               </div>
-                            ) : null
+                            )
                           })()}
                         </div>
                       ) : (

@@ -27,9 +27,12 @@ import {
   parseISO,
 } from 'date-fns'
 import type { PersonalRecord, WorkoutLog } from '@/lib/types'
+import { legacyEffortToNumber } from '@/lib/types'
 
 function effortToScore(effort: WorkoutLog['effort']): number {
-  return effort === 'easy' ? 3 : effort === 'medium' ? 6 : 9
+  // `effort` is now numeric (1–10). `legacyEffortToNumber` also handles older
+  // string values that may still exist in Firestore for back-compat.
+  return legacyEffortToNumber(effort)
 }
 
 interface BucketStats {
@@ -125,7 +128,7 @@ export function AthleteStats() {
               date: data.date || '',
               actualDistance: data.actualDistance ?? undefined,
               actualPace: data.actualPace ?? undefined,
-              effort: data.effort || 'easy',
+              effort: legacyEffortToNumber(data.effort),
               comment: data.comment || '',
               createdAt: data.createdAt?.toDate?.() || new Date(),
             }
