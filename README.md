@@ -128,3 +128,51 @@ default to `rounded-2xl` with softer shadows.
   signed-in users may read.
 
 Deploy with `firebase deploy --only firestore:rules,storage`.
+
+## Excel Export (`lib/export.ts`)
+
+A fully client-side Excel export built with **xlsx-js-style** (SheetJS fork
+with cell-style support). No server round-trip is required; the `.xlsx` blob
+is generated in the browser and downloaded directly.
+
+### How it works
+
+`lib/export.ts` exposes two workbook builders:
+
+- **`buildAthleteWorkbook(data)`** — generates a per-athlete workbook with
+  eight tabs: Profile, Personal Records, Season Bests, Training Paces, Goals,
+  Workout Logs, Schedule, Season Journey.
+- **`buildAllAthletesWorkbook({ athletes })`** — generates a roster workbook
+  with seven tabs spanning all athletes: Athletes Summary, All PRs, All Season
+  Bests, All Workout Logs, All Schedules, All Goals, All Journeys.
+
+Both builders share a common `buildSheet()` helper that produces the Team Haim
+branded layout on every sheet:
+
+| Row | Content |
+|-----|---------|
+| 1 | "TEAM HAIM" — Georgia 18 pt bold navy, merged, gold bottom border |
+| 2 | Sheet subtitle — Calibri 11 pt italic muted-gray, merged |
+| 3 | Blank breathing-room row |
+| 4 | Header row — Calibri 11 pt bold white on navy bg, gold bottom border |
+| 5+ | Data rows — alternating white / warm-cream (`#F8F6F0`), 10 pt navy |
+
+Other style details:
+- First 4 rows are **frozen** for easy scrolling through large datasets.
+- **Column widths** are auto-sized to the longest value, capped at 40 chars.
+- **Tab colors**: navy (`#1A2748`) for profile/summary sheets, gold (`#C9A961`)
+  for performance sheets (PRs/SBs/Goals), coral (`#E8826B`) for activity
+  sheets (logs/schedule/journey).
+- Workbook properties include title, author, company, and creation date.
+
+### UI entry points
+
+| Where | Button | Output file |
+|-------|--------|-------------|
+| `/athlete/profile` | "Export my data" (Download icon) | `team-haim_{name}_{date}.xlsx` |
+| `/coach/athletes/[id]` | "Export" (Download icon) | `team-haim_{name}_{date}.xlsx` |
+| `/coach/athletes` (roster) | "Export all athletes" (Download icon) | `team-haim_all-athletes_{date}.xlsx` |
+
+All buttons show a spinner while building and display a success/error toast
+via Sonner on completion. The "Export all athletes" button shows a progress
+message ("Loaded N/M athletes…") when the roster is large.
