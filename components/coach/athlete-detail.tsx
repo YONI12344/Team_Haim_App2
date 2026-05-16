@@ -18,7 +18,6 @@ import {
   Activity,
   MessageCircle,
   Loader2,
-  Download,
 } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
@@ -38,15 +37,6 @@ import {
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { TrainingZonesCard } from '@/components/athlete/training-zones-card'
-import { listJourneys } from '@/lib/journey'
-import { toast } from 'sonner'
-import {
-  buildAthleteWorkbook,
-  setWorkbookProperties,
-  downloadWorkbook,
-  athleteFilename,
-  type ExportAthleteData,
-} from '@/lib/export'
 
 function mapDocToWorkoutLog(d: QueryDocumentSnapshot<DocumentData>, fallbackAthleteId: string): WorkoutLog {
   const data = d.data()
@@ -123,7 +113,6 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
   const [athleteWorkouts, setAthleteWorkouts] = useState<AssignedWorkout[]>([])
   const [logs, setLogs] = useState<WorkoutLog[]>([])
   const [loading, setLoading] = useState(true)
-  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -219,81 +208,6 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
       .slice(0, 2) || '?'
   }
 
-  const handleExport = async () => {
-    if (!athlete) return
-    setExporting(true)
-    try {
-      // Journey stages
-      let journeyStages: ExportAthleteData['journeyStages'] = []
-      try {
-        const journeys = await listJourneys(athleteId)
-        journeyStages = journeys.flatMap((j) =>
-          j.stages.map((s) => ({
-            stageName: s.name,
-            type: s.type,
-            startDate: s.startDate,
-            endDate: s.endDate,
-            focus: s.focus,
-            weeklyVolumeKm: s.weeklyVolumeKm,
-            keyWorkouts: s.keyWorkouts?.join('; ') || '',
-            milestones: s.milestones?.join('; ') || '',
-          })),
-        )
-      } catch { /* ignore */ }
-
-      const exportData: ExportAthleteData = {
-        name: athlete.name,
-        email: athlete.email,
-        dateOfBirth: athlete.dateOfBirth,
-        gender: athlete.gender,
-        height: athlete.height,
-        weight: athlete.weight,
-        discipline: athlete.discipline,
-        events: athlete.events,
-        experienceLevel: athlete.experienceLevel,
-        weeklyMileage: athlete.weeklyMileage,
-        restingHR: athlete.restingHR,
-        maxHR: athlete.maxHR,
-        goalRaceEvent: athlete.goalRaceEvent,
-        goalRaceDate: athlete.goalRaceDate,
-        goalRaceTarget: athlete.goalRaceTarget,
-        personalRecords: athlete.personalRecords,
-        seasonBests: athlete.seasonBests,
-        trainingPaces: athlete.trainingPaces,
-        goals: athlete.goals,
-        workoutLogs: logs.map((l) => ({
-          date: l.date,
-          workoutTitle: l.workoutId || '',
-          distance: l.actualDistance,
-          pace: l.actualPace,
-          effort: l.effort,
-          comment: l.comment,
-        })),
-        assignedWorkouts: athleteWorkouts.map((aw) => ({
-          date: aw.scheduledDate,
-          workoutTitle: aw.workout?.title || '',
-          type: aw.workout?.type || '',
-          status: aw.status,
-          duration: aw.workout?.duration,
-          distance: aw.workout?.distance,
-          coachFeedback: aw.coachFeedback || '',
-        })),
-        journeyStages,
-      }
-
-      const wb = buildAthleteWorkbook(exportData)
-      setWorkbookProperties(wb, athlete.name)
-      const filename = athleteFilename(athlete.name)
-      downloadWorkbook(wb, filename)
-      toast.success(`Exported ${filename}`)
-    } catch (err) {
-      console.error('Export error:', err)
-      toast.error('Export failed. Please try again.')
-    } finally {
-      setExporting(false)
-    }
-  }
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -349,20 +263,7 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
                   </h1>
                   <p className="text-muted-foreground">{athlete.email}</p>
                 </div>
-                <div className="flex gap-2 flex-wrap">
-                  <Button
-                    variant="outline"
-                    onClick={handleExport}
-                    disabled={exporting}
-                    className="border-gold/40 text-navy hover:border-gold"
-                  >
-                    {exporting ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Download className="h-4 w-4 mr-2" />
-                    )}
-                    {exporting ? 'Generating…' : 'Export'}
-                  </Button>
+                <div className="flex gap-2">
                   <Link href={`/coach/athletes/${athleteId}/journey`}>
                     <Button variant="outline" className="border-coral/40 text-coral hover:bg-coral-light">
                       Journey

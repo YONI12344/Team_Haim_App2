@@ -16,7 +16,6 @@ import {
   Loader2,
   Pencil,
   Trash2,
-  Download,
 } from 'lucide-react'
 import Link from 'next/link'
 import {
@@ -51,14 +50,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { toast } from 'sonner'
-import { listJourneys } from '@/lib/journey'
-import {
-  buildAllAthletesWorkbook,
-  setWorkbookProperties,
-  downloadWorkbook,
-  allAthletesFilename,
-  type ExportAthleteData,
-} from '@/lib/export'
 
 export function AthleteRoster() {
   const { user } = useAuth()
@@ -67,8 +58,6 @@ export function AthleteRoster() {
   const [searchQuery, setSearchQuery] = useState('')
   const [athletes, setAthletes] = useState<AthleteProfile[]>([])
   const [loading, setLoading] = useState(true)
-  const [exporting, setExporting] = useState(false)
-  const [exportProgress, setExportProgress] = useState('')
 
   const [editing, setEditing] = useState<AthleteProfile | null>(null)
   const [editName, setEditName] = useState('')
@@ -181,79 +170,6 @@ export function AthleteRoster() {
     }
   }
 
-  const handleExportAll = async () => {
-    if (athletes.length === 0) {
-      toast.error('No athletes to export')
-      return
-    }
-    setExporting(true)
-    setExportProgress(`Loading 0/${athletes.length} athletes…`)
-    try {
-      let loaded = 0
-      const allData: ExportAthleteData[] = await Promise.all(
-        athletes.map(async (a) => {
-          // Fetch journey stages per athlete
-          let journeyStages: ExportAthleteData['journeyStages'] = []
-          try {
-            const journeys = await listJourneys(a.id)
-            journeyStages = journeys.flatMap((j) =>
-              j.stages.map((s) => ({
-                stageName: s.name,
-                type: s.type,
-                startDate: s.startDate,
-                endDate: s.endDate,
-                focus: s.focus,
-                weeklyVolumeKm: s.weeklyVolumeKm,
-                keyWorkouts: s.keyWorkouts?.join('; ') || '',
-                milestones: s.milestones?.join('; ') || '',
-              })),
-            )
-          } catch { /* ignore */ }
-
-          loaded++
-          if (loaded > 1) {
-            setExportProgress(`Loaded ${loaded}/${athletes.length} athletes…`)
-          }
-
-          return {
-            name: a.name,
-            email: a.email,
-            dateOfBirth: a.dateOfBirth,
-            gender: a.gender,
-            height: a.height,
-            weight: a.weight,
-            discipline: a.discipline,
-            events: a.events,
-            experienceLevel: a.experienceLevel,
-            weeklyMileage: a.weeklyMileage,
-            restingHR: a.restingHR,
-            maxHR: a.maxHR,
-            goalRaceEvent: a.goalRaceEvent,
-            goalRaceDate: a.goalRaceDate,
-            goalRaceTarget: a.goalRaceTarget,
-            personalRecords: a.personalRecords,
-            seasonBests: a.seasonBests,
-            trainingPaces: a.trainingPaces,
-            goals: a.goals,
-            journeyStages,
-          }
-        }),
-      )
-
-      const wb = buildAllAthletesWorkbook({ athletes: allData })
-      setWorkbookProperties(wb, 'All Athletes')
-      const filename = allAthletesFilename()
-      downloadWorkbook(wb, filename)
-      toast.success(`Exported ${filename}`)
-    } catch (err) {
-      console.error('Export all error:', err)
-      toast.error('Export failed. Please try again.')
-    } finally {
-      setExporting(false)
-      setExportProgress('')
-    }
-  }
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -264,21 +180,6 @@ export function AthleteRoster() {
             Manage your roster and view athlete profiles
           </p>
         </div>
-        {isCoach && (
-          <Button
-            variant="outline"
-            onClick={handleExportAll}
-            disabled={exporting || loading}
-            className="border-gold/40 text-navy hover:border-gold self-start sm:self-center"
-          >
-            {exporting ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4 mr-2" />
-            )}
-            {exporting ? (exportProgress || 'Generating…') : 'Export all athletes'}
-          </Button>
-        )}
       </div>
 
       {/* Search */}
