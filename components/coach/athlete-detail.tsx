@@ -38,15 +38,8 @@ import {
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { TrainingZonesCard } from '@/components/athlete/training-zones-card'
-import { listJourneys } from '@/lib/journey'
 import { toast } from 'sonner'
-import {
-  buildAthleteWorkbook,
-  setWorkbookProperties,
-  downloadWorkbook,
-  athleteFilename,
-  type ExportAthleteData,
-} from '@/lib/export'
+import { exportAthleteToExcel } from '@/lib/export-athlete'
 
 function mapDocToWorkoutLog(d: QueryDocumentSnapshot<DocumentData>, fallbackAthleteId: string): WorkoutLog {
   const data = d.data()
@@ -223,68 +216,7 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
     if (!athlete) return
     setExporting(true)
     try {
-      // Journey stages
-      let journeyStages: ExportAthleteData['journeyStages'] = []
-      try {
-        const journeys = await listJourneys(athleteId)
-        journeyStages = journeys.flatMap((j) =>
-          j.stages.map((s) => ({
-            stageName: s.name,
-            type: s.type,
-            startDate: s.startDate,
-            endDate: s.endDate,
-            focus: s.focus,
-            weeklyVolumeKm: s.weeklyVolumeKm,
-            keyWorkouts: s.keyWorkouts?.join('; ') || '',
-            milestones: s.milestones?.join('; ') || '',
-          })),
-        )
-      } catch { /* ignore */ }
-
-      const exportData: ExportAthleteData = {
-        name: athlete.name,
-        email: athlete.email,
-        dateOfBirth: athlete.dateOfBirth,
-        gender: athlete.gender,
-        height: athlete.height,
-        weight: athlete.weight,
-        discipline: athlete.discipline,
-        events: athlete.events,
-        experienceLevel: athlete.experienceLevel,
-        weeklyMileage: athlete.weeklyMileage,
-        restingHR: athlete.restingHR,
-        maxHR: athlete.maxHR,
-        goalRaceEvent: athlete.goalRaceEvent,
-        goalRaceDate: athlete.goalRaceDate,
-        goalRaceTarget: athlete.goalRaceTarget,
-        personalRecords: athlete.personalRecords,
-        seasonBests: athlete.seasonBests,
-        trainingPaces: athlete.trainingPaces,
-        goals: athlete.goals,
-        workoutLogs: logs.map((l) => ({
-          date: l.date,
-          workoutTitle: l.workoutId || '',
-          distance: l.actualDistance,
-          pace: l.actualPace,
-          effort: l.effort,
-          comment: l.comment,
-        })),
-        assignedWorkouts: athleteWorkouts.map((aw) => ({
-          date: aw.scheduledDate,
-          workoutTitle: aw.workout?.title || '',
-          type: aw.workout?.type || '',
-          status: aw.status,
-          duration: aw.workout?.duration,
-          distance: aw.workout?.distance,
-          coachFeedback: aw.coachFeedback || '',
-        })),
-        journeyStages,
-      }
-
-      const wb = buildAthleteWorkbook(exportData)
-      setWorkbookProperties(wb, athlete.name)
-      const filename = athleteFilename(athlete.name)
-      downloadWorkbook(wb, filename)
+      const filename = await exportAthleteToExcel(athleteId)
       toast.success(`Exported ${filename}`)
     } catch (err) {
       console.error('Export error:', err)

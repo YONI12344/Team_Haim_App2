@@ -59,6 +59,7 @@ import {
   allAthletesFilename,
   type ExportAthleteData,
 } from '@/lib/export'
+import { exportAthleteToExcel } from '@/lib/export-athlete'
 
 export function AthleteRoster() {
   const { user } = useAuth()
@@ -69,6 +70,7 @@ export function AthleteRoster() {
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
   const [exportProgress, setExportProgress] = useState('')
+  const [exportingAthleteId, setExportingAthleteId] = useState<string | null>(null)
 
   const [editing, setEditing] = useState<AthleteProfile | null>(null)
   const [editName, setEditName] = useState('')
@@ -178,6 +180,20 @@ export function AthleteRoster() {
     } finally {
       setDeleting(false)
       setDeleteId(null)
+    }
+  }
+
+  const handleExportAthlete = async (athleteId: string) => {
+    if (exportingAthleteId) return
+    setExportingAthleteId(athleteId)
+    try {
+      const filename = await exportAthleteToExcel(athleteId)
+      toast.success(`Exported ${filename}`)
+    } catch (err) {
+      console.error('Export athlete error:', err)
+      toast.error('Export failed. Please try again.')
+    } finally {
+      setExportingAthleteId(null)
     }
   }
 
@@ -363,25 +379,46 @@ export function AthleteRoster() {
                   </Link>
 
                   {isCoach && (
-                    <div className="grid grid-cols-2 gap-2 mt-2">
+                    <>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => openEdit(athlete)}
+                        onClick={() => handleExportAthlete(athlete.id)}
+                        disabled={exportingAthleteId === athlete.id}
+                        aria-label={
+                          exportingAthleteId === athlete.id
+                            ? `Exporting ${athlete.name} to Excel`
+                            : `Export ${athlete.name} to Excel`
+                        }
+                        className="w-full mt-2 border-gold/40 text-navy hover:border-gold"
                       >
-                        <Pencil className="h-3.5 w-3.5 mr-1" />
-                        Edit
+                        {exportingAthleteId === athlete.id ? (
+                          <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                        ) : (
+                          <Download className="h-3.5 w-3.5 mr-1" />
+                        )}
+                        {exportingAthleteId === athlete.id ? 'Exporting…' : 'Export to Excel'}
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => setDeleteId(athlete.id)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5 mr-1" />
-                        Remove
-                      </Button>
-                    </div>
+                      <div className="grid grid-cols-2 gap-2 mt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEdit(athlete)}
+                        >
+                          <Pencil className="h-3.5 w-3.5 mr-1" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => setDeleteId(athlete.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 mr-1" />
+                          Remove
+                        </Button>
+                      </div>
+                    </>
                   )}
                 </CardContent>
               </Card>
