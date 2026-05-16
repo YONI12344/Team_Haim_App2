@@ -1,19 +1,31 @@
 import type { Metadata, Viewport } from 'next'
-import { Playfair_Display, Inter } from 'next/font/google'
+import { Playfair_Display, Heebo, Rubik } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from 'sonner'
 import { AuthProvider } from '@/contexts/auth-context'
+import { LanguageProvider } from '@/contexts/language-context'
 import './globals.css'
 
-const playfair = Playfair_Display({ 
+// Playfair is kept only for the brand wordmark / hero title decoration.
+const playfair = Playfair_Display({
   subsets: ['latin'],
   variable: '--font-playfair',
   display: 'swap',
 })
 
-const inter = Inter({ 
-  subsets: ['latin'],
-  variable: '--font-inter',
+// Heebo — bilingual (Latin + Hebrew), highly legible humanist sans for body.
+const heebo = Heebo({
+  subsets: ['latin', 'hebrew'],
+  variable: '--font-heebo',
+  display: 'swap',
+})
+
+// Rubik — bilingual, friendly rounded geometric sans for headings / display.
+// Gives the UI a more sporty, "running club" vibe than Playfair while
+// staying easy to read at small sizes.
+const rubik = Rubik({
+  subsets: ['latin', 'hebrew'],
+  variable: '--font-rubik',
   display: 'swap',
 })
 
@@ -64,21 +76,23 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${playfair.variable} ${inter.variable} bg-background`}>
+    <html lang="en" className={`${playfair.variable} ${heebo.variable} ${rubik.variable} bg-background`}>
       <body className="font-sans antialiased min-h-screen">
-        <AuthProvider>
-          {children}
-          <Toaster 
-            position="top-right" 
-            toastOptions={{
-              style: {
-                background: 'var(--card)',
-                color: 'var(--card-foreground)',
-                border: '1px solid var(--border)',
-              },
-            }}
-          />
-        </AuthProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            {children}
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                style: {
+                  background: 'var(--card)',
+                  color: 'var(--card-foreground)',
+                  border: '1px solid var(--border)',
+                },
+              }}
+            />
+          </AuthProvider>
+        </LanguageProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
