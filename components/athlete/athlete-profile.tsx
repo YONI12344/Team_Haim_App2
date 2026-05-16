@@ -196,7 +196,11 @@ export function AthleteProfile() {
     }
     setUploadingPhoto(true)
     try {
-      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+      // Only accept a small whitelist of image extensions to avoid surprises
+      // even if the content-type header was tampered with.
+      const allowed = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif'])
+      const rawExt = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '')
+      const ext = allowed.has(rawExt) ? rawExt : 'jpg'
       const ref = storageRef(storage, `profilePhotos/${user.id}.${ext}`)
       await uploadBytes(ref, file, { contentType: file.type })
       const url = await getDownloadURL(ref)

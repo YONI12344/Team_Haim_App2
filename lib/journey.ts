@@ -277,7 +277,8 @@ export const journeyTemplates: JourneyTemplate[] = [
         title: 'Road to 5K',
         goalRaceEvent: '5K',
         weeks: 8,
-        splits: [3, 3, 1, 0.5, 0.5].map((x) => Math.max(1, Math.round(x))),
+        // Integer week splits summing to 8: Base / Build / Peak / Taper / Race week.
+        splits: [3, 2, 1, 1, 1],
         focuses: [
           'Aerobic base + strides',
           'Threshold + 5K-specific intervals',
