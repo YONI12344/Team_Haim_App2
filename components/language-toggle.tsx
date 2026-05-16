@@ -33,7 +33,7 @@ export function LanguageToggle({
       onClick={() => setLanguage(next)}
       aria-label={t.languageToggleAria}
       className={cn(
-        'gap-2 font-medium text-navy hover:text-navy hover:bg-navy/10 border border-transparent hover:border-navy/20 transition-luxury',
+        'gap-2 font-medium text-navy hover:bg-navy/10 border border-transparent hover:border-navy/20 transition-luxury',
         className,
       )}
     >

@@ -199,7 +199,6 @@
     @apply bg-background text-foreground;
     font-family: var(--font-body);
     font-weight: 400;
-    font-feature-settings: 'cv11', 'ss01', 'ss03';
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
