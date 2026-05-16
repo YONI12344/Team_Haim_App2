@@ -9,7 +9,8 @@
  *
  * All triggers funnel into `syncAthleteToSheet(athleteId)` which:
  *   1. Reads athlete profile / workouts / logs / goals from Firestore.
- *   2. Reads the master Google Sheet ID from `settings/googleSheets`.
+ *   2. Reads the master Google Sheet ID from the MASTER_SHEET_ID env var
+ *      (falls back to `settings/googleSheets.sheetId` in Firestore).
  *   3. Ensures a tab exists for the athlete (named after their name).
  *   4. Writes a header row + one row per day with workout & log data.
  *   5. Color-codes rows by workout type.
@@ -18,6 +19,9 @@
  * Service Account credentials come from environment variables:
  *   - GOOGLE_SERVICE_ACCOUNT_EMAIL
  *   - GOOGLE_PRIVATE_KEY  (with literal "\n" sequences for newlines)
+ *   - MASTER_SHEET_ID     (Google Sheet ID for the master sheet)
+ *   - TRIGGER_SERVICE_ACCOUNT  (SA email for Eventarc OIDC auth on cross-region
+ *                               triggers, e.g. PROJECT_NUMBER-compute@developer.gserviceaccount.com)
  */
 
 import {onDocumentWritten} from 'firebase-functions/v2/firestore'
@@ -27,7 +31,17 @@ import * as admin from 'firebase-admin'
 import {google, sheets_v4} from 'googleapis'
 
 admin.initializeApp()
-setGlobalOptions({region: 'europe-west1', maxInstances: 10})
+
+// Explicitly set serviceAccount so Eventarc wires the OIDC token correctly
+// on cross-region Pub/Sub push subscriptions (Firestore me-west1 → europe-west1).
+const globalOpts: Parameters<typeof setGlobalOptions>[0] = {
+  region: 'europe-west1',
+  maxInstances: 10,
+}
+if (process.env.TRIGGER_SERVICE_ACCOUNT) {
+  globalOpts.serviceAccount = process.env.TRIGGER_SERVICE_ACCOUNT
+}
+setGlobalOptions(globalOpts)
 
 const db = admin.firestore()
 
@@ -89,6 +103,8 @@ export const syncAllAthletesNow = onCall(async (request) => {
     )
   }
 
+  logger.info('[syncAllAthletesNow] START', {caller: request.auth.uid})
+
   const usersSnap = await db.collection('users').get()
   const athleteIds = usersSnap.docs
     .filter((d) => {
@@ -97,18 +113,39 @@ export const syncAllAthletesNow = onCall(async (request) => {
     })
     .map((d) => d.id)
 
+  logger.info(`[syncAllAthletesNow] found ${athleteIds.length} athletes`)
+
   let succeeded = 0
+  let rowsWritten = 0
   const errors: Array<{athleteId: string; message: string}> = []
   for (const id of athleteIds) {
     try {
-      await syncAthleteToSheet(id)
+      logger.info(`[syncAllAthletesNow] syncing athlete=${id}`)
+      const result = await syncAthleteToSheet(id)
       succeeded++
+      rowsWritten += result.rowsWritten
+      logger.info(`[syncAllAthletesNow] athlete OK athlete=${id} rows=${result.rowsWritten}`)
     } catch (err) {
-      errors.push({athleteId: id, message: (err as Error).message})
+      const message = (err as Error).message
+      errors.push({athleteId: id, message})
+      logger.error(`[syncAllAthletesNow] athlete FAILED athlete=${id}`, err)
     }
   }
 
-  return {total: athleteIds.length, succeeded, errors}
+  const success = errors.length === 0
+  logger.info(
+    `[syncAllAthletesNow] DONE total=${athleteIds.length} succeeded=${succeeded} ` +
+    `rowsWritten=${rowsWritten} failed=${errors.length}`
+  )
+
+  return {
+    success,
+    total: athleteIds.length,
+    succeeded,
+    athletesSynced: succeeded,
+    rowsWritten,
+    errors,
+  }
 })
 
 /**
@@ -146,20 +183,33 @@ export const testSheetsSync = onCall(async (request) => {
   }
 
   // Verify the master sheet is configured up-front so we can log it clearly.
-  const settingsSnap = await db.doc(SETTINGS_DOC).get()
-  const spreadsheetId = settingsSnap.exists ?
-    (settingsSnap.data()?.sheetId as string | undefined) :
-    undefined
-  if (!spreadsheetId) {
-    logger.error(
-      '[testSheetsSync] FAILED - no master sheet ID configured in settings/googleSheets'
-    )
-    throw new HttpsError(
-      'failed-precondition',
-      'No master Google Sheet ID is configured. Save one in coach settings first.'
-    )
+  const spreadsheetId =
+    process.env.MASTER_SHEET_ID?.trim() ||
+    (() => {
+      // synchronous read path not available here; we'll let syncAthleteToSheet handle it
+      return undefined
+    })()
+
+  if (spreadsheetId) {
+    logger.info('[testSheetsSync] using spreadsheet from env', {spreadsheetId})
+  } else {
+    // Try Firestore settings as fallback
+    const settingsSnap = await db.doc(SETTINGS_DOC).get()
+    const firestoreId = settingsSnap.exists ?
+      (settingsSnap.data()?.sheetId as string | undefined) :
+      undefined
+    if (!firestoreId) {
+      logger.error(
+        '[testSheetsSync] FAILED - no master sheet ID in MASTER_SHEET_ID env var or settings/googleSheets'
+      )
+      throw new HttpsError(
+        'failed-precondition',
+        'No master Google Sheet ID is configured. ' +
+        'Set MASTER_SHEET_ID env var or save the sheet ID in coach settings first.'
+      )
+    }
+    logger.info('[testSheetsSync] using spreadsheet from Firestore', {spreadsheetId: firestoreId})
   }
-  logger.info('[testSheetsSync] using spreadsheet', {spreadsheetId})
 
   // Build the list of athletes to sync.
   let athleteIds: string[]
@@ -225,9 +275,11 @@ async function safeSync(athleteId: string, source: string): Promise<void> {
       `Google Sheets sync OK (source=${source}, athlete=${athleteId})`
     )
   } catch (err) {
+    // Include Google API response body when available for easier debugging.
+    const apiError = (err as {response?: {data?: unknown}})?.response?.data
     logger.error(
       `Google Sheets sync failed (source=${source}, athlete=${athleteId})`,
-      err
+      apiError ? {apiError, originalError: err} : err
     )
   }
 }
@@ -274,28 +326,35 @@ const WORKOUT_COLORS: Record<string, {red: number; green: number; blue: number}>
   time_trial: {red: 1.00, green: 0.92, blue: 0.60},
 }
 
-export async function syncAthleteToSheet(athleteId: string): Promise<void> {
-  if (!athleteId) return
+export async function syncAthleteToSheet(athleteId: string): Promise<{rowsWritten: number}> {
+  if (!athleteId) return {rowsWritten: 0}
 
   const startedAt = Date.now()
   logger.info(`[syncAthleteToSheet] start athlete=${athleteId}`)
 
-  const settingsSnap = await db.doc(SETTINGS_DOC).get()
-  const spreadsheetId = settingsSnap.exists ?
-    (settingsSnap.data()?.sheetId as string | undefined) :
-    undefined
+  // Prefer MASTER_SHEET_ID env var; fall back to Firestore settings doc.
+  let spreadsheetId = process.env.MASTER_SHEET_ID?.trim() || undefined
+  if (!spreadsheetId) {
+    const settingsSnap = await db.doc(SETTINGS_DOC).get()
+    spreadsheetId = settingsSnap.exists ?
+      (settingsSnap.data()?.sheetId as string | undefined) :
+      undefined
+  }
 
   if (!spreadsheetId) {
-    logger.info(
-      'Skipping sync - no master sheet ID configured in settings/googleSheets.'
+    logger.warn(
+      '[syncAthleteToSheet] Skipping sync — no master sheet ID configured. ' +
+      'Set MASTER_SHEET_ID env var or save the sheet ID in coach settings.'
     )
-    return
+    return {rowsWritten: 0}
   }
+
+  logger.info(`[syncAthleteToSheet] using spreadsheet=${spreadsheetId}`)
 
   const userSnap = await db.doc(`users/${athleteId}`).get()
   if (!userSnap.exists) {
-    logger.warn(`No user document for athleteId=${athleteId}`)
-    return
+    logger.warn(`[syncAthleteToSheet] No user document for athleteId=${athleteId}`)
+    return {rowsWritten: 0}
   }
   const user = userSnap.data() as Record<string, unknown>
   const athleteName =
@@ -353,21 +412,42 @@ export async function syncAthleteToSheet(athleteId: string): Promise<void> {
 
   // Make sure athlete tab exists, then overwrite its contents.
   const sheetTitle = sanitizeSheetTitle(athleteName)
-  const sheetId = await ensureSheetTab(spreadsheetId, sheetTitle)
+  logger.info(`[syncAthleteToSheet] writing tab="${sheetTitle}" rows=${rows.length}`)
+
+  let sheetId: number
+  try {
+    sheetId = await ensureSheetTab(spreadsheetId, sheetTitle)
+  } catch (err) {
+    const apiError = (err as {response?: {data?: unknown}})?.response?.data
+    logger.error(
+      `[syncAthleteToSheet] failed to ensure sheet tab athlete=${athleteId}`,
+      apiError ? {apiError, originalError: err} : err
+    )
+    throw err
+  }
 
   const values: string[][] = [HEADERS, ...rows.map(rowToValues)]
 
-  await sheetsApi.spreadsheets.values.clear({
-    spreadsheetId,
-    range: `'${sheetTitle}'`,
-  })
+  try {
+    await sheetsApi.spreadsheets.values.clear({
+      spreadsheetId,
+      range: `'${sheetTitle}'`,
+    })
 
-  await sheetsApi.spreadsheets.values.update({
-    spreadsheetId,
-    range: `'${sheetTitle}'!A1`,
-    valueInputOption: 'USER_ENTERED',
-    requestBody: {values},
-  })
+    await sheetsApi.spreadsheets.values.update({
+      spreadsheetId,
+      range: `'${sheetTitle}'!A1`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {values},
+    })
+  } catch (err) {
+    const apiError = (err as {response?: {data?: unknown}})?.response?.data
+    logger.error(
+      `[syncAthleteToSheet] failed to write values athlete=${athleteId}`,
+      apiError ? {apiError, originalError: err} : err
+    )
+    throw err
+  }
 
   // Format header row + color code rows by workout type.
   const formatRequests: sheets_v4.Schema$Request[] = [
@@ -418,10 +498,19 @@ export async function syncAthleteToSheet(athleteId: string): Promise<void> {
   })
 
   if (formatRequests.length > 0) {
-    await sheetsApi.spreadsheets.batchUpdate({
-      spreadsheetId,
-      requestBody: {requests: formatRequests},
-    })
+    try {
+      await sheetsApi.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {requests: formatRequests},
+      })
+    } catch (err) {
+      // Formatting failure is non-fatal — data is already written.
+      const apiError = (err as {response?: {data?: unknown}})?.response?.data
+      logger.warn(
+        `[syncAthleteToSheet] formatting failed (non-fatal) athlete=${athleteId}`,
+        apiError ? {apiError, originalError: err} : err
+      )
+    }
   }
 
   await db.doc(SETTINGS_DOC).set(
@@ -436,6 +525,7 @@ export async function syncAthleteToSheet(athleteId: string): Promise<void> {
     `[syncAthleteToSheet] done athlete=${athleteId} rows=${rows.length} ` +
     `durationMs=${Date.now() - startedAt}`
   )
+  return {rowsWritten: rows.length}
 }
 
 // ---------------------------------------------------------------------------
