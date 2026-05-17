@@ -85,6 +85,20 @@ interface Translations {
   sheetsStep2Save: string
   sheetsStep2SyncAll: string
   masterSheetId: string
+  settingsSubtitle: string
+  googleSheetsDescription: string
+  sheetsStepCreate: string
+  sheetsStepCopyId1: string
+  sheetsStepCopyId2: string
+  sheetsStepCopyId3: string
+  sheetsStepClick: string
+  sheetsStepThen: string
+  copyBtn: string
+  copiedBtn: string
+  openSheet: string
+  syncAllNowBtn: string
+  lastSyncLabel: string
+  neverLabel: string
 
   // Coach journey editor
   selectJourneyPh: string
@@ -96,6 +110,21 @@ interface Translations {
   startLabel: string
   focusLabel: string
   notesLabel: string
+  endLabel: string
+  backToAthlete: string
+  seasonJourneyTitle: string
+  seasonJourneySubtitle: string
+  untitledJourney: string
+  blankBtn: string
+  noJourneyYet: string
+  goalAndDates: string
+  targetTimeOptional: string
+  saveJourneyBtn: string
+  deleteJourneyBtn: string
+  moveUpAria: string
+  moveDownAria: string
+  editStageAria: string
+  deleteStageAria: string
 
   // Workout builder
   basicInformation: string
@@ -172,6 +201,20 @@ interface Translations {
   progressTab: string
   upcomingWorkoutsTitle: string
   athleteLogLabel: string
+  exportedToast: string
+  exportFailedToast: string
+  backToAthletes: string
+  athleteNotFound: string
+  exportBtn: string
+  journeyBtn: string
+  messageBtn: string
+  activeGoalsLabel: string
+  assignNewBtn: string
+  noWorkoutsAssignedYet: string
+  weeklyDistanceChart: string
+  eventColon: string
+  targetColon: string
+  byColon: string
   // Landing page
   welcome: string
   signInDescription: string
@@ -600,6 +643,20 @@ const translations: Record<Language, Translations> = {
     sheetsStep2Save: 'Save',
     sheetsStep2SyncAll: 'Sync All Now',
     masterSheetId: 'Master Google Sheet ID',
+    settingsSubtitle: 'Configure Google Sheets auto sync for the team.',
+    googleSheetsDescription: 'Connect a master Google Sheet to automatically sync workouts, logs, profiles, and goals. Each athlete gets their own tab.',
+    sheetsStepCreate: 'Create a Google Sheet (or open an existing one).',
+    sheetsStepCopyId1: 'Copy the Sheet ID from the URL (the long ID between',
+    sheetsStepCopyId2: 'and',
+    sheetsStepCopyId3: ') and paste it below.',
+    sheetsStepClick: 'Click ',
+    sheetsStepThen: ', then ',
+    copyBtn: 'Copy',
+    copiedBtn: 'Copied',
+    openSheet: 'Open sheet',
+    syncAllNowBtn: 'Sync All Now',
+    lastSyncLabel: 'Last sync',
+    neverLabel: 'Never',
 
     selectJourneyPh: 'Select journey',
     journeyTitleLabel: 'Title',
@@ -610,6 +667,21 @@ const translations: Record<Language, Translations> = {
     startLabel: 'Start',
     focusLabel: 'Focus',
     notesLabel: 'Notes',
+    endLabel: 'End',
+    backToAthlete: 'Back to athlete',
+    seasonJourneyTitle: 'Season Journey',
+    seasonJourneySubtitle: "Build and edit the road to this athlete's goal race.",
+    untitledJourney: 'Untitled',
+    blankBtn: 'Blank',
+    noJourneyYet: 'No journey yet. Create a blank one or pick a template above.',
+    goalAndDates: 'Goal & dates',
+    targetTimeOptional: 'Target time (optional)',
+    saveJourneyBtn: 'Save journey',
+    deleteJourneyBtn: 'Delete journey',
+    moveUpAria: 'Move up',
+    moveDownAria: 'Move down',
+    editStageAria: 'Edit stage',
+    deleteStageAria: 'Delete stage',
 
     basicInformation: 'Basic Information',
     descriptionLabel: 'Description',
@@ -682,6 +754,20 @@ const translations: Record<Language, Translations> = {
     progressTab: 'Progress',
     upcomingWorkoutsTitle: 'Upcoming Workouts',
     athleteLogLabel: 'Athlete Log',
+    exportedToast: 'Exported',
+    exportFailedToast: 'Export failed. Please try again.',
+    backToAthletes: 'Back to Athletes',
+    athleteNotFound: 'Athlete not found.',
+    exportBtn: 'Export',
+    journeyBtn: 'Journey',
+    messageBtn: 'Message',
+    activeGoalsLabel: 'Active Goals',
+    assignNewBtn: 'Assign New',
+    noWorkoutsAssignedYet: 'No workouts assigned yet',
+    weeklyDistanceChart: 'Weekly Distance (km)',
+    eventColon: 'Event:',
+    targetColon: 'Target:',
+    byColon: 'By:',
 
     welcome: 'Welcome',
     signInDescription: 'Sign in to access your training dashboard',
@@ -1090,6 +1176,20 @@ const translations: Record<Language, Translations> = {
     sheetsStep2Save: 'שמור',
     sheetsStep2SyncAll: 'סנכרן הכל עכשיו',
     masterSheetId: 'מזהה Google Sheet ראשי',
+    settingsSubtitle: 'הגדר סנכרון אוטומטי של Google Sheets עבור הקבוצה.',
+    googleSheetsDescription: 'חבר Google Sheet ראשי כדי לסנכרן אוטומטית אימונים, יומנים, פרופילים ומטרות. כל ספורטאי מקבל לשונית משלו.',
+    sheetsStepCreate: 'צור Google Sheet (או פתח קיים).',
+    sheetsStepCopyId1: 'העתק את מזהה הגיליון מה-URL (המזהה הארוך בין',
+    sheetsStepCopyId2: 'ל-',
+    sheetsStepCopyId3: ') והדבק אותו למטה.',
+    sheetsStepClick: 'לחץ ',
+    sheetsStepThen: ', אז ',
+    copyBtn: 'העתק',
+    copiedBtn: 'הועתק',
+    openSheet: 'פתח גיליון',
+    syncAllNowBtn: 'סנכרן הכל עכשיו',
+    lastSyncLabel: 'סנכרון אחרון',
+    neverLabel: 'אף פעם',
 
     selectJourneyPh: 'בחר מסע',
     journeyTitleLabel: 'כותרת',
@@ -1100,6 +1200,21 @@ const translations: Record<Language, Translations> = {
     startLabel: 'התחלה',
     focusLabel: 'דגש',
     notesLabel: 'הערות',
+    endLabel: 'סיום',
+    backToAthlete: 'חזרה לספורטאי',
+    seasonJourneyTitle: 'מסע העונה',
+    seasonJourneySubtitle: 'בנה וערוך את הדרך למירוץ היעד של הספורטאי.',
+    untitledJourney: 'ללא כותרת',
+    blankBtn: 'ריק',
+    noJourneyYet: 'אין עדיין מסע. צור מסע חדש או בחר תבנית למעלה.',
+    goalAndDates: 'יעד ותאריכים',
+    targetTimeOptional: 'זמן יעד (אופציונלי)',
+    saveJourneyBtn: 'שמור מסע',
+    deleteJourneyBtn: 'מחק מסע',
+    moveUpAria: 'הזז למעלה',
+    moveDownAria: 'הזז למטה',
+    editStageAria: 'ערוך שלב',
+    deleteStageAria: 'מחק שלב',
 
     basicInformation: 'מידע בסיסי',
     descriptionLabel: 'תיאור',
@@ -1172,6 +1287,20 @@ const translations: Record<Language, Translations> = {
     progressTab: 'התקדמות',
     upcomingWorkoutsTitle: 'אימונים קרובים',
     athleteLogLabel: 'יומן ספורטאי',
+    exportedToast: 'יוצא',
+    exportFailedToast: 'הייצוא נכשל. אנא נסה שוב.',
+    backToAthletes: 'חזרה לספורטאים',
+    athleteNotFound: 'הספורטאי לא נמצא.',
+    exportBtn: 'ייצא',
+    journeyBtn: 'מסע',
+    messageBtn: 'הודעה',
+    activeGoalsLabel: 'מטרות פעילות',
+    assignNewBtn: 'הקצה חדש',
+    noWorkoutsAssignedYet: 'עדיין לא הוקצו אימונים',
+    weeklyDistanceChart: 'מרחק שבועי (ק"מ)',
+    eventColon: 'אירוע:',
+    targetColon: 'יעד:',
+    byColon: 'עד:',
 
     welcome: 'ברוכים הבאים',
     signInDescription: 'התחבר כדי לגשת ללוח האימונים שלך',

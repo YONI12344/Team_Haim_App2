@@ -41,6 +41,7 @@ import { TrainingZonesCard } from '@/components/athlete/training-zones-card'
 import { toast } from 'sonner'
 import { exportAthleteToExcel } from '@/lib/export-athlete'
 import { workoutTypeColors, useWorkoutTypeLabels } from '@/lib/workout-labels'
+import { useLanguage } from '@/contexts/language-context'
 
 function mapDocToWorkoutLog(d: QueryDocumentSnapshot<DocumentData>, fallbackAthleteId: string): WorkoutLog {
   const data = d.data()
@@ -83,6 +84,7 @@ interface AthleteDetailProps {
 }
 
 export function AthleteDetail({ athleteId }: AthleteDetailProps) {
+  const { t } = useLanguage()
   const workoutTypeLabels = useWorkoutTypeLabels()
   const [athlete, setAthlete] = useState<AthleteProfile | null>(null)
   const [athleteWorkouts, setAthleteWorkouts] = useState<AssignedWorkout[]>([])
@@ -189,10 +191,10 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
     setExporting(true)
     try {
       const filename = await exportAthleteToExcel(athleteId)
-      toast.success(`Exported ${filename}`)
+      toast.success(`${t.exportedToast} ${filename}`)
     } catch (err) {
       console.error('Export error:', err)
-      toast.error('Export failed. Please try again.')
+      toast.error(t.exportFailedToast)
     } finally {
       setExporting(false)
     }
@@ -212,12 +214,12 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
         <Link href="/coach/athletes">
           <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Athletes
+            {t.backToAthletes}
           </Button>
         </Link>
         <Card>
           <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">Athlete not found.</p>
+            <p className="text-muted-foreground">{t.athleteNotFound}</p>
           </CardContent>
         </Card>
       </div>
@@ -230,7 +232,7 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
       <Link href="/coach/athletes">
         <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Athletes
+          {t.backToAthletes}
         </Button>
       </Link>
 
@@ -265,21 +267,21 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
                     ) : (
                       <Download className="h-4 w-4 mr-2" />
                     )}
-                    {exporting ? 'Generating…' : 'Export'}
+                    {exporting ? t.generatingDots : t.exportBtn}
                   </Button>
                   <Link href={`/coach/athletes/${athleteId}/journey`}>
                     <Button variant="outline" className="border-coral/40 text-coral hover:bg-coral-light">
-                      Journey
+                      {t.journeyBtn}
                     </Button>
                   </Link>
                   <Link href={`/coach/athletes/${athleteId}/assign`}>
                     <Button className="bg-gold hover:bg-gold/90 text-navy">
-                      Assign Workout
+                      {t.assignWorkoutBtn}
                     </Button>
                   </Link>
                   <Link href={`/coach/chat?athlete=${athleteId}`}>
                     <Button variant="outline">
-                      Message
+                      {t.messageBtn}
                     </Button>
                   </Link>
                 </div>
@@ -297,13 +299,13 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
                 <div className="flex items-center gap-2 text-sm">
                   <Trophy className="h-4 w-4 text-gold" />
                   <span className="text-muted-foreground">
-                    {athlete.personalRecords.length} PRs
+                    {athlete.personalRecords.length} {t.tabPRs}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <Target className="h-4 w-4 text-gold" />
                   <span className="text-muted-foreground">
-                    {athlete.goals.filter(g => g.status === 'active').length} Active Goals
+                    {athlete.goals.filter(g => g.status === 'active').length} {t.activeGoalsLabel}
                   </span>
                 </div>
                 {athlete.height && (
@@ -335,20 +337,20 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
       {/* Tabs */}
       <Tabs defaultValue="schedule" className="space-y-6">
         <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
-          <TabsTrigger value="schedule">Schedule</TabsTrigger>
-          <TabsTrigger value="prs">PRs</TabsTrigger>
-          <TabsTrigger value="paces">Paces</TabsTrigger>
-          <TabsTrigger value="progress">Progress</TabsTrigger>
+          <TabsTrigger value="schedule">{t.scheduleTab}</TabsTrigger>
+          <TabsTrigger value="prs">{t.tabPRs}</TabsTrigger>
+          <TabsTrigger value="paces">{t.pacesTab}</TabsTrigger>
+          <TabsTrigger value="progress">{t.progressTab}</TabsTrigger>
         </TabsList>
 
         {/* Schedule Tab */}
         <TabsContent value="schedule" className="space-y-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Upcoming Workouts</CardTitle>
+              <CardTitle>{t.upcomingWorkoutsTitle}</CardTitle>
               <Link href={`/coach/athletes/${athleteId}/assign`}>
                 <Button size="sm" className="bg-gold hover:bg-gold/90 text-navy">
-                  Assign New
+                  {t.assignNewBtn}
                 </Button>
               </Link>
             </CardHeader>
@@ -377,7 +379,7 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
                               {workout.workout.duration && (
                                 <span className="flex items-center gap-1">
                                   <Clock className="h-3.5 w-3.5" />
-                                  {workout.workout.duration} min
+                                  {workout.workout.duration} {t.min}
                                 </span>
                               )}
                             </div>
@@ -389,7 +391,7 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
                           </Badge>
                           {workout.status === 'completed' && (
                             <Badge variant="outline" className="bg-emerald-100 text-emerald-700">
-                              Done
+                              {t.doneBadge}
                             </Badge>
                           )}
                           {log && (
@@ -399,7 +401,7 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
                               : log.effort <= 8 ? 'bg-orange-100 text-orange-700 border-orange-200'
                               : 'bg-red-100 text-red-700 border-red-200'
                             )}>
-                              Effort {log.effort}/10
+                              {t.effortBadge} {log.effort}/10
                             </Badge>
                           )}
                         </div>
@@ -409,13 +411,13 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
                         <div className="px-4 pb-4 pt-0 border-t border-border/50 bg-muted/30">
                           <div className="flex items-center gap-1 mb-1">
                             <MessageCircle className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span className="text-xs font-medium text-muted-foreground">Athlete Log</span>
+                            <span className="text-xs font-medium text-muted-foreground">{t.athleteLogLabel}</span>
                           </div>
                           <div className="text-xs text-muted-foreground space-y-0.5">
                             {(log.actualDistance || log.actualPace) && (
                               <p>
-                                {log.actualDistance && <span>{log.actualDistance}km</span>}
-                                {log.actualPace && <span className="ml-1">@ {log.actualPace}/km</span>}
+                                {log.actualDistance && <span>{log.actualDistance}{t.km}</span>}
+                                {log.actualPace && <span className="ml-1">@ {log.actualPace}/{t.km}</span>}
                               </p>
                             )}
                             {log.comment && <p className="italic">&ldquo;{log.comment}&rdquo;</p>}
@@ -427,7 +429,7 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
                 })}
                 {athleteWorkouts.length === 0 && (
                   <p className="text-center text-muted-foreground py-8">
-                    No workouts assigned yet
+                    {t.noWorkoutsAssignedYet}
                   </p>
                 )}
               </div>
@@ -441,7 +443,7 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Trophy className="h-5 w-5 text-gold" />
-                Personal Records
+                {t.personalRecordsTitle}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -485,7 +487,7 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Clock className="h-5 w-5 text-gold" />
-                Training Paces
+                {t.trainingPacesTitle}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -521,7 +523,7 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
         <TabsContent value="progress" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Weekly Distance (km)</CardTitle>
+              <CardTitle>{t.weeklyDistanceChart}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-[300px]">
@@ -562,7 +564,7 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Target className="h-5 w-5 text-gold" />
-                Active Goals
+                {t.activeGoalsTitle}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -576,10 +578,10 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
                     >
                       <h4 className="font-semibold text-navy">{goal.title}</h4>
                       <div className="flex flex-wrap gap-4 mt-2 text-sm text-muted-foreground">
-                        {goal.targetEvent && <span>Event: {goal.targetEvent}</span>}
-                        {goal.targetTime && <span className="font-mono">Target: {goal.targetTime}</span>}
+                        {goal.targetEvent && <span>{t.eventColon} {goal.targetEvent}</span>}
+                        {goal.targetTime && <span className="font-mono">{t.targetColon} {goal.targetTime}</span>}
                         {goal.targetDate && (
-                          <span>By: {format(new Date(goal.targetDate), 'MMM d, yyyy')}</span>
+                          <span>{t.byColon} {format(new Date(goal.targetDate), 'MMM d, yyyy')}</span>
                         )}
                       </div>
                     </div>
