@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/select'
 import { Plus, X, Save } from 'lucide-react'
 import type { PersonalRecord, TrainingPace } from '@/lib/types'
+import { useLanguage } from '@/contexts/language-context'
 
 function genId(prefix = 'id'): string {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
@@ -29,11 +30,12 @@ interface RecordEditorProps {
 }
 
 export function RecordEditor({ kind, onAdd, onRemove, records }: RecordEditorProps) {
+  const { t } = useLanguage()
   const [event, setEvent] = useState('')
   const [time, setTime] = useState('')
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
   const [location, setLocation] = useState('')
-  const label = kind === 'pr' ? 'Personal Record' : 'Season Best'
+  const label = kind === 'pr' ? t.recordPR : t.recordSB
 
   const handleAdd = async () => {
     if (!event.trim() || !time.trim()) return
@@ -51,28 +53,28 @@ export function RecordEditor({ kind, onAdd, onRemove, records }: RecordEditorPro
 
   return (
     <div className="rounded-lg border border-dashed border-border bg-muted/20 p-4 space-y-3">
-      <p className="text-sm font-medium text-navy">Add {label}</p>
+      <p className="text-sm font-medium text-navy">{t.addRecord} {label}</p>
       <div className="grid gap-3 md:grid-cols-4">
         <div className="space-y-1">
-          <Label htmlFor={`${kind}-event`} className="text-xs">Event / distance</Label>
+          <Label htmlFor={`${kind}-event`} className="text-xs">{t.eventDistance}</Label>
           <Input
             id={`${kind}-event`}
-            placeholder="e.g. 5K"
+            placeholder={t.placeholderEvent5K}
             value={event}
             onChange={(e) => setEvent(e.target.value)}
           />
         </div>
         <div className="space-y-1">
-          <Label htmlFor={`${kind}-time`} className="text-xs">Time</Label>
+          <Label htmlFor={`${kind}-time`} className="text-xs">{t.timeLabel}</Label>
           <Input
             id={`${kind}-time`}
-            placeholder="e.g. 18:45"
+            placeholder={t.placeholderTime1845}
             value={time}
             onChange={(e) => setTime(e.target.value)}
           />
         </div>
         <div className="space-y-1">
-          <Label htmlFor={`${kind}-date`} className="text-xs">Date</Label>
+          <Label htmlFor={`${kind}-date`} className="text-xs">{t.dateField}</Label>
           <Input
             id={`${kind}-date`}
             type="date"
@@ -81,10 +83,10 @@ export function RecordEditor({ kind, onAdd, onRemove, records }: RecordEditorPro
           />
         </div>
         <div className="space-y-1">
-          <Label htmlFor={`${kind}-loc`} className="text-xs">Location (optional)</Label>
+          <Label htmlFor={`${kind}-loc`} className="text-xs">{t.locationOptional}</Label>
           <Input
             id={`${kind}-loc`}
-            placeholder="e.g. Tel Aviv"
+            placeholder={t.placeholderLocationTLV}
             value={location}
             onChange={(e) => setLocation(e.target.value)}
           />
@@ -97,7 +99,7 @@ export function RecordEditor({ kind, onAdd, onRemove, records }: RecordEditorPro
           size="sm"
           className="bg-gold hover:bg-gold/90 text-navy"
         >
-          <Plus className="h-4 w-4 mr-1" /> Add {label}
+          <Plus className="h-4 w-4 mr-1" /> {t.addRecord} {label}
         </Button>
       </div>
 
@@ -152,9 +154,19 @@ interface PaceEditorProps {
 }
 
 export function PaceEditor({ paces, onAdd, onRemove }: PaceEditorProps) {
+  const { t } = useLanguage()
   const [type, setType] = useState<TrainingPace['type']>('easy')
   const [pace, setPace] = useState('')
   const [description, setDescription] = useState('')
+
+  const paceTypeLabel: Record<TrainingPace['type'], string> = {
+    easy: t.paceEasy,
+    tempo: t.paceTempo,
+    threshold: t.paceThreshold,
+    interval: t.paceInterval,
+    repetition: t.paceRepetition,
+    race: t.paceRace,
+  }
 
   const handleAdd = async () => {
     if (!pace.trim()) return
@@ -173,37 +185,37 @@ export function PaceEditor({ paces, onAdd, onRemove }: PaceEditorProps) {
 
   return (
     <div className="rounded-lg border border-dashed border-border bg-muted/20 p-4 space-y-3">
-      <p className="text-sm font-medium text-navy">Add training pace</p>
+      <p className="text-sm font-medium text-navy">{t.addTrainingPace}</p>
       <div className="grid gap-3 md:grid-cols-4">
         <div className="space-y-1">
-          <Label className="text-xs">Type</Label>
+          <Label className="text-xs">{t.paceTypeLabel}</Label>
           <Select value={type} onValueChange={(v) => setType(v as TrainingPace['type'])}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {paceTypes.map((p) => (
-                <SelectItem key={p} value={p} className="capitalize">
-                  {p}
+                <SelectItem key={p} value={p}>
+                  {paceTypeLabel[p]}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-1">
-          <Label htmlFor="pace-value" className="text-xs">Pace (min/km)</Label>
+          <Label htmlFor="pace-value" className="text-xs">{t.pacePerKm}</Label>
           <Input
             id="pace-value"
-            placeholder="e.g. 5:00"
+            placeholder={t.placeholderPace500}
             value={pace}
             onChange={(e) => setPace(e.target.value)}
           />
         </div>
         <div className="space-y-1 md:col-span-2">
-          <Label htmlFor="pace-desc" className="text-xs">Note (optional)</Label>
+          <Label htmlFor="pace-desc" className="text-xs">{t.noteOptional}</Label>
           <Input
             id="pace-desc"
-            placeholder="e.g. half-marathon goal pace"
+            placeholder={t.placeholderPaceDesc}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
@@ -216,7 +228,7 @@ export function PaceEditor({ paces, onAdd, onRemove }: PaceEditorProps) {
           size="sm"
           className="bg-gold hover:bg-gold/90 text-navy"
         >
-          <Save className="h-4 w-4 mr-1" /> Save pace
+          <Save className="h-4 w-4 mr-1" /> {t.savePaceBtn}
         </Button>
       </div>
 
@@ -228,7 +240,7 @@ export function PaceEditor({ paces, onAdd, onRemove }: PaceEditorProps) {
               className="flex items-center justify-between rounded-md border border-border/70 bg-background px-3 py-1.5"
             >
               <span>
-                <span className="capitalize font-medium text-navy">{p.type}</span>
+                <span className="font-medium text-navy">{paceTypeLabel[p.type]}</span>
                 <span className="text-muted-foreground"> — </span>
                 <span className="font-mono">{p.pace}</span>
                 {p.description && (
@@ -240,7 +252,7 @@ export function PaceEditor({ paces, onAdd, onRemove }: PaceEditorProps) {
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7"
-                aria-label={`Remove ${p.type} pace`}
+                aria-label={`Remove ${paceTypeLabel[p.type]} pace`}
                 onClick={() => onRemove(p.id)}
               >
                 <X className="h-4 w-4" />

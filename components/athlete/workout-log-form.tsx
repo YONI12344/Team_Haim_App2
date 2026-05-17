@@ -22,6 +22,7 @@ import type { WorkoutLog } from '@/lib/types'
 import { legacyEffortToNumber } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { useLanguage } from '@/contexts/language-context'
 
 interface WorkoutLogFormProps {
   workoutId: string    // ID of the assigned workout
@@ -30,6 +31,7 @@ interface WorkoutLogFormProps {
 }
 
 export function WorkoutLogForm({ workoutId, athleteId, scheduledDate }: WorkoutLogFormProps) {
+  const { t } = useLanguage()
   const [existingLog, setExistingLog] = useState<WorkoutLog | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -83,7 +85,7 @@ export function WorkoutLogForm({ workoutId, athleteId, scheduledDate }: WorkoutL
 
   const handleSave = async () => {
     if (!effort || effort < 1 || effort > 10) {
-      toast.error('Please rate your effort from 1 to 10')
+      toast.error(t.toastEffortRequired)
       return
     }
 
@@ -92,7 +94,7 @@ export function WorkoutLogForm({ workoutId, athleteId, scheduledDate }: WorkoutL
     if (actualDistance.trim() !== '') {
       const n = parseFloat(actualDistance)
       if (!Number.isFinite(n) || n < 0) {
-        toast.error('Please enter a valid distance in km')
+        toast.error(t.toastDistanceInvalid)
         return
       }
       parsedDistance = n
@@ -143,10 +145,10 @@ export function WorkoutLogForm({ workoutId, athleteId, scheduledDate }: WorkoutL
       }
 
       setSaved(true)
-      toast.success('Workout logged!')
+      toast.success(t.toastWorkoutLogged)
     } catch (error) {
       console.error('Error saving workout log:', error)
-      toast.error('Failed to save log. Please try again.')
+      toast.error(t.toastSaveLogFailed)
     } finally {
       setSaving(false)
     }
@@ -163,11 +165,11 @@ export function WorkoutLogForm({ workoutId, athleteId, scheduledDate }: WorkoutL
   return (
     <div className="mt-4 pt-4 border-t border-border space-y-4">
       <div className="flex items-center justify-between">
-        <h4 className="font-medium text-navy">Workout Log</h4>
+        <h4 className="font-medium text-navy">{t.workoutLogHeading}</h4>
         {saved && (
           <div className="flex items-center gap-1 text-emerald-600 text-sm font-medium">
             <CheckCircle2 className="h-4 w-4" />
-            <span>Logged</span>
+            <span>{t.loggedBadge}</span>
           </div>
         )}
       </div>
@@ -175,14 +177,14 @@ export function WorkoutLogForm({ workoutId, athleteId, scheduledDate }: WorkoutL
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1">
           <Label htmlFor="actualDistance" className="text-sm">
-            Actual Distance (km)
+            {t.actualDistanceKm}
           </Label>
           <Input
             id="actualDistance"
             type="number"
             step="0.1"
             min="0"
-            placeholder="e.g. 10"
+            placeholder={t.examplePlaceholder10}
             value={actualDistance}
             onChange={(e) => setActualDistance(e.target.value)}
             className="h-9"
@@ -190,12 +192,12 @@ export function WorkoutLogForm({ workoutId, athleteId, scheduledDate }: WorkoutL
         </div>
         <div className="space-y-1">
           <Label htmlFor="actualPace" className="text-sm">
-            Actual Pace (/km)
+            {t.actualPaceKm}
           </Label>
           <Input
             id="actualPace"
             type="text"
-            placeholder="e.g. 5:30"
+            placeholder={t.examplePlaceholder530}
             value={actualPace}
             onChange={(e) => setActualPace(e.target.value)}
             className="h-9"
@@ -205,7 +207,7 @@ export function WorkoutLogForm({ workoutId, athleteId, scheduledDate }: WorkoutL
 
       <div className="space-y-1">
         <div className="flex items-baseline justify-between">
-          <Label className="text-sm">Effort (1–10)</Label>
+          <Label className="text-sm">{t.effortRange}</Label>
           {effort != null && (
             <span className="text-sm font-semibold text-navy">{effort}/10</span>
           )}
@@ -246,17 +248,17 @@ export function WorkoutLogForm({ workoutId, athleteId, scheduledDate }: WorkoutL
           })}
         </div>
         <p className="text-xs text-muted-foreground pt-0.5">
-          1 = very easy · 5 = moderate · 10 = max effort
+          {t.effortHelper}
         </p>
       </div>
 
       <div className="space-y-1">
         <Label htmlFor="comment" className="text-sm">
-          Comment (optional)
+          {t.commentOptional}
         </Label>
         <Textarea
           id="comment"
-          placeholder="How did it feel? What did you notice?"
+          placeholder={t.commentPlaceholder}
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           className="resize-none h-20"
@@ -271,12 +273,12 @@ export function WorkoutLogForm({ workoutId, athleteId, scheduledDate }: WorkoutL
         {saving ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            Saving...
+            {t.savingDots}
           </>
         ) : existingLog ? (
-          'Update Log'
+          t.updateLog
         ) : (
-          'Save Log'
+          t.saveLog
         )}
       </Button>
     </div>

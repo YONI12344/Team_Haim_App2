@@ -29,20 +29,22 @@ import {
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/auth-context'
 import { isCoachEmail } from '@/lib/constants'
+import { useWorkoutTypeLabels } from '@/lib/workout-labels'
+import { useLanguage } from '@/contexts/language-context'
 
-const workoutTypes: { value: WorkoutType; label: string }[] = [
-  { value: 'easy', label: 'Easy Run' },
-  { value: 'long_run', label: 'Long Run' },
-  { value: 'tempo', label: 'Tempo' },
-  { value: 'intervals', label: 'Intervals' },
-  { value: 'hill_repeats', label: 'Hill Repeats' },
-  { value: 'fartlek', label: 'Fartlek' },
-  { value: 'recovery', label: 'Recovery' },
-  { value: 'strength', label: 'Strength' },
-  { value: 'cross_training', label: 'Cross Training' },
-  { value: 'rest', label: 'Rest Day' },
-  { value: 'race', label: 'Race' },
-  { value: 'time_trial', label: 'Time Trial' },
+const workoutTypeOrder: WorkoutType[] = [
+  'easy',
+  'long_run',
+  'tempo',
+  'intervals',
+  'hill_repeats',
+  'fartlek',
+  'recovery',
+  'strength',
+  'cross_training',
+  'rest',
+  'race',
+  'time_trial',
 ]
 
 interface WorkoutBuilderProps {
@@ -50,8 +52,14 @@ interface WorkoutBuilderProps {
 }
 
 export function WorkoutBuilder({ workoutId }: WorkoutBuilderProps) {
+  const { t } = useLanguage()
   const router = useRouter()
   const { user } = useAuth()
+  const workoutTypeLabels = useWorkoutTypeLabels()
+  const workoutTypes = workoutTypeOrder.map((value) => ({
+    value,
+    label: workoutTypeLabels[value],
+  }))
   const isCoach = isCoachEmail(user?.email)
 
   const [title, setTitle] = useState('')
@@ -190,19 +198,19 @@ export function WorkoutBuilder({ workoutId }: WorkoutBuilderProps) {
       <Link href="/coach/workouts">
         <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Library
+          {t.backToLibrary}
         </Button>
       </Link>
 
       {/* Header */}
       <div>
         <h1 className="text-2xl md:text-3xl font-serif font-bold text-navy">
-          {workoutId ? 'Edit Workout' : 'Create Workout'}
+          {workoutId ? t.editWorkoutTitle : t.createWorkoutTitle}
         </h1>
         <p className="text-muted-foreground">
           {workoutId
-            ? 'Update this workout template'
-            : 'Build a new workout template for your athletes'}
+            ? t.updateWorkoutTemplate
+            : t.buildNewWorkoutTemplate}
         </p>
       </div>
 
@@ -210,21 +218,21 @@ export function WorkoutBuilder({ workoutId }: WorkoutBuilderProps) {
         {/* Basic Info */}
         <Card>
           <CardHeader>
-            <CardTitle>Basic Information</CardTitle>
+            <CardTitle>{t.basicInformation}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="title">Workout Title *</Label>
+                <Label htmlFor="title">{t.workoutTitleLabel} *</Label>
                 <Input
                   id="title"
-                  placeholder="e.g., 800m Intervals"
+                  placeholder={t.workoutTitlePh}
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="type">Workout Type *</Label>
+                <Label htmlFor="type">{t.workoutTypeLabel} *</Label>
                 <Select value={type} onValueChange={(v) => setType(v as WorkoutType)}>
                   <SelectTrigger>
                     <SelectValue />
@@ -241,10 +249,10 @@ export function WorkoutBuilder({ workoutId }: WorkoutBuilderProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">{t.descriptionLabel}</Label>
               <Textarea
                 id="description"
-                placeholder="Describe the workout objective and focus..."
+                placeholder={t.describeWorkoutPh}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
@@ -253,22 +261,22 @@ export function WorkoutBuilder({ workoutId }: WorkoutBuilderProps) {
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="duration">Duration (minutes)</Label>
+                <Label htmlFor="duration">{t.durationMinutesLabel}</Label>
                 <Input
                   id="duration"
                   type="number"
-                  placeholder="e.g., 60"
+                  placeholder="60"
                   value={duration}
                   onChange={(e) => setDuration(e.target.value)}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="distance">Distance (km)</Label>
+                <Label htmlFor="distance">{t.distanceKmLabel}</Label>
                 <Input
                   id="distance"
                   type="number"
                   step="0.1"
-                  placeholder="e.g., 10"
+                  placeholder="10"
                   value={distance}
                   onChange={(e) => setDistance(e.target.value)}
                 />
@@ -280,24 +288,24 @@ export function WorkoutBuilder({ workoutId }: WorkoutBuilderProps) {
         {/* Warmup & Cooldown */}
         <Card>
           <CardHeader>
-            <CardTitle>Warmup & Cooldown</CardTitle>
+            <CardTitle>{t.warmupCooldownTitle}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="warmup">Warmup</Label>
+              <Label htmlFor="warmup">{t.warmupLabel}</Label>
               <Textarea
                 id="warmup"
-                placeholder="e.g., 2 mile easy jog, dynamic stretching, 4x100m strides"
+                placeholder={t.warmupPh}
                 value={warmup}
                 onChange={(e) => setWarmup(e.target.value)}
                 rows={2}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="cooldown">Cooldown</Label>
+              <Label htmlFor="cooldown">{t.cooldownLabel}</Label>
               <Textarea
                 id="cooldown"
-                placeholder="e.g., 1.5 mile easy jog, stretching"
+                placeholder={t.cooldownPh}
                 value={cooldown}
                 onChange={(e) => setCooldown(e.target.value)}
                 rows={2}
@@ -309,16 +317,16 @@ export function WorkoutBuilder({ workoutId }: WorkoutBuilderProps) {
         {/* Workout Sets */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Workout Sets</CardTitle>
+            <CardTitle>{t.workoutSetsTitle}</CardTitle>
             <Button type="button" variant="outline" size="sm" onClick={addSet}>
               <Plus className="h-4 w-4 mr-2" />
-              Add Set
+              {t.addSetBtn}
             </Button>
           </CardHeader>
           <CardContent>
             {sets.length === 0 ? (
               <p className="text-muted-foreground text-center py-8">
-                No sets added. Click &quot;Add Set&quot; to build interval or structured workouts.
+                {t.noSetsAdded}
               </p>
             ) : (
               <div className="space-y-4">
@@ -328,7 +336,7 @@ export function WorkoutBuilder({ workoutId }: WorkoutBuilderProps) {
                     className="p-4 rounded-lg border border-border space-y-4"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-medium text-navy">Set {index + 1}</span>
+                      <span className="font-medium text-navy">{t.setLabel} {index + 1}</span>
                       <Button
                         type="button"
                         variant="ghost"
@@ -341,7 +349,7 @@ export function WorkoutBuilder({ workoutId }: WorkoutBuilderProps) {
                     </div>
                     <div className="grid gap-4 md:grid-cols-4">
                       <div className="space-y-2">
-                        <Label>Reps</Label>
+                        <Label>{t.repsLabel}</Label>
                         <Input
                           type="number"
                           min="1"
@@ -352,25 +360,25 @@ export function WorkoutBuilder({ workoutId }: WorkoutBuilderProps) {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Distance/Duration</Label>
+                        <Label>{t.distanceDurationLabel}</Label>
                         <Input
-                          placeholder="e.g., 400m or 2:00"
+                          placeholder={t.distanceDurationPh}
                           value={set.distance || ''}
                           onChange={(e) => updateSet(index, 'distance', e.target.value)}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Pace/Effort</Label>
+                        <Label>{t.paceEffortLabel}</Label>
                         <Input
-                          placeholder="e.g., 68-70 sec"
+                          placeholder={t.paceEffortPh}
                           value={set.pace || ''}
                           onChange={(e) => updateSet(index, 'pace', e.target.value)}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Rest</Label>
+                        <Label>{t.restLabel}</Label>
                         <Input
-                          placeholder="e.g., 90 sec jog"
+                          placeholder={t.restPh}
                           value={set.rest || ''}
                           onChange={(e) => updateSet(index, 'rest', e.target.value)}
                         />
@@ -386,11 +394,11 @@ export function WorkoutBuilder({ workoutId }: WorkoutBuilderProps) {
         {/* Notes */}
         <Card>
           <CardHeader>
-            <CardTitle>Additional Notes</CardTitle>
+            <CardTitle>{t.additionalNotesTitle}</CardTitle>
           </CardHeader>
           <CardContent>
             <Textarea
-              placeholder="Any additional instructions or notes for the athlete..."
+              placeholder={t.additionalNotesPh}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
@@ -407,21 +415,21 @@ export function WorkoutBuilder({ workoutId }: WorkoutBuilderProps) {
           >
             {isSubmitting
               ? workoutId
-                ? 'Updating...'
-                : 'Creating...'
+                ? t.updatingDots
+                : t.creatingDots
               : workoutId
-              ? 'Update Workout'
-              : 'Create Workout'}
+              ? t.updateWorkoutBtn
+              : t.createWorkoutAction}
           </Button>
           <Link href="/coach/workouts">
             <Button type="button" variant="outline">
-              Cancel
+              {t.cancel}
             </Button>
           </Link>
         </div>
         {!isCoach && (
           <p className="text-sm text-destructive">
-            Only the coach account can save workouts.
+            {t.onlyCoachCanSave}
           </p>
         )}
       </form>

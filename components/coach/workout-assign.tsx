@@ -26,36 +26,8 @@ import {
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/auth-context'
 import { isCoachEmail } from '@/lib/constants'
-
-const workoutTypeColors: Record<WorkoutType, string> = {
-  easy: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  long_run: 'bg-blue-100 text-blue-700 border-blue-200',
-  tempo: 'bg-amber-100 text-amber-700 border-amber-200',
-  intervals: 'bg-red-100 text-red-700 border-red-200',
-  hill_repeats: 'bg-orange-100 text-orange-700 border-orange-200',
-  fartlek: 'bg-purple-100 text-purple-700 border-purple-200',
-  recovery: 'bg-teal-100 text-teal-700 border-teal-200',
-  strength: 'bg-slate-100 text-slate-700 border-slate-200',
-  cross_training: 'bg-cyan-100 text-cyan-700 border-cyan-200',
-  rest: 'bg-gray-100 text-gray-600 border-gray-200',
-  race: 'bg-gold/20 text-gold border-gold/30',
-  time_trial: 'bg-rose-100 text-rose-700 border-rose-200',
-}
-
-const workoutTypeLabels: Record<WorkoutType, string> = {
-  easy: 'Easy',
-  long_run: 'Long Run',
-  tempo: 'Tempo',
-  intervals: 'Intervals',
-  hill_repeats: 'Hills',
-  fartlek: 'Fartlek',
-  recovery: 'Recovery',
-  strength: 'Strength',
-  cross_training: 'Cross Train',
-  rest: 'Rest',
-  race: 'Race',
-  time_trial: 'Time Trial',
-}
+import { workoutTypeColors, useWorkoutTypeLabels } from '@/lib/workout-labels'
+import { useLanguage } from '@/contexts/language-context'
 
 interface WorkoutAssignProps {
   workoutId?: string
@@ -63,8 +35,10 @@ interface WorkoutAssignProps {
 }
 
 export function WorkoutAssign({ workoutId, athleteId }: WorkoutAssignProps) {
+  const { t } = useLanguage()
   const router = useRouter()
   const { user } = useAuth()
+  const workoutTypeLabels = useWorkoutTypeLabels()
   const isCoach = isCoachEmail(user?.email)
 
   const [athletes, setAthletes] = useState<AthleteProfile[]>([])
@@ -211,17 +185,17 @@ export function WorkoutAssign({ workoutId, athleteId }: WorkoutAssignProps) {
       <Link href="/coach/workouts">
         <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
+          {t.backBtn}
         </Button>
       </Link>
 
       {/* Header */}
       <div>
         <h1 className="text-2xl md:text-3xl font-serif font-bold text-navy">
-          Assign Workout
+          {t.assignWorkoutTitle}
         </h1>
         <p className="text-muted-foreground">
-          Select a workout, athletes, and date to schedule
+          {t.assignWorkoutSubtitle}
         </p>
       </div>
 
@@ -229,12 +203,12 @@ export function WorkoutAssign({ workoutId, athleteId }: WorkoutAssignProps) {
         {/* Select Workout */}
         <Card>
           <CardHeader>
-            <CardTitle>Select Workout</CardTitle>
+            <CardTitle>{t.selectWorkoutTitle}</CardTitle>
           </CardHeader>
           <CardContent>
             {workouts.length === 0 ? (
               <p className="text-sm text-muted-foreground py-6 text-center">
-                No workouts in the library yet.
+                {t.noWorkoutsInLibrary}
               </p>
             ) : (
               <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
@@ -268,7 +242,7 @@ export function WorkoutAssign({ workoutId, athleteId }: WorkoutAssignProps) {
                         {workout.duration && (
                           <span className="flex items-center gap-1">
                             <Clock className="h-3.5 w-3.5" />
-                            {workout.duration} min
+                            {workout.duration} {t.min}
                           </span>
                         )}
                       </div>
@@ -283,12 +257,12 @@ export function WorkoutAssign({ workoutId, athleteId }: WorkoutAssignProps) {
         {/* Select Athletes */}
         <Card>
           <CardHeader>
-            <CardTitle>Select Athletes</CardTitle>
+            <CardTitle>{t.selectAthletesTitle}</CardTitle>
           </CardHeader>
           <CardContent>
             {athletes.length === 0 ? (
               <p className="text-sm text-muted-foreground py-6 text-center">
-                No athletes have signed up yet.
+                {t.noAthletesSignedUp}
               </p>
             ) : (
               <div className="space-y-2">
@@ -330,7 +304,7 @@ export function WorkoutAssign({ workoutId, athleteId }: WorkoutAssignProps) {
         {/* Select Date */}
         <Card>
           <CardHeader>
-            <CardTitle>Select Date</CardTitle>
+            <CardTitle>{t.selectDateTitle}</CardTitle>
           </CardHeader>
           <CardContent className="flex justify-center">
             <Calendar
@@ -345,27 +319,27 @@ export function WorkoutAssign({ workoutId, athleteId }: WorkoutAssignProps) {
         {/* Summary */}
         <Card>
           <CardHeader>
-            <CardTitle>Assignment Summary</CardTitle>
+            <CardTitle>{t.assignmentSummaryTitle}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <span className="text-sm text-muted-foreground">Workout:</span>
+              <span className="text-sm text-muted-foreground">{t.workoutColon}</span>
               <p className="font-medium text-navy">
-                {selectedWorkout?.title || 'Not selected'}
+                {selectedWorkout?.title || t.notSelected}
               </p>
             </div>
             <div>
-              <span className="text-sm text-muted-foreground">Athletes:</span>
+              <span className="text-sm text-muted-foreground">{t.athletesColon}</span>
               <p className="font-medium text-navy">
                 {selectedAthletes.length > 0
-                  ? `${selectedAthletes.length} athlete(s) selected`
-                  : 'None selected'}
+                  ? `${selectedAthletes.length} ${t.athletesSelectedSuffix}`
+                  : t.noneSelected}
               </p>
             </div>
             <div>
-              <span className="text-sm text-muted-foreground">Date:</span>
+              <span className="text-sm text-muted-foreground">{t.dateColon}</span>
               <p className="font-medium text-navy">
-                {selectedDate ? format(selectedDate, 'EEEE, MMMM d, yyyy') : 'Not selected'}
+                {selectedDate ? format(selectedDate, 'EEEE, MMMM d, yyyy') : t.notSelected}
               </p>
             </div>
 
@@ -380,11 +354,11 @@ export function WorkoutAssign({ workoutId, athleteId }: WorkoutAssignProps) {
               }
               className="w-full bg-gold hover:bg-gold/90 text-navy mt-4"
             >
-              {isSubmitting ? 'Assigning...' : 'Assign Workout'}
+              {isSubmitting ? t.assigningDots : t.assignWorkoutBtn}
             </Button>
             {!isCoach && (
               <p className="text-xs text-destructive text-center">
-                Only the coach account can assign workouts.
+                {t.onlyCoachCanAssign}
               </p>
             )}
           </CardContent>
