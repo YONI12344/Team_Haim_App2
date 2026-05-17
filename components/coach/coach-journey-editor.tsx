@@ -46,20 +46,19 @@ import {
 import { JourneyTimeline } from '@/components/journey/journey-timeline'
 import type { JourneyDoc, JourneyStage, JourneyStageType } from '@/lib/types'
 import { toast } from 'sonner'
-import { useLanguage } from '@/contexts/language-context'
 
 interface Props {
   athleteId: string
 }
 
-const stageTypeOptions: JourneyStageType[] = [
-  'base',
-  'build',
-  'peak',
-  'taper',
-  'race_week',
-  'recovery',
-  'custom',
+const stageTypeOptions: { value: JourneyStageType; label: string }[] = [
+  { value: 'base', label: 'Base' },
+  { value: 'build', label: 'Build' },
+  { value: 'peak', label: 'Peak' },
+  { value: 'taper', label: 'Taper' },
+  { value: 'race_week', label: 'Race week' },
+  { value: 'recovery', label: 'Recovery' },
+  { value: 'custom', label: 'Custom' },
 ]
 
 function todayISO(): string {
@@ -72,7 +71,6 @@ function plusWeeksISO(weeks: number): string {
 }
 
 export function CoachJourneyEditor({ athleteId }: Props) {
-  const { t } = useLanguage()
   const { user } = useAuth()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -198,7 +196,7 @@ export function CoachJourneyEditor({ athleteId }: Props) {
       <div className="flex items-center justify-between">
         <Link href={`/coach/athletes/${athleteId}`}>
           <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="mr-2 h-4 w-4" /> {t.backToAthlete}
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back to athlete
           </Button>
         </Link>
       </div>
@@ -206,33 +204,33 @@ export function CoachJourneyEditor({ athleteId }: Props) {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-serif text-2xl font-semibold text-navy md:text-3xl">
-            {t.seasonJourneyTitle}
+            Season Journey
           </h1>
           <p className="text-muted-foreground">
-            {t.seasonJourneySubtitle}
+            Build and edit the road to this athlete&apos;s goal race.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {journeys.length > 1 && (
             <Select value={active?.id} onValueChange={(v) => setActive(journeys.find((j) => j.id === v) || null)}>
               <SelectTrigger className="w-[220px]">
-                <SelectValue placeholder={t.selectJourneyPh} />
+                <SelectValue placeholder="Select journey" />
               </SelectTrigger>
               <SelectContent>
                 {journeys.map((j) => (
                   <SelectItem key={j.id} value={j.id}>
-                    {j.title || t.untitledJourney}
+                    {j.title || 'Untitled'}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           )}
           <Button onClick={handleNewBlank} variant="outline">
-            <Plus className="mr-2 h-4 w-4" /> {t.blankBtn}
+            <Plus className="mr-2 h-4 w-4" /> Blank
           </Button>
-          {journeyTemplates.map((tpl) => (
-            <Button key={tpl.key} variant="outline" onClick={() => handleTemplate(tpl.key)}>
-              <Sparkles className="mr-2 h-4 w-4" /> {tpl.label}
+          {journeyTemplates.map((t) => (
+            <Button key={t.key} variant="outline" onClick={() => handleTemplate(t.key)}>
+              <Sparkles className="mr-2 h-4 w-4" /> {t.label}
             </Button>
           ))}
         </div>
@@ -242,7 +240,7 @@ export function CoachJourneyEditor({ athleteId }: Props) {
         <Card className="rounded-2xl border-dashed">
           <CardContent className="py-12 text-center">
             <p className="text-sm text-muted-foreground">
-              {t.noJourneyYet}
+              No journey yet. Create a blank one or pick a template above.
             </p>
           </CardContent>
         </Card>
@@ -250,11 +248,11 @@ export function CoachJourneyEditor({ athleteId }: Props) {
         <>
           <Card className="rounded-2xl">
             <CardHeader>
-              <CardTitle className="text-base">{t.goalAndDates}</CardTitle>
+              <CardTitle className="text-base">Goal &amp; dates</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-2">
               <div className="space-y-1.5">
-                <Label htmlFor="j-title">{t.journeyTitleLabel}</Label>
+                <Label htmlFor="j-title">Title</Label>
                 <Input
                   id="j-title"
                   value={active.title}
@@ -262,7 +260,7 @@ export function CoachJourneyEditor({ athleteId }: Props) {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="j-event">{t.goalRaceEventLabel}</Label>
+                <Label htmlFor="j-event">Goal race event</Label>
                 <Input
                   id="j-event"
                   value={active.goalRaceEvent}
@@ -270,7 +268,7 @@ export function CoachJourneyEditor({ athleteId }: Props) {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="j-start">{t.startDateLabel}</Label>
+                <Label htmlFor="j-start">Start date</Label>
                 <Input
                   id="j-start"
                   type="date"
@@ -279,7 +277,7 @@ export function CoachJourneyEditor({ athleteId }: Props) {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="j-end">{t.goalRaceDateLabel2}</Label>
+                <Label htmlFor="j-end">Goal race date</Label>
                 <Input
                   id="j-end"
                   type="date"
@@ -288,7 +286,7 @@ export function CoachJourneyEditor({ athleteId }: Props) {
                 />
               </div>
               <div className="space-y-1.5 md:col-span-2">
-                <Label htmlFor="j-target">{t.targetTimeOptional}</Label>
+                <Label htmlFor="j-target">Target time (optional)</Label>
                 <Input
                   id="j-target"
                   placeholder="e.g. 1:35:00"
@@ -307,7 +305,7 @@ export function CoachJourneyEditor({ athleteId }: Props) {
                   ) : (
                     <Save className="mr-2 h-4 w-4" />
                   )}
-                  {t.saveJourneyBtn}
+                  Save journey
                 </Button>
                 <Dialog
                   open={dialogOpen}
@@ -325,7 +323,7 @@ export function CoachJourneyEditor({ athleteId }: Props) {
                         setDialogOpen(true)
                       }}
                     >
-                      <Plus className="mr-2 h-4 w-4" /> {t.addStageBtn}
+                      <Plus className="mr-2 h-4 w-4" /> Add stage
                     </Button>
                   </DialogTrigger>
                   <StageDialog
@@ -342,7 +340,7 @@ export function CoachJourneyEditor({ athleteId }: Props) {
                   className="text-destructive"
                   onClick={() => handleDelete(active.id)}
                 >
-                  <Trash2 className="mr-2 h-4 w-4" /> {t.deleteJourneyBtn}
+                  <Trash2 className="mr-2 h-4 w-4" /> Delete journey
                 </Button>
               </div>
             </CardContent>
@@ -355,7 +353,7 @@ export function CoachJourneyEditor({ athleteId }: Props) {
                 <Button
                   size="icon"
                   variant="ghost"
-                  aria-label={t.moveUpAria}
+                  aria-label="Move up"
                   disabled={i === 0}
                   onClick={() => moveStage(i, -1)}
                 >
@@ -364,7 +362,7 @@ export function CoachJourneyEditor({ athleteId }: Props) {
                 <Button
                   size="icon"
                   variant="ghost"
-                  aria-label={t.moveDownAria}
+                  aria-label="Move down"
                   disabled={i === active.stages.length - 1}
                   onClick={() => moveStage(i, 1)}
                 >
@@ -373,7 +371,7 @@ export function CoachJourneyEditor({ athleteId }: Props) {
                 <Button
                   size="icon"
                   variant="ghost"
-                  aria-label={t.editStageAria}
+                  aria-label="Edit stage"
                   onClick={() => {
                     setEditingStage(stage)
                     setDialogOpen(true)
@@ -384,7 +382,7 @@ export function CoachJourneyEditor({ athleteId }: Props) {
                 <Button
                   size="icon"
                   variant="ghost"
-                  aria-label={t.deleteStageAria}
+                  aria-label="Delete stage"
                   className="text-destructive"
                   onClick={() => removeStage(stage.id)}
                 >
@@ -408,10 +406,6 @@ function StageDialog({
   onSave: (s: JourneyStage) => void
   onCancel: () => void
 }) {
-  const { t, language } = useLanguage()
-  const stageTypeLabel: Record<JourneyStageType, string> = language === 'he'
-    ? { base: 'בסיס', build: 'בנייה', peak: 'שיא', taper: 'הפחתה', race_week: 'שבוע מירוץ', recovery: 'התאוששות', custom: 'מותאם' }
-    : { base: 'Base', build: 'Build', peak: 'Peak', taper: 'Taper', race_week: 'Race week', recovery: 'Recovery', custom: 'Custom' }
   const [draft, setDraft] = useState<JourneyStage | null>(stage)
 
   useEffect(() => setDraft(stage), [stage])
@@ -421,12 +415,12 @@ function StageDialog({
   return (
     <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
       <DialogHeader>
-        <DialogTitle>{t.stageDialogTitle}</DialogTitle>
+        <DialogTitle>Stage</DialogTitle>
       </DialogHeader>
       <div className="grid gap-3">
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label htmlFor="st-name">{t.nameLabel}</Label>
+            <Label htmlFor="st-name">Name</Label>
             <Input
               id="st-name"
               value={draft.name}
@@ -434,7 +428,7 @@ function StageDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="st-type">{t.stageTypeLabel}</Label>
+            <Label htmlFor="st-type">Type</Label>
             <Select
               value={draft.type}
               onValueChange={(v) => setDraft({ ...draft, type: v as JourneyStageType })}
@@ -444,8 +438,8 @@ function StageDialog({
               </SelectTrigger>
               <SelectContent>
                 {stageTypeOptions.map((o) => (
-                  <SelectItem key={o} value={o}>
-                    {stageTypeLabel[o]}
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -454,7 +448,7 @@ function StageDialog({
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label htmlFor="st-start">{t.startLabel}</Label>
+            <Label htmlFor="st-start">Start</Label>
             <Input
               id="st-start"
               type="date"
@@ -463,7 +457,7 @@ function StageDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="st-end">{t.endLabel}</Label>
+            <Label htmlFor="st-end">End</Label>
             <Input
               id="st-end"
               type="date"
@@ -473,7 +467,7 @@ function StageDialog({
           </div>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="st-focus">{t.focusLabel}</Label>
+          <Label htmlFor="st-focus">Focus</Label>
           <Input
             id="st-focus"
             value={draft.focus}
@@ -481,7 +475,7 @@ function StageDialog({
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="st-vol">{t.weeklyVolumeLabel}</Label>
+          <Label htmlFor="st-vol">Weekly volume (km)</Label>
           <Input
             id="st-vol"
             type="number"
@@ -496,7 +490,7 @@ function StageDialog({
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="st-keys">{t.keyWorkoutsLabel}</Label>
+          <Label htmlFor="st-keys">Key workouts (one per line)</Label>
           <Textarea
             id="st-keys"
             rows={3}
@@ -513,7 +507,7 @@ function StageDialog({
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="st-miles">{t.milestonesLabel}</Label>
+          <Label htmlFor="st-miles">Milestones (one per line)</Label>
           <Textarea
             id="st-miles"
             rows={2}
@@ -530,7 +524,7 @@ function StageDialog({
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="st-notes">{t.notesLabel}</Label>
+          <Label htmlFor="st-notes">Notes</Label>
           <Textarea
             id="st-notes"
             rows={2}
@@ -541,10 +535,10 @@ function StageDialog({
       </div>
       <DialogFooter>
         <Button variant="ghost" onClick={onCancel}>
-          {t.cancel}
+          Cancel
         </Button>
         <Button className="bg-gold text-navy hover:bg-gold/90" onClick={() => onSave(draft)}>
-          {t.saveStageBtn}
+          Save stage
         </Button>
       </DialogFooter>
     </DialogContent>

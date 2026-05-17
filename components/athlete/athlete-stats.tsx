@@ -20,7 +20,6 @@ import { Activity, Clock, Flame, Loader2, Trophy } from 'lucide-react'
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/auth-context'
-import { useLanguage } from '@/contexts/language-context'
 import {
   format,
   startOfWeek,
@@ -107,7 +106,6 @@ function bucketBy(
 
 export function AthleteStats() {
   const { user } = useAuth()
-  const { t } = useLanguage()
   const [logs, setLogs] = useState<WorkoutLog[]>([])
   const [prs, setPrs] = useState<PersonalRecord[]>([])
   const [loading, setLoading] = useState(true)
@@ -179,9 +177,9 @@ export function AthleteStats() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl md:text-3xl font-serif font-bold text-navy">{t.statisticsTitle}</h1>
+        <h1 className="text-2xl md:text-3xl font-serif font-bold text-navy">Statistics</h1>
         <p className="text-muted-foreground">
-          {t.statisticsSubtitle}
+          Track your training progress and performance trends
         </p>
       </div>
 
@@ -195,7 +193,7 @@ export function AthleteStats() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-navy">{totalDistance.toFixed(0)}</p>
-                <p className="text-xs text-muted-foreground">{t.totalKm}</p>
+                <p className="text-xs text-muted-foreground">Total km</p>
               </div>
             </div>
           </CardContent>
@@ -209,7 +207,7 @@ export function AthleteStats() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-navy">{totalHours.toFixed(0)}</p>
-                <p className="text-xs text-muted-foreground">{t.totalHours}</p>
+                <p className="text-xs text-muted-foreground">Total hours</p>
               </div>
             </div>
           </CardContent>
@@ -223,7 +221,7 @@ export function AthleteStats() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-navy">{avgEffort.toFixed(1)}</p>
-                <p className="text-xs text-muted-foreground">{t.avgEffortStat}</p>
+                <p className="text-xs text-muted-foreground">Avg effort (1-10)</p>
               </div>
             </div>
           </CardContent>
@@ -237,7 +235,7 @@ export function AthleteStats() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-navy">{totalWorkouts}</p>
-                <p className="text-xs text-muted-foreground">{t.workoutsLoggedStat}</p>
+                <p className="text-xs text-muted-foreground">Workouts logged</p>
               </div>
             </div>
           </CardContent>
@@ -249,21 +247,21 @@ export function AthleteStats() {
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground">
-              {t.logToSeeCharts}
+              Log workouts to see your progress charts here.
             </p>
           </CardContent>
         </Card>
       ) : (
         <Tabs defaultValue="weekly" className="space-y-6">
           <TabsList>
-            <TabsTrigger value="weekly">{t.weeklyTab}</TabsTrigger>
-            <TabsTrigger value="monthly">{t.monthlyTab}</TabsTrigger>
+            <TabsTrigger value="weekly">Weekly</TabsTrigger>
+            <TabsTrigger value="monthly">Monthly</TabsTrigger>
           </TabsList>
 
           <TabsContent value="weekly" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">{t.weeklyDistance}</CardTitle>
+                <CardTitle className="text-lg">Weekly Distance (km)</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="h-[300px]">
@@ -288,7 +286,7 @@ export function AthleteStats() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">{t.averageEffortLevel}</CardTitle>
+                <CardTitle className="text-lg">Average Effort Level</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="h-[250px]">
@@ -321,7 +319,7 @@ export function AthleteStats() {
           <TabsContent value="monthly" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">{t.monthlyDistance}</CardTitle>
+                <CardTitle className="text-lg">Monthly Distance (km)</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="h-[300px]">
@@ -352,7 +350,7 @@ export function AthleteStats() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">{t.prsAchievedChart}</CardTitle>
+                <CardTitle className="text-lg">PRs Achieved</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="h-[250px]">
@@ -382,7 +380,7 @@ export function AthleteStats() {
       {prs.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">{t.recentPersonalRecords}</CardTitle>
+            <CardTitle className="text-lg">Recent Personal Records</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">

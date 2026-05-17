@@ -18,7 +18,6 @@ import {
   eventToDistanceMeters,
 } from '@/lib/running'
 import type { PersonalRecord } from '@/lib/types'
-import { useLanguage } from '@/contexts/language-context'
 
 interface Props {
   /** Use to seed the reference race; we pick the most-recent supported PR. */
@@ -48,7 +47,6 @@ export function TrainingZonesCard({
   maxHR,
   showFormula = false,
 }: Props) {
-  const { t } = useLanguage()
   const reference = useMemo(() => {
     if (referenceEvent && referenceTime) {
       return { event: referenceEvent, time: referenceTime }
@@ -79,10 +77,10 @@ export function TrainingZonesCard({
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-lg">
               <Gauge className="h-5 w-5 text-navy" />
-              {t.trainingZonesTitle}
+              Training Zones
             </CardTitle>
             <CollapsibleTrigger asChild>
-              <Button variant="ghost" size="sm" aria-label={t.toggleZonesAria}>
+              <Button variant="ghost" size="sm" aria-label="Toggle zones">
                 <ChevronDown
                   className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`}
                 />
@@ -91,7 +89,7 @@ export function TrainingZonesCard({
           </div>
           {reference && zones ? (
             <p className="text-sm text-muted-foreground">
-              {t.zonesCalcFrom}{' '}
+              Calculated from{' '}
               <span className="font-medium text-foreground">
                 {reference.event} {reference.time}
               </span>
@@ -100,7 +98,7 @@ export function TrainingZonesCard({
             </p>
           ) : (
             <p className="text-sm text-muted-foreground">
-              {t.zonesAddPR}
+              Add a recent PR (e.g. 5K, 10K) to compute your training paces.
             </p>
           )}
         </CardHeader>
@@ -134,7 +132,7 @@ export function TrainingZonesCard({
             ) : (
               <div className="flex items-center justify-center rounded-xl border border-dashed border-border py-8 text-sm text-muted-foreground">
                 <Activity className="mr-2 h-4 w-4" />
-                {t.zonesNoReference}
+                No reference race yet — add a PR or set one manually in your profile.
               </div>
             )}
 
@@ -142,9 +140,9 @@ export function TrainingZonesCard({
               <div>
                 <div className="mb-2 flex items-center gap-2">
                   <Heart className="h-4 w-4 text-coral" />
-                  <h4 className="text-sm font-semibold text-navy">{t.heartRateZones}</h4>
+                  <h4 className="text-sm font-semibold text-navy">Heart-rate zones</h4>
                   <Badge variant="outline" className="ml-1 text-[10px] uppercase">
-                    {restingHR ? t.badgeKarvonen : t.badgePercentMax}
+                    {restingHR ? 'Karvonen' : '% max HR'}
                   </Badge>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -171,7 +169,7 @@ export function TrainingZonesCard({
                 <CollapsibleTrigger asChild>
                   <Button variant="ghost" size="sm" className="px-0 text-muted-foreground">
                     <Info className="mr-2 h-4 w-4" />
-                    {t.howCalculated}
+                    How is this calculated?
                     <ChevronDown
                       className={`ml-1 h-3 w-3 transition-transform ${openFormula ? 'rotate-180' : ''}`}
                     />
@@ -180,9 +178,9 @@ export function TrainingZonesCard({
                 <CollapsibleContent>
                   <div className="mt-2 space-y-2 rounded-xl bg-muted/40 p-4 text-xs text-muted-foreground leading-relaxed">
                     <p>
-                      {t.zonesFormulaIntro}{' '}
-                      ({reference?.event} — {reference?.time},{' '}
-                      {zones.reference.distanceMeters} {t.metersAbbr})
+                      We use Jack Daniels&apos; VDOT model. Given the athlete&apos;s reference
+                      race ({reference?.event} in {reference?.time}, distance{' '}
+                      {zones.reference.distanceMeters} m), we derive their VO₂max:
                     </p>
                     <p className="font-mono">
                       %VO2max(t) = 0.8 + 0.1894393·e^(-0.012778·t) + 0.2989558·e^(-0.1932605·t)
@@ -191,9 +189,17 @@ export function TrainingZonesCard({
                       <br />
                       VDOT = VO2(v_race) / %VO2max(t_race)
                     </p>
-                    <p>{t.zonesFormulaTargets}</p>
+                    <p>
+                      Each zone has a target %VO2max (Easy ~70%, Marathon ~84%, Threshold
+                      ~88%, Interval ~98%, Repetition ~105%). We invert the cost equation
+                      to find the pace that matches each anchor.
+                    </p>
                     {hrZones && (
-                      <p>{t.zonesFormulaHR}</p>
+                      <p>
+                        Heart-rate zones use the Karvonen reserve formula when resting HR
+                        is known: <code>zone = resting + pct × (max − resting)</code>;
+                        otherwise we fall back to %max HR.
+                      </p>
                     )}
                   </div>
                 </CollapsibleContent>

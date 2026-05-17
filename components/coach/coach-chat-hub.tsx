@@ -11,7 +11,6 @@ import { MessageSquare, Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import { conversationId } from "@/lib/coach"
-import { useLanguage } from "@/contexts/language-context"
 
 interface ChatPreview {
   athleteId: string
@@ -27,7 +26,6 @@ interface CoachChatHubProps {
 }
 
 export function CoachChatHub({ coachId }: CoachChatHubProps) {
-  const { t } = useLanguage()
   const [chatPreviews, setChatPreviews] = useState<ChatPreview[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [isLoading, setIsLoading] = useState(true)
@@ -130,15 +128,15 @@ export function CoachChatHub({ coachId }: CoachChatHubProps) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">{t.messagesTitle}</h1>
-          <p className="text-muted-foreground">{t.chatWithAthletes}</p>
+          <h1 className="text-2xl font-bold text-foreground">Messages</h1>
+          <p className="text-muted-foreground">Chat with your athletes</p>
         </div>
         <div className="relative w-full sm:w-72">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={t.searchAthletesPh}
+            placeholder="Search athletes..."
             className="pl-10 bg-card border-border"
           />
         </div>
@@ -147,18 +145,18 @@ export function CoachChatHub({ coachId }: CoachChatHubProps) {
       {/* Chat List */}
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="animate-pulse text-muted-foreground">{t.loadingConversations}</div>
+          <div className="animate-pulse text-muted-foreground">Loading conversations...</div>
         </div>
       ) : sortedPreviews.length === 0 ? (
         <Card className="p-12 text-center bg-card border-border">
           <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
             <MessageSquare className="h-8 w-8 text-primary" />
           </div>
-          <h3 className="font-semibold text-foreground mb-1">{t.noConversationsFound}</h3>
+          <h3 className="font-semibold text-foreground mb-1">No conversations found</h3>
           <p className="text-sm text-muted-foreground">
             {searchQuery
-              ? t.tryDifferentSearch
-              : t.athletesWillAppear}
+              ? "Try a different search term"
+              : "Athletes will appear here when they sign up"}
           </p>
         </Card>
       ) : (
@@ -189,7 +187,7 @@ export function CoachChatHub({ coachId }: CoachChatHubProps) {
                     </div>
                     <div className="flex items-center justify-between gap-2 mt-1">
                       <p className="text-sm text-muted-foreground truncate">
-                        {chat.lastMessage || t.startAConversation}
+                        {chat.lastMessage || "Start a conversation..."}
                       </p>
                       {chat.unreadCount > 0 && (
                         <Badge className="bg-primary text-primary-foreground text-xs">

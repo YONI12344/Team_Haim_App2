@@ -9,7 +9,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Send, ArrowLeft } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
-import { useLanguage } from "@/contexts/language-context"
 
 interface Message {
   id: string
@@ -39,7 +38,6 @@ export function ChatRoom({
   otherUserAvatar,
   backLink,
 }: ChatRoomProps) {
-  const { t } = useLanguage()
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState("")
   const [isLoading, setIsLoading] = useState(true)
@@ -103,9 +101,9 @@ export function ChatRoom({
     yesterday.setDate(yesterday.getDate() - 1)
 
     if (date.toDateString() === today.toDateString()) {
-      return t.today
+      return "Today"
     } else if (date.toDateString() === yesterday.toDateString()) {
-      return t.yesterday
+      return "Yesterday"
     } else {
       return date.toLocaleDateString([], { month: "short", day: "numeric" })
     }
@@ -142,7 +140,7 @@ export function ChatRoom({
         </Avatar>
         <div>
           <h2 className="font-semibold text-foreground">{otherUserName}</h2>
-          <p className="text-xs text-muted-foreground">{t.directMessage}</p>
+          <p className="text-xs text-muted-foreground">Direct Message</p>
         </div>
       </div>
 
@@ -150,16 +148,16 @@ export function ChatRoom({
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
-            <div className="animate-pulse text-muted-foreground">{t.loadingMessages}</div>
+            <div className="animate-pulse text-muted-foreground">Loading messages...</div>
           </div>
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
               <Send className="h-8 w-8 text-primary" />
             </div>
-            <h3 className="font-semibold text-foreground mb-1">{t.startConversation}</h3>
+            <h3 className="font-semibold text-foreground mb-1">Start the conversation</h3>
             <p className="text-sm text-muted-foreground">
-              {t.sendMessageTo} {otherUserName}
+              Send a message to {otherUserName}
             </p>
           </div>
         ) : (
@@ -232,7 +230,7 @@ export function ChatRoom({
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder={t.typeMessage}
+            placeholder="Type a message..."
             className="flex-1 bg-background border-border focus:ring-primary"
           />
           <Button

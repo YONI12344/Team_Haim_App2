@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAuth } from '@/contexts/auth-context'
-import { useLanguage } from '@/contexts/language-context'
 import {
   listJourneys,
   newEmptyJourney,
@@ -24,7 +23,6 @@ import { toast } from 'sonner'
 
 export function AthleteJourneyView() {
   const { user } = useAuth()
-  const { t } = useLanguage()
   const [loading, setLoading] = useState(true)
   const [journeys, setJourneys] = useState<JourneyDoc[]>([])
   const [editingStageId, setEditingStageId] = useState<string | null>(null)
@@ -43,7 +41,7 @@ export function AthleteJourneyView() {
         if (!cancelled) setJourneys(list)
       } catch (err) {
         console.error('Error loading journeys:', err)
-        toast.error(t.toastLoadJourneyFailed)
+        toast.error('Failed to load your journey')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -65,14 +63,14 @@ export function AthleteJourneyView() {
       )
     } catch (err) {
       console.error('Error saving journey:', err)
-      toast.error(t.toastSaveJourneyFailed)
+      toast.error('Failed to save journey')
     }
   }
 
   const handleCreateJourney = async () => {
     if (!user?.id) return
     if (!newGoalDate) {
-      toast.error(t.toastPickGoalDate)
+      toast.error('Pick a goal race date first')
       return
     }
     const today = new Date().toISOString().slice(0, 10)
@@ -82,11 +80,11 @@ export function AthleteJourneyView() {
         goalRaceDate: newGoalDate,
         createdBy: user.id,
       },
-      newGoalEvent.trim() || t.mySeasonDefault,
+      newGoalEvent.trim() || 'My Season',
     )
     journey.goalRaceEvent = newGoalEvent.trim()
     await persist(journey)
-    toast.success(t.toastJourneyCreated)
+    toast.success('Journey created — add your first stage')
   }
 
   const handleAddStage = async (journey: JourneyDoc) => {
@@ -106,7 +104,7 @@ export function AthleteJourneyView() {
     await persist(next)
     setEditingStageId(null)
     setEditingJourneyId(null)
-    toast.success(t.toastStageSaved)
+    toast.success('Stage saved')
   }
 
   const handleDeleteStage = async (journey: JourneyDoc, stageId: string) => {
@@ -163,7 +161,7 @@ export function AthleteJourneyView() {
             onClick={() => handleAddStage(journey)}
             className="bg-gold hover:bg-gold/90 text-navy"
           >
-            <Plus className="h-4 w-4 mr-1" /> {t.addStageBtn}
+            <Plus className="h-4 w-4 mr-1" /> Add stage
           </Button>
         </div>
       </div>
@@ -185,31 +183,32 @@ export function AthleteJourneyView() {
       <div className="space-y-6">
         <div>
           <h1 className="font-serif text-2xl font-semibold text-navy md:text-3xl">
-            {t.seasonJourneyHeading}
+            Season Journey
           </h1>
-          <p className="text-muted-foreground">{t.roadToGoalRace}</p>
+          <p className="text-muted-foreground">Your road to the next goal race.</p>
         </div>
         <Card className="rounded-2xl border-dashed">
           <CardContent className="flex flex-col items-center gap-4 py-10 text-center">
             <div className="rounded-full bg-coral-light p-3">
               <Compass className="h-6 w-6 text-coral" />
             </div>
-            <p className="font-medium text-navy">{t.startSeasonJourney}</p>
+            <p className="font-medium text-navy">Start your season journey</p>
             <p className="max-w-sm text-sm text-muted-foreground">
-              {t.planRoadDesc}
+              Plan your road to your next goal race. You can add and update
+              stages and milestones any time.
             </p>
             <div className="grid w-full max-w-md gap-3 sm:grid-cols-2 text-left">
               <div className="space-y-1">
-                <Label htmlFor="goal-event" className="text-xs">{t.goalRaceLabel}</Label>
+                <Label htmlFor="goal-event" className="text-xs">Goal race</Label>
                 <Input
                   id="goal-event"
-                  placeholder={t.goalRacePlaceholder}
+                  placeholder="e.g. Tel Aviv Half"
                   value={newGoalEvent}
                   onChange={(e) => setNewGoalEvent(e.target.value)}
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="goal-date" className="text-xs">{t.goalRaceDateLabel}</Label>
+                <Label htmlFor="goal-date" className="text-xs">Goal race date</Label>
                 <Input
                   id="goal-date"
                   type="date"
@@ -223,7 +222,7 @@ export function AthleteJourneyView() {
               className="bg-gold hover:bg-gold/90 text-navy"
               disabled={!newGoalDate}
             >
-              <Plus className="h-4 w-4 mr-1" /> {t.createMyJourney}
+              <Plus className="h-4 w-4 mr-1" /> Create my journey
             </Button>
           </CardContent>
         </Card>
@@ -235,10 +234,10 @@ export function AthleteJourneyView() {
     <div className="space-y-6">
       <div>
         <h1 className="font-serif text-2xl font-semibold text-navy md:text-3xl">
-          {t.seasonJourneyHeading}
+          Season Journey
         </h1>
         <p className="text-muted-foreground">
-          {t.roadToGoalRaceLong}
+          Your road to the next goal race. Distances are in km, paces in min/km.
         </p>
       </div>
       {journeys.map(renderJourney)}

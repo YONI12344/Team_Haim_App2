@@ -14,16 +14,15 @@ import {
 } from '@/components/ui/select'
 import { Pencil, Plus, Trash2, X, Check } from 'lucide-react'
 import type { JourneyStage, JourneyStageType } from '@/lib/types'
-import { useLanguage } from '@/contexts/language-context'
 
-const stageTypes: JourneyStageType[] = [
-  'base',
-  'build',
-  'peak',
-  'taper',
-  'race_week',
-  'recovery',
-  'custom',
+const stageTypes: { value: JourneyStageType; label: string }[] = [
+  { value: 'base', label: 'Base' },
+  { value: 'build', label: 'Build' },
+  { value: 'peak', label: 'Peak' },
+  { value: 'taper', label: 'Taper' },
+  { value: 'race_week', label: 'Race week' },
+  { value: 'recovery', label: 'Recovery' },
+  { value: 'custom', label: 'Custom' },
 ]
 
 interface StageEditorProps {
@@ -34,10 +33,6 @@ interface StageEditorProps {
 
 /** Compact inline form to edit one journey stage. */
 export function StageEditor({ stage, onSave, onCancel }: StageEditorProps) {
-  const { t, language } = useLanguage()
-  const stageTypeLabel: Record<JourneyStageType, string> = language === 'he'
-    ? { base: 'בסיס', build: 'בנייה', peak: 'שיא', taper: 'הפחתה', race_week: 'שבוע מירוץ', recovery: 'התאוששות', custom: 'מותאם' }
-    : { base: 'Base', build: 'Build', peak: 'Peak', taper: 'Taper', race_week: 'Race week', recovery: 'Recovery', custom: 'Custom' }
   const [name, setName] = useState(stage.name)
   const [type, setType] = useState<JourneyStageType>(stage.type)
   const [startDate, setStartDate] = useState(stage.startDate)
@@ -98,26 +93,26 @@ export function StageEditor({ stage, onSave, onCancel }: StageEditorProps) {
     <div className="space-y-3 rounded-lg border border-dashed border-border bg-muted/20 p-4">
       <div className="grid gap-3 md:grid-cols-2">
         <div className="space-y-1">
-          <Label className="text-xs">{t.stageNameLabel}</Label>
+          <Label className="text-xs">Stage name</Label>
           <Input value={name} onChange={(e) => setName(e.target.value)} />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">{t.stageTypeLabel}</Label>
+          <Label className="text-xs">Type</Label>
           <Select value={type} onValueChange={(v) => setType(v as JourneyStageType)}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {stageTypes.map((s) => (
-                <SelectItem key={s} value={s}>
-                  {stageTypeLabel[s]}
+              {stageTypes.map((t) => (
+                <SelectItem key={t.value} value={t.value}>
+                  {t.label}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">{t.stageStartDate}</Label>
+          <Label className="text-xs">Start date</Label>
           <Input
             type="date"
             value={startDate}
@@ -125,7 +120,7 @@ export function StageEditor({ stage, onSave, onCancel }: StageEditorProps) {
           />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">{t.stageEndDate}</Label>
+          <Label className="text-xs">End date</Label>
           <Input
             type="date"
             value={endDate}
@@ -133,19 +128,19 @@ export function StageEditor({ stage, onSave, onCancel }: StageEditorProps) {
           />
         </div>
         <div className="space-y-1 md:col-span-2">
-          <Label className="text-xs">{t.stageFocusLabel}</Label>
+          <Label className="text-xs">Focus</Label>
           <Input
-            placeholder={t.stageFocusPlaceholder}
+            placeholder="e.g. aerobic base, threshold work"
             value={focus}
             onChange={(e) => setFocus(e.target.value)}
           />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">{t.weeklyVolumeLabel}</Label>
+          <Label className="text-xs">Weekly volume (km)</Label>
           <Input
             type="number"
             min="0"
-            placeholder={t.weeklyVolumePlaceholder}
+            placeholder="e.g. 60"
             value={weeklyVolumeKm}
             onChange={(e) => setWeeklyVolumeKm(e.target.value)}
           />
@@ -153,7 +148,7 @@ export function StageEditor({ stage, onSave, onCancel }: StageEditorProps) {
       </div>
       <div className="grid gap-3 md:grid-cols-2">
         <div className="space-y-1">
-          <Label className="text-xs">{t.keyWorkoutsLabel}</Label>
+          <Label className="text-xs">Key workouts (one per line)</Label>
           <Textarea
             className="h-20"
             value={keyWorkouts}
@@ -161,10 +156,10 @@ export function StageEditor({ stage, onSave, onCancel }: StageEditorProps) {
           />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">{t.milestonesLabel}</Label>
+          <Label className="text-xs">Milestones (one per line)</Label>
           <Textarea
             className="h-20"
-            placeholder={t.milestonesPlaceholder}
+            placeholder={'10K time trial\nLong run 30 km'}
             value={milestones}
             onChange={(e) => setMilestones(e.target.value)}
           />
@@ -172,7 +167,7 @@ export function StageEditor({ stage, onSave, onCancel }: StageEditorProps) {
       </div>
       <div className="flex justify-end gap-2">
         <Button variant="outline" size="sm" onClick={onCancel}>
-          <X className="h-4 w-4 mr-1" /> {t.cancel}
+          <X className="h-4 w-4 mr-1" /> Cancel
         </Button>
         <Button
           size="sm"
@@ -180,7 +175,7 @@ export function StageEditor({ stage, onSave, onCancel }: StageEditorProps) {
           onClick={handleSave}
           disabled={!name.trim() || !startDate || !endDate}
         >
-          <Check className="h-4 w-4 mr-1" /> {t.saveStageBtn}
+          <Check className="h-4 w-4 mr-1" /> Save stage
         </Button>
       </div>
     </div>

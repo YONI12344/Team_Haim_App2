@@ -43,7 +43,6 @@ import {
 } from 'firebase/storage'
 import { db, storage } from '@/lib/firebase'
 import { useAuth } from '@/contexts/auth-context'
-import { useLanguage } from '@/contexts/language-context'
 import { toast } from 'sonner'
 import type {
   AthleteProfile as AthleteProfileType,
@@ -77,9 +76,20 @@ const paceTypeColors: Record<string, string> = {
   race: 'bg-gold/20 text-gold',
 }
 
-const disciplineValues: Discipline[] = ['track', 'road', 'jogger', 'trail', 'mixed']
+const disciplineOptions: { value: Discipline; label: string }[] = [
+  { value: 'track', label: 'Track & Field' },
+  { value: 'road', label: 'Distance / Road' },
+  { value: 'jogger', label: 'Jogger' },
+  { value: 'trail', label: 'Trail' },
+  { value: 'mixed', label: 'Mixed' },
+]
 
-const experienceValues: ExperienceLevel[] = ['beginner', 'intermediate', 'advanced', 'professional']
+const experienceOptions: { value: ExperienceLevel; label: string }[] = [
+  { value: 'beginner', label: 'Beginner' },
+  { value: 'intermediate', label: 'Intermediate' },
+  { value: 'advanced', label: 'Advanced' },
+  { value: 'professional', label: 'Professional' },
+]
 
 interface ProfileForm {
   name: string
@@ -103,30 +113,6 @@ interface ProfileForm {
 
 export function AthleteProfile() {
   const { user, firebaseUser } = useAuth()
-  const { t } = useLanguage()
-  const disciplineLabel: Record<Discipline, string> = {
-    track: t.disciplineTrack,
-    road: t.disciplineRoad,
-    jogger: t.disciplineJogger,
-    trail: t.disciplineTrail,
-    mixed: t.disciplineMixed,
-  }
-  const experienceLabel: Record<ExperienceLevel, string> = {
-    beginner: t.beginner,
-    intermediate: t.intermediate,
-    advanced: t.advanced,
-    professional: t.professional,
-  }
-  const genderLabel: Record<'male' | 'female' | 'other', string> = {
-    male: t.male,
-    female: t.female,
-    other: t.otherGender,
-  }
-  const goalStatusLabel: Record<'active' | 'achieved' | 'archived', string> = {
-    active: t.goalActive,
-    achieved: t.goalAchieved,
-    archived: t.goalArchived,
-  }
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [exporting, setExporting] = useState(false)
@@ -225,11 +211,11 @@ export function AthleteProfile() {
   const handlePhotoSelect = async (file: File) => {
     if (!user?.id) return
     if (!file.type.startsWith('image/')) {
-      toast.error(t.toastChooseImage)
+      toast.error('Please choose an image file')
       return
     }
     if (file.size > 5 * 1024 * 1024) {
-      toast.error(t.toastImageTooBig)
+      toast.error('Image is larger than 5 MB')
       return
     }
     setUploadingPhoto(true)
@@ -261,10 +247,10 @@ export function AthleteProfile() {
         { photoURL: url, updatedAt: serverTimestamp() },
         { merge: true },
       )
-      toast.success(t.toastProfilePhotoUpdated)
+      toast.success('Profile photo updated')
     } catch (err) {
       console.error('Error uploading photo:', err)
-      toast.error(t.toastPhotoUploadFailed)
+      toast.error('Failed to upload photo')
     } finally {
       setUploadingPhoto(false)
     }
@@ -287,10 +273,10 @@ export function AthleteProfile() {
         { merge: true },
       )
       setPhotoURL(undefined)
-      toast.success(t.toastProfilePhotoRemoved)
+      toast.success('Profile photo removed')
     } catch (err) {
       console.error('Error removing photo:', err)
-      toast.error(t.toastPhotoRemoveFailed)
+      toast.error('Failed to remove photo')
     }
   }
 
@@ -324,10 +310,10 @@ export function AthleteProfile() {
       await setDoc(doc(db, 'users', user.id), updates, { merge: true })
       setHasProfile(true)
       setEditing(false)
-      toast.success(t.toastProfileSaved)
+      toast.success('Profile saved!')
     } catch (err) {
       console.error('Error saving profile:', err)
-      toast.error(t.toastProfileSaveFailed)
+      toast.error('Failed to save profile')
     } finally {
       setSaving(false)
     }
@@ -346,7 +332,7 @@ export function AthleteProfile() {
       )
     } catch (err) {
       console.error(`Error saving ${field}:`, err)
-      toast.error(t.toastSaveChangesFailed)
+      toast.error('Failed to save changes')
     }
   }
 
@@ -362,7 +348,7 @@ export function AthleteProfile() {
       : [...list, record]
     setter(next)
     await persistField(field, next)
-    toast.success(exists ? t.toastUpdated : t.toastAdded)
+    toast.success(exists ? 'Updated' : 'Added')
   }
 
   const removeRecord = async (
@@ -383,7 +369,7 @@ export function AthleteProfile() {
       : [...trainingPaces, pace]
     setTrainingPaces(next)
     await persistField('trainingPaces', next)
-    toast.success(exists ? t.toastUpdated : t.toastAdded)
+    toast.success(exists ? 'Updated' : 'Added')
   }
 
   const removePace = async (id: string) => {
@@ -514,7 +500,7 @@ export function AthleteProfile() {
     )
   }
 
-  const displayName = form.name || user?.name || t.athleteFallback
+  const displayName = form.name || user?.name || 'Athlete'
   const eventsArray = form.events
     .split(',')
     .map((e) => e.trim())
@@ -527,10 +513,10 @@ export function AthleteProfile() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="font-serif text-2xl md:text-3xl font-semibold text-navy">
-            {t.myProfile}
+            My Profile
           </h1>
           <p className="text-muted-foreground text-sm">
-            {t.yourAthleticProfile}
+            Your athletic profile and training information
           </p>
         </div>
         {!editing ? (
@@ -546,13 +532,13 @@ export function AthleteProfile() {
               ) : (
                 <Download className="h-4 w-4 mr-2" />
               )}
-              {exporting ? t.generating : t.exportMyData}
+              {exporting ? 'Generating…' : 'Export my data'}
             </Button>
             <Button
               onClick={() => setEditing(true)}
               className="bg-gold hover:bg-gold/90 text-navy"
             >
-              {hasProfile ? t.editProfile : t.completeYourProfile}
+              {hasProfile ? 'Edit Profile' : 'Complete your profile'}
             </Button>
           </div>
         ) : null}
@@ -561,9 +547,9 @@ export function AthleteProfile() {
       {!hasProfile && !editing && (
         <Card className="rounded-2xl border-gold/30 bg-gold/5">
           <CardContent className="pt-6">
-            <p className="text-navy font-medium">{t.completeYourProfile}</p>
+            <p className="text-navy font-medium">Complete your profile</p>
             <p className="text-muted-foreground text-sm mt-1">
-              {t.completeYourProfileDesc}
+              Add your details so your coach can tailor your training.
             </p>
           </CardContent>
         </Card>
@@ -587,8 +573,8 @@ export function AthleteProfile() {
                   'cursor-pointer focus-within:ring-2 focus-within:ring-gold/60',
                   uploadingPhoto && 'pointer-events-none opacity-80',
                 )}
-                title={t.changePhoto}
-                aria-label={t.changePhoto}
+                title="Change photo"
+                aria-label="Change profile photo"
               >
                 <Avatar className="w-24 h-24 border-4 border-gold/20">
                   <AvatarImage src={avatarUrl} alt={displayName} />
@@ -640,8 +626,8 @@ export function AthleteProfile() {
                     e.stopPropagation()
                     handlePhotoRemove()
                   }}
-                  aria-label={t.removePhotoAria}
-                  title={t.removePhotoAria}
+                  aria-label="Remove profile photo"
+                  title="Remove photo"
                 >
                   <X className="h-3.5 w-3.5" />
                 </Button>
@@ -660,18 +646,18 @@ export function AthleteProfile() {
 
                   <div className="flex flex-wrap gap-2">
                     {form.experienceLevel && (
-                      <Badge className="bg-coral text-white">
-                        {experienceLabel[form.experienceLevel]}
+                      <Badge className="bg-coral text-white capitalize">
+                        {form.experienceLevel}
                       </Badge>
                     )}
                     {form.discipline.map((d) => (
                       <Badge key={d} variant="outline" className="border-navy/30 text-navy">
-                        {disciplineLabel[d] || d}
+                        {disciplineOptions.find((o) => o.value === d)?.label || d}
                       </Badge>
                     ))}
                     {eventsArray.length === 0 ? (
                       <span className="text-sm text-muted-foreground">
-                        {t.noEventsListed}
+                        No events listed yet
                       </span>
                     ) : (
                       eventsArray.map((event) => (
@@ -694,8 +680,8 @@ export function AthleteProfile() {
                     {form.gender && (
                       <div className="flex items-center gap-2 text-sm">
                         <User className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-muted-foreground">
-                          {genderLabel[form.gender as 'male' | 'female' | 'other']}
+                        <span className="text-muted-foreground capitalize">
+                          {form.gender}
                         </span>
                       </div>
                     )}
@@ -742,7 +728,7 @@ export function AthleteProfile() {
                       <div className="flex items-center gap-2 text-sm">
                         <Clock className="h-4 w-4 text-muted-foreground" />
                         <span className="text-muted-foreground font-mono">
-                          {t.targetWord} {form.targetPaceKm}/{t.km}
+                          target {form.targetPaceKm}/km
                         </span>
                       </div>
                     )}
@@ -750,9 +736,9 @@ export function AthleteProfile() {
 
                   {form.goalRaceEvent && (
                     <div className="rounded-xl bg-coral-light/50 p-3 text-sm">
-                      <span className="font-semibold text-navy">{t.goalLabel} </span>
+                      <span className="font-semibold text-navy">Goal: </span>
                       {form.goalRaceEvent}
-                      {form.goalRaceTarget ? ` ${t.inWord} ${form.goalRaceTarget}` : ''}
+                      {form.goalRaceTarget ? ` in ${form.goalRaceTarget}` : ''}
                       {form.goalRaceDate ? ` · ${format(new Date(form.goalRaceDate), 'MMM d, yyyy')}` : ''}
                     </div>
                   )}
@@ -760,7 +746,7 @@ export function AthleteProfile() {
               ) : (
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="profile-name">{t.fieldName}</Label>
+                    <Label htmlFor="profile-name">Name</Label>
                     <Input
                       id="profile-name"
                       value={form.name}
@@ -768,7 +754,7 @@ export function AthleteProfile() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="profile-dob">{t.fieldDateOfBirth}</Label>
+                    <Label htmlFor="profile-dob">Date of Birth</Label>
                     <Input
                       id="profile-dob"
                       type="date"
@@ -777,23 +763,23 @@ export function AthleteProfile() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="profile-gender">{t.fieldGender}</Label>
+                    <Label htmlFor="profile-gender">Gender</Label>
                     <Select
                       value={form.gender || undefined}
                       onValueChange={(v) => setForm({ ...form, gender: v as ProfileForm['gender'] })}
                     >
                       <SelectTrigger id="profile-gender">
-                        <SelectValue placeholder={t.selectPlaceholder} />
+                        <SelectValue placeholder="Select…" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="male">{t.male}</SelectItem>
-                        <SelectItem value="female">{t.female}</SelectItem>
-                        <SelectItem value="other">{t.otherGender}</SelectItem>
+                        <SelectItem value="male">Male</SelectItem>
+                        <SelectItem value="female">Female</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="profile-level">{t.fieldExperienceLevel}</Label>
+                    <Label htmlFor="profile-level">Experience level</Label>
                     <Select
                       value={form.experienceLevel || undefined}
                       onValueChange={(v) =>
@@ -801,19 +787,19 @@ export function AthleteProfile() {
                       }
                     >
                       <SelectTrigger id="profile-level">
-                        <SelectValue placeholder={t.selectPlaceholder} />
+                        <SelectValue placeholder="Select…" />
                       </SelectTrigger>
                       <SelectContent>
-                        {experienceValues.map((value) => (
-                          <SelectItem key={value} value={value}>
-                            {experienceLabel[value]}
+                        {experienceOptions.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>
+                            {o.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="profile-height">{t.fieldHeight}</Label>
+                    <Label htmlFor="profile-height">Height (cm)</Label>
                     <Input
                       id="profile-height"
                       type="number"
@@ -822,7 +808,7 @@ export function AthleteProfile() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="profile-weight">{t.fieldWeight}</Label>
+                    <Label htmlFor="profile-weight">Weight (kg)</Label>
                     <Input
                       id="profile-weight"
                       type="number"
@@ -831,7 +817,7 @@ export function AthleteProfile() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="profile-mileage">{t.fieldWeeklyMileage}</Label>
+                    <Label htmlFor="profile-mileage">Weekly mileage (km)</Label>
                     <Input
                       id="profile-mileage"
                       type="number"
@@ -840,7 +826,7 @@ export function AthleteProfile() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="profile-rhr">{t.fieldRestingHR}</Label>
+                    <Label htmlFor="profile-rhr">Resting HR (bpm)</Label>
                     <Input
                       id="profile-rhr"
                       type="number"
@@ -849,7 +835,7 @@ export function AthleteProfile() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="profile-mhr">{t.fieldMaxHR}</Label>
+                    <Label htmlFor="profile-mhr">Max HR (bpm)</Label>
                     <Input
                       id="profile-mhr"
                       type="number"
@@ -858,44 +844,44 @@ export function AthleteProfile() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="profile-chr">{t.fieldCurrentHR}</Label>
+                    <Label htmlFor="profile-chr">Current HR (bpm)</Label>
                     <Input
                       id="profile-chr"
                       type="number"
-                      placeholder={t.placeholderRecentHR}
+                      placeholder="recent training avg"
                       value={form.currentHR}
                       onChange={(e) => setForm({ ...form, currentHR: e.target.value })}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="profile-thr">{t.fieldTargetHR}</Label>
+                    <Label htmlFor="profile-thr">Target HR (bpm)</Label>
                     <Input
                       id="profile-thr"
                       type="number"
-                      placeholder={t.placeholderGoalHR}
+                      placeholder="goal effort HR"
                       value={form.targetHR}
                       onChange={(e) => setForm({ ...form, targetHR: e.target.value })}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="profile-target-pace">{t.fieldTargetPace}</Label>
+                    <Label htmlFor="profile-target-pace">Target pace (min/km)</Label>
                     <Input
                       id="profile-target-pace"
-                      placeholder={t.placeholderPace430}
+                      placeholder="e.g. 4:30"
                       value={form.targetPaceKm}
                       onChange={(e) => setForm({ ...form, targetPaceKm: e.target.value })}
                     />
                   </div>
                   <div className="space-y-2 md:col-span-2">
-                    <Label>{t.fieldDiscipline}</Label>
+                    <Label>Discipline</Label>
                     <div className="flex flex-wrap gap-2">
-                      {disciplineValues.map((value) => {
-                        const active = form.discipline.includes(value)
+                      {disciplineOptions.map((d) => {
+                        const active = form.discipline.includes(d.value)
                         return (
                           <button
                             type="button"
-                            key={value}
-                            onClick={() => toggleDiscipline(value)}
+                            key={d.value}
+                            onClick={() => toggleDiscipline(d.value)}
                             aria-pressed={active}
                             className={cn(
                               'rounded-full border px-3 py-1 text-sm transition-luxury',
@@ -904,32 +890,32 @@ export function AthleteProfile() {
                                 : 'border-border bg-background text-muted-foreground hover:border-navy/40',
                             )}
                           >
-                            {disciplineLabel[value]}
+                            {d.label}
                           </button>
                         )
                       })}
                     </div>
                   </div>
                   <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="profile-events">{t.fieldEvents}</Label>
+                    <Label htmlFor="profile-events">Events (comma separated)</Label>
                     <Input
                       id="profile-events"
-                      placeholder={t.placeholderEvents}
+                      placeholder="e.g. 800m, 1500m, 3000m"
                       value={form.events}
                       onChange={(e) => setForm({ ...form, events: e.target.value })}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="profile-goal-event">{t.fieldGoalRaceEvent}</Label>
+                    <Label htmlFor="profile-goal-event">Goal race event</Label>
                     <Input
                       id="profile-goal-event"
-                      placeholder={t.placeholderGoalRace}
+                      placeholder="e.g. Tel Aviv Half"
                       value={form.goalRaceEvent}
                       onChange={(e) => setForm({ ...form, goalRaceEvent: e.target.value })}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="profile-goal-date">{t.fieldGoalRaceDate}</Label>
+                    <Label htmlFor="profile-goal-date">Goal race date</Label>
                     <Input
                       id="profile-goal-date"
                       type="date"
@@ -938,10 +924,10 @@ export function AthleteProfile() {
                     />
                   </div>
                   <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="profile-goal-target">{t.fieldTargetTime}</Label>
+                    <Label htmlFor="profile-goal-target">Target time</Label>
                     <Input
                       id="profile-goal-target"
-                      placeholder={t.placeholderTargetTime}
+                      placeholder="e.g. 1:35:00"
                       value={form.goalRaceTarget}
                       onChange={(e) => setForm({ ...form, goalRaceTarget: e.target.value })}
                     />
@@ -957,10 +943,10 @@ export function AthleteProfile() {
                       ) : (
                         <Save className="h-4 w-4 mr-2" />
                       )}
-                      {t.saveProfile}
+                      Save Profile
                     </Button>
                     <Button variant="outline" onClick={() => setEditing(false)}>
-                      {t.cancel}
+                      Cancel
                     </Button>
                   </div>
                 </div>
@@ -980,10 +966,10 @@ export function AthleteProfile() {
       {/* Tabs */}
       <Tabs defaultValue="prs" className="space-y-6">
         <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
-          <TabsTrigger value="prs">{t.tabPRs}</TabsTrigger>
-          <TabsTrigger value="season">{t.tabSeasonBest}</TabsTrigger>
-          <TabsTrigger value="paces">{t.tabPaces}</TabsTrigger>
-          <TabsTrigger value="goals">{t.tabGoals}</TabsTrigger>
+          <TabsTrigger value="prs">PRs</TabsTrigger>
+          <TabsTrigger value="season">Season Best</TabsTrigger>
+          <TabsTrigger value="paces">Paces</TabsTrigger>
+          <TabsTrigger value="goals">Goals</TabsTrigger>
         </TabsList>
 
         {/* Personal Records */}
@@ -992,7 +978,7 @@ export function AthleteProfile() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Trophy className="h-5 w-5 text-gold" />
-                {t.personalRecordsTitle}
+                Personal Records
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -1004,7 +990,7 @@ export function AthleteProfile() {
               />
               {personalRecords.length === 0 ? (
                 <p className="text-muted-foreground text-center py-6">
-                  {t.noPRsYet}
+                  No personal records yet
                 </p>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2">
@@ -1049,7 +1035,7 @@ export function AthleteProfile() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Target className="h-5 w-5 text-gold" />
-                {new Date().getFullYear()} {t.seasonBestsTitle}
+                {new Date().getFullYear()} Season Bests
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -1084,7 +1070,7 @@ export function AthleteProfile() {
                 </div>
               ) : (
                 <p className="text-muted-foreground text-center py-8">
-                  {t.noSeasonBestsYet}
+                  No season bests recorded yet
                 </p>
               )}
             </CardContent>
@@ -1097,7 +1083,7 @@ export function AthleteProfile() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Clock className="h-5 w-5 text-gold" />
-                {t.trainingPacesTitle}
+                Training Paces
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -1108,7 +1094,7 @@ export function AthleteProfile() {
               />
               {trainingPaces.length === 0 ? (
                 <p className="text-muted-foreground text-center py-6">
-                  {t.noTrainingPacesYet}
+                  No training paces yet
                 </p>
               ) : (
                 <div className="space-y-3">
@@ -1120,18 +1106,11 @@ export function AthleteProfile() {
                       <div className="flex items-center gap-4">
                         <Badge
                           className={cn(
-                            'font-medium',
+                            'capitalize font-medium',
                             paceTypeColors[pace.type] || 'bg-muted',
                           )}
                         >
-                          {({
-                            easy: t.paceEasy,
-                            tempo: t.paceTempo,
-                            threshold: t.paceThreshold,
-                            interval: t.paceInterval,
-                            repetition: t.paceRepetition,
-                            race: t.paceRace,
-                          } as Record<string, string>)[pace.type] || pace.type}
+                          {pace.type}
                         </Badge>
                         <div>
                           <p className="font-mono font-semibold text-navy">{pace.pace}</p>
@@ -1154,12 +1133,12 @@ export function AthleteProfile() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Target className="h-5 w-5 text-gold" />
-                {t.goalsTitle}
+                Goals
               </CardTitle>
             </CardHeader>
             <CardContent>
               {goals.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">{t.noGoalsYet}</p>
+                <p className="text-muted-foreground text-center py-8">No goals yet</p>
               ) : (
                 <div className="space-y-4">
                   {goals.map((goal) => (
@@ -1186,16 +1165,16 @@ export function AthleteProfile() {
                                 goal.status === 'archived' && 'bg-muted text-muted-foreground',
                               )}
                             >
-                              {goalStatusLabel[goal.status]}
+                              {goal.status}
                             </Badge>
                           </div>
                           <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                            {goal.targetEvent && <span>{t.fieldGoalRaceEvent}: {goal.targetEvent}</span>}
+                            {goal.targetEvent && <span>Event: {goal.targetEvent}</span>}
                             {goal.targetTime && (
-                              <span className="font-mono">{t.fieldTargetTime}: {goal.targetTime}</span>
+                              <span className="font-mono">Target: {goal.targetTime}</span>
                             )}
                             {goal.targetDate && (
-                              <span>{t.dateField}: {format(new Date(goal.targetDate), 'MMM d, yyyy')}</span>
+                              <span>By: {format(new Date(goal.targetDate), 'MMM d, yyyy')}</span>
                             )}
                           </div>
                           {goal.notes && (

@@ -34,8 +34,6 @@ import { WorkoutLogForm } from '@/components/athlete/workout-log-form'
 import { collection, getDocs, query, where, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/auth-context'
-import { useLanguage } from '@/contexts/language-context'
-import { workoutTypeColors, useWorkoutTypeLabels } from '@/lib/workout-labels'
 
 function mapDocToAssignedWorkout(d: QueryDocumentSnapshot<DocumentData>): AssignedWorkout {
   const data = d.data()
@@ -73,12 +71,40 @@ function mapDocToWorkoutLog(d: QueryDocumentSnapshot<DocumentData>, fallbackAthl
   }
 }
 
+const workoutTypeColors: Record<WorkoutType, string> = {
+  easy: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  long_run: 'bg-blue-100 text-blue-700 border-blue-200',
+  tempo: 'bg-amber-100 text-amber-700 border-amber-200',
+  intervals: 'bg-red-100 text-red-700 border-red-200',
+  hill_repeats: 'bg-orange-100 text-orange-700 border-orange-200',
+  fartlek: 'bg-purple-100 text-purple-700 border-purple-200',
+  recovery: 'bg-teal-100 text-teal-700 border-teal-200',
+  strength: 'bg-slate-100 text-slate-700 border-slate-200',
+  cross_training: 'bg-cyan-100 text-cyan-700 border-cyan-200',
+  rest: 'bg-gray-100 text-gray-600 border-gray-200',
+  race: 'bg-gold/20 text-gold border-gold/30',
+  time_trial: 'bg-rose-100 text-rose-700 border-rose-200',
+}
+
+const workoutTypeLabels: Record<WorkoutType, string> = {
+  easy: 'Easy',
+  long_run: 'Long Run',
+  tempo: 'Tempo',
+  intervals: 'Intervals',
+  hill_repeats: 'Hills',
+  fartlek: 'Fartlek',
+  recovery: 'Recovery',
+  strength: 'Strength',
+  cross_training: 'Cross Train',
+  rest: 'Rest',
+  race: 'Race',
+  time_trial: 'Time Trial',
+}
+
 type ViewMode = 'week' | 'month'
 
 export function AthleteSchedule() {
   const { user } = useAuth()
-  const { t } = useLanguage()
-  const workoutTypeLabels = useWorkoutTypeLabels()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [viewMode, setViewMode] = useState<ViewMode>('week')
   const [selectedWorkout, setSelectedWorkout] = useState<AssignedWorkout | null>(null)
@@ -174,18 +200,18 @@ export function AthleteSchedule() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl md:text-3xl font-serif font-bold text-navy">
-            {t.scheduleTitle}
+            Schedule
           </h1>
           <p className="text-muted-foreground">
-            {t.scheduleSubtitle}
+            View and track your training plan
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
             <TabsList>
-              <TabsTrigger value="week">{t.week}</TabsTrigger>
-              <TabsTrigger value="month">{t.month}</TabsTrigger>
+              <TabsTrigger value="week">Week</TabsTrigger>
+              <TabsTrigger value="month">Month</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
@@ -201,7 +227,7 @@ export function AthleteSchedule() {
             <ChevronRight className="h-4 w-4" />
           </Button>
           <Button variant="outline" size="sm" onClick={goToToday}>
-            {t.today}
+            Today
           </Button>
         </div>
         <h2 className="text-lg font-semibold text-navy">
@@ -275,13 +301,13 @@ export function AthleteSchedule() {
                             {workout.workout.duration && (
                               <span className="flex items-center gap-1">
                                 <Clock className="h-3.5 w-3.5" />
-                                {workout.workout.duration} {t.min}
+                                {workout.workout.duration} min
                               </span>
                             )}
                             {workout.workout.distance && (
                               <span className="flex items-center gap-1">
                                 <Activity className="h-3.5 w-3.5" />
-                                {workout.workout.distance} {t.km}
+                                {workout.workout.distance} km
                               </span>
                             )}
                           </div>
@@ -304,12 +330,12 @@ export function AthleteSchedule() {
                                     'inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold mr-2',
                                     tone,
                                   )}
-                                  title={t.effortBadgeTitle}
+                                  title="Perceived effort (1–10)"
                                 >
-                                  {t.effortBadge} {log.effort}/10
+                                  Effort {log.effort}/10
                                 </span>
-                                {log.actualDistance && <span>{log.actualDistance}{t.km}</span>}
-                                {log.actualPace && <span className="ml-1">@ {log.actualPace}/{t.km}</span>}
+                                {log.actualDistance && <span>{log.actualDistance}km</span>}
+                                {log.actualPace && <span className="ml-1">@ {log.actualPace}/km</span>}
                                 {log.comment && (
                                   <p className="mt-1 line-clamp-1 italic">&ldquo;{log.comment}&rdquo;</p>
                                 )}
@@ -319,7 +345,7 @@ export function AthleteSchedule() {
                         </div>
                       ) : (
                         <div className="flex items-center text-muted-foreground">
-                          <span className="text-sm">{t.noWorkoutScheduled}</span>
+                          <span className="text-sm">No workout scheduled</span>
                         </div>
                       )}
                     </div>
@@ -347,8 +373,8 @@ export function AthleteSchedule() {
           <CardContent className="p-4">
             {/* Day Headers */}
             <div className="grid grid-cols-7 gap-1 mb-2">
-              {[t.mon, t.tue, t.wed, t.thu, t.fri, t.sat, t.sun].map((day, i) => (
-                <div key={i} className="text-center text-sm font-medium text-muted-foreground py-2">
+              {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
+                <div key={day} className="text-center text-sm font-medium text-muted-foreground py-2">
                   {day}
                 </div>
               ))}
@@ -414,7 +440,7 @@ export function AthleteSchedule() {
                   </Badge>
                   {selectedWorkout.status === 'completed' && (
                     <Badge variant="outline" className="bg-emerald-100 text-emerald-700 border-emerald-200">
-                      {t.completed}
+                      Completed
                     </Badge>
                   )}
                 </div>
@@ -435,20 +461,20 @@ export function AthleteSchedule() {
                   {selectedWorkout.workout.duration && (
                     <span className="flex items-center gap-1 text-muted-foreground">
                       <Clock className="h-4 w-4" />
-                      {selectedWorkout.workout.duration} {t.min}
+                      {selectedWorkout.workout.duration} min
                     </span>
                   )}
                   {selectedWorkout.workout.distance && (
                     <span className="flex items-center gap-1 text-muted-foreground">
                       <Activity className="h-4 w-4" />
-                      {selectedWorkout.workout.distance} {t.km}
+                      {selectedWorkout.workout.distance} km
                     </span>
                   )}
                 </div>
 
                 {selectedWorkout.workout.warmup && (
                   <div>
-                    <h4 className="font-medium text-navy mb-1">{t.warmupHeading}</h4>
+                    <h4 className="font-medium text-navy mb-1">Warmup</h4>
                     <p className="text-sm text-muted-foreground">
                       {selectedWorkout.workout.warmup}
                     </p>
@@ -457,7 +483,7 @@ export function AthleteSchedule() {
 
                 {selectedWorkout.workout.sets && selectedWorkout.workout.sets.length > 0 && (
                   <div>
-                    <h4 className="font-medium text-navy mb-2">{t.workoutHeading}</h4>
+                    <h4 className="font-medium text-navy mb-2">Workout</h4>
                     <div className="space-y-2">
                       {selectedWorkout.workout.sets.map((set) => (
                         <div 
@@ -474,7 +500,7 @@ export function AthleteSchedule() {
                           )}
                           {set.rest && (
                             <p className="text-muted-foreground mt-1">
-                              {t.restPrefix} {set.rest}
+                              Rest: {set.rest}
                             </p>
                           )}
                         </div>
@@ -485,7 +511,7 @@ export function AthleteSchedule() {
 
                 {selectedWorkout.workout.cooldown && (
                   <div>
-                    <h4 className="font-medium text-navy mb-1">{t.cooldownHeading}</h4>
+                    <h4 className="font-medium text-navy mb-1">Cooldown</h4>
                     <p className="text-sm text-muted-foreground">
                       {selectedWorkout.workout.cooldown}
                     </p>
@@ -494,7 +520,7 @@ export function AthleteSchedule() {
 
                 {selectedWorkout.workout.notes && (
                   <div>
-                    <h4 className="font-medium text-navy mb-1">{t.notesHeading}</h4>
+                    <h4 className="font-medium text-navy mb-1">Notes</h4>
                     <p className="text-sm text-muted-foreground">
                       {selectedWorkout.workout.notes}
                     </p>
@@ -503,7 +529,7 @@ export function AthleteSchedule() {
 
                 {selectedWorkout.athleteNotes && (
                   <div className="pt-4 border-t border-border">
-                    <h4 className="font-medium text-navy mb-1">{t.yourNotesHeading}</h4>
+                    <h4 className="font-medium text-navy mb-1">Your Notes</h4>
                     <p className="text-sm text-muted-foreground">
                       {selectedWorkout.athleteNotes}
                     </p>
@@ -512,7 +538,7 @@ export function AthleteSchedule() {
 
                 {selectedWorkout.coachFeedback && (
                   <div className="p-3 rounded-lg bg-gold/10 border border-gold/20">
-                    <h4 className="font-medium text-navy mb-1">{t.coachFeedbackHeading}</h4>
+                    <h4 className="font-medium text-navy mb-1">Coach Feedback</h4>
                     <p className="text-sm text-foreground">
                       {selectedWorkout.coachFeedback}
                     </p>

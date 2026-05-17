@@ -33,7 +33,6 @@ import { db } from '@/lib/firebase'
 import type { AthleteProfile } from '@/lib/types'
 import { useAuth } from '@/contexts/auth-context'
 import { isCoachEmail } from '@/lib/constants'
-import { useLanguage } from '@/contexts/language-context'
 import {
   Dialog,
   DialogContent,
@@ -63,7 +62,6 @@ import {
 import { exportAthleteToExcel } from '@/lib/export-athlete'
 
 export function AthleteRoster() {
-  const { t } = useLanguage()
   const { user } = useAuth()
   const isCoach = isCoachEmail(user?.email)
 
@@ -277,9 +275,9 @@ export function AthleteRoster() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl md:text-3xl font-serif font-bold text-navy">{t.athletesTitle}</h1>
+          <h1 className="text-2xl md:text-3xl font-serif font-bold text-navy">Athletes</h1>
           <p className="text-muted-foreground">
-            {t.athletesSubtitle}
+            Manage your roster and view athlete profiles
           </p>
         </div>
         {isCoach && (
@@ -294,7 +292,7 @@ export function AthleteRoster() {
             ) : (
               <Download className="h-4 w-4 mr-2" />
             )}
-            {exporting ? (exportProgress || t.generatingDots) : t.exportAllAthletes}
+            {exporting ? (exportProgress || 'Generating…') : 'Export all athletes'}
           </Button>
         )}
       </div>
@@ -303,7 +301,7 @@ export function AthleteRoster() {
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder={t.searchAthletesEventsPh}
+          placeholder="Search athletes or events..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="pl-10"
@@ -351,7 +349,7 @@ export function AthleteRoster() {
                       <p className="text-lg font-bold text-navy">
                         {athlete.personalRecords.length}
                       </p>
-                      <p className="text-xs text-muted-foreground">{t.tabPRs}</p>
+                      <p className="text-xs text-muted-foreground">PRs</p>
                     </div>
                     <div className="text-center">
                       <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
@@ -360,7 +358,7 @@ export function AthleteRoster() {
                       <p className="text-lg font-bold text-navy">
                         {athlete.goals.filter((g) => g.status === 'active').length}
                       </p>
-                      <p className="text-xs text-muted-foreground">{t.tabGoals}</p>
+                      <p className="text-xs text-muted-foreground">Goals</p>
                     </div>
                     <div className="text-center">
                       <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
@@ -369,13 +367,13 @@ export function AthleteRoster() {
                       <p className="text-lg font-bold text-navy">
                         {athlete.trainingPaces.length}
                       </p>
-                      <p className="text-xs text-muted-foreground">{t.tabPaces}</p>
+                      <p className="text-xs text-muted-foreground">Paces</p>
                     </div>
                   </div>
 
                   <Link href={`/coach/athletes/${athlete.id}`} className="block">
                     <Button variant="ghost" className="w-full mt-4 text-gold hover:text-gold/80">
-                      {t.viewProfileBtn}
+                      View Profile
                       <ChevronRight className="h-4 w-4 ml-1" />
                     </Button>
                   </Link>
@@ -389,8 +387,8 @@ export function AthleteRoster() {
                         disabled={exportingAthleteId === athlete.id}
                         aria-label={
                           exportingAthleteId === athlete.id
-                            ? `${t.exportingAria} ${athlete.name}`
-                            : `${t.exportAria} ${athlete.name}`
+                            ? `Exporting ${athlete.name} to Excel`
+                            : `Export ${athlete.name} to Excel`
                         }
                         className="w-full mt-2 border-gold/40 text-navy hover:border-gold"
                       >
@@ -399,7 +397,7 @@ export function AthleteRoster() {
                         ) : (
                           <Download className="h-3.5 w-3.5 mr-1" />
                         )}
-                        {exportingAthleteId === athlete.id ? t.exportingDots : t.exportToExcel}
+                        {exportingAthleteId === athlete.id ? 'Exporting…' : 'Export to Excel'}
                       </Button>
                       <div className="grid grid-cols-2 gap-2 mt-2">
                         <Button
@@ -408,7 +406,7 @@ export function AthleteRoster() {
                           onClick={() => openEdit(athlete)}
                         >
                           <Pencil className="h-3.5 w-3.5 mr-1" />
-                          {t.editBtn}
+                          Edit
                         </Button>
                         <Button
                           variant="outline"
@@ -417,7 +415,7 @@ export function AthleteRoster() {
                           onClick={() => setDeleteId(athlete.id)}
                         >
                           <Trash2 className="h-3.5 w-3.5 mr-1" />
-                          {t.removeBtn}
+                          Remove
                         </Button>
                       </div>
                     </>
@@ -432,8 +430,8 @@ export function AthleteRoster() {
               <CardContent className="py-12 text-center">
                 <p className="text-muted-foreground">
                   {athletes.length === 0
-                    ? t.noAthletesSignedUp
-                    : t.noAthletesMatching}
+                    ? 'No athletes have signed up yet.'
+                    : 'No athletes found matching your search.'}
                 </p>
               </CardContent>
             </Card>
@@ -445,11 +443,11 @@ export function AthleteRoster() {
       <Dialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t.editAthleteTitle}</DialogTitle>
+            <DialogTitle>Edit athlete</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="edit-name">{t.nameLabel}</Label>
+              <Label htmlFor="edit-name">Name</Label>
               <Input
                 id="edit-name"
                 value={editName}
@@ -457,7 +455,7 @@ export function AthleteRoster() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-email">{t.emailLabel}</Label>
+              <Label htmlFor="edit-email">Email</Label>
               <Input
                 id="edit-email"
                 type="email"
@@ -468,14 +466,14 @@ export function AthleteRoster() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditing(null)} disabled={saving}>
-              {t.cancel}
+              Cancel
             </Button>
             <Button
               onClick={handleSave}
               disabled={saving}
               className="bg-gold hover:bg-gold/90 text-navy"
             >
-              {saving ? t.savingDots : t.save}
+              {saving ? 'Saving…' : 'Save'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -488,19 +486,20 @@ export function AthleteRoster() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t.removeAthleteTitle}</AlertDialogTitle>
+            <AlertDialogTitle>Remove this athlete?</AlertDialogTitle>
             <AlertDialogDescription>
-              {t.removeAthleteDesc}
+              This permanently deletes the athlete from the team in Firestore.
+              Their profile and goals will be lost.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>{t.cancel}</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleting ? t.removingDots : t.removeBtn}
+              {deleting ? 'Removing…' : 'Remove'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

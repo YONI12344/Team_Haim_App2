@@ -10,7 +10,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Loader2, RefreshCw, Save, ExternalLink, Copy, Check } from 'lucide-react'
 import { db } from '@/lib/firebase'
-import { useLanguage } from '@/contexts/language-context'
 
 const SETTINGS_DOC_PATH = 'settings/googleSheets'
 const SERVICE_ACCOUNT_EMAIL = 'team-haim-sheets@teamhaim.iam.gserviceaccount.com'
@@ -21,13 +20,12 @@ interface GoogleSheetsSettings {
   lastSyncAthleteId?: string
 }
 
-function formatDate(d: Date | null, neverLabel: string): string {
-  if (!d) return neverLabel
+function formatDate(d: Date | null): string {
+  if (!d) return 'Never'
   return d.toLocaleString()
 }
 
 export function CoachSettings() {
-  const { t } = useLanguage()
   const [sheetId, setSheetId] = useState('')
   const [lastSync, setLastSync] = useState<Date | null>(null)
   const [loading, setLoading] = useState(true)
@@ -137,33 +135,36 @@ export function CoachSettings() {
   return (
     <div className="container mx-auto p-6 space-y-6 max-w-3xl">
       <div>
-        <h1 className="text-3xl font-serif font-semibold text-navy">{t.settingsTitle}</h1>
+        <h1 className="text-3xl font-serif font-semibold text-navy">Settings</h1>
         <p className="text-muted-foreground mt-1">
-          {t.settingsSubtitle}
+          Configure Google Sheets auto sync for the team.
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>{t.googleSheetsAutoSync}</CardTitle>
+          <CardTitle>Google Sheets Auto Sync</CardTitle>
           <CardDescription>
-            {t.googleSheetsDescription}
+            Connect a master Google Sheet to automatically sync workouts, logs,
+            profiles, and goals. Each athlete gets their own tab.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-3">
-            <p className="text-sm font-medium text-foreground">{t.beforeYouStart}</p>
+            <p className="text-sm font-medium text-foreground">Before you start</p>
             <ol className="text-sm text-muted-foreground list-decimal pl-5 space-y-1">
-              <li>{t.sheetsStepCreate}</li>
+              <li>Create a Google Sheet (or open an existing one).</li>
               <li>
-                {t.sheetsStep1Pre}<strong>{t.sheetsStep1Share}</strong>{t.sheetsStep1Mid}<strong>{t.sheetsStep1Editor}</strong>.
+                Click <strong>Share</strong> and add the service account below as
+                an <strong>Editor</strong>.
               </li>
               <li>
-                {t.sheetsStepCopyId1}
+                Copy the Sheet ID from the URL (the long ID between
                 <code className="mx-1 px-1 rounded bg-background">/d/</code>
-                {t.sheetsStepCopyId2}<code className="mx-1 px-1 rounded bg-background">/edit</code>{t.sheetsStepCopyId3}
+                and <code className="mx-1 px-1 rounded bg-background">/edit</code>)
+                and paste it below.
               </li>
-              <li>{t.sheetsStepClick}<strong>{t.sheetsStep2Save}</strong>{t.sheetsStepThen}<strong>{t.sheetsStep2SyncAll}</strong>.</li>
+              <li>Click <strong>Save</strong>, then <strong>Sync All Now</strong>.</li>
             </ol>
             <div className="flex items-center gap-2 pt-1">
               <code className="flex-1 px-3 py-2 rounded bg-background border border-border text-xs sm:text-sm break-all">
@@ -177,11 +178,11 @@ export function CoachSettings() {
               >
                 {copied ? (
                   <>
-                    <Check className="h-4 w-4 mr-1" /> {t.copiedBtn}
+                    <Check className="h-4 w-4 mr-1" /> Copied
                   </>
                 ) : (
                   <>
-                    <Copy className="h-4 w-4 mr-1" /> {t.copyBtn}
+                    <Copy className="h-4 w-4 mr-1" /> Copy
                   </>
                 )}
               </Button>
@@ -189,7 +190,7 @@ export function CoachSettings() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="sheet-id">{t.masterSheetId}</Label>
+            <Label htmlFor="sheet-id">Master Google Sheet ID</Label>
             <Input
               id="sheet-id"
               placeholder="1AbCdEf...XyZ"
@@ -206,7 +207,7 @@ export function CoachSettings() {
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-sm text-gold hover:underline"
               >
-                {t.openSheet} <ExternalLink className="h-3 w-3" />
+                Open sheet <ExternalLink className="h-3 w-3" />
               </a>
             )}
           </div>
@@ -218,7 +219,7 @@ export function CoachSettings() {
               ) : (
                 <Save className="h-4 w-4 mr-2" />
               )}
-              {t.save}
+              Save
             </Button>
             <Button
               variant="outline"
@@ -230,12 +231,12 @@ export function CoachSettings() {
               ) : (
                 <RefreshCw className="h-4 w-4 mr-2" />
               )}
-              {t.syncAllNowBtn}
+              Sync All Now
             </Button>
           </div>
 
           <div className="text-sm text-muted-foreground">
-            {t.lastSyncLabel}: <span className="text-foreground">{formatDate(lastSync, t.neverLabel)}</span>
+            Last sync: <span className="text-foreground">{formatDate(lastSync)}</span>
           </div>
         </CardContent>
       </Card>

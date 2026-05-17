@@ -28,9 +28,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/auth-context'
-import { useLanguage } from '@/contexts/language-context'
 import { isCoachEmail } from '@/lib/constants'
-import { workoutTypeColors, useWorkoutTypeLabels } from '@/lib/workout-labels'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,10 +41,38 @@ import {
 } from '@/components/ui/alert-dialog'
 import { toast } from 'sonner'
 
+const workoutTypeColors: Record<WorkoutType, string> = {
+  easy: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  long_run: 'bg-blue-100 text-blue-700 border-blue-200',
+  tempo: 'bg-amber-100 text-amber-700 border-amber-200',
+  intervals: 'bg-red-100 text-red-700 border-red-200',
+  hill_repeats: 'bg-orange-100 text-orange-700 border-orange-200',
+  fartlek: 'bg-purple-100 text-purple-700 border-purple-200',
+  recovery: 'bg-teal-100 text-teal-700 border-teal-200',
+  strength: 'bg-slate-100 text-slate-700 border-slate-200',
+  cross_training: 'bg-cyan-100 text-cyan-700 border-cyan-200',
+  rest: 'bg-gray-100 text-gray-600 border-gray-200',
+  race: 'bg-gold/20 text-gold border-gold/30',
+  time_trial: 'bg-rose-100 text-rose-700 border-rose-200',
+}
+
+const workoutTypeLabels: Record<WorkoutType, string> = {
+  easy: 'Easy',
+  long_run: 'Long Run',
+  tempo: 'Tempo',
+  intervals: 'Intervals',
+  hill_repeats: 'Hills',
+  fartlek: 'Fartlek',
+  recovery: 'Recovery',
+  strength: 'Strength',
+  cross_training: 'Cross Train',
+  rest: 'Rest',
+  race: 'Race',
+  time_trial: 'Time Trial',
+}
+
 export function WorkoutLibrary() {
   const { user } = useAuth()
-  const { t } = useLanguage()
-  const workoutTypeLabels = useWorkoutTypeLabels()
   const isCoach = isCoachEmail(user?.email)
 
   const [searchQuery, setSearchQuery] = useState('')
@@ -120,17 +146,17 @@ export function WorkoutLibrary() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl md:text-3xl font-serif font-bold text-navy">
-            {t.workoutLibraryCardTitle}
+            Workout Library
           </h1>
           <p className="text-muted-foreground">
-            {t.workoutLibrarySubtitle}
+            Create and manage your workout templates
           </p>
         </div>
         {isCoach && (
           <Link href="/coach/workouts/new">
             <Button className="bg-gold hover:bg-gold/90 text-navy">
               <Plus className="h-4 w-4 mr-2" />
-              {t.createWorkoutAction}
+              Create Workout
             </Button>
           </Link>
         )}
@@ -141,7 +167,7 @@ export function WorkoutLibrary() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder={t.searchWorkoutsPh}
+            placeholder="Search workouts..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"
@@ -156,7 +182,7 @@ export function WorkoutLibrary() {
               onClick={() => setTypeFilter(type)}
               className={cn(type === typeFilter && 'bg-gold/10 border-gold text-gold')}
             >
-              {type === 'all' ? t.all : workoutTypeLabels[type]}
+              {type === 'all' ? 'All' : workoutTypeLabels[type]}
             </Button>
           ))}
         </div>
@@ -184,7 +210,7 @@ export function WorkoutLibrary() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8"
-                            aria-label={t.editWorkoutAria}
+                            aria-label="Edit workout"
                           >
                             <Pencil className="h-4 w-4 text-muted-foreground" />
                           </Button>
@@ -194,7 +220,7 @@ export function WorkoutLibrary() {
                           size="icon"
                           className="h-8 w-8 text-destructive hover:text-destructive"
                           onClick={() => setDeleteId(workout.id)}
-                          aria-label={t.deleteWorkoutAria}
+                          aria-label="Delete workout"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -214,13 +240,13 @@ export function WorkoutLibrary() {
                     {workout.duration && (
                       <span className="flex items-center gap-1">
                         <Clock className="h-4 w-4" />
-                        {workout.duration} {t.min}
+                        {workout.duration} min
                       </span>
                     )}
                     {workout.distance && (
                       <span className="flex items-center gap-1">
                         <Activity className="h-4 w-4" />
-                        {workout.distance} {t.km}
+                        {workout.distance} km
                       </span>
                     )}
                   </div>
@@ -241,7 +267,7 @@ export function WorkoutLibrary() {
 
                   <Link href={`/coach/workouts/${workout.id}/assign`}>
                     <Button variant="outline" className="w-full text-gold hover:text-gold/80">
-                      {t.assignToAthleteBtn}
+                      Assign to Athlete
                       <ChevronRight className="h-4 w-4 ml-1" />
                     </Button>
                   </Link>
@@ -255,8 +281,8 @@ export function WorkoutLibrary() {
               <CardContent className="py-12 text-center">
                 <p className="text-muted-foreground">
                   {workouts.length === 0
-                    ? t.noWorkoutsYet
-                    : t.noWorkoutsMatching}
+                    ? 'No workouts yet — create your first one.'
+                    : 'No workouts found matching your search.'}
                 </p>
               </CardContent>
             </Card>
@@ -271,19 +297,21 @@ export function WorkoutLibrary() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t.deleteWorkoutTitle}</AlertDialogTitle>
+            <AlertDialogTitle>Delete this workout?</AlertDialogTitle>
             <AlertDialogDescription>
-              {t.deleteWorkoutDesc}
+              This permanently removes the workout template from Firestore.
+              Existing assigned workouts that referenced it will keep their
+              embedded copy.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>{t.cancel}</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleting ? t.deletingDots : t.deleteBtn}
+              {deleting ? 'Deleting…' : 'Delete'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

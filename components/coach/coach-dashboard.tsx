@@ -20,8 +20,6 @@ import Link from 'next/link'
 import { collection, getDocs, query, where, orderBy, limit, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import type { AthleteProfile, Workout, AssignedWorkout } from '@/lib/types'
-import { useLanguage } from '@/contexts/language-context'
-import { useWorkoutTypeLabels } from '@/lib/workout-labels'
 
 function mapDocToAthlete(d: QueryDocumentSnapshot<DocumentData>): AthleteProfile {
   const data = d.data()
@@ -47,8 +45,6 @@ function mapDocToAthlete(d: QueryDocumentSnapshot<DocumentData>): AthleteProfile
 }
 
 export function CoachDashboard() {
-  const { t } = useLanguage()
-  const workoutTypeLabels = useWorkoutTypeLabels()
   const [athletes, setAthletes] = useState<AthleteProfile[]>([])
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [assignedWorkouts, setAssignedWorkouts] = useState<AssignedWorkout[]>([])
@@ -137,7 +133,7 @@ export function CoachDashboard() {
       {/* Header */}
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl md:text-3xl font-serif font-bold text-navy">
-          {t.coachDashboardTitle}
+          Coach Dashboard
         </h1>
         <p className="text-muted-foreground">
           {format(new Date(), 'EEEE, MMMM d, yyyy')}
@@ -154,7 +150,7 @@ export function CoachDashboard() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-navy">{athletes.length}</p>
-                <p className="text-xs text-muted-foreground">{t.athletesStat}</p>
+                <p className="text-xs text-muted-foreground">Athletes</p>
               </div>
             </div>
           </CardContent>
@@ -168,7 +164,7 @@ export function CoachDashboard() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-navy">{workouts.length}</p>
-                <p className="text-xs text-muted-foreground">{t.workoutLibraryStat}</p>
+                <p className="text-xs text-muted-foreground">Workout Library</p>
               </div>
             </div>
           </CardContent>
@@ -182,7 +178,7 @@ export function CoachDashboard() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-navy">{completedToday}</p>
-                <p className="text-xs text-muted-foreground">{t.completedToday}</p>
+                <p className="text-xs text-muted-foreground">Completed Today</p>
               </div>
             </div>
           </CardContent>
@@ -196,7 +192,7 @@ export function CoachDashboard() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-navy">{pendingToday}</p>
-                <p className="text-xs text-muted-foreground">{t.pendingToday}</p>
+                <p className="text-xs text-muted-foreground">Pending Today</p>
               </div>
             </div>
           </CardContent>
@@ -208,10 +204,10 @@ export function CoachDashboard() {
         {/* Athletes Quick View */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-lg font-medium">{t.athletesStat}</CardTitle>
+            <CardTitle className="text-lg font-medium">Athletes</CardTitle>
             <Link href="/coach/athletes">
               <Button variant="ghost" size="sm" className="text-gold hover:text-gold/80">
-                {t.viewAll}
+                View All
                 <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             </Link>
@@ -240,7 +236,7 @@ export function CoachDashboard() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="text-xs">
-                      {athlete.personalRecords.length} {t.tabPRs}
+                      {athlete.personalRecords.length} PRs
                     </Badge>
                     <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   </div>
@@ -253,7 +249,7 @@ export function CoachDashboard() {
         {/* Today's Schedule */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-lg font-medium">{t.todaysWorkoutsCard}</CardTitle>
+            <CardTitle className="text-lg font-medium">{"Today's Workouts"}</CardTitle>
           </CardHeader>
           <CardContent>
             {todaysWorkouts.length > 0 ? (
@@ -288,7 +284,7 @@ export function CoachDashboard() {
                             : 'bg-amber-100 text-amber-700 border-amber-200'
                         }
                       >
-                        {workout.status === 'completed' ? t.doneBadge : t.pendingBadge}
+                        {workout.status === 'completed' ? 'Done' : 'Pending'}
                       </Badge>
                     </div>
                   )
@@ -296,7 +292,7 @@ export function CoachDashboard() {
               </div>
             ) : (
               <p className="text-center text-muted-foreground py-8">
-                {t.noWorkoutsToday}
+                No workouts scheduled for today
               </p>
             )}
           </CardContent>
@@ -305,32 +301,32 @@ export function CoachDashboard() {
         {/* Quick Actions */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg font-medium">{t.quickActions}</CardTitle>
+            <CardTitle className="text-lg font-medium">Quick Actions</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-3">
               <Link href="/coach/workouts/new">
                 <Button variant="outline" className="w-full h-auto py-4 flex-col gap-2">
                   <Dumbbell className="h-5 w-5 text-gold" />
-                  <span className="text-sm">{t.createWorkoutAction}</span>
+                  <span className="text-sm">Create Workout</span>
                 </Button>
               </Link>
               <Link href="/coach/athletes">
                 <Button variant="outline" className="w-full h-auto py-4 flex-col gap-2">
                   <Users className="h-5 w-5 text-gold" />
-                  <span className="text-sm">{t.manageAthletesAction}</span>
+                  <span className="text-sm">Manage Athletes</span>
                 </Button>
               </Link>
               <Link href="/coach/chat">
                 <Button variant="outline" className="w-full h-auto py-4 flex-col gap-2">
                   <MessageCircle className="h-5 w-5 text-gold" />
-                  <span className="text-sm">{t.messagesAction}</span>
+                  <span className="text-sm">Messages</span>
                 </Button>
               </Link>
               <Link href="/coach/athletes">
                 <Button variant="outline" className="w-full h-auto py-4 flex-col gap-2">
                   <TrendingUp className="h-5 w-5 text-gold" />
-                  <span className="text-sm">{t.viewProgressAction}</span>
+                  <span className="text-sm">View Progress</span>
                 </Button>
               </Link>
             </div>
@@ -340,10 +336,10 @@ export function CoachDashboard() {
         {/* Recent Workout Library */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-lg font-medium">{t.workoutLibraryCardTitle}</CardTitle>
+            <CardTitle className="text-lg font-medium">Workout Library</CardTitle>
             <Link href="/coach/workouts">
               <Button variant="ghost" size="sm" className="text-gold hover:text-gold/80">
-                {t.viewAll}
+                View All
                 <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             </Link>
@@ -357,9 +353,9 @@ export function CoachDashboard() {
                 >
                   <div>
                     <p className="font-medium text-navy text-sm">{workout.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {workoutTypeLabels[workout.type] || workout.type}
-                      {workout.duration && ` - ${workout.duration} ${t.min}`}
+                    <p className="text-xs text-muted-foreground capitalize">
+                      {workout.type.replace('_', ' ')}
+                      {workout.duration && ` - ${workout.duration} min`}
                     </p>
                   </div>
                 </div>

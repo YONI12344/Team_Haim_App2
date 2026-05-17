@@ -8,7 +8,6 @@ import { conversationId } from '@/lib/coach'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { Loader2 } from 'lucide-react'
-import { useLanguage } from '@/contexts/language-context'
 
 interface AthleteSummary {
   id: string
@@ -23,7 +22,6 @@ export default function CoachAthleteChat({
 }) {
   const { athleteId } = use(params)
   const { user } = useAuth()
-  const { t } = useLanguage()
   const [athlete, setAthlete] = useState<AthleteSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
@@ -66,7 +64,7 @@ export default function CoachAthleteChat({
     return (
       <CoachLayout>
         <div className="flex items-center justify-center h-96">
-          <p className="text-muted-foreground">{t.athleteNotFound}</p>
+          <p className="text-muted-foreground">Athlete not found</p>
         </div>
       </CoachLayout>
     )
