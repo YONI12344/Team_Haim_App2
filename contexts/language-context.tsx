@@ -300,6 +300,9 @@ interface Translations {
   // Stats
   km: string
   min: string
+  perWeekSuffix: string
+  metersAbbr: string
+  hoursAbbr: string
   completed: string
   scheduled: string
 
@@ -847,6 +850,9 @@ const translations: Record<Language, Translations> = {
     
     km: 'km',
     min: 'min',
+    perWeekSuffix: '/wk',
+    metersAbbr: 'm',
+    hoursAbbr: 'h',
     completed: 'Completed',
     scheduled: 'Scheduled',
 
@@ -1380,6 +1386,9 @@ const translations: Record<Language, Translations> = {
     
     km: 'ק"מ',
     min: 'דק',
+    perWeekSuffix: ' / שבוע',
+    metersAbbr: 'מ\'',
+    hoursAbbr: ' שעות',
     completed: 'הושלם',
     scheduled: 'מתוכנן',
 

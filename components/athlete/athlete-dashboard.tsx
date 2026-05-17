@@ -426,7 +426,7 @@ export function AthleteDashboard() {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-navy">
-                        {Math.round(totalDurationMin / 60)}h
+                        {Math.round(totalDurationMin / 60)}{t.hoursAbbr}
                       </p>
                       <p className="text-xs text-muted-foreground">{t.totalTimeLabel}</p>
                     </div>

@@ -161,7 +161,7 @@ export function JourneyTimeline({ journey, renderStageActions, className }: Prop
                         </div>
                         <p className="mt-1 text-xs text-muted-foreground">
                           {fmt(stage.startDate)} → {fmt(stage.endDate)}
-                          {stage.weeklyVolumeKm ? ` · ~${stage.weeklyVolumeKm} ${t.km}/wk` : ''}
+                          {stage.weeklyVolumeKm ? ` · ~${stage.weeklyVolumeKm} ${t.km}${t.perWeekSuffix}` : ''}
                         </p>
                       </div>
                       {renderStageActions && (

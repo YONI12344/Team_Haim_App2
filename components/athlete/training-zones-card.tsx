@@ -182,7 +182,7 @@ export function TrainingZonesCard({
                     <p>
                       {t.zonesFormulaIntro}{' '}
                       ({reference?.event} — {reference?.time},{' '}
-                      {zones.reference.distanceMeters} m)
+                      {zones.reference.distanceMeters} {t.metersAbbr})
                     </p>
                     <p className="font-mono">
                       %VO2max(t) = 0.8 + 0.1894393·e^(-0.012778·t) + 0.2989558·e^(-0.1932605·t)
