@@ -2,6 +2,11 @@
 
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -77,6 +82,9 @@ export function AthletePlanner({ athleteId }: Props) {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null)
   const [assigning, setAssigning] = useState(false)
+  const [showCreateWorkout, setShowCreateWorkout] = useState(false)
+  const [creatingWorkout, setCreatingWorkout] = useState(false)
+  const [newWO, setNewWO] = useState({ title: '', type: 'easy' as WorkoutType, distance: '', duration: '', description: '', notes: '' })
 
   // ── Load athlete + journey + workout library ──────────────────────────────
   useEffect(() => {
@@ -194,6 +202,35 @@ export function AthletePlanner({ athleteId }: Props) {
   }, [assignedWorkouts])
 
   // ── Assign ────────────────────────────────────────────────────────────────
+  const handleCreateWorkout = async () => {
+    if (!newWO.title.trim()) return
+    setCreatingWorkout(true)
+    try {
+      const ref = await addDoc(collection(db, 'workouts'), {
+        title: newWO.title.trim(), type: newWO.type,
+        description: newWO.description.trim(),
+        distance: newWO.distance ? Number(newWO.distance) : null,
+        duration: newWO.duration ? Number(newWO.duration) : null,
+        notes: newWO.notes.trim() || null,
+        createdBy: user?.id || null,
+        createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+      })
+      const created: Workout = {
+        id: ref.id, title: newWO.title.trim(), type: newWO.type,
+        description: newWO.description.trim(),
+        distance: newWO.distance ? Number(newWO.distance) : undefined,
+        duration: newWO.duration ? Number(newWO.duration) : undefined,
+        notes: newWO.notes.trim() || undefined,
+        createdBy: user?.id || '', createdAt: new Date(), updatedAt: new Date(),
+      }
+      setWorkoutLibrary(prev => [created, ...prev])
+      setNewWO({ title: '', type: 'easy', distance: '', duration: '', description: '', notes: '' })
+      setShowCreateWorkout(false)
+      toast.success('אימון נוצר בהצלחה!')
+    } catch { toast.error('שגיאה ביצירת אימון') }
+    finally { setCreatingWorkout(false) }
+  }
+
   const handleAssign = async () => {
     if (!selectedWorkout || !selectedDate || !user) return
     setAssigning(true)
@@ -514,13 +551,20 @@ export function AthletePlanner({ athleteId }: Props) {
                               {w.workout.duration ? ` · ${w.workout.duration} min` : ''}
                             </p>
                           </div>
-                          <Button
-                            variant="ghost" size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-destructive flex-shrink-0"
-                            onClick={() => handleRemove(w.id)}
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </Button>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <Link href={`/coach/workouts/${w.workoutId}/edit`}>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-gold">
+                                <span className="text-xs">✏️</span>
+                              </Button>
+                            </Link>
+                            <Button
+                              variant="ghost" size="icon"
+                              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                              onClick={() => handleRemove(w.id)}
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -528,9 +572,24 @@ export function AthletePlanner({ athleteId }: Props) {
 
                   {/* Workout picker */}
                   <div className="space-y-2">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      {selectedDayWorkouts.length > 0 ? 'Add Another' : 'Pick a Workout'}
+
+                      <Button size="sm" variant="outline" className="h-7 text-xs border-gold/40 text-gold hover:bg-gold/10"
+                        onClick={() => setShowCreateWorkout(true)}>
+                        ➕ צור חדש
+                      </Button>
+                    </div>
+
                     </p>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        {selectedDayWorkouts.length > 0 ? 'הוסף עוד' : 'בחר אימון'}
+                      </p>
+                      <Button size="sm" variant="outline"
+                        className="h-7 text-xs border-gold/40 text-gold hover:bg-gold/10"
+                        onClick={() => setShowCreateWorkout(true)}>
+                        ➕ צור חדש
+                      </Button>
+                    </div>
                     <div className="space-y-1.5 max-h-[260px] overflow-y-auto pr-1">
                       {workoutLibrary.map(workout => (
                         <button
@@ -591,6 +650,66 @@ export function AthletePlanner({ athleteId }: Props) {
           </Card>
         </div>
       </div>
+    </div>
+  )
+      {/* Create Workout Dialog */}
+      <Dialog open={showCreateWorkout} onOpenChange={setShowCreateWorkout}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>➕ צור אימון חדש</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-2">
+            <div className="space-y-1">
+              <Label className="text-sm">שם האימון *</Label>
+              <Input placeholder="למשל: ריצה קלה 60 דקות"
+                value={newWO.title} onChange={e => setNewWO(p => ({...p, title: e.target.value}))} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-sm">סוג</Label>
+              <Select value={newWO.type} onValueChange={v => setNewWO(p => ({...p, type: v as WorkoutType}))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="easy">קל</SelectItem>
+                  <SelectItem value="long_run">ריצה ארוכה</SelectItem>
+                  <SelectItem value="tempo">טמפו</SelectItem>
+                  <SelectItem value="intervals">אינטרוולים</SelectItem>
+                  <SelectItem value="hill_repeats">גבעות</SelectItem>
+                  <SelectItem value="fartlek">פארטלק</SelectItem>
+                  <SelectItem value="recovery">התאוששות</SelectItem>
+                  <SelectItem value="strength">כוח</SelectItem>
+                  <SelectItem value="rest">מנוחה</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-sm">מרחק (ק"מ)</Label>
+                <Input type="number" placeholder="10" value={newWO.distance}
+                  onChange={e => setNewWO(p => ({...p, distance: e.target.value}))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-sm">משך (דקות)</Label>
+                <Input type="number" placeholder="60" value={newWO.duration}
+                  onChange={e => setNewWO(p => ({...p, duration: e.target.value}))} />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-sm">תיאור</Label>
+              <Textarea placeholder="תיאור האימון..." className="resize-none h-20"
+                value={newWO.description} onChange={e => setNewWO(p => ({...p, description: e.target.value}))} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-sm">הערות</Label>
+              <Input placeholder="הערות נוספות..." value={newWO.notes}
+                onChange={e => setNewWO(p => ({...p, notes: e.target.value}))} />
+            </div>
+            <Button onClick={handleCreateWorkout} disabled={!newWO.title.trim() || creatingWorkout}
+              className="w-full bg-gold hover:bg-gold/90 text-navy">
+              {creatingWorkout ? <><Loader2 className="h-4 w-4 animate-spin mr-2"/>יוצר...</> : 'צור אימון'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

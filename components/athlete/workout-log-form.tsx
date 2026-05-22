@@ -38,6 +38,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
 
   const [actualDistance, setActualDistance] = useState('')
   const [actualPace, setActualPace] = useState('')
@@ -152,6 +153,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
         }
       } catch (e) { console.error(e) }
       setSaved(true)
+      setCollapsed(true)
       toast.success(t.toastWorkoutLogged)
     } catch (error) {
       console.error('Error saving workout log:', error)
@@ -159,6 +161,25 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
     } finally {
       setSaving(false)
     }
+  }
+
+  if (collapsed) {
+    return (
+      <div className="mt-4 pt-4 border-t border-border">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-emerald-600 flex-wrap">
+            <CheckCircle2 className="h-4 w-4" />
+            <span className="text-sm font-medium">{t.loggedBadge}</span>
+            {effort != null && <span className="text-xs text-muted-foreground ml-1">מאמץ {effort}/10</span>}
+            {actualDistance && <span className="text-xs text-muted-foreground ml-1">· {actualDistance} ק"מ</span>}
+          </div>
+          <Button size="sm" variant="ghost" className="text-xs h-7 text-muted-foreground"
+            onClick={() => setCollapsed(false)}>
+            ✏️ ערוך
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   if (loading) {
