@@ -643,8 +643,7 @@ export function AthletePlanner({ athleteId }: Props) {
           </Card>
         </div>
       </div>
-    </div>
-  )
+
       {/* Create Workout Dialog */}
       <Dialog open={showCreateWorkout} onOpenChange={setShowCreateWorkout}>
         <DialogContent className="max-w-md">
