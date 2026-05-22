@@ -54,6 +54,8 @@ import type {
   Goal,
   Discipline,
   ExperienceLevel,
+  TrainingDayType,
+  WeekSchedule,
 } from '@/lib/types'
 import { legacyEffortToNumber } from '@/lib/types'
 import {
@@ -136,6 +138,10 @@ interface ProfileForm {
   goalRaceEvent: string
   goalRaceDate: string
   goalRaceTarget: string
+  weekSchedule: WeekSchedule
+  weeklyKmMin: string
+  weeklyKmMax: string
+  offWeekInterval: string
 }
 
 interface GoalForm {
@@ -144,6 +150,16 @@ interface GoalForm {
   targetTime: string
   targetDate: string
   notes: string
+}
+
+const defaultWeekSchedule: WeekSchedule = {
+  monday: 'rest',
+  tuesday: 'rest',
+  wednesday: 'rest',
+  thursday: 'rest',
+  friday: 'rest',
+  saturday: 'rest',
+  sunday: 'rest',
 }
 
 const disciplineValues: Discipline[] = ['track', 'road', 'jogger', 'trail', 'mixed']
@@ -174,6 +190,7 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
     name: '', dateOfBirth: '', gender: '', height: '', weight: '',
     events: '', discipline: [], experienceLevel: '', weeklyMileage: '',
     restingHR: '', maxHR: '', goalRaceEvent: '', goalRaceDate: '', goalRaceTarget: '',
+    weekSchedule: defaultWeekSchedule, weeklyKmMin: '', weeklyKmMax: '', offWeekInterval: '4',
   })
 
   const [goalForm, setGoalForm] = useState<GoalForm>({
@@ -238,6 +255,10 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
             goalRaceEvent: data.goalRaceEvent || '',
             goalRaceDate: data.goalRaceDate || '',
             goalRaceTarget: data.goalRaceTarget || '',
+            weekSchedule: (data.weekSchedule as WeekSchedule) || defaultWeekSchedule,
+            weeklyKmMin: data.weeklyKmRange?.min ? String(data.weeklyKmRange.min) : '',
+            weeklyKmMax: data.weeklyKmRange?.max ? String(data.weeklyKmRange.max) : '',
+            offWeekInterval: data.offWeekInterval ? String(data.offWeekInterval) : '4',
           })
         } else {
           setAthlete(null)
@@ -362,6 +383,9 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
         goalRaceEvent: profileForm.goalRaceEvent || null,
         goalRaceDate: profileForm.goalRaceDate || null,
         goalRaceTarget: profileForm.goalRaceTarget || null,
+        weekSchedule: profileForm.weekSchedule,
+        weeklyKmRange: profileForm.weeklyKmMin && profileForm.weeklyKmMax ? { min: Number(profileForm.weeklyKmMin), max: Number(profileForm.weeklyKmMax) } : null,
+        offWeekInterval: profileForm.offWeekInterval ? Number(profileForm.offWeekInterval) : null,
         updatedAt: serverTimestamp(),
       }
       await setDoc(doc(db, 'users', athleteId), cleanData(updates), { merge: true })
@@ -589,6 +613,34 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
                   {profileForm.goalRaceDate && <div><p className="text-muted-foreground text-xs mb-1">{t.fieldGoalRaceDate}</p><p className="font-medium text-navy">{format(new Date(profileForm.goalRaceDate), 'MMM d, yyyy')}</p></div>}
                   {profileForm.discipline.length > 0 && <div className="col-span-2 md:col-span-3"><p className="text-muted-foreground text-xs mb-1">{t.fieldDiscipline}</p><div className="flex flex-wrap gap-1">{profileForm.discipline.map(d => <Badge key={d} variant="outline" className="text-navy">{disciplineLabel[d]}</Badge>)}</div></div>}
                   {profileForm.events && <div className="col-span-2 md:col-span-3"><p className="text-muted-foreground text-xs mb-1">{t.fieldEvents}</p><p className="font-medium text-navy">{profileForm.events}</p></div>}
+                  {/* Weekly Schedule */}
+                  <div className="col-span-2 md:col-span-3 pt-3 border-t mt-2">
+                    <p className="text-muted-foreground text-xs mb-2 uppercase tracking-wide font-medium">Weekly Training Schedule</p>
+                    <div className="flex flex-wrap gap-3">
+                      {(['monday','tuesday','wednesday','thursday','friday','saturday','sunday'] as const).map(day => {
+                        const type = profileForm.weekSchedule[day]
+                        const colorMap: Record<string, string> = {
+                          rest: 'bg-muted text-muted-foreground',
+                          off: 'bg-muted text-muted-foreground',
+                          easy: 'bg-emerald-100 text-emerald-700',
+                          workout: 'bg-blue-100 text-blue-700',
+                          long_run: 'bg-orange-100 text-orange-700',
+                        }
+                        return (
+                          <div key={day} className="text-center">
+                            <p className="text-xs text-muted-foreground mb-1 capitalize">{day.slice(0,3)}</p>
+                            <Badge variant="outline" className={cn('text-xs capitalize', colorMap[type] || '')}>{type.replace('_',' ')}</Badge>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    {(profileForm.weeklyKmMin || profileForm.weeklyKmMax) && (
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Weekly target: <span className="font-medium text-navy">{profileForm.weeklyKmMin}–{profileForm.weeklyKmMax} km</span>
+                        {profileForm.offWeekInterval && <span className="ml-2 text-xs">(recovery every {profileForm.offWeekInterval} weeks)</span>}
+                      </p>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2">
@@ -640,6 +692,30 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
                     <Label>{t.fieldEvents}</Label>
                     <Input placeholder={t.placeholderEvents} value={profileForm.events} onChange={(e) => setProfileForm({...profileForm, events: e.target.value})} />
                   </div>
+                  {/* Weekly Schedule Edit */}
+                  <div className="space-y-3 md:col-span-2">
+                    <Label>Weekly Training Schedule</Label>
+                    <div className="grid grid-cols-7 gap-1">
+                      {(['monday','tuesday','wednesday','thursday','friday','saturday','sunday'] as const).map(day => (
+                        <div key={day} className="space-y-1">
+                          <p className="text-xs text-muted-foreground text-center capitalize">{day.slice(0,3)}</p>
+                          <Select value={profileForm.weekSchedule[day]} onValueChange={(v) => setProfileForm(f => ({ ...f, weekSchedule: { ...f.weekSchedule, [day]: v as TrainingDayType } }))}>
+                            <SelectTrigger className="h-8 text-xs px-1"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="off">Off</SelectItem>
+                              <SelectItem value="rest">Rest</SelectItem>
+                              <SelectItem value="easy">Easy</SelectItem>
+                              <SelectItem value="workout">Workout</SelectItem>
+                              <SelectItem value="long_run">Long Run</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-2"><Label>Weekly KM Min</Label><Input type="number" placeholder="40" value={profileForm.weeklyKmMin} onChange={(e) => setProfileForm({...profileForm, weeklyKmMin: e.target.value})} /></div>
+                  <div className="space-y-2"><Label>Weekly KM Max</Label><Input type="number" placeholder="60" value={profileForm.weeklyKmMax} onChange={(e) => setProfileForm({...profileForm, weeklyKmMax: e.target.value})} /></div>
+                  <div className="space-y-2"><Label>Off-week every (weeks)</Label><Input type="number" placeholder="4" value={profileForm.offWeekInterval} onChange={(e) => setProfileForm({...profileForm, offWeekInterval: e.target.value})} /></div>
                 </div>
               )}
             </CardContent>
