@@ -1,10 +1,5 @@
-import { AthleteLayout } from '@/components/athlete/athlete-layout'
-import { AthleteSchedule } from '@/components/athlete/athlete-schedule'
+import { AthletePlannerView } from '@/components/athlete/athlete-planner-view'
 
 export default function SchedulePage() {
-  return (
-    <AthleteLayout>
-      <AthleteSchedule />
-    </AthleteLayout>
-  )
+  return <AthletePlannerView />
 }
