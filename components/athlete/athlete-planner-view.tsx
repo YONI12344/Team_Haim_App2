@@ -51,10 +51,9 @@ interface JourneySummary {
   isOffWeek: boolean; goalRaceDate: string; goalRaceEvent: string
 }
 
-interface Props { athleteId: string }
-
-export function AthletePlannerView({ athleteId }: Props) {
-  const { loading: authLoading } = useAuth()
+export function AthletePlannerView() {
+  const { user } = useAuth()
+  const athleteId = user?.id || ''
   const [athlete, setAthlete] = useState<AthleteProfile | null>(null)
   const [journey, setJourney] = useState<JourneySummary | null>(null)
   const [assignedWorkouts, setAssignedWorkouts] = useState<AssignedWorkout[]>([])
@@ -111,7 +110,7 @@ export function AthletePlannerView({ athleteId }: Props) {
     getDocs(query(collection(db, 'assignedWorkouts'), where('athleteId', '==', athleteId)))
       .then(snap => setAssignedWorkouts(snap.docs.map(d => ({ ...(d.data() as AssignedWorkout), id: d.id }))))
       .catch(err => console.error('Error loading workouts:', err))
-  }, [athleteId, authLoading])
+  }, [athleteId])
 
   const calendarWeeks = useMemo(() => {
     const days = eachDayOfInterval({
