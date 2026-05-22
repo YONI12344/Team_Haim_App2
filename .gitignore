@@ -1,0 +1,31 @@
+# v0 sandbox internal files
+__v0_runtime_loader.js
+__v0_devtools.tsx
+__v0_jsx-dev-runtime.ts
+.snowflake/
+.v0-trash/
+.vercel/
+
+# Environment variables
+.env*.local
+
+# Common ignores
+node_modules
+.next/
+.DS_Store
+
+# TypeScript build cache
+*.tsbuildinfo
+
+# Use pnpm; ignore other lockfiles (functions/ uses npm and ships its own lockfile)
+/package-lock.json
+yarn.lock
+
+# Firebase Cloud Functions build output
+functions/lib/
+functions/node_modules/
+
+# Firebase tooling
+.firebase/
+firebase-debug.logfunctions/.env
+functions/.env

@@ -1,0 +1,369 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Calendar } from '@/components/ui/calendar'
+import { ArrowLeft, Clock, Check, Loader2 } from 'lucide-react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
+import { format } from 'date-fns'
+import { cn } from '@/lib/utils'
+import type { AthleteProfile, Workout, WorkoutType } from '@/lib/types'
+import {
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  serverTimestamp,
+  where,
+} from 'firebase/firestore'
+import { db } from '@/lib/firebase'
+import { useAuth } from '@/contexts/auth-context'
+import { isCoachEmail } from '@/lib/constants'
+import { workoutTypeColors, useWorkoutTypeLabels } from '@/lib/workout-labels'
+import { useLanguage } from '@/contexts/language-context'
+
+interface WorkoutAssignProps {
+  workoutId?: string
+  athleteId?: string
+}
+
+export function WorkoutAssign({ workoutId, athleteId }: WorkoutAssignProps) {
+  const { t } = useLanguage()
+  const router = useRouter()
+  const { user } = useAuth()
+  const workoutTypeLabels = useWorkoutTypeLabels()
+  const isCoach = isCoachEmail(user?.email)
+
+  const [athletes, setAthletes] = useState<AthleteProfile[]>([])
+  const [workouts, setWorkouts] = useState<Workout[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null)
+  const [selectedAthletes, setSelectedAthletes] = useState<string[]>(
+    athleteId ? [athleteId] : [],
+  )
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true)
+      try {
+        const [aSnap, wSnap] = await Promise.all([
+          getDocs(query(collection(db, 'users'), where('role', '==', 'athlete'))),
+          getDocs(collection(db, 'workouts')),
+        ])
+
+        const loadedAthletes: AthleteProfile[] = aSnap.docs.map((d) => {
+          const data = d.data()
+          return {
+            id: d.id,
+            userId: data.userId || d.id,
+            name: data.name || data.email || 'Athlete',
+            email: data.email || '',
+            photoURL: data.photoURL,
+            dateOfBirth: data.dateOfBirth,
+            gender: data.gender,
+            height: data.height,
+            weight: data.weight,
+            events: Array.isArray(data.events) ? data.events : [],
+            personalRecords: Array.isArray(data.personalRecords) ? data.personalRecords : [],
+            seasonBests: Array.isArray(data.seasonBests) ? data.seasonBests : [],
+            trainingPaces: Array.isArray(data.trainingPaces) ? data.trainingPaces : [],
+            goals: Array.isArray(data.goals) ? data.goals : [],
+            coachId: data.coachId,
+            createdAt: data.createdAt?.toDate?.() || new Date(),
+            updatedAt: data.updatedAt?.toDate?.() || new Date(),
+          }
+        })
+        setAthletes(loadedAthletes)
+
+        const loadedWorkouts: Workout[] = wSnap.docs.map((d) => ({
+          ...(d.data() as Workout),
+          id: d.id,
+        }))
+        setWorkouts(loadedWorkouts)
+
+        if (workoutId) {
+          // Try to find from list, else fetch directly
+          const found = loadedWorkouts.find((w) => w.id === workoutId)
+          if (found) {
+            setSelectedWorkout(found)
+          } else {
+            const wDoc = await getDoc(doc(db, 'workouts', workoutId))
+            if (wDoc.exists()) {
+              setSelectedWorkout({ ...(wDoc.data() as Workout), id: wDoc.id })
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error loading data for assign:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [workoutId])
+
+  const getInitials = (name: string) =>
+    name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2) || '?'
+
+  const toggleAthlete = (id: string) => {
+    setSelectedAthletes((prev) =>
+      prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id],
+    )
+  }
+
+  const handleAssign = async () => {
+    if (!isCoach) {
+      toast.error('Only the coach account can assign workouts')
+      return
+    }
+    if (!selectedWorkout) {
+      toast.error('Please select a workout')
+      return
+    }
+    if (selectedAthletes.length === 0) {
+      toast.error('Please select at least one athlete')
+      return
+    }
+    if (!selectedDate) {
+      toast.error('Please select a date')
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      const scheduledDate = format(selectedDate, 'yyyy-MM-dd')
+      await Promise.all(
+        selectedAthletes.map((aid) =>
+          addDoc(collection(db, 'assignedWorkouts'), {
+            workoutId: selectedWorkout.id,
+            workout: selectedWorkout,
+            athleteId: aid,
+            assignedBy: user?.id || null,
+            scheduledDate,
+            status: 'scheduled',
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          }),
+        ),
+      )
+      toast.success(`Workout assigned to ${selectedAthletes.length} athlete(s)!`)
+      router.push('/coach/athletes')
+    } catch (err) {
+      console.error('Error assigning workout:', err)
+      toast.error('Failed to assign workout')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-gold" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Back Button */}
+      <Link href="/coach/workouts">
+        <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          {t.backBtn}
+        </Button>
+      </Link>
+
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl md:text-3xl font-serif font-bold text-navy">
+          {t.assignWorkoutTitle}
+        </h1>
+        <p className="text-muted-foreground">
+          {t.assignWorkoutSubtitle}
+        </p>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Select Workout */}
+        <Card>
+          <CardHeader>
+            <CardTitle>{t.selectWorkoutTitle}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {workouts.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-6 text-center">
+                {t.noWorkoutsInLibrary}
+              </p>
+            ) : (
+              <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+                {workouts.map((workout) => (
+                  <button
+                    key={workout.id}
+                    onClick={() => setSelectedWorkout(workout)}
+                    className={cn(
+                      'w-full p-4 rounded-lg border text-left transition-luxury',
+                      selectedWorkout?.id === workout.id
+                        ? 'border-gold bg-gold/5'
+                        : 'border-border hover:bg-muted/50',
+                    )}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-medium text-navy">{workout.title}</span>
+                          {selectedWorkout?.id === workout.id && (
+                            <Check className="h-4 w-4 text-gold" />
+                          )}
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className={cn('text-xs', workoutTypeColors[workout.type])}
+                        >
+                          {workoutTypeLabels[workout.type]}
+                        </Badge>
+                      </div>
+                      <div className="text-right text-sm text-muted-foreground">
+                        {workout.duration && (
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3.5 w-3.5" />
+                            {workout.duration} {t.min}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Select Athletes */}
+        <Card>
+          <CardHeader>
+            <CardTitle>{t.selectAthletesTitle}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {athletes.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-6 text-center">
+                {t.noAthletesSignedUp}
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {athletes.map((athlete) => (
+                  <button
+                    key={athlete.id}
+                    onClick={() => toggleAthlete(athlete.id)}
+                    className={cn(
+                      'w-full p-4 rounded-lg border text-left transition-luxury',
+                      selectedAthletes.includes(athlete.id)
+                        ? 'border-gold bg-gold/5'
+                        : 'border-border hover:bg-muted/50',
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={athlete.photoURL} alt={athlete.name} />
+                        <AvatarFallback className="bg-gold/10 text-gold">
+                          {getInitials(athlete.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <p className="font-medium text-navy">{athlete.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {athlete.events.slice(0, 2).join(', ') || athlete.email}
+                        </p>
+                      </div>
+                      {selectedAthletes.includes(athlete.id) && (
+                        <Check className="h-5 w-5 text-gold" />
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Select Date */}
+        <Card>
+          <CardHeader>
+            <CardTitle>{t.selectDateTitle}</CardTitle>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={setSelectedDate}
+              className="rounded-md border"
+            />
+          </CardContent>
+        </Card>
+
+        {/* Summary */}
+        <Card>
+          <CardHeader>
+            <CardTitle>{t.assignmentSummaryTitle}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <span className="text-sm text-muted-foreground">{t.workoutColon}</span>
+              <p className="font-medium text-navy">
+                {selectedWorkout?.title || t.notSelected}
+              </p>
+            </div>
+            <div>
+              <span className="text-sm text-muted-foreground">{t.athletesColon}</span>
+              <p className="font-medium text-navy">
+                {selectedAthletes.length > 0
+                  ? `${selectedAthletes.length} ${t.athletesSelectedSuffix}`
+                  : t.noneSelected}
+              </p>
+            </div>
+            <div>
+              <span className="text-sm text-muted-foreground">{t.dateColon}</span>
+              <p className="font-medium text-navy">
+                {selectedDate ? format(selectedDate, 'EEEE, MMMM d, yyyy') : t.notSelected}
+              </p>
+            </div>
+
+            <Button
+              onClick={handleAssign}
+              disabled={
+                isSubmitting ||
+                !isCoach ||
+                !selectedWorkout ||
+                selectedAthletes.length === 0 ||
+                !selectedDate
+              }
+              className="w-full bg-gold hover:bg-gold/90 text-navy mt-4"
+            >
+              {isSubmitting ? t.assigningDots : t.assignWorkoutBtn}
+            </Button>
+            {!isCoach && (
+              <p className="text-xs text-destructive text-center">
+                {t.onlyCoachCanAssign}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
