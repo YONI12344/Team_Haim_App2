@@ -18,6 +18,20 @@ export type Discipline = 'track' | 'road' | 'jogger' | 'trail' | 'mixed'
 // Experience level
 export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced' | 'professional'
 
+// Training day type — used in the weekly schedule template
+export type TrainingDayType = 'rest' | 'easy' | 'workout' | 'long_run' | 'off'
+
+// Weekly training schedule template (set by coach per athlete)
+export interface WeekSchedule {
+  monday: TrainingDayType
+  tuesday: TrainingDayType
+  wednesday: TrainingDayType
+  thursday: TrainingDayType
+  friday: TrainingDayType
+  saturday: TrainingDayType
+  sunday: TrainingDayType
+}
+
 // Athlete profile with detailed info
 export interface AthleteProfile {
   id: string
@@ -47,6 +61,12 @@ export interface AthleteProfile {
   goals: Goal[]
   coachId?: string
   onboardingComplete?: boolean
+  // Weekly training template — which type of session each day of the week
+  weekSchedule?: WeekSchedule
+  // Target weekly km range, e.g. { min: 40, max: 60 }
+  weeklyKmRange?: { min: number; max: number }
+  // Recovery week interval: every Nth week is an off/recovery week (default 4)
+  offWeekInterval?: number
   createdAt: Date
   updatedAt: Date
 }
@@ -55,7 +75,7 @@ export interface AthleteProfile {
 export interface PersonalRecord {
   id: string
   event: string
-  time: string // e.g., "10.52" for 100m
+  time: string
   date: string
   location?: string
   competition?: string
@@ -66,7 +86,7 @@ export interface PersonalRecord {
 export interface TrainingPace {
   id: string
   type: 'easy' | 'tempo' | 'threshold' | 'interval' | 'repetition' | 'race'
-  pace: string // e.g., "6:30/mile" or "4:00/km"
+  pace: string
   description?: string
 }
 
@@ -83,7 +103,7 @@ export interface Goal {
 }
 
 // Workout Types
-export type WorkoutType = 
+export type WorkoutType =
   | 'easy'
   | 'long_run'
   | 'tempo'
@@ -103,48 +123,48 @@ export interface Workout {
   title: string
   type: WorkoutType
   description: string
-  duration?: number // in minutes
-  distance?: number // in km or miles
+  duration?: number
+  distance?: number
   sets?: WorkoutSet[]
   warmup?: string
   cooldown?: string
   notes?: string
-  createdBy: string // coach ID
+  createdBy: string
   createdAt: Date
   updatedAt: Date
 }
 
-// Workout Set (for intervals, etc.)
+// Workout Set
 export interface WorkoutSet {
   id: string
   reps: number
-  distance?: string // e.g., "400m"
-  duration?: string // e.g., "2:00"
+  distance?: string
+  duration?: string
   pace?: string
   rest?: string
   notes?: string
 }
 
-// Assigned Workout (to an athlete for a specific date)
+// Assigned Workout
 export interface AssignedWorkout {
   id: string
   workoutId: string
   workout: Workout
   athleteId: string
-  assignedBy: string // coach ID
-  scheduledDate: string // ISO date string
+  assignedBy: string
+  scheduledDate: string
   status: 'scheduled' | 'completed' | 'skipped' | 'modified'
   athleteNotes?: string
   coachFeedback?: string
   completedAt?: Date
   actualDuration?: number
   actualDistance?: number
-  perceivedEffort?: number // 1-10 scale
+  perceivedEffort?: number
   createdAt: Date
   updatedAt: Date
 }
 
-// Chat Message (for Realtime Database)
+// Chat Message
 export interface ChatMessage {
   id: string
   senderId: string
@@ -165,7 +185,7 @@ export interface Conversation {
   unreadCount: Record<string, number>
 }
 
-// Statistics for charts
+// Statistics
 export interface WeeklyStats {
   week: string
   totalDistance: number
@@ -197,8 +217,8 @@ export interface JourneyStage {
   id: string
   name: string
   type: JourneyStageType
-  startDate: string // ISO date
-  endDate: string // ISO date
+  startDate: string
+  endDate: string
   focus: string
   weeklyVolumeKm?: number
   keyWorkouts: string[]
@@ -210,30 +230,23 @@ export interface JourneyDoc {
   id: string
   title: string
   goalRaceEvent: string
-  goalRaceDate: string // ISO date
+  goalRaceDate: string
   goalRaceTarget?: string
-  startDate: string // ISO date
+  startDate: string
   stages: JourneyStage[]
-  createdBy: string // uid
+  createdBy: string
   createdAt: Date
   updatedAt: Date
 }
 
-// Workout Log (submitted by athlete after completing a workout)
+// Workout Log
 export interface WorkoutLog {
   id: string
   athleteId: string
-  workoutId: string    // ID of the assigned workout
-  date: string         // ISO date string (scheduled date)
+  workoutId: string
+  date: string
   actualDistance?: number
-  actualPace?: string  // e.g. "5:30/km"
-  /**
-   * Perceived effort on a 1–10 scale (whole numbers).
-   *
-   * Older logs stored a coarser label (`'easy' | 'medium' | 'hard'`).
-   * Those values are migrated to numbers on read:
-   *   easy → 3, medium → 6, hard → 9.
-   */
+  actualPace?: string
   effort: number
   comment: string
   splitLogs?: SplitLog[]
