@@ -45,14 +45,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           if (userSnap.exists()) {
             const userData = userSnap.data()
+            const safeDate = (v: unknown) => { try { return v && typeof (v as {toDate?:()=>Date}).toDate === 'function' ? (v as {toDate:()=>Date}).toDate() : (v instanceof Date ? v : new Date()) } catch { return new Date() } }
             setUser({
               id: fbUser.uid,
               email: fbUser.email || '',
               name: userData.name || safeName,
               role: userData.role || 'athlete',
               photoURL: userData.photoURL || fbUser.photoURL || undefined,
-              createdAt: userData.createdAt?.toDate() || new Date(),
-              updatedAt: userData.updatedAt?.toDate() || new Date(),
+              createdAt: safeDate(userData.createdAt),
+              updatedAt: safeDate(userData.updatedAt),
             })
           } else {
             // Create new user profile
