@@ -698,7 +698,7 @@ export function AthletePlanner({ athleteId }: Props) {
             </div>
             <Button onClick={handleCreateWorkout} disabled={!newWO.title.trim() || creatingWorkout}
               className="w-full bg-gold hover:bg-gold/90 text-navy">
-              {creatingWorkout ? <><Loader2 className="h-4 w-4 animate-spin mr-2"/>יוצר...</> : 'צור אימון'}
+              {creatingWorkout ? 'יוצר...' : '✅ צור אימון'}
             </Button>
           </div>
         </DialogContent>
