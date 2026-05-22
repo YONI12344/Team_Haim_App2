@@ -61,9 +61,10 @@ interface JourneySummary {
   goalRaceEvent: string
 }
 
-export function AthletePlannerView() {
-  const { user, firebaseUser, loading: authLoading } = useAuth()
-  const athleteId = firebaseUser?.uid || user?.id || ''
+interface Props { athleteId: string }
+
+export function AthletePlannerView({ athleteId }: Props) {
+  const { loading: authLoading } = useAuth()
 
   const [athlete, setAthlete] = useState<AthleteProfile | null>(null)
   const [journey, setJourney] = useState<JourneySummary | null>(null)
