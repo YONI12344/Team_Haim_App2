@@ -146,15 +146,11 @@ export function AthletePlanner({ athleteId }: Props) {
   // ── Load assigned workouts for current month ──────────────────────────────
   useEffect(() => {
     const loadMonth = async () => {
-      const from = format(startOfMonth(currentMonth), 'yyyy-MM-dd')
-      const to   = format(endOfMonth(currentMonth),   'yyyy-MM-dd')
       try {
         const snap = await getDocs(query(
           collection(db, 'assignedWorkouts'),
           where('athleteId', '==', athleteId),
-          where('scheduledDate', '>=', from),
-          where('scheduledDate', '<=', to),
-        ))
+                  ))
         setAssignedWorkouts(snap.docs.map(d => ({ ...(d.data() as AssignedWorkout), id: d.id })))
       } catch (err) {
         console.error('Month load error:', err)

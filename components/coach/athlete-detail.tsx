@@ -73,7 +73,6 @@ import {
 import { db } from '@/lib/firebase'
 import { TrainingZonesCard } from '@/components/athlete/training-zones-card'
 import { RecordEditor, PaceEditor } from '@/components/athlete/profile-editors'
-import { AthleteSchedule } from '@/components/athlete/athlete-schedule'
 import { toast } from 'sonner'
 import { exportAthleteToExcel } from '@/lib/export-athlete'
 import { workoutTypeColors, useWorkoutTypeLabels } from '@/lib/workout-labels'
@@ -570,14 +569,17 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
           <TabsTrigger value="documents">📄 מסמכים</TabsTrigger>
         </TabsList>
 
-        {/* Schedule Tab */}
+        {/* Schedule Tab → redirect to new Training Planner */}
         <TabsContent value="schedule" className="space-y-4">
-          <div className="flex justify-end mb-2">
-            <Link href={`/coach/athletes/${athleteId}/assign`}>
-              <Button size="sm" className="bg-gold hover:bg-gold/90 text-navy">{t.assignNewBtn}</Button>
+          <div className="rounded-2xl border border-gold/30 bg-gold/5 p-8 text-center space-y-4">
+            <p className="text-lg font-semibold text-navy">השתמש בלוח האימונים החדש</p>
+            <p className="text-sm text-muted-foreground">לוח האימונים הישן הוחלף בלוח חדש ומשופר עם יכולות מלאות</p>
+            <Link href={`/coach/athletes/${athleteId}/planner`}>
+              <Button className="bg-navy hover:bg-navy/90 text-white text-base px-8 py-3">
+                📅 פתח לוח אימונים
+              </Button>
             </Link>
           </div>
-          <AthleteSchedule athleteId={athleteId} readOnly={true} />
         </TabsContent>
 
                 {/* Profile Tab */}
