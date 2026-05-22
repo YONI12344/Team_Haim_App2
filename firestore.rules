@@ -1,10 +1,7 @@
 rules_version = '2';
-// Deploy these rules in Firebase Console → Firestore → Rules
-// Or via: firebase deploy --only firestore:rules
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper: the single coach account.
     function isCoach() {
       return request.auth != null
         && request.auth.token.email == 'info.teamhaim@gmail.com';
@@ -13,37 +10,30 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == userId;
     }
 
-    // Users: athletes can read/write their own profile; coach can read/write any.
     match /users/{userId} {
       allow read: if request.auth != null;
       allow write: if isSelf(userId) || isCoach();
 
-      // Season Journey subcollection.
-      // Athletes can manage their own journeys; coach can manage anyone's.
       match /journey/{journeyId} {
         allow read, write: if isSelf(userId) || isCoach();
       }
     }
 
-    // Workouts: any signed-in user can read; only coach can write.
     match /workouts/{workoutId} {
       allow read: if request.auth != null;
       allow write: if isCoach();
     }
 
-    // Assigned workouts: any signed-in user can read; coach can write freely;
-    // athletes can only update status/completedAt on their own assigned workouts.
     match /assignedWorkouts/{docId} {
       allow read: if request.auth != null;
       allow create, delete: if isCoach();
       allow update: if isCoach()
         || (request.auth != null
             && resource.data.athleteId == request.auth.uid
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'completedAt']));
+            && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['status', 'completedAt', 'athleteNotes', 'updatedAt']));
     }
 
-    // Workout logs: athletes write their own logs (athleteId == auth.uid),
-    // can read their own; coach can read/write all.
     match /logs/{logId} {
       allow read: if request.auth != null
         && (isCoach() || resource.data.athleteId == request.auth.uid);
@@ -53,17 +43,14 @@ service cloud.firestore {
         || (request.auth != null && resource.data.athleteId == request.auth.uid);
     }
 
-    // Chat metadata (chat messages themselves live in Realtime DB).
     match /messages/{messageId} {
       allow read, write: if request.auth != null;
     }
 
-    // Standalone goals (legacy collection; athletes own them, coach can read/write all).
     match /goals/{goalId} {
       allow read, write: if request.auth != null;
     }
 
-    // Google Sheets sync settings - coach-only write, signed-in read.
     match /settings/googleSheets {
       allow read: if request.auth != null;
       allow write: if isCoach();

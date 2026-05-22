@@ -62,8 +62,8 @@ interface JourneySummary {
 }
 
 export function AthletePlannerView() {
-  const { user } = useAuth()
-  const athleteId = user?.id || ''
+  const { user, firebaseUser, loading: authLoading } = useAuth()
+  const athleteId = firebaseUser?.uid || user?.id || ''
 
   const [athlete, setAthlete] = useState<AthleteProfile | null>(null)
   const [journey, setJourney] = useState<JourneySummary | null>(null)
@@ -139,28 +139,24 @@ export function AthletePlannerView() {
     load()
   }, [athleteId])
 
-  // ── Load assigned workouts for current month ──────────────────────────────
+  // ── Load ALL workouts for athlete (simple query, no composite index needed) ──
   useEffect(() => {
-    if (!athleteId) return
-    const loadMonth = async () => {
-      const from = format(startOfMonth(currentMonth), 'yyyy-MM-dd')
-      const to   = format(endOfMonth(currentMonth),   'yyyy-MM-dd')
+    if (!athleteId || authLoading) return
+    const loadAll = async () => {
       try {
         const snap = await getDocs(query(
           collection(db, 'assignedWorkouts'),
           where('athleteId', '==', athleteId),
-          where('scheduledDate', '>=', from),
-          where('scheduledDate', '<=', to),
         ))
         setAssignedWorkouts(snap.docs.map(d => ({
           ...(d.data() as AssignedWorkout), id: d.id,
         })))
       } catch (err) {
-        console.error('Month load error:', err)
+        console.error('Error loading workouts:', err)
       }
     }
-    loadMonth()
-  }, [athleteId, currentMonth])
+    loadAll()
+  }, [athleteId, authLoading])
 
   // ── Calendar helpers ──────────────────────────────────────────────────────
   const calendarWeeks = useMemo(() => {
@@ -172,10 +168,16 @@ export function AthletePlannerView() {
     return weeks
   }, [currentMonth])
 
+  const monthWorkouts = useMemo(() => {
+    const from = format(startOfMonth(currentMonth), 'yyyy-MM-dd')
+    const to   = format(endOfMonth(currentMonth),   'yyyy-MM-dd')
+    return assignedWorkouts.filter(w => w.scheduledDate >= from && w.scheduledDate <= to)
+  }, [assignedWorkouts, currentMonth])
+
   const getWorkoutsForDay = useCallback((date: Date) => {
     const s = format(date, 'yyyy-MM-dd')
-    return assignedWorkouts.filter(w => w.scheduledDate === s)
-  }, [assignedWorkouts])
+    return monthWorkouts.filter(w => w.scheduledDate === s)
+  }, [monthWorkouts])
 
   const getWeekKm = useCallback((week: Date[]) =>
     week.reduce((sum, day) =>
