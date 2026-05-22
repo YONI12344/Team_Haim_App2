@@ -573,13 +573,6 @@ export function AthletePlanner({ athleteId }: Props) {
                   {/* Workout picker */}
                   <div className="space-y-2">
 
-                      <Button size="sm" variant="outline" className="h-7 text-xs border-gold/40 text-gold hover:bg-gold/10"
-                        onClick={() => setShowCreateWorkout(true)}>
-                        ➕ צור חדש
-                      </Button>
-                    </div>
-
-                    </p>
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                         {selectedDayWorkouts.length > 0 ? 'הוסף עוד' : 'בחר אימון'}
