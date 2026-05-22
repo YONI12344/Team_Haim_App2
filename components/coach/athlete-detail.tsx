@@ -509,6 +509,9 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
                   <Link href={`/coach/athletes/${athleteId}/journey`}>
                     <Button variant="outline" className="border-coral/40 text-coral hover:bg-coral-light">{t.journeyBtn}</Button>
                   </Link>
+                  <Link href={`/coach/athletes/${athleteId}/planner`}>
+                    <Button className="bg-navy hover:bg-navy/90 text-white">📅 Training Planner</Button>
+                  </Link>
                   <Link href={`/coach/athletes/${athleteId}/assign`}>
                     <Button className="bg-gold hover:bg-gold/90 text-navy">{t.assignWorkoutBtn}</Button>
                   </Link>
