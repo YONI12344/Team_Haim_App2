@@ -260,6 +260,7 @@ export function WorkoutBuilder({ workoutId }: WorkoutBuilderProps) {
                 <Label htmlFor="title">{t.workoutTitleLabel} *</Label>
                 <Input
                   id="title"
+                  dir="auto"
                   placeholder={t.workoutTitlePh}
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
@@ -286,6 +287,7 @@ export function WorkoutBuilder({ workoutId }: WorkoutBuilderProps) {
               <Label htmlFor="description">{t.descriptionLabel}</Label>
               <Textarea
                 id="description"
+                dir="auto"
                 placeholder={t.describeWorkoutPh}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -499,6 +501,7 @@ export function WorkoutBuilder({ workoutId }: WorkoutBuilderProps) {
           <CardContent>
             <Textarea
               placeholder={t.additionalNotesPh}
+              dir="auto"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}

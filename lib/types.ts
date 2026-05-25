@@ -135,6 +135,13 @@ export interface Workout {
 }
 
 // Workout Set
+export interface WorkoutInterval {
+  id: string
+  distance?: string
+  pace?: string
+  rest?: string
+}
+
 export interface WorkoutSet {
   id: string
   reps: number
@@ -143,6 +150,7 @@ export interface WorkoutSet {
   pace?: string
   rest?: string
   notes?: string
+  intervals?: WorkoutInterval[]
 }
 
 // Assigned Workout

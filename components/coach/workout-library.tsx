@@ -14,17 +14,20 @@ import {
   Pencil,
   Trash2,
   Loader2,
+  Copy,
 } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import type { Workout, WorkoutType } from '@/lib/types'
 import {
+  addDoc,
   collection,
   deleteDoc,
   doc,
   getDocs,
   orderBy,
   query,
+  serverTimestamp,
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/auth-context'
@@ -55,6 +58,7 @@ export function WorkoutLibrary() {
   const [loading, setLoading] = useState(true)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [duplicating, setDuplicating] = useState<string | null>(null)
 
   useEffect(() => {
     const load = async () => {
@@ -111,6 +115,26 @@ export function WorkoutLibrary() {
     } finally {
       setDeleting(false)
       setDeleteId(null)
+    }
+  }
+
+  const handleDuplicate = async (workout: Workout) => {
+    setDuplicating(workout.id)
+    try {
+      const { id, createdAt, updatedAt, ...rest } = workout
+      const newDoc = await addDoc(collection(db, 'workouts'), {
+        ...rest,
+        title: rest.title + ' (Copy)',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
+      setWorkouts(prev => [{ ...rest, title: rest.title + ' (Copy)', id: newDoc.id, createdAt: new Date(), updatedAt: new Date() } as Workout, ...prev])
+      toast.success('Workout duplicated!')
+    } catch (err) {
+      console.error('Error duplicating workout:', err)
+      toast.error('Failed to duplicate workout')
+    } finally {
+      setDuplicating(null)
     }
   }
 
@@ -179,6 +203,16 @@ export function WorkoutLibrary() {
                     </Badge>
                     {isCoach && (
                       <div className="flex items-center gap-1">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            aria-label="Duplicate workout"
+                            onClick={() => handleDuplicate(workout)}
+                            disabled={duplicating === workout.id}
+                          >
+                            {duplicating === workout.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4 text-muted-foreground" />}
+                          </Button>
                         <Link href={`/coach/workouts/${workout.id}/edit`}>
                           <Button
                             variant="ghost"
