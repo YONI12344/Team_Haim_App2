@@ -53,8 +53,15 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
     if (!hasSets || splitLogs.length > 0) return
     const initial: SplitLog[] = []
     workout!.sets!.forEach((set, si) => {
-      for (let r = 0; r < (set.reps || 1); r++) {
-        initial.push({ setIndex: si, repIndex: r, time: '', pace: '', notes: '' })
+      const intervals = (set as any).intervals
+      if (intervals && intervals.length > 0) {
+        intervals.forEach((interval: any, ii: number) => {
+          initial.push({ setIndex: si, repIndex: ii, distance: interval.distance || '', time: '', pace: '', notes: '' })
+        })
+      } else {
+        for (let r = 0; r < (set.reps || 1); r++) {
+          initial.push({ setIndex: si, repIndex: r, distance: set.distance || '', time: '', pace: '', notes: '' })
+        }
       }
     })
     setSplitLogs(initial)
@@ -201,27 +208,38 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
       {/* Structured splits — shown when workout has sets */}
       {hasSets && (
         <div className="space-y-4">
-          <p className="text-sm font-medium text-navy">Rep-by-rep splits</p>
+          <p className="text-sm font-bold text-navy border-b pb-1">תיעוד לפי אינטרוול</p>
           {workout!.sets!.map((set, si) => {
             const repsForSet = splitLogs.filter(s => s.setIndex === si)
             return (
               <div key={set.id} className="rounded-lg border border-border overflow-hidden">
-                <div className="bg-muted/50 px-3 py-2 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-navy uppercase tracking-wide">
-                    Set {si + 1} — {set.reps}× {set.distance || set.duration || ''}
-                    {set.pace && <span className="font-normal text-muted-foreground"> @ {set.pace}</span>}
+                <div className="bg-navy/5 px-3 py-2 flex items-center justify-between">
+                  <span className="text-xs font-bold text-navy">
+                    סט {si + 1}
+                    {(set as any).intervals?.length > 0
+                      ? ` · ${(set as any).intervals.length} אינטרוולים`
+                      : set.reps > 1 ? ` · ${set.reps} חזרות` : ''}
                   </span>
-                  {set.rest && <span className="text-xs text-muted-foreground">Rest: {set.rest}</span>}
+                  {set.rest && <span className="text-[11px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">מנוחה: {set.rest}</span>}
                 </div>
                 <div className="divide-y divide-border">
                   {repsForSet.map((split, ri) => {
                     const globalIndex = splitLogs.findIndex(s => s.setIndex === si && s.repIndex === ri)
                     return (
                       <div key={ri} className="px-3 py-2 grid grid-cols-3 gap-2 items-center">
-                        <div className="text-xs font-medium text-muted-foreground">Rep {ri + 1}</div>
+                        <div className="text-xs font-bold text-navy">
+                          {split.distance ? (
+                            <span className="flex flex-col">
+                              <span className="text-sm font-bold text-navy">{split.distance}</span>
+                              <span className="text-[10px] text-muted-foreground font-normal">אינטרוול {ri + 1}</span>
+                            </span>
+                          ) : (
+                            <span>חזרה {ri + 1}</span>
+                          )}
+                        </div>
                         <div className="col-span-2 grid grid-cols-2 gap-2">
                           <div>
-                            <label className="text-[10px] text-muted-foreground block mb-1">Time (mm:ss)</label>
+                            <label className="text-[10px] text-muted-foreground block mb-1">זמן (דק:שנ)</label>
                             <Input
                               type="text"
                               placeholder="e.g. 3:42"
@@ -231,7 +249,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
                             />
                           </div>
                           <div>
-                            <label className="text-[10px] text-muted-foreground block mb-1">Pace /km</label>
+                            <label className="text-[10px] text-muted-foreground block mb-1">טמפו /ק"מ</label>
                             <Input
                               type="text"
                               placeholder="e.g. 3:42"
@@ -269,11 +287,11 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
       {hasSets && (
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1">
-            <Label htmlFor="actualDistance" className="text-sm">Total distance (km)</Label>
+            <Label htmlFor="actualDistance" className="text-sm">סה"כ ק"מ</Label>
             <Input id="actualDistance" type="number" step="0.1" min="0" placeholder="e.g. 10" value={actualDistance} onChange={e => setActualDistance(e.target.value)} className="h-9" />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="actualPace" className="text-sm">Avg pace /km</Label>
+            <Label htmlFor="actualPace" className="text-sm">טמפו ממוצע</Label>
             <Input id="actualPace" type="text" placeholder="e.g. 4:30" value={actualPace} onChange={e => setActualPace(e.target.value)} className="h-9" />
           </div>
         </div>
