@@ -54,13 +54,17 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
     const initial: SplitLog[] = []
     workout!.sets!.forEach((set, si) => {
       const intervals = (set as any).intervals
+      const reps = set.reps || 1
       if (intervals && intervals.length > 0) {
-        intervals.forEach((interval: any, ii: number) => {
-          initial.push({ setIndex: si, repIndex: ii, distance: interval.distance || '', time: '', pace: '', notes: '' })
-        })
+        // For each rep, create one entry per interval
+        for (let r = 0; r < reps; r++) {
+          intervals.forEach((interval: any, ii: number) => {
+            initial.push({ setIndex: si, repIndex: r * 1000 + ii, distance: interval.distance || interval.duration || '', time: '', pace: '', notes: '' })
+          })
+        }
       } else {
-        for (let r = 0; r < (set.reps || 1); r++) {
-          initial.push({ setIndex: si, repIndex: r, distance: set.distance || '', time: '', pace: '', notes: '' })
+        for (let r = 0; r < reps; r++) {
+          initial.push({ setIndex: si, repIndex: r, distance: set.distance || set.duration || '', time: '', pace: '', notes: '' })
         }
       }
     })
@@ -210,58 +214,76 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
         <div className="space-y-4">
           <p className="text-sm font-bold text-navy border-b pb-1">תיעוד לפי אינטרוול</p>
           {workout!.sets!.map((set, si) => {
-            const repsForSet = splitLogs.filter(s => s.setIndex === si)
+            const intervals = (set as any).intervals
+            const hasIntervals = intervals && intervals.length > 0
+            const reps = set.reps || 1
             return (
               <div key={set.id} className="rounded-lg border border-border overflow-hidden">
                 <div className="bg-navy/5 px-3 py-2 flex items-center justify-between">
                   <span className="text-xs font-bold text-navy">
                     סט {si + 1}
-                    {(set as any).intervals?.length > 0
-                      ? ` · ${(set as any).intervals.length} אינטרוולים`
-                      : set.reps > 1 ? ` · ${set.reps} חזרות` : ''}
+                    {hasIntervals ? ` · ${reps > 1 ? `${reps}× ` : ''}${intervals.length} אינטרוולים` : reps > 1 ? ` · ${reps} חזרות` : ''}
                   </span>
                   {set.rest && <span className="text-[11px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">מנוחה: {set.rest}</span>}
                 </div>
                 <div className="divide-y divide-border">
-                  {repsForSet.map((split, ri) => {
-                    const globalIndex = splitLogs.findIndex(s => s.setIndex === si && s.repIndex === ri)
-                    return (
-                      <div key={ri} className="px-3 py-2 grid grid-cols-3 gap-2 items-center">
-                        <div className="text-xs font-bold text-navy">
-                          {split.distance ? (
-                            <span className="flex flex-col">
-                              <span className="text-sm font-bold text-navy">{split.distance}</span>
-                              <span className="text-[10px] text-muted-foreground font-normal">אינטרוול {ri + 1}</span>
-                            </span>
-                          ) : (
-                            <span>חזרה {ri + 1}</span>
-                          )}
-                        </div>
-                        <div className="col-span-2 grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="text-[10px] text-muted-foreground block mb-1">זמן (דק:שנ)</label>
-                            <Input
-                              type="text"
-                              placeholder="e.g. 3:42"
-                              value={split.time || ''}
-                              onChange={e => updateSplit(globalIndex, 'time', e.target.value)}
-                              className="h-8 text-sm"
-                            />
+                  {hasIntervals ? (
+                    Array.from({ length: reps }, (_, r) => (
+                      <div key={r} className={reps > 1 ? "border-b-2 border-navy/10" : ""}>
+                        {reps > 1 && (
+                          <div className="bg-muted/30 px-3 py-1">
+                            <span className="text-[11px] font-semibold text-navy">חזרה {r + 1}</span>
                           </div>
-                          <div>
-                            <label className="text-[10px] text-muted-foreground block mb-1">טמפו /ק"מ</label>
-                            <Input
-                              type="text"
-                              placeholder="e.g. 3:42"
-                              value={split.pace || ''}
-                              onChange={e => updateSplit(globalIndex, 'pace', e.target.value)}
-                              className="h-8 text-sm"
-                            />
-                          </div>
-                        </div>
+                        )}
+                        {intervals.map((interval: any, ii: number) => {
+                          const globalIndex = splitLogs.findIndex(s => s.setIndex === si && s.repIndex === r * 1000 + ii)
+                          const split = splitLogs[globalIndex]
+                          return (
+                            <div key={ii} className="px-3 py-2 flex items-center gap-3">
+                              <div className="flex items-center gap-2 w-24 flex-shrink-0">
+                                <span className="w-5 h-5 rounded-full bg-navy text-white font-bold flex items-center justify-center text-[10px] flex-shrink-0">{ii + 1}</span>
+                                <span className="text-sm font-bold text-navy">{interval.distance || interval.duration || ''}</span>
+                              </div>
+                              <div className="flex-1">
+                                <label className="text-[10px] text-muted-foreground block mb-1">זמן</label>
+                                <Input
+                                  type="text"
+                                  placeholder="דק:שנ"
+                                  value={split?.time || ''}
+                                  onChange={e => globalIndex >= 0 && updateSplit(globalIndex, 'time', e.target.value)}
+                                  className="h-8 text-sm"
+                                />
+                              </div>
+                            </div>
+                          )
+                        })}
                       </div>
-                    )
-                  })}
+                    ))
+                  ) : (
+                    Array.from({ length: reps }, (_, r) => {
+                      const globalIndex = splitLogs.findIndex(s => s.setIndex === si && s.repIndex === r)
+                      const split = splitLogs[globalIndex]
+                      return (
+                        <div key={r} className="px-3 py-2 flex items-center gap-3">
+                          <div className="w-24 flex-shrink-0">
+                            <span className="text-xs font-bold text-navy">
+                              {reps > 1 ? `חזרה ${r + 1}` : (set.distance || set.duration || 'זמן')}
+                            </span>
+                          </div>
+                          <div className="flex-1">
+                            <label className="text-[10px] text-muted-foreground block mb-1">זמן</label>
+                            <Input
+                              type="text"
+                              placeholder="דק:שנ"
+                              value={split?.time || ''}
+                              onChange={e => globalIndex >= 0 && updateSplit(globalIndex, 'time', e.target.value)}
+                              className="h-8 text-sm"
+                            />
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
                 </div>
               </div>
             )
