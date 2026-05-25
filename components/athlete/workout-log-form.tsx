@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
@@ -115,9 +115,9 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
     loadLog()
   }, [workoutId, athleteId, scheduledDate])
 
-  const updateSplit = (index: number, field: keyof SplitLog, value: string) => {
+  const updateSplit = useCallback((index: number, field: keyof SplitLog, value: string) => {
     setSplitLogs(prev => prev.map((s, i) => i === index ? { ...s, [field]: value } : s))
-  }
+  }, [])
 
   const handleSave = async () => {
     if (!effort || effort < 1 || effort > 10) {

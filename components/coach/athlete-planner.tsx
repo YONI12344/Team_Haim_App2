@@ -26,7 +26,8 @@ import {
   collection, doc, getDoc, getDocs, query,
   where, addDoc, serverTimestamp, deleteDoc,
 } from 'firebase/firestore'
-import type { AthleteProfile, Workout, AssignedWorkout, TrainingDayType } from '@/lib/types'
+import type { AthleteProfile, Workout, AssignedWorkout, TrainingDayType, WorkoutLog } from '@/lib/types'
+import { legacyEffortToNumber } from '@/lib/types'
 import { listJourneys, computeJourneyProgress } from '@/lib/journey'
 import { useAuth } from '@/contexts/auth-context'
 import { useWorkoutTypeLabels } from '@/lib/workout-labels'
@@ -77,6 +78,7 @@ export function AthletePlanner({ athleteId }: Props) {
   const [journey, setJourney] = useState<JourneySummary | null>(null)
   const [workoutLibrary, setWorkoutLibrary] = useState<Workout[]>([])
   const [assignedWorkouts, setAssignedWorkouts] = useState<AssignedWorkout[]>([])
+  const [logs, setLogs] = useState<WorkoutLog[]>([])
   const [loading, setLoading] = useState(true)
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
@@ -542,31 +544,65 @@ export function AthletePlanner({ athleteId }: Props) {
                   {selectedDayWorkouts.length > 0 && (
                     <div className="space-y-2">
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Assigned</p>
-                      {selectedDayWorkouts.map(w => (
-                        <div key={w.id} className="flex items-center justify-between p-2 rounded-lg border bg-muted/30">
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-navy truncate">{w.workout.title}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {w.workout.distance ? `${w.workout.distance} km` : ''}
-                              {w.workout.duration ? ` · ${w.workout.duration} min` : ''}
-                            </p>
+                      {selectedDayWorkouts.map(w => {
+                        const log = logs.find(l => l.workoutId === w.workoutId && l.date === w.scheduledDate)
+                        const isCompleted = w.status === 'completed'
+                        const isSkipped = w.status === 'skipped'
+                        return (
+                          <div key={w.id} className={cn("rounded-lg border overflow-hidden", isCompleted ? 'border-emerald-200' : isSkipped ? 'border-red-200' : 'border-border')}>
+                            <div className={cn("flex items-center justify-between p-2", isCompleted ? 'bg-emerald-50' : isSkipped ? 'bg-red-50' : 'bg-muted/30')}>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm font-medium text-navy truncate">{w.workout.title}</p>
+                                  <Badge variant="outline" className={cn('text-[10px] flex-shrink-0', isCompleted ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : isSkipped ? 'bg-red-100 text-red-600 border-red-200' : 'bg-amber-100 text-amber-700 border-amber-200')}>
+                                    {isCompleted ? 'הושלם' : isSkipped ? 'דולג' : 'מתוכנן'}
+                                  </Badge>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  {w.workout.distance ? `${w.workout.distance} km` : ''}
+                                  {w.workout.duration ? ` · ${w.workout.duration} min` : ''}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                <Link href={`/coach/workouts/${w.workoutId}/edit`}>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-gold">
+                                    <span className="text-xs">✏️</span>
+                                  </Button>
+                                </Link>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleRemove(w.id)}>
+                                  <X className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+                            {log && (
+                              <div className="px-3 py-2 space-y-1.5 border-t border-border/50 bg-white/50">
+                                <div className="flex items-center gap-3 flex-wrap">
+                                  <span className="text-xs font-semibold text-navy">מאמץ: {log.effort}/10</span>
+                                  {log.actualDistance && <span className="text-xs text-muted-foreground">{log.actualDistance} ק"מ בפועל</span>}
+                                  {log.actualPace && <span className="text-xs text-muted-foreground">טמפו: {log.actualPace}</span>}
+                                </div>
+                                {log.comment && (
+                                  <div className="bg-muted/40 rounded-lg px-2.5 py-2">
+                                    <p className="text-[10px] text-muted-foreground font-medium mb-0.5">הערות אתלט</p>
+                                    <p className="text-xs text-navy leading-relaxed">{log.comment}</p>
+                                  </div>
+                                )}
+                                {log.splitLogs && log.splitLogs.length > 0 && (
+                                  <div className="space-y-1">
+                                    <p className="text-[10px] text-muted-foreground font-medium">זמנים</p>
+                                    {log.splitLogs.map((split, i) => (
+                                      <div key={i} className="flex items-center gap-2 text-xs bg-white rounded px-2 py-1 border border-border/40">
+                                        <span className="font-bold text-navy w-16 flex-shrink-0">{split.distance || `חזרה ${i+1}`}</span>
+                                        {split.time && <span className="text-muted-foreground">{split.time}</span>}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
-                          <div className="flex items-center gap-1 flex-shrink-0">
-                            <Link href={`/coach/workouts/${w.workoutId}/edit`}>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-gold">
-                                <span className="text-xs">✏️</span>
-                              </Button>
-                            </Link>
-                            <Button
-                              variant="ghost" size="icon"
-                              className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                              onClick={() => handleRemove(w.id)}
-                            >
-                              <X className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )}
 
