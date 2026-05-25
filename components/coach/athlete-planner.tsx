@@ -545,7 +545,7 @@ export function AthletePlanner({ athleteId }: Props) {
                     <div className="space-y-2">
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Assigned</p>
                       {selectedDayWorkouts.map(w => {
-                        const log = logs.find(l => l.workoutId === w.workoutId && l.date === w.scheduledDate)
+                        const log = logs.find(l => l.assignedWorkoutId === w.id) || logs.find(l => l.workoutId === w.workoutId && l.date === w.scheduledDate) || logs.find(l => l.workoutId === w.workoutId)
                         const isCompleted = w.status === 'completed'
                         const isSkipped = w.status === 'skipped'
                         return (
