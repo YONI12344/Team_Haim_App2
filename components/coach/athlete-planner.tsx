@@ -162,6 +162,23 @@ export function AthletePlanner({ athleteId }: Props) {
           where('athleteId', '==', athleteId),
                   ))
         setAssignedWorkouts(snap.docs.map(d => ({ ...(d.data() as AssignedWorkout), id: d.id })))
+        const logsSnap = await getDocs(query(collection(db, 'logs'), where('athleteId', '==', athleteId)))
+        setLogs(logsSnap.docs.map(d => {
+          const data = d.data()
+          return {
+            id: d.id,
+            athleteId: data.athleteId || athleteId,
+            workoutId: data.workoutId || '',
+            assignedWorkoutId: data.assignedWorkoutId || '',
+            date: data.date || '',
+            actualDistance: data.actualDistance ?? undefined,
+            actualPace: data.actualPace ?? undefined,
+            effort: legacyEffortToNumber(data.effort),
+            comment: data.comment || '',
+            splitLogs: data.splitLogs || [],
+            createdAt: data.createdAt?.toDate?.() || new Date(),
+          } as any
+        }))
       } catch (err) {
         console.error('Month load error:', err)
       }
