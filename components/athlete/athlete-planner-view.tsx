@@ -169,7 +169,7 @@ export function AthletePlannerView() {
   return (
     <div className="space-y-4">
       {/* Info Banner */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <Card className="border-navy/20">
           <CardContent className="pt-4 pb-3">
             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">שלב נוכחי</p>
@@ -213,30 +213,7 @@ export function AthletePlannerView() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">תבנית שבועית</p>
-            {athlete?.weekSchedule ? (
-              <div className="grid grid-cols-7 gap-1">
-                {['א','ב','ג','ד','ה','ו','ש'].map((label, i) => {
-                  const key = WEEKDAY_KEYS[i===6?0:i+1]
-                  const type = (athlete.weekSchedule![key] as TrainingDayType) || 'rest'
-                  return (
-                    <div key={label} className="text-center">
-                      <p className="text-[10px] text-muted-foreground mb-1">{label}</p>
-                      <div className={cn('rounded px-0.5 py-1 text-center', DAY_BG[type])}>
-                        <span className={cn('w-2 h-2 rounded-full inline-block', DAY_DOT[type])} />
-                        <p className="text-[9px] mt-0.5 font-medium leading-tight">
-                          {type==='long_run'?'ארוך':type==='workout'?'אימון':type==='easy'?'קל':type==='rest'?'מנוחה':'חופש'}
-                        </p>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            ) : <p className="text-sm text-muted-foreground">לא הוגדרה תבנית</p>}
-          </CardContent>
-        </Card>
+
       </div>
 
       {/* Calendar + Day Panel */}
