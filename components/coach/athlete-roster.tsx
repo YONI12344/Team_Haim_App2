@@ -364,12 +364,12 @@ export function AthleteRoster() {
                     </div>
                     <div className="text-center">
                       <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
-                        <Calendar className="h-3.5 w-3.5" />
+                        <Activity className="h-3.5 w-3.5" />
                       </div>
-                      <p className="text-lg font-bold text-navy">
-                        {athlete.trainingPaces.length}
+                      <p className="text-sm font-bold text-navy">
+                        {athlete.weeklyKmRange ? `${athlete.weeklyKmRange.min}–${athlete.weeklyKmRange.max}` : '—'}
                       </p>
-                      <p className="text-xs text-muted-foreground">{t.tabPaces}</p>
+                      <p className="text-xs text-muted-foreground">ק"מ שבוע</p>
                     </div>
                   </div>
 

@@ -57,6 +57,7 @@ export function AthletePlannerView() {
   const [athlete, setAthlete] = useState<AthleteProfile | null>(null)
   const [journey, setJourney] = useState<JourneySummary | null>(null)
   const [assignedWorkouts, setAssignedWorkouts] = useState<AssignedWorkout[]>([])
+  const [weekLogs, setWeekLogs] = useState<{actualDistance?: number, date: string}[]>([])
   const [loading, setLoading] = useState(true)
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month')
@@ -109,7 +110,15 @@ export function AthletePlannerView() {
   useEffect(() => {
     if (!athleteId ) return
     getDocs(query(collection(db, 'assignedWorkouts'), where('athleteId', '==', athleteId)))
-      .then(snap => setAssignedWorkouts(snap.docs.map(d => ({ ...(d.data() as AssignedWorkout), id: d.id }))))
+      .then(async snap => {
+        setAssignedWorkouts(snap.docs.map(d => ({ ...(d.data() as AssignedWorkout), id: d.id })))
+        // Also load this week's logs for actual km
+        const { getDocs: gd, query: q, collection: col, where: wh } = await import('firebase/firestore')
+        const from = format(startOfWeek(new Date(),{weekStartsOn:1}), 'yyyy-MM-dd')
+        const to   = format(endOfWeek(new Date(),  {weekStartsOn:1}), 'yyyy-MM-dd')
+        const logsSnap = await gd(q(col(db, 'logs'), wh('athleteId', '==', athleteId)))
+        setWeekLogs(logsSnap.docs.map(d => ({ actualDistance: d.data().actualDistance, date: d.data().date || '' })).filter(l => l.date >= from && l.date <= to))
+      })
       .catch(err => console.error('Error loading workouts:', err))
   }, [athleteId])
 
@@ -157,6 +166,8 @@ export function AthletePlannerView() {
       .reduce((s,w) => s+(w.workout?.distance??0), 0)
   }, [assignedWorkouts])
 
+  const thisWeekKmActual = weekLogs.reduce((s, l) => s + (l.actualDistance || 0), 0)
+
   if (loading) return (
     <div className="flex items-center justify-center min-h-[400px]">
       <Loader2 className="h-8 w-8 animate-spin text-gold" />
@@ -196,18 +207,19 @@ export function AthletePlannerView() {
           <CardContent className="pt-4 pb-3">
             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">ק"מ השבוע</p>
             {athlete?.weeklyKmRange ? (
-              <div className="space-y-1.5">
-                <div className="flex items-end gap-2">
-                  <span className="text-2xl font-bold text-navy">{thisWeekKm}</span>
+              <div className="space-y-2">
+                <div className="flex items-end gap-2 flex-wrap">
+                  <span className="text-2xl font-bold text-navy">{thisWeekKmActual}</span>
                   <span className="text-sm text-muted-foreground mb-0.5">/ {athlete.weeklyKmRange.min}–{athlete.weeklyKmRange.max} ק"מ</span>
                 </div>
                 <div className="w-full bg-muted rounded-full h-2">
-                  <div className={cn('h-2 rounded-full transition-all', thisWeekKm >= athlete.weeklyKmRange.min ? 'bg-emerald-500' : 'bg-gold')}
-                    style={{width:`${Math.min(100,(thisWeekKm/athlete.weeklyKmRange.max)*100)}%`}} />
+                  <div className={cn('h-2 rounded-full transition-all', thisWeekKmActual >= athlete.weeklyKmRange.min ? 'bg-emerald-500' : 'bg-gold')}
+                    style={{width:`${Math.min(100,(thisWeekKmActual/athlete.weeklyKmRange.max)*100)}%`}} />
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {thisWeekKm >= athlete.weeklyKmRange.min ? 'יעד השבוע הושג!' : `נותרו ${athlete.weeklyKmRange.min-thisWeekKm}–${athlete.weeklyKmRange.max-thisWeekKm} ק"מ`}
-                </p>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{thisWeekKmActual >= athlete.weeklyKmRange.min ? 'יעד השבוע הושג!' : `נותרו ${Math.max(0,athlete.weeklyKmRange.min-thisWeekKmActual)} ק"מ`}</span>
+                  <span className="text-navy/60">מתוכנן: {thisWeekKm} ק"מ</span>
+                </div>
               </div>
             ) : <p className="text-sm text-muted-foreground">לא הוגדר יעד ק"מ</p>}
           </CardContent>
