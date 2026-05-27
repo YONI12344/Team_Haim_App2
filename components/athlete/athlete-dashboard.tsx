@@ -190,7 +190,10 @@ export function AthleteDashboard() {
     : 0
 
   // Aggregate weekly stats from logs
-  const totalDistance = logs.reduce((s, l) => s + (l.actualDistance || 0), 0)
+  const startOfThisWeekStr = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
+  const endOfThisWeekStr = format(endOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
+  const thisWeekLogs = logs.filter(l => l.date >= startOfThisWeekStr && l.date <= endOfThisWeekStr)
+  const totalDistance = thisWeekLogs.reduce((s, l) => s + (l.actualDistance || 0), 0)
   const effortCount = logs.length
   const avgEffortNumeric = effortCount
     ? logs.reduce((s, l) => s + legacyEffortToNumber(l.effort), 0) / effortCount
