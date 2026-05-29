@@ -243,9 +243,36 @@ export function AthletePlanner({ athleteId }: Props) {
         createdBy: user?.id || '', createdAt: new Date(), updatedAt: new Date(),
       }
       setWorkoutLibrary(prev => [created, ...prev])
+      // Auto-assign to selected date if one is selected
+      if (selectedDate && user) {
+        const dateStr = format(selectedDate, 'yyyy-MM-dd')
+        const assignRef = await addDoc(collection(db, 'assignedWorkouts'), {
+          workoutId: ref.id,
+          workout: created,
+          athleteId,
+          assignedBy: user.id || null,
+          scheduledDate: dateStr,
+          status: 'scheduled',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        })
+        setAssignedWorkouts(prev => [...prev, {
+          id: assignRef.id,
+          workoutId: ref.id,
+          workout: created,
+          athleteId,
+          assignedBy: user.id || '',
+          scheduledDate: dateStr,
+          status: 'scheduled',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        } as any])
+        toast.success('אימון נוצר ושובץ ליום!')
+      } else {
+        toast.success('אימון נוצר בהצלחה!')
+      }
       setNewWO({ title: '', type: 'easy', distance: '', duration: '', description: '', notes: '' })
       setShowCreateWorkout(false)
-      toast.success('אימון נוצר בהצלחה!')
     } catch { toast.error('שגיאה ביצירת אימון') }
     finally { setCreatingWorkout(false) }
   }
