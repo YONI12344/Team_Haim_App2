@@ -642,17 +642,7 @@ export function AthletePlanner({ athleteId }: Props) {
                               </div>
                               <div className="flex items-center gap-1 flex-shrink-0">
                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-gold"
-                                  onClick={() => {
-                                    setEditingWorkout(w.workout)
-                                    setEditWO({
-                                      title: w.workout.title || '',
-                                      type: (w.workout.type as WorkoutType) || 'easy',
-                                      distance: w.workout.distance ? String(w.workout.distance) : '',
-                                      duration: w.workout.duration ? String(w.workout.duration) : '',
-                                      description: w.workout.description || '',
-                                      notes: w.workout.notes || '',
-                                    })
-                                  }}>
+                                  onClick={() => { setBuilderWorkoutId(w.workoutId); setShowBuilderDialog(true) }}>
                                   <span className="text-xs">✏️</span>
                                 </Button>
                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleRemove(w.id)}>
@@ -776,12 +766,14 @@ export function AthletePlanner({ athleteId }: Props) {
             <WorkoutBuilder
               workoutId={builderWorkoutId}
               hideBackButton
-              onDone={() => {
+              onDone={async () => {
                 setShowBuilderDialog(false)
                 setBuilderWorkoutId(undefined)
-                // Reload assigned workouts
-                getDocs(query(collection(db, 'assignedWorkouts'), where('athleteId', '==', athleteId)))
-                  .then(snap => setAssignedWorkouts(snap.docs.map(d => ({ ...(d.data() as AssignedWorkout), id: d.id }))))
+                // Reload assigned workouts and library
+                const snap = await getDocs(query(collection(db, 'assignedWorkouts'), where('athleteId', '==', athleteId)))
+                setAssignedWorkouts(snap.docs.map(d => ({ ...(d.data() as AssignedWorkout), id: d.id })))
+                const wSnap = await getDocs(collection(db, 'workouts'))
+                setWorkoutLibrary(wSnap.docs.map(d => ({ ...(d.data() as Workout), id: d.id })))
               }}
             />
           )}
