@@ -86,6 +86,9 @@ export function AthletePlanner({ athleteId }: Props) {
   const [assigning, setAssigning] = useState(false)
   const [showCreateWorkout, setShowCreateWorkout] = useState(false)
   const [creatingWorkout, setCreatingWorkout] = useState(false)
+  const [editingWorkout, setEditingWorkout] = useState<Workout | null>(null)
+  const [editWO, setEditWO] = useState({ title: '', type: 'easy' as WorkoutType, distance: '', duration: '', description: '', notes: '' })
+  const [savingEdit, setSavingEdit] = useState(false)
   const [newWO, setNewWO] = useState({ title: '', type: 'easy' as WorkoutType, distance: '', duration: '', description: '', notes: '' })
 
   // ── Load athlete + journey + workout library ──────────────────────────────
@@ -275,6 +278,33 @@ export function AthletePlanner({ athleteId }: Props) {
       setShowCreateWorkout(false)
     } catch { toast.error('שגיאה ביצירת אימון') }
     finally { setCreatingWorkout(false) }
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingWorkout || !editWO.title.trim()) return
+    setSavingEdit(true)
+    try {
+      const { updateDoc, doc } = await import('firebase/firestore')
+      const updated = {
+        title: editWO.title.trim(),
+        type: editWO.type,
+        description: editWO.description.trim(),
+        distance: editWO.distance ? Number(editWO.distance) : null,
+        duration: editWO.duration ? Number(editWO.duration) : null,
+        notes: editWO.notes.trim() || null,
+      }
+      await updateDoc(doc(db, 'workouts', editingWorkout.id), { ...updated, updatedAt: serverTimestamp() })
+      // Update in assigned workouts list
+      setAssignedWorkouts(prev => prev.map(w =>
+        w.workoutId === editingWorkout.id ? { ...w, workout: { ...w.workout, ...updated } } : w
+      ))
+      setWorkoutLibrary(prev => prev.map(w =>
+        w.id === editingWorkout.id ? { ...w, ...updated } : w
+      ))
+      setEditingWorkout(null)
+      toast.success('אימון עודכן!')
+    } catch { toast.error('שגיאה בעדכון אימון') }
+    finally { setSavingEdit(false) }
   }
 
   const handleAssign = async () => {
@@ -608,11 +638,20 @@ export function AthletePlanner({ athleteId }: Props) {
                                 </p>
                               </div>
                               <div className="flex items-center gap-1 flex-shrink-0">
-                                <Link href={`/coach/workouts/${w.workoutId}/edit`}>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-gold">
-                                    <span className="text-xs">✏️</span>
-                                  </Button>
-                                </Link>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-gold"
+                                  onClick={() => {
+                                    setEditingWorkout(w.workout)
+                                    setEditWO({
+                                      title: w.workout.title || '',
+                                      type: (w.workout.type as WorkoutType) || 'easy',
+                                      distance: w.workout.distance ? String(w.workout.distance) : '',
+                                      duration: w.workout.duration ? String(w.workout.duration) : '',
+                                      description: w.workout.description || '',
+                                      notes: w.workout.notes || '',
+                                    })
+                                  }}>
+                                  <span className="text-xs">✏️</span>
+                                </Button>
                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleRemove(w.id)}>
                                   <X className="h-3.5 w-3.5" />
                                 </Button>
@@ -723,6 +762,57 @@ export function AthletePlanner({ athleteId }: Props) {
           </Card>
         </div>
       </div>
+
+      {/* Edit Workout Dialog */}
+      <Dialog open={!!editingWorkout} onOpenChange={(open) => !open && setEditingWorkout(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>✏️ ערוך אימון</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1">
+              <Label>שם האימון *</Label>
+              <Input value={editWO.title} onChange={e => setEditWO(p => ({...p, title: e.target.value}))} dir="auto" />
+            </div>
+            <div className="space-y-1">
+              <Label>סוג</Label>
+              <Select value={editWO.type} onValueChange={v => setEditWO(p => ({...p, type: v as WorkoutType}))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {['easy','long_run','tempo','intervals','hill_repeats','fartlek','recovery','strength','rest','race'].map(t => (
+                    <SelectItem key={t} value={t}>{t.replace('_',' ')}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label>מרחק (ק"מ)</Label>
+                <Input type="number" placeholder="10" value={editWO.distance} onChange={e => setEditWO(p => ({...p, distance: e.target.value}))} />
+              </div>
+              <div className="space-y-1">
+                <Label>משך (דק')</Label>
+                <Input type="number" placeholder="60" value={editWO.duration} onChange={e => setEditWO(p => ({...p, duration: e.target.value}))} />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label>תיאור</Label>
+              <Textarea value={editWO.description} onChange={e => setEditWO(p => ({...p, description: e.target.value}))} rows={2} dir="auto" />
+            </div>
+            <div className="space-y-1">
+              <Label>הערות</Label>
+              <Textarea value={editWO.notes} onChange={e => setEditWO(p => ({...p, notes: e.target.value}))} rows={2} dir="auto" />
+            </div>
+          </div>
+          <div className="flex gap-2 pt-2">
+            <Button onClick={handleSaveEdit} disabled={savingEdit} className="flex-1 bg-gold hover:bg-gold/90 text-navy">
+              {savingEdit ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              שמור שינויים
+            </Button>
+            <Button variant="outline" onClick={() => setEditingWorkout(null)}>ביטול</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Create Workout Dialog */}
       <Dialog open={showCreateWorkout} onOpenChange={setShowCreateWorkout}>
