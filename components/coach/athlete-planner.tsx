@@ -767,13 +767,31 @@ export function AthletePlanner({ athleteId }: Props) {
               workoutId={builderWorkoutId}
               hideBackButton
               onDone={async () => {
+                const editedId = builderWorkoutId
                 setShowBuilderDialog(false)
                 setBuilderWorkoutId(undefined)
-                // Reload assigned workouts and library
+                // Reload workout library
+                const wSnap = await getDocs(collection(db, 'workouts'))
+                const freshLibrary = wSnap.docs.map(d => ({ ...(d.data() as Workout), id: d.id }))
+                setWorkoutLibrary(freshLibrary)
+                if (editedId) {
+                  // Option B: update snapshot only for THIS athlete's assigned workouts
+                  const freshWorkout = freshLibrary.find(w => w.id === editedId)
+                  if (freshWorkout) {
+                    const { updateDoc, doc: fDoc } = await import('firebase/firestore')
+                    const awSnap = await getDocs(query(
+                      collection(db, 'assignedWorkouts'),
+                      where('athleteId', '==', athleteId),
+                      where('workoutId', '==', editedId)
+                    ))
+                    await Promise.all(awSnap.docs.map(d =>
+                      updateDoc(fDoc(db, 'assignedWorkouts', d.id), { workout: freshWorkout })
+                    ))
+                  }
+                }
+                // Reload assigned workouts for this athlete only
                 const snap = await getDocs(query(collection(db, 'assignedWorkouts'), where('athleteId', '==', athleteId)))
                 setAssignedWorkouts(snap.docs.map(d => ({ ...(d.data() as AssignedWorkout), id: d.id })))
-                const wSnap = await getDocs(collection(db, 'workouts'))
-                setWorkoutLibrary(wSnap.docs.map(d => ({ ...(d.data() as Workout), id: d.id })))
               }}
             />
           )}
