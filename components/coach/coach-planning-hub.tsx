@@ -6,7 +6,10 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ChevronLeft, ChevronRight, Copy, Loader2, Plus, X, Search, Check, ClipboardPaste } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Copy, Loader2, Plus, X, Search, Check, ClipboardPaste, Pencil, Trash2 } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { WorkoutBuilder } from '@/components/coach/workout-builder'
+import { deleteDoc, doc, updateDoc } from 'firebase/firestore'
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, startOfMonth, endOfMonth, addMonths, subMonths, eachWeekOfInterval } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { db } from '@/lib/firebase'
@@ -53,6 +56,10 @@ export function CoachPlanningHub() {
   const [pasting, setPasting] = useState<string | null>(null)
   const [librarySearch, setLibrarySearch] = useState('')
   const [selectedLibraryWorkout, setSelectedLibraryWorkout] = useState<Workout | null>(null)
+  const [selectedAssignedWorkout, setSelectedAssignedWorkout] = useState<AssignedWorkout | null>(null)
+  const [copiedWorkout, setCopiedWorkout] = useState<AssignedWorkout | null>(null)
+  const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null)
+  const [editingAthleteId, setEditingAthleteId] = useState<string | null>(null)
   const [selectedAthletes, setSelectedAthletes] = useState<string[]>([])
 
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 })
@@ -94,6 +101,18 @@ export function CoachPlanningHub() {
     }
     load()
   }, [])
+
+  const handleDeleteWorkout = async (assignedWorkout: AssignedWorkout) => {
+    try {
+      await deleteDoc(doc(db, 'assignedWorkouts', assignedWorkout.id))
+      setAthleteData(prev => prev.map(ad => ({
+        ...ad,
+        assignedWorkouts: ad.assignedWorkouts.filter(w => w.id !== assignedWorkout.id)
+      })))
+      setSelectedAssignedWorkout(null)
+      toast.success('אימון נמחק')
+    } catch { toast.error('שגיאה במחיקה') }
+  }
 
   const reloadWorkouts = async () => {
     const awSnap = await getDocs(collection(db, 'assignedWorkouts'))
@@ -204,6 +223,19 @@ export function CoachPlanningHub() {
           </div>
         )}
 
+        {/* Copied single workout banner */}
+        {copiedWorkout && (
+          <div className="rounded-xl border-2 border-blue-200 bg-blue-50 px-4 py-2 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ClipboardPaste className="h-4 w-4 text-blue-500"/>
+              <p className="text-sm font-medium text-navy">
+                אימון מועתק: <span className="text-blue-600 font-bold">{copiedWorkout.workout?.title}</span> — לחץ על יום לשיבוץ
+              </p>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => setCopiedWorkout(null)}><X className="h-3.5 w-3.5"/></Button>
+          </div>
+        )}
+
         {/* Athlete filter */}
         <div className="flex flex-wrap gap-2">
           <p className="text-xs text-muted-foreground self-center">הצג:</p>
@@ -274,7 +306,13 @@ export function CoachPlanningHub() {
                       const isAssignTarget = !!selectedLibraryWorkout
                       return (
                         <div key={di}
-                          onClick={() => { if (selectedLibraryWorkout) { handleAssignWorkout(selectedLibraryWorkout, data.athlete.id, dateStr); setSelectedLibraryWorkout(null) } }}
+                          onClick={() => {
+                          if (selectedLibraryWorkout) { handleAssignWorkout(selectedLibraryWorkout, data.athlete.id, dateStr); setSelectedLibraryWorkout(null) }
+                          else if (copiedWorkout) {
+                            handleAssignWorkout(copiedWorkout.workout, data.athlete.id, dateStr)
+                            setCopiedWorkout(null)
+                          }
+                        }}
                           className={cn('min-h-[90px] p-1.5 transition-all',
                             isToday && 'bg-gold/5',
                             isAssignTarget && 'cursor-pointer hover:bg-gold/10 hover:border-gold/30'
@@ -289,9 +327,31 @@ export function CoachPlanningHub() {
                           )}
                           <div className="space-y-0.5">
                             {dayWorkouts.map(w => (
-                              <div key={w.id} className={cn('text-[9px] rounded px-1 py-0.5 border leading-tight truncate', TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy)}>
+                              <div key={w.id}
+                                onClick={e => { e.stopPropagation(); setSelectedAssignedWorkout(selectedAssignedWorkout?.id === w.id ? null : w) }}
+                                className={cn('text-[9px] rounded px-1 py-0.5 border leading-tight cursor-pointer transition-all',
+                                  TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy,
+                                  selectedAssignedWorkout?.id === w.id ? 'ring-1 ring-navy' : 'hover:opacity-80',
+                                  copiedWorkout?.workoutId === w.workoutId ? 'ring-1 ring-gold' : ''
+                                )}>
                                 <p className="font-medium truncate">{w.workout?.title}</p>
                                 {w.workout?.distance && <p className="opacity-70">{w.workout.distance}k</p>}
+                                {selectedAssignedWorkout?.id === w.id && (
+                                  <div className="flex gap-0.5 mt-1 pt-1 border-t border-current/20" onClick={e => e.stopPropagation()}>
+                                    <button className="flex-1 bg-white/60 rounded px-0.5 py-0.5 text-[8px] hover:bg-white flex items-center justify-center gap-0.5"
+                                      onClick={() => { setCopiedWorkout(w); setSelectedAssignedWorkout(null); toast.success('אימון הועתק — לחץ על יום לשיבוץ') }}>
+                                      <Copy className="h-2 w-2"/>העתק
+                                    </button>
+                                    <button className="flex-1 bg-white/60 rounded px-0.5 py-0.5 text-[8px] hover:bg-white flex items-center justify-center gap-0.5"
+                                      onClick={() => { setEditingWorkoutId(w.workoutId); setEditingAthleteId(w.athleteId); setSelectedAssignedWorkout(null) }}>
+                                      <Pencil className="h-2 w-2"/>ערוך
+                                    </button>
+                                    <button className="flex-1 bg-white/60 rounded px-0.5 py-0.5 text-[8px] hover:bg-red-100 text-red-600 flex items-center justify-center gap-0.5"
+                                      onClick={() => handleDeleteWorkout(w)}>
+                                      <Trash2 className="h-2 w-2"/>מחק
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             ))}
                           </div>
@@ -392,6 +452,37 @@ export function CoachPlanningHub() {
           </CardContent>
         </Card>
       </div>
+      {/* Edit Workout Dialog */}
+      <Dialog open={!!editingWorkoutId} onOpenChange={(open) => { if (!open) { setEditingWorkoutId(null); setEditingAthleteId(null) } }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>ערוך אימון</DialogTitle>
+          </DialogHeader>
+          {editingWorkoutId && (
+            <WorkoutBuilder
+              workoutId={editingWorkoutId}
+              hideBackButton
+              onDone={async () => {
+                const wid = editingWorkoutId
+                const aid = editingAthleteId
+                setEditingWorkoutId(null)
+                setEditingAthleteId(null)
+                if (wid && aid) {
+                  const wSnap = await getDocs(collection(db, 'workouts'))
+                  const freshLibrary = wSnap.docs.map(d => ({ ...(d.data() as Workout), id: d.id }))
+                  setWorkoutLibrary(freshLibrary)
+                  const freshWorkout = freshLibrary.find(w => w.id === wid)
+                  if (freshWorkout) {
+                    const awSnap = await getDocs(query(collection(db, 'assignedWorkouts'), where('athleteId', '==', aid), where('workoutId', '==', wid)))
+                    await Promise.all(awSnap.docs.map(d => updateDoc(doc(db, 'assignedWorkouts', d.id), { workout: freshWorkout })))
+                  }
+                }
+                await reloadWorkouts()
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
