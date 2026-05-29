@@ -220,7 +220,7 @@ export function CoachPlanningHub() {
   )
 
   return (
-    <div className="flex gap-4">
+    <div className="flex flex-col lg:flex-row gap-4">
       {/* Main area */}
       <div className="flex-1 min-w-0 space-y-4">
         {/* Header */}
@@ -331,7 +331,7 @@ export function CoachPlanningHub() {
 
                 {/* Week grid */}
                 {viewMode === 'week' && (
-                  <div className="grid grid-cols-7 divide-x divide-border/50">
+                  <div className="overflow-x-auto -mx-1"><div style={{minWidth:"480px"}} className="grid grid-cols-7 divide-x divide-border/50">
                     {weekDays.map((day, di) => {
                       const dayWorkouts = getWorkoutsForDay(data, day)
                       const isToday = isSameDay(day, new Date())
@@ -391,7 +391,7 @@ export function CoachPlanningHub() {
                         </div>
                       )
                     })}
-                  </div>
+                  </div></div>
                 )}
 
                 {/* Month grid */}
@@ -443,7 +443,7 @@ export function CoachPlanningHub() {
       </div>
 
       {/* Workout Library Sidebar */}
-      <div className="w-64 flex-shrink-0">
+      <div className="w-full lg:w-64 lg:flex-shrink-0">
         <Card className="sticky top-4">
           <CardHeader className="pb-2 pt-4 px-4">
             <CardTitle className="text-sm">ספריית אימונים</CardTitle>
@@ -454,7 +454,7 @@ export function CoachPlanningHub() {
             </div>
           </CardHeader>
           <CardContent className="px-3 pb-3">
-            <div className="space-y-1 max-h-[calc(100vh-200px)] overflow-y-auto">
+            <div className="space-y-1 max-h-48 lg:max-h-[calc(100vh-200px)] overflow-y-auto">
               {selectedLibraryWorkout && (
                 <div className="mb-2 p-2 rounded-lg bg-gold/10 border border-gold text-xs text-navy">
                   <p className="font-bold">{selectedLibraryWorkout.title}</p>
