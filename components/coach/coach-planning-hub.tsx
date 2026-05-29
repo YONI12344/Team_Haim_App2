@@ -220,7 +220,7 @@ export function CoachPlanningHub() {
   )
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4">
+    <div className="flex gap-4">
       {/* Main area */}
       <div className="flex-1 min-w-0 space-y-4">
         {/* Header */}
@@ -298,7 +298,7 @@ export function CoachPlanningHub() {
             return (
               <div key={data.athlete.id} className="rounded-2xl border border-border bg-white overflow-hidden">
                 {/* Athlete header */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 py-2.5 border-b bg-muted/20">
+                <div className="flex items-center justify-between px-4 py-2.5 border-b bg-muted/20">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-7 w-7">
                       <AvatarImage src={data.athlete.photoURL}/>
@@ -313,7 +313,7 @@ export function CoachPlanningHub() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 flex-wrap">
+                  <div className="flex items-center gap-1">
                     <Button variant="outline" size="sm" className="h-7 text-xs"
                       onClick={() => handleCopyWeek(data)}>
                       <Copy className="h-3 w-3 mr-1"/>העתק שבוע
@@ -331,8 +331,7 @@ export function CoachPlanningHub() {
 
                 {/* Week grid */}
                 {viewMode === 'week' && (
-                  <div className="overflow-x-auto">
-                  <div className="grid grid-cols-7 divide-x divide-border/50 min-w-[500px]">
+                  <div className="grid grid-cols-7 divide-x divide-border/50">
                     {weekDays.map((day, di) => {
                       const dayWorkouts = getWorkoutsForDay(data, day)
                       const isToday = isSameDay(day, new Date())
@@ -397,8 +396,8 @@ export function CoachPlanningHub() {
 
                 {/* Month grid */}
                 {viewMode === 'month' && (
-                  <div className="p-2 space-y-1 overflow-x-auto">
-                    <div className="grid grid-cols-8 gap-0.5 mb-1 min-w-[400px]">
+                  <div className="p-2 space-y-1">
+                    <div className="grid grid-cols-8 gap-0.5 mb-1">
                       {DAY_LABELS.map(l => <p key={l} className="text-[9px] text-center text-muted-foreground">{l}</p>)}
                       <p className="text-[9px] text-center text-muted-foreground">ק"מ</p>
                     </div>
@@ -406,7 +405,7 @@ export function CoachPlanningHub() {
                       const days = eachDayOfInterval({ start: weekStartDay, end: endOfWeek(weekStartDay, { weekStartsOn: 0 }) })
                       const wKm = getWeekKm(data, days)
                       return (
-                        <div key={wi} className="grid grid-cols-8 gap-0.5 min-w-[400px]">
+                        <div key={wi} className="grid grid-cols-8 gap-0.5">
                           {days.map((day, di) => {
                             const inMonth = day >= monthStart && day <= monthEnd
                             const dayWorkouts = getWorkoutsForDay(data, day)
@@ -444,7 +443,7 @@ export function CoachPlanningHub() {
       </div>
 
       {/* Workout Library Sidebar */}
-      <div className="w-full lg:w-64 lg:flex-shrink-0">
+      <div className="w-64 flex-shrink-0">
         <Card className="sticky top-4">
           <CardHeader className="pb-2 pt-4 px-4">
             <CardTitle className="text-sm">ספריית אימונים</CardTitle>
