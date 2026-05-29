@@ -102,6 +102,39 @@ export function CoachPlanningHub() {
     load()
   }, [])
 
+  const handleOpenEdit = async (assignedWorkout: AssignedWorkout) => {
+    try {
+      // Duplicate the workout so edits don't affect other assignments
+      const { getDoc } = await import('firebase/firestore')
+      const origSnap = await getDoc(doc(db, 'workouts', assignedWorkout.workoutId))
+      if (!origSnap.exists()) { toast.error('אימון לא נמצא'); return }
+      const origData = origSnap.data()
+      // Create a new workout document (copy)
+      const newRef = await addDoc(collection(db, 'workouts'), {
+        ...origData,
+        title: origData.title,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
+      // Update the assigned workout to point to the new copy
+      await updateDoc(doc(db, 'assignedWorkouts', assignedWorkout.id), {
+        workoutId: newRef.id,
+        workout: { ...origData, id: newRef.id },
+      })
+      // Update local state
+      setAthleteData(prev => prev.map(ad => ({
+        ...ad,
+        assignedWorkouts: ad.assignedWorkouts.map(w =>
+          w.id === assignedWorkout.id
+            ? { ...w, workoutId: newRef.id, workout: { ...w.workout, id: newRef.id } }
+            : w
+        )
+      })))
+      setEditingWorkoutId(newRef.id)
+      setEditingAthleteId(assignedWorkout.athleteId)
+    } catch (e) { console.error(e); toast.error('שגיאה') }
+  }
+
   const handleDeleteWorkout = async (assignedWorkout: AssignedWorkout) => {
     try {
       await deleteDoc(doc(db, 'assignedWorkouts', assignedWorkout.id))
@@ -343,7 +376,7 @@ export function CoachPlanningHub() {
                                       <Copy className="h-2 w-2"/>העתק
                                     </button>
                                     <button className="flex-1 bg-white/60 rounded px-0.5 py-0.5 text-[8px] hover:bg-white flex items-center justify-center gap-0.5"
-                                      onClick={() => { setEditingWorkoutId(w.workoutId); setEditingAthleteId(w.athleteId); setSelectedAssignedWorkout(null) }}>
+                                      onClick={() => { setSelectedAssignedWorkout(null); handleOpenEdit(w) }}>
                                       <Pencil className="h-2 w-2"/>ערוך
                                     </button>
                                     <button className="flex-1 bg-white/60 rounded px-0.5 py-0.5 text-[8px] hover:bg-red-100 text-red-600 flex items-center justify-center gap-0.5"
@@ -464,16 +497,16 @@ export function CoachPlanningHub() {
               hideBackButton
               onDone={async () => {
                 const wid = editingWorkoutId
-                const aid = editingAthleteId
                 setEditingWorkoutId(null)
                 setEditingAthleteId(null)
-                if (wid && aid) {
-                  const wSnap = await getDocs(collection(db, 'workouts'))
-                  const freshLibrary = wSnap.docs.map(d => ({ ...(d.data() as Workout), id: d.id }))
-                  setWorkoutLibrary(freshLibrary)
-                  const freshWorkout = freshLibrary.find(w => w.id === wid)
-                  if (freshWorkout) {
-                    const awSnap = await getDocs(query(collection(db, 'assignedWorkouts'), where('athleteId', '==', aid), where('workoutId', '==', wid)))
+                // Reload just this workout and update its assignment snapshot
+                if (wid) {
+                  const { getDoc } = await import('firebase/firestore')
+                  const snap = await getDoc(doc(db, 'workouts', wid))
+                  if (snap.exists()) {
+                    const freshWorkout = { ...snap.data(), id: snap.id } as Workout
+                    // Update only the assigned workouts pointing to this specific workout copy
+                    const awSnap = await getDocs(query(collection(db, 'assignedWorkouts'), where('workoutId', '==', wid)))
                     await Promise.all(awSnap.docs.map(d => updateDoc(doc(db, 'assignedWorkouts', d.id), { workout: freshWorkout })))
                   }
                 }
