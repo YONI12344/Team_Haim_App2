@@ -52,7 +52,7 @@ export function CoachPlanningHub() {
   const [copiedWeek, setCopiedWeek] = useState<CopiedWeek | null>(null)
   const [pasting, setPasting] = useState<string | null>(null)
   const [librarySearch, setLibrarySearch] = useState('')
-  const [assigningWorkout, setAssigningWorkout] = useState<{ workout: Workout, athleteId: string, date: string } | null>(null)
+  const [selectedLibraryWorkout, setSelectedLibraryWorkout] = useState<Workout | null>(null)
   const [selectedAthletes, setSelectedAthletes] = useState<string[]>([])
 
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 })
@@ -124,10 +124,11 @@ export function CoachPlanningHub() {
     setPasting(toAthleteId)
     try {
       const toWeekDays = eachDayOfInterval({ start: toWeekStart, end: endOfWeek(toWeekStart, { weekStartsOn: 0 }) })
-      const fromWeekDays = eachDayOfInterval({ start: weekStart, end: weekEnd })
       await Promise.all(copiedWeek.workouts.map(w => {
-        const dayIndex = fromWeekDays.findIndex(d => format(d,'yyyy-MM-dd') === w.scheduledDate)
-        const targetDate = format(toWeekDays[dayIndex] || toWeekDays[0], 'yyyy-MM-dd')
+        // Map by day of week (0=Sun, 6=Sat)
+        const srcDate = new Date(w.scheduledDate)
+        const dayOfWeek = srcDate.getDay()
+        const targetDate = format(toWeekDays[dayOfWeek], 'yyyy-MM-dd')
         return addDoc(collection(db, 'assignedWorkouts'), {
           workoutId: w.workoutId, workout: w.workout,
           athleteId: toAthleteId, assignedBy: 'coach',
@@ -270,11 +271,22 @@ export function CoachPlanningHub() {
                       const dayWorkouts = getWorkoutsForDay(data, day)
                       const isToday = isSameDay(day, new Date())
                       const dateStr = format(day, 'yyyy-MM-dd')
+                      const isAssignTarget = !!selectedLibraryWorkout
                       return (
-                        <div key={di} className={cn('min-h-[90px] p-1.5', isToday && 'bg-gold/5')}>
+                        <div key={di}
+                          onClick={() => { if (selectedLibraryWorkout) { handleAssignWorkout(selectedLibraryWorkout, data.athlete.id, dateStr); setSelectedLibraryWorkout(null) } }}
+                          className={cn('min-h-[90px] p-1.5 transition-all',
+                            isToday && 'bg-gold/5',
+                            isAssignTarget && 'cursor-pointer hover:bg-gold/10 hover:border-gold/30'
+                          )}>
                           <p className={cn('text-[10px] font-medium text-center mb-1', isToday ? 'text-gold font-bold' : 'text-muted-foreground')}>
                             {DAY_LABELS[di]} {format(day,'d')}
                           </p>
+                          {isAssignTarget && dayWorkouts.length === 0 && (
+                            <div className="h-8 rounded border-2 border-dashed border-gold/40 flex items-center justify-center">
+                              <Plus className="h-3 w-3 text-gold/50"/>
+                            </div>
+                          )}
                           <div className="space-y-0.5">
                             {dayWorkouts.map(w => (
                               <div key={w.id} className={cn('text-[9px] rounded px-1 py-0.5 border leading-tight truncate', TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy)}>
@@ -350,14 +362,27 @@ export function CoachPlanningHub() {
           </CardHeader>
           <CardContent className="px-3 pb-3">
             <div className="space-y-1 max-h-[calc(100vh-200px)] overflow-y-auto">
+              {selectedLibraryWorkout && (
+                <div className="mb-2 p-2 rounded-lg bg-gold/10 border border-gold text-xs text-navy">
+                  <p className="font-bold">{selectedLibraryWorkout.title}</p>
+                  <p className="text-muted-foreground">לחץ על יום באתלט לשיבוץ</p>
+                  <Button size="sm" variant="ghost" className="h-6 text-xs mt-1 w-full" onClick={() => setSelectedLibraryWorkout(null)}>ביטול</Button>
+                </div>
+              )}
               {filteredLibrary.map(workout => (
-                <div key={workout.id} className={cn('rounded-lg border p-2 text-xs cursor-pointer hover:border-gold/50 hover:bg-gold/5 transition-all', workoutTypeColors[workout.type])}>
+                <div key={workout.id}
+                  onClick={() => setSelectedLibraryWorkout(selectedLibraryWorkout?.id === workout.id ? null : workout)}
+                  className={cn('rounded-lg border p-2 text-xs cursor-pointer transition-all', workoutTypeColors[workout.type],
+                    selectedLibraryWorkout?.id === workout.id ? 'ring-2 ring-gold border-gold' : 'hover:border-gold/50 hover:bg-gold/5'
+                  )}>
                   <p className="font-semibold truncate">{workout.title}</p>
                   <div className="flex gap-2 text-muted-foreground mt-0.5">
                     {workout.distance && <span>{workout.distance}k</span>}
                     {workout.duration && <span>{workout.duration}'</span>}
                   </div>
-                  <p className="text-[10px] text-muted-foreground mt-1">גרור לאתלט ויום</p>
+                  {selectedLibraryWorkout?.id !== workout.id && (
+                    <p className="text-[10px] text-muted-foreground mt-0.5">לחץ לבחירה</p>
+                  )}
                 </div>
               ))}
               {filteredLibrary.length === 0 && (
