@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -84,6 +85,11 @@ export function AthletePlanner({ athleteId }: Props) {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null)
   const [assigning, setAssigning] = useState(false)
+  const [workoutSheet, setWorkoutSheet] = useState<{ mode: 'create' | 'edit', workout?: Workout, assignedId?: string } | null>(null)
+  const [savingSheet, setSavingSheet] = useState(false)
+  const emptyForm = { title: '', type: 'easy' as WorkoutType, distance: '', duration: '', description: '', warmup: '', cooldown: '', notes: '', sets: [] as any[] }
+  const [sheetWO, setSheetWO] = useState(emptyForm)
+  // Keep legacy for compatibility
   const [showCreateWorkout, setShowCreateWorkout] = useState(false)
   const [creatingWorkout, setCreatingWorkout] = useState(false)
   const [editingWorkout, setEditingWorkout] = useState<Workout | null>(null)
@@ -278,6 +284,81 @@ export function AthletePlanner({ athleteId }: Props) {
       setShowCreateWorkout(false)
     } catch { toast.error('שגיאה ביצירת אימון') }
     finally { setCreatingWorkout(false) }
+  }
+
+  const addSheetSet = () => setSheetWO(p => ({ ...p, sets: [...p.sets, { id: `set-${Date.now()}`, reps: 1, distance: '', pace: '', rest: '', intervals: [] }] }))
+  const removeSheetSet = (i: number) => setSheetWO(p => ({ ...p, sets: p.sets.filter((_: any, idx: number) => idx !== i) }))
+  const updateSheetSet = (i: number, field: string, value: any) => setSheetWO(p => { const s = [...p.sets]; s[i] = { ...s[i], [field]: value }; return { ...p, sets: s } })
+  const addSheetInterval = (si: number) => setSheetWO(p => { const s = [...p.sets]; s[si] = { ...s[si], intervals: [...(s[si].intervals||[]), { id: `int-${Date.now()}`, distance: '', pace: '', rest: '' }] }; return { ...p, sets: s } })
+  const updateSheetInterval = (si: number, ii: number, field: string, value: string) => setSheetWO(p => { const s = [...p.sets]; const ivs = [...(s[si].intervals||[])]; ivs[ii] = { ...ivs[ii], [field]: value }; s[si] = { ...s[si], intervals: ivs }; return { ...p, sets: s } })
+  const removeSheetInterval = (si: number, ii: number) => setSheetWO(p => { const s = [...p.sets]; s[si] = { ...s[si], intervals: (s[si].intervals||[]).filter((_: any, idx: number) => idx !== ii) }; return { ...p, sets: s } })
+
+  const handleSaveSheet = async () => {
+    if (!sheetWO.title.trim() || !workoutSheet) return
+    setSavingSheet(true)
+    try {
+      const payload = {
+        title: sheetWO.title.trim(), type: sheetWO.type,
+        description: sheetWO.description.trim(),
+        distance: sheetWO.distance ? Number(sheetWO.distance) : null,
+        duration: sheetWO.duration ? Number(sheetWO.duration) : null,
+        warmup: sheetWO.warmup.trim() || null,
+        cooldown: sheetWO.cooldown.trim() || null,
+        notes: sheetWO.notes.trim() || null,
+        sets: sheetWO.sets.map((s: any, i: number) => ({
+          id: s.id || `set-${i}`, reps: s.reps || 1,
+          distance: s.distance || '', duration: s.duration || '',
+          pace: s.pace || '', rest: s.rest || '',
+          intervals: (s.intervals || []).map((iv: any, j: number) => ({
+            id: iv.id || `int-${i}-${j}`, distance: iv.distance || '', pace: iv.pace || '', rest: iv.rest || ''
+          }))
+        })),
+        updatedAt: serverTimestamp(),
+      }
+      if (workoutSheet.mode === 'edit' && workoutSheet.workout) {
+        const { updateDoc, doc } = await import('firebase/firestore')
+        await updateDoc(doc(db, 'workouts', workoutSheet.workout.id), payload)
+        const updated = { ...workoutSheet.workout, ...payload }
+        setAssignedWorkouts(prev => prev.map(w => w.workoutId === workoutSheet.workout!.id ? { ...w, workout: updated as any } : w))
+        setWorkoutLibrary(prev => prev.map(w => w.id === workoutSheet.workout!.id ? { ...w, ...payload } as any : w))
+        toast.success('אימון עודכן!')
+      } else {
+        const ref = await addDoc(collection(db, 'workouts'), { ...payload, createdBy: user?.id || null, createdAt: serverTimestamp() })
+        const created = { id: ref.id, ...payload, createdBy: user?.id || '', createdAt: new Date(), updatedAt: new Date() } as any
+        setWorkoutLibrary(prev => [created, ...prev])
+        if (selectedDate && user) {
+          const dateStr = format(selectedDate, 'yyyy-MM-dd')
+          const assignRef = await addDoc(collection(db, 'assignedWorkouts'), {
+            workoutId: ref.id, workout: created, athleteId,
+            assignedBy: user.id || null, scheduledDate: dateStr,
+            status: 'scheduled', createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+          })
+          setAssignedWorkouts(prev => [...prev, { id: assignRef.id, workoutId: ref.id, workout: created, athleteId, assignedBy: user.id || '', scheduledDate: dateStr, status: 'scheduled', createdAt: new Date(), updatedAt: new Date() } as any])
+          toast.success('אימון נוצר ושובץ ליום!')
+        } else {
+          toast.success('אימון נוצר!')
+        }
+      }
+      setWorkoutSheet(null)
+    } catch (e) { console.error(e); toast.error('שגיאה בשמירה') }
+    finally { setSavingSheet(false) }
+  }
+
+  const openCreateSheet = () => {
+    setSheetWO(emptyForm)
+    setWorkoutSheet({ mode: 'create' })
+  }
+
+  const openEditSheet = (workout: Workout) => {
+    setSheetWO({
+      title: workout.title || '', type: (workout.type as WorkoutType) || 'easy',
+      distance: workout.distance ? String(workout.distance) : '',
+      duration: workout.duration ? String(workout.duration) : '',
+      description: workout.description || '', warmup: (workout as any).warmup || '',
+      cooldown: (workout as any).cooldown || '', notes: workout.notes || '',
+      sets: Array.isArray((workout as any).sets) ? (workout as any).sets.map((s: any) => ({ ...s, intervals: s.intervals || [] })) : []
+    })
+    setWorkoutSheet({ mode: 'edit', workout })
   }
 
   const handleSaveEdit = async () => {
@@ -639,17 +720,7 @@ export function AthletePlanner({ athleteId }: Props) {
                               </div>
                               <div className="flex items-center gap-1 flex-shrink-0">
                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-gold"
-                                  onClick={() => {
-                                    setEditingWorkout(w.workout)
-                                    setEditWO({
-                                      title: w.workout.title || '',
-                                      type: (w.workout.type as WorkoutType) || 'easy',
-                                      distance: w.workout.distance ? String(w.workout.distance) : '',
-                                      duration: w.workout.duration ? String(w.workout.duration) : '',
-                                      description: w.workout.description || '',
-                                      notes: w.workout.notes || '',
-                                    })
-                                  }}>
+                                  onClick={() => openEditSheet(w.workout)}>
                                   <span className="text-xs">✏️</span>
                                 </Button>
                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleRemove(w.id)}>
@@ -698,7 +769,7 @@ export function AthletePlanner({ athleteId }: Props) {
                       </p>
                       <Button size="sm" variant="outline"
                         className="h-7 text-xs border-gold/40 text-gold hover:bg-gold/10"
-                        onClick={() => setShowCreateWorkout(true)}>
+                        onClick={openCreateSheet}>
                         ➕ צור חדש
                       </Button>
                     </div>
@@ -762,6 +833,156 @@ export function AthletePlanner({ athleteId }: Props) {
           </Card>
         </div>
       </div>
+
+      {/* Full Workout Builder Sheet */}
+      <Sheet open={!!workoutSheet} onOpenChange={(open) => !open && setWorkoutSheet(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
+          <SheetHeader className="mb-4">
+            <SheetTitle>{workoutSheet?.mode === 'edit' ? '✏️ ערוך אימון' : '➕ צור אימון חדש'}</SheetTitle>
+          </SheetHeader>
+          <div className="space-y-4">
+            {/* Basic */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2 space-y-1">
+                <Label>שם האימון *</Label>
+                <Input value={sheetWO.title} onChange={e => setSheetWO(p => ({...p, title: e.target.value}))} dir="auto" placeholder="למשל: אינטרוולים 800מ" />
+              </div>
+              <div className="space-y-1">
+                <Label>סוג</Label>
+                <Select value={sheetWO.type} onValueChange={v => setSheetWO(p => ({...p, type: v as WorkoutType}))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {[['easy','קל'],['long_run','ארוכה'],['tempo','טמפו'],['intervals','אינטרוולים'],['hill_repeats','גבעות'],['fartlek','פארטלק'],['recovery','התאוששות'],['strength','כוח'],['rest','מנוחה'],['race','תחרות']].map(([v,l]) => (
+                      <SelectItem key={v} value={v}>{l}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>מרחק (ק"מ)</Label>
+                <Input type="number" placeholder="10" value={sheetWO.distance} onChange={e => setSheetWO(p => ({...p, distance: e.target.value}))} />
+              </div>
+              <div className="space-y-1">
+                <Label>משך (דק')</Label>
+                <Input type="number" placeholder="60" value={sheetWO.duration} onChange={e => setSheetWO(p => ({...p, duration: e.target.value}))} />
+              </div>
+              <div className="col-span-2 space-y-1">
+                <Label>תיאור</Label>
+                <Textarea value={sheetWO.description} onChange={e => setSheetWO(p => ({...p, description: e.target.value}))} rows={2} dir="auto" placeholder="תיאור קצר..." />
+              </div>
+            </div>
+            {/* Warmup & Cooldown */}
+            <div className="space-y-3 border rounded-lg p-3 bg-muted/20">
+              <p className="text-xs font-semibold text-navy uppercase tracking-wide">חימום ושחרור</p>
+              <div className="space-y-1">
+                <Label className="text-xs">חימום</Label>
+                <Textarea value={sheetWO.warmup} onChange={e => setSheetWO(p => ({...p, warmup: e.target.value}))} rows={2} dir="auto" placeholder="למשל: 2 ק"מ ריצה קלה..." />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">שחרור</Label>
+                <Textarea value={sheetWO.cooldown} onChange={e => setSheetWO(p => ({...p, cooldown: e.target.value}))} rows={2} dir="auto" placeholder="למשל: 1.5 ק"מ ריצה קלה..." />
+              </div>
+            </div>
+            {/* Sets */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-navy uppercase tracking-wide">סטים</p>
+                <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={addSheetSet}>
+                  <Plus className="h-3 w-3 mr-1" />הוסף סט
+                </Button>
+              </div>
+              {sheetWO.sets.length === 0 && (
+                <p className="text-xs text-muted-foreground text-center py-3 border rounded-lg">אין סטים — לחץ הוסף סט</p>
+              )}
+              {sheetWO.sets.map((set: any, si: number) => {
+                const hasIntervals = set.intervals && set.intervals.length > 0
+                return (
+                  <div key={set.id || si} className="rounded-lg border overflow-hidden">
+                    <div className="flex items-center justify-between bg-muted/40 px-3 py-2">
+                      <span className="text-xs font-semibold text-navy">סט {si + 1}</span>
+                      <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeSheetSet(si)}>
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <div className="p-3 space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs">חזרות</Label>
+                          <Input type="number" min="1" placeholder="3" value={set.reps || ''} onChange={e => updateSheetSet(si, 'reps', parseInt(e.target.value)||1)} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">מנוחה בין סטים</Label>
+                          <Input placeholder="5 דק' ריצה" value={set.rest || ''} onChange={e => updateSheetSet(si, 'rest', e.target.value)} dir="auto" />
+                        </div>
+                      </div>
+                      {!hasIntervals && (
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-xs">מרחק / משך</Label>
+                            <Input placeholder="1000מ או 5 דק'" value={set.distance || ''} onChange={e => updateSheetSet(si, 'distance', e.target.value)} dir="auto" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">טמפו / מאמץ</Label>
+                            <Input placeholder="4:00/ק"מ" value={set.pace || ''} onChange={e => updateSheetSet(si, 'pace', e.target.value)} />
+                          </div>
+                        </div>
+                      )}
+                      {hasIntervals && (
+                        <div className="space-y-1.5">
+                          <p className="text-[10px] font-medium text-muted-foreground uppercase">אינטרוולים בסט</p>
+                          {set.intervals.map((iv: any, ii: number) => (
+                            <div key={iv.id || ii} className="grid grid-cols-4 gap-1.5 items-end bg-muted/20 rounded p-1.5">
+                              <div className="space-y-1">
+                                <Label className="text-[10px]">מרחק</Label>
+                                <Input className="h-7 text-xs" placeholder="800מ" value={iv.distance || ''} onChange={e => updateSheetInterval(si, ii, 'distance', e.target.value)} />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px]">טמפו</Label>
+                                <Input className="h-7 text-xs" placeholder="3:45" value={iv.pace || ''} onChange={e => updateSheetInterval(si, ii, 'pace', e.target.value)} />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px]">מנוחה</Label>
+                                <Input className="h-7 text-xs" placeholder="2 דק'" value={iv.rest || ''} onChange={e => updateSheetInterval(si, ii, 'rest', e.target.value)} dir="auto" />
+                              </div>
+                              <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeSheetInterval(si, ii)}>
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        <Button type="button" variant="outline" size="sm" className="text-xs h-7" onClick={() => addSheetInterval(si)}>
+                          <Plus className="h-3 w-3 mr-1" />{hasIntervals ? 'הוסף אינטרוול' : 'הפוך למורכב'}
+                        </Button>
+                        {hasIntervals && (
+                          <Button type="button" variant="ghost" size="sm" className="text-xs h-7 text-muted-foreground"
+                            onClick={() => updateSheetSet(si, 'intervals', [])}>
+                            פשוט
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            {/* Notes */}
+            <div className="space-y-1">
+              <Label className="text-xs">הערות נוספות</Label>
+              <Textarea value={sheetWO.notes} onChange={e => setSheetWO(p => ({...p, notes: e.target.value}))} rows={2} dir="auto" placeholder="הערות למאמן..." />
+            </div>
+            {/* Save */}
+            <div className="flex gap-2 pt-2 pb-6">
+              <Button onClick={handleSaveSheet} disabled={savingSheet || !sheetWO.title.trim()} className="flex-1 bg-gold hover:bg-gold/90 text-navy">
+                {savingSheet ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                {workoutSheet?.mode === 'edit' ? 'שמור שינויים' : selectedDate ? 'צור ושבץ ליום' : 'צור אימון'}
+              </Button>
+              <Button variant="outline" onClick={() => setWorkoutSheet(null)}>ביטול</Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Edit Workout Dialog */}
       <Dialog open={!!editingWorkout} onOpenChange={(open) => !open && setEditingWorkout(null)}>
