@@ -31,6 +31,7 @@ import { legacyEffortToNumber } from '@/lib/types'
 import { listJourneys, computeJourneyProgress } from '@/lib/journey'
 import { useAuth } from '@/contexts/auth-context'
 import { useWorkoutTypeLabels } from '@/lib/workout-labels'
+import { WorkoutBuilder } from '@/components/coach/workout-builder'
 import { useLanguage } from '@/contexts/language-context'
 import { toast } from 'sonner'
 
@@ -86,6 +87,8 @@ export function AthletePlanner({ athleteId }: Props) {
   const [assigning, setAssigning] = useState(false)
   const [showCreateWorkout, setShowCreateWorkout] = useState(false)
   const [creatingWorkout, setCreatingWorkout] = useState(false)
+  const [showBuilderDialog, setShowBuilderDialog] = useState(false)
+  const [builderWorkoutId, setBuilderWorkoutId] = useState<string | undefined>(undefined)
   const [editingWorkout, setEditingWorkout] = useState<Workout | null>(null)
   const [editWO, setEditWO] = useState({ title: '', type: 'easy' as WorkoutType, distance: '', duration: '', description: '', notes: '' })
   const [savingEdit, setSavingEdit] = useState(false)
@@ -698,7 +701,7 @@ export function AthletePlanner({ athleteId }: Props) {
                       </p>
                       <Button size="sm" variant="outline"
                         className="h-7 text-xs border-gold/40 text-gold hover:bg-gold/10"
-                        onClick={() => setShowCreateWorkout(true)}>
+                        onClick={() => { setBuilderWorkoutId(undefined); setShowBuilderDialog(true) }}>
                         ➕ צור חדש
                       </Button>
                     </div>
@@ -762,6 +765,28 @@ export function AthletePlanner({ athleteId }: Props) {
           </Card>
         </div>
       </div>
+
+      {/* Full Workout Builder Dialog */}
+      <Dialog open={showBuilderDialog} onOpenChange={(open) => { if (!open) { setShowBuilderDialog(false); setBuilderWorkoutId(undefined) } }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{builderWorkoutId ? 'ערוך אימון' : 'צור אימון חדש'}</DialogTitle>
+          </DialogHeader>
+          {showBuilderDialog && (
+            <WorkoutBuilder
+              workoutId={builderWorkoutId}
+              hideBackButton
+              onDone={() => {
+                setShowBuilderDialog(false)
+                setBuilderWorkoutId(undefined)
+                // Reload assigned workouts
+                getDocs(query(collection(db, 'assignedWorkouts'), where('athleteId', '==', athleteId)))
+                  .then(snap => setAssignedWorkouts(snap.docs.map(d => ({ ...(d.data() as AssignedWorkout), id: d.id }))))
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Workout Dialog */}
       <Dialog open={!!editingWorkout} onOpenChange={(open) => !open && setEditingWorkout(null)}>

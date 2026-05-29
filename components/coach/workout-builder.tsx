@@ -49,9 +49,11 @@ const workoutTypeOrder: WorkoutType[] = [
 
 interface WorkoutBuilderProps {
   workoutId?: string
+  onDone?: (workout?: any) => void
+  hideBackButton?: boolean
 }
 
-export function WorkoutBuilder({ workoutId }: WorkoutBuilderProps) {
+export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBuilderProps) {
   const { t } = useLanguage()
   const router = useRouter()
   const { user } = useAuth()
@@ -93,7 +95,7 @@ export function WorkoutBuilder({ workoutId }: WorkoutBuilderProps) {
           setSets(Array.isArray(data.sets) ? data.sets.map((s: any) => ({ ...s, intervals: s.intervals || [] })) : [])
         } else {
           toast.error('Workout not found')
-          router.push('/coach/workouts')
+          if (onDone) onDone(); else router.push('/coach/workouts')
         }
       } catch (err) {
         console.error('Error loading workout:', err)
@@ -209,7 +211,7 @@ export function WorkoutBuilder({ workoutId }: WorkoutBuilderProps) {
         })
         toast.success('Workout created!')
       }
-      router.push('/coach/workouts')
+      if (onDone) onDone(); else router.push('/coach/workouts')
     } catch (err) {
       console.error('Error saving workout:', err)
       toast.error('Failed to save workout')
@@ -229,12 +231,14 @@ export function WorkoutBuilder({ workoutId }: WorkoutBuilderProps) {
   return (
     <div className="space-y-6">
       {/* Back Button */}
-      <Link href="/coach/workouts">
-        <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          {t.backToLibrary}
-        </Button>
-      </Link>
+      {!hideBackButton && (
+        <Link href="/coach/workouts">
+          <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            {t.backToLibrary}
+          </Button>
+        </Link>
+      )}
 
       {/* Header */}
       <div>
