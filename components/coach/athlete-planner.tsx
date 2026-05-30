@@ -93,6 +93,11 @@ export function AthletePlanner({ athleteId }: Props) {
   const [editWO, setEditWO] = useState({ title: '', type: 'easy' as WorkoutType, distance: '', duration: '', description: '', notes: '' })
   const [savingEdit, setSavingEdit] = useState(false)
   const [newWO, setNewWO] = useState({ title: '', type: 'easy' as WorkoutType, distance: '', duration: '', description: '', notes: '' })
+  const [currentDate, setCurrentDate] = useState(new Date())
+  const [viewMode, setViewMode] = useState<'week' | 'month'>('month')
+  const [selectedAssignedId, setSelectedAssignedId] = useState<string | null>(null)
+  const [copiedWorkout, setCopiedWorkout] = useState<AssignedWorkout | null>(null)
+  const [librarySearch, setLibrarySearch] = useState('')
 
   // ── Load athlete + journey + workout library ──────────────────────────────
   useEffect(() => {
@@ -376,12 +381,7 @@ export function AthletePlanner({ athleteId }: Props) {
   const selectedDayWorkouts = selectedDate ? getWorkoutsForDay(selectedDate) : []
   const selectedDayType     = selectedDate ? getDayType(selectedDate) : 'rest'
 
-  // Add week navigation state
-  const [currentDate, setCurrentDate] = useState(new Date())
-  const [viewMode, setViewMode] = useState<'week' | 'month'>('month')
-  const [selectedAssignedId, setSelectedAssignedId] = useState<string | null>(null)
-  const [copiedWorkout, setCopiedWorkout] = useState<AssignedWorkout | null>(null)
-  const [librarySearch, setLibrarySearch] = useState('')
+
 
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 })
   const weekEnd = endOfWeek(currentDate, { weekStartsOn: 0 })
