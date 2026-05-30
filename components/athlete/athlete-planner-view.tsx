@@ -16,13 +16,14 @@ import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firesto
 import type { AthleteProfile, AssignedWorkout, TrainingDayType } from '@/lib/types'
 import { listJourneys, computeJourneyProgress } from '@/lib/journey'
 import { useAuth } from '@/contexts/auth-context'
+import { useLanguage } from '@/contexts/language-context'
 import { WorkoutLogForm } from '@/components/athlete/workout-log-form'
 
 const WEEKDAY_KEYS = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'] as const
 const DAY_HE = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת']
 const DAY_HE_SHORT = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳']
-const DAY_EN_FULL = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
-const DAY_EN_FULL_LONG = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
+const DAY_EN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+const DAY_HE_LABELS = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳']
 
 const TYPE_COLORS: Record<string, string> = {
   easy: 'bg-emerald-100 text-emerald-700 border-emerald-200',
@@ -49,6 +50,7 @@ interface JourneySummary {
 
 export function AthletePlannerView() {
   const { user } = useAuth()
+  const { language } = useLanguage()
   const athleteId = user?.id || ''
   const [athlete, setAthlete] = useState<AthleteProfile | null>(null)
   const [journey, setJourney] = useState<JourneySummary | null>(null)
@@ -295,103 +297,62 @@ export function AthletePlannerView() {
           {/* Week View */}
           {viewMode === 'week' && (
             <div>
-              {/* Desktop: 7-col grid */}
-              <div className="hidden sm:block">
-                <div className="grid grid-cols-8 gap-2 mb-2">
-                  {DAY_EN_FULL.map((d,i) => (
-                    <div key={i} className="text-center text-xs font-semibold text-muted-foreground py-1">{d}</div>
-                  ))}
-                  <div className="text-center text-xs font-semibold text-muted-foreground py-1">KM</div>
-                </div>
-                <div className="grid grid-cols-8 gap-2">
-                  {weekDays.map((day, di) => {
-                    const dayWorkouts = getWorkoutsForDay(day)
-                    const todayFlag = isToday(day)
-                    const hasCompleted = dayWorkouts.some(w => w.status==='completed')
-                    const selectedInDay = dayWorkouts.some(w => w.id === selectedWorkoutId)
-                    return (
-                      <div key={di}
-                        onClick={() => dayWorkouts.length > 0 && setSelectedWorkoutId(prev => prev === dayWorkouts[0].id ? null : dayWorkouts[0].id)}
-                        className={cn('min-h-[120px] rounded-xl p-2 border transition-all',
-                          todayFlag ? 'border-gold bg-gold/5' : 'border-border hover:border-gold/40',
-                          selectedInDay ? 'ring-2 ring-gold border-gold' : '',
-                          dayWorkouts.length > 0 ? 'cursor-pointer' : ''
-                        )}>
-                        <p className={cn('text-xs font-bold text-center mb-2', todayFlag ? 'text-gold' : 'text-navy/70')}>{format(day,'d')}</p>
-                        {hasCompleted && <p className="text-xs text-emerald-500 text-center mb-1">✓</p>}
-                        <div className="space-y-1">
-                          {dayWorkouts.slice(0,2).map(w => (
-                            <div key={w.id} className={cn('text-[10px] rounded-lg px-1.5 py-1 border leading-tight',
-                              TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy,
-                              w.status==='completed' ? 'opacity-70' : ''
-                            )}>
-                              <p className="font-semibold truncate">{w.workout?.title}</p>
-                              {w.workout?.distance && <p className="opacity-70">{w.workout.distance}k</p>}
-                            </div>
-                          ))}
-                          {dayWorkouts.length > 2 && <p className="text-[10px] text-muted-foreground text-center">+{dayWorkouts.length-2}</p>}
-                        </div>
+              {/* Week grid - always horizontal, scrollable on mobile */}
+              <div className="overflow-x-auto -mx-2 px-2">
+                <div style={{minWidth:'560px'}}>
+                  <div className="grid grid-cols-8 gap-2 mb-2">
+                    {weekDays.map((_,i) => (
+                      <div key={i} className="text-center text-xs font-semibold text-muted-foreground py-1">
+                        {language === 'he' ? DAY_HE_LABELS[i] : DAY_EN[i]}
                       </div>
-                    )
-                  })}
-                  <div className="flex flex-col items-center justify-center rounded-xl bg-muted/30 border border-border/30 min-h-[120px]">
-                    <p className="text-lg font-bold text-navy">{getWeekKm(weekDays)}</p>
-                    <p className="text-xs text-muted-foreground">planned</p>
-                    {thisWeekKmActual > 0 && <>
-                      <div className="w-8 h-px bg-border my-1"/>
-                      <p className="text-sm font-bold text-emerald-600">{thisWeekKmActual}</p>
-                      <p className="text-[10px] text-emerald-600">done</p>
-                    </>}
+                    ))}
+                    <div className="text-center text-xs font-semibold text-muted-foreground py-1">ק"מ</div>
                   </div>
-                </div>
-              </div>
-
-              {/* Mobile: vertical stacked list */}
-              <div className="sm:hidden space-y-2">
-                {weekDays.map((day, di) => {
-                  const dayWorkouts = getWorkoutsForDay(day)
-                  const todayFlag = isToday(day)
-                  const selectedInDay = dayWorkouts.some(w => w.id === selectedWorkoutId)
-                  return (
-                    <div key={di}
-                      onClick={() => dayWorkouts.length > 0 && setSelectedWorkoutId(prev => prev === dayWorkouts[0].id ? null : dayWorkouts[0].id)}
-                      className={cn('rounded-xl border p-3 transition-all',
-                        todayFlag ? 'border-gold bg-gold/5' : 'border-border',
-                        selectedInDay ? 'ring-2 ring-gold' : '',
-                        dayWorkouts.length > 0 ? 'cursor-pointer' : ''
-                      )}>
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className={cn('text-sm font-bold', todayFlag ? 'w-7 h-7 flex items-center justify-center bg-gold text-white rounded-full text-xs' : 'text-navy')}>{format(day,'d')}</span>
-                          <span className="text-sm font-semibold text-navy">{DAY_EN_FULL_LONG[di]}</span>
-                          {todayFlag && <Badge className="text-[10px] bg-gold/20 text-gold border-gold/30">Today</Badge>}
+                  <div className="grid grid-cols-8 gap-2">
+                    {weekDays.map((day, di) => {
+                      const dayWorkouts = getWorkoutsForDay(day)
+                      const todayFlag = isToday(day)
+                      const hasCompleted = dayWorkouts.some(w => w.status==='completed')
+                      return (
+                        <div key={di} className={cn('min-h-[130px] rounded-xl border transition-all',
+                          todayFlag ? 'border-gold bg-gold/5' : 'border-border',
+                        )}>
+                          <div className="p-1.5 border-b border-border/40 text-center">
+                            <p className={cn('text-xs font-bold', todayFlag ? 'text-gold' : 'text-navy/70')}>{format(day,'d')}</p>
+                            {hasCompleted && <span className="text-[9px] text-emerald-500">✓</span>}
+                          </div>
+                          <div className="p-1.5 space-y-1">
+                            {dayWorkouts.map(w => (
+                              <button key={w.id}
+                                onClick={() => setSelectedWorkoutId(prev => prev === w.id ? null : w.id)}
+                                className={cn('w-full text-left text-[10px] rounded-lg px-1.5 py-1.5 border leading-tight transition-all hover:opacity-80',
+                                  TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy,
+                                  w.status==='completed' ? 'opacity-60' : '',
+                                  selectedWorkoutId === w.id ? 'ring-2 ring-navy' : ''
+                                )}>
+                                <p className="font-semibold truncate">{w.workout?.title}</p>
+                                {w.workout?.distance && <p className="opacity-70">{w.workout.distance}k</p>}
+                                {w.workout?.duration && !w.workout?.distance && <p className="opacity-70">{w.workout.duration}'</p>}
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                        {dayWorkouts.length > 0 && <span className="text-xs text-muted-foreground">{dayWorkouts.length} workout</span>}
+                      )
+                    })}
+                    {/* KM column */}
+                    <div className="flex flex-col items-center justify-center rounded-xl bg-muted/30 border border-border/30 min-h-[130px] gap-1">
+                      <div className="text-center">
+                        <p className="text-lg font-bold text-navy">{getWeekKm(weekDays)}</p>
+                        <p className="text-[10px] text-muted-foreground">מתוכנן</p>
                       </div>
-                      {dayWorkouts.length > 0 ? (
-                        <div className="space-y-1">
-                          {dayWorkouts.map(w => (
-                            <div key={w.id} className={cn('text-sm rounded-lg px-3 py-2 border flex items-center justify-between',
-                              TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy,
-                              w.status==='completed' ? 'opacity-70' : ''
-                            )}>
-                              <span className="font-semibold">{w.workout?.title}</span>
-                              <span className="text-xs opacity-70">{w.workout?.distance ? `${w.workout.distance}k` : w.workout?.duration ? `${w.workout.duration}'` : ''}</span>
-                            </div>
-                          ))}
+                      {thisWeekKmActual > 0 && <>
+                        <div className="w-8 h-px bg-border"/>
+                        <div className="text-center">
+                          <p className="text-base font-bold text-emerald-600">{thisWeekKmActual}</p>
+                          <p className="text-[10px] text-emerald-600">בוצע</p>
                         </div>
-                      ) : (
-                        <p className="text-xs text-muted-foreground text-center py-1">Rest day</p>
-                      )}
+                      </>}
                     </div>
-                  )
-                })}
-                {/* Week KM summary */}
-                <div className="rounded-xl border bg-muted/30 p-3 flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Week total</span>
-                  <div className="flex items-center gap-3">
-                    {thisWeekKmActual > 0 && <span className="text-sm font-bold text-emerald-600">{thisWeekKmActual} km done</span>}
-                    <span className="text-sm font-bold text-navy">{getWeekKm(weekDays)} km planned</span>
                   </div>
                 </div>
               </div>
@@ -420,10 +381,10 @@ export function AthletePlannerView() {
               <div className="overflow-x-auto -mx-1">
                 <div style={{minWidth:'400px'}} className="px-1">
                   <div className="grid grid-cols-8 gap-1 mb-1">
-                    {DAY_EN_FULL.map((d,i) => (
+                    {(language === 'he' ? DAY_HE_LABELS : DAY_EN).map((d,i) => (
                       <div key={i} className="text-center text-[10px] font-medium text-muted-foreground py-1">{d}</div>
                     ))}
-                    <div className="text-center text-[10px] font-medium text-muted-foreground py-1">KM</div>
+                    <div className="text-center text-[10px] font-medium text-muted-foreground py-1">ק"מ</div>
                   </div>
                   <div className="space-y-1">
                     {monthWeeks.map((weekStartDay, wi) => {
@@ -464,14 +425,28 @@ export function AthletePlannerView() {
                               </button>
                             )
                           })}
-                          <div className="flex flex-col items-center justify-center rounded-lg bg-muted/30 p-1">
-                            {wKm > 0 ? (
-                              <>
-                                <p className="text-xs font-bold text-navy">{wKm}</p>
-                                <p className="text-[9px] text-muted-foreground">plan</p>
-                              </>
-                            ) : <p className="text-[9px] text-muted-foreground">—</p>}
-                          </div>
+                          {(() => {
+                            const wDone = days.reduce((s,d) => {
+                              const dStr = format(d,'yyyy-MM-dd')
+                              return s + weekLogs.filter(l=>l.date===dStr).reduce((a,l)=>a+(l.actualDistance||0),0)
+                            },0)
+                            return (
+                              <div className="flex flex-col items-center justify-center rounded-lg bg-muted/30 p-1 gap-0.5">
+                                {wKm > 0 ? (
+                                  <div className="text-center">
+                                    <p className="text-[10px] font-bold text-navy">{wKm}</p>
+                                    <p className="text-[8px] text-muted-foreground">plan</p>
+                                  </div>
+                                ) : <p className="text-[9px] text-muted-foreground">—</p>}
+                                {wDone > 0 && (
+                                  <div className="text-center border-t border-border/40 pt-0.5 w-full">
+                                    <p className="text-[10px] font-bold text-emerald-600">{wDone}</p>
+                                    <p className="text-[8px] text-emerald-600">done</p>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })()}
                         </div>
                       )
                     })}
