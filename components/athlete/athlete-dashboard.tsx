@@ -85,6 +85,7 @@ export function AthleteDashboard() {
   const [assigned, setAssigned] = useState<AssignedWorkout[]>([])
   const [logs, setLogs] = useState<WorkoutLog[]>([])
   const [loading, setLoading] = useState(true)
+  const [unreadCount, setUnreadCount] = useState(0)
 
   useEffect(() => {
     if (!user?.id) return
@@ -194,7 +195,6 @@ export function AthleteDashboard() {
   const endOfThisWeekStr = format(endOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
   const thisWeekLogs = logs.filter(l => l.date >= startOfThisWeekStr && l.date <= endOfThisWeekStr)
   const totalDistance = thisWeekLogs.reduce((s, l) => s + (l.actualDistance || 0), 0)
-  const [unreadCount, setUnreadCount] = useState(0)
   const effortCount = logs.length
   const avgEffortNumeric = effortCount
     ? logs.reduce((s, l) => s + legacyEffortToNumber(l.effort), 0) / effortCount
@@ -202,21 +202,6 @@ export function AthleteDashboard() {
   const totalDurationMin = assigned
     .filter((w) => w.status === 'completed')
     .reduce((s, w) => s + (w.actualDuration || w.workout?.duration || 0), 0)
-
-  useEffect(() => {
-    if (!user?.id) return
-    const loadUnread = async () => {
-      try {
-        const snap = await getDocs(query(collection(db, 'conversations'), where('participants', 'array-contains', user.id)))
-        const total = snap.docs.reduce((s, d) => {
-          const data = d.data()
-          return s + (data.unreadCount?.[user.id] || 0)
-        }, 0)
-        setUnreadCount(total)
-      } catch {}
-    }
-    loadUnread()
-  }, [user?.id])
 
   const profileName = profile?.name || user?.name || t.athleteFallback
   const events = profile?.events || []
