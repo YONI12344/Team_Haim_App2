@@ -277,7 +277,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
           {/* Nav + Toggle */}
           <div className="flex items-center justify-between mb-4">
             <Button variant="ghost" size="icon" onClick={() => setCurrentDate(d => viewMode==='day' ? new Date(d.getTime()-86400000) : viewMode==='week' ? subWeeks(d,1) : subMonths(d,1))}>
-              <ChevronLeft className="h-4 w-4"/>
+              <ChevronRight className="h-4 w-4"/>
             </Button>
             <div className="flex flex-col items-center gap-1.5">
               <p className="font-semibold text-navy text-base">
@@ -294,7 +294,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
               </div>
             </div>
             <Button variant="ghost" size="icon" onClick={() => setCurrentDate(d => viewMode==='day' ? new Date(d.getTime()+86400000) : viewMode==='week' ? addWeeks(d,1) : addMonths(d,1))}>
-              <ChevronRight className="h-4 w-4"/>
+              <ChevronLeft className="h-4 w-4"/>
             </Button>
           </div>
 
