@@ -299,23 +299,23 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
           {viewMode === 'week' && (
             <div>
               {/* Week grid - always horizontal, scrollable on mobile */}
-              <div className="overflow-x-auto -mx-2 px-2">
-                <div style={{minWidth:'560px'}}>
-                  <div className="grid grid-cols-8 gap-2 mb-2">
+              <div className="overflow-x-auto pb-2">
+                <div style={{minWidth:'480px'}}>
+                  <div className="grid grid-cols-8 gap-1.5 mb-1.5">
                     {weekDays.map((_,i) => (
-                      <div key={i} className="text-center text-sm font-bold text-navy py-1">
+                      <div key={i} className="text-center text-xs font-bold text-navy py-1">
                         {language === 'he' ? DAY_HE_LABELS[i] : DAY_EN[i]}
                       </div>
                     ))}
-                    <div className="text-center text-sm font-bold text-navy py-1">ק"מ</div>
+                    <div className="text-center text-xs font-bold text-navy py-1">ק"מ</div>
                   </div>
-                  <div className="grid grid-cols-8 gap-2">
+                  <div className="grid grid-cols-8 gap-1.5">
                     {weekDays.map((day, di) => {
                       const dayWorkouts = getWorkoutsForDay(day)
                       const todayFlag = isToday(day)
                       const hasCompleted = dayWorkouts.some(w => w.status==='completed')
                       return (
-                        <div key={di} className={cn('min-h-[180px] rounded-xl border transition-all',
+                        <div key={di} className={cn('min-h-[130px] rounded-xl border transition-all',
                           todayFlag ? 'border-gold bg-gold/5' : 'border-border',
                         )}>
                           <div className="p-1.5 border-b border-border/40 text-center">
@@ -384,8 +384,8 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
           {/* Month View */}
           {viewMode === 'month' && (
             <div>
-              <div className="overflow-x-auto -mx-1">
-                <div style={{minWidth:'400px'}} className="px-1">
+              <div className="overflow-x-auto pb-2">
+                <div style={{minWidth:'360px'}}>
                   <div className="grid grid-cols-8 gap-1 mb-1">
                     {(language === 'he' ? DAY_HE_LABELS : DAY_EN).map((d,i) => (
                       <div key={i} className="text-center text-[10px] font-medium text-muted-foreground py-1">{d}</div>
