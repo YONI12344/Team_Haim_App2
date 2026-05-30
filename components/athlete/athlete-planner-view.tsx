@@ -399,30 +399,30 @@ export function AthletePlannerView() {
                             const hasCompleted = dayWorkouts.some(w => w.status==='completed')
                             const selectedInDay = dayWorkouts.some(w => w.id === selectedWorkoutId)
                             return (
-                              <button key={di}
-                                onClick={() => {
-                                  if (!inMonth || dayWorkouts.length === 0) return
-                                  setSelectedWorkoutId(prev => prev === dayWorkouts[0].id ? null : dayWorkouts[0].id)
-                                }}
-                                className={cn('min-h-[64px] rounded-lg p-1 text-left border transition-all',
+                              <div key={di}
+                                className={cn('min-h-[80px] rounded-lg p-1 text-left border transition-all',
                                   !inMonth ? 'opacity-20 border-transparent pointer-events-none' : 'border-border',
                                   todayFlag ? 'border-gold/60 bg-gold/5' : '',
-                                  selectedInDay ? 'ring-2 ring-gold border-gold' : inMonth ? 'hover:border-gold/40' : '',
+                                  selectedInDay ? 'ring-2 ring-gold border-gold' : '',
                                 )}>
-                                <div className="flex items-center justify-between mb-0.5">
+                                <div className="flex items-center justify-between mb-1">
                                   <span className={cn('text-[10px] font-semibold', todayFlag ? 'text-gold' : 'text-navy')}>{format(day,'d')}</span>
                                   {hasCompleted && <span className="text-emerald-500 text-[9px]">✓</span>}
                                 </div>
                                 <div className="space-y-0.5">
                                   {dayWorkouts.slice(0,2).map(w => (
-                                    <div key={w.id} className={cn('text-[8px] rounded px-0.5 py-0.5 truncate border',
-                                      TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy)}>
+                                    <button key={w.id}
+                                      onClick={() => inMonth && setSelectedWorkoutId(prev => prev === w.id ? null : w.id)}
+                                      className={cn('w-full text-left text-[8px] rounded px-0.5 py-1 truncate border transition-all hover:opacity-75',
+                                        TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy,
+                                        selectedWorkoutId === w.id ? 'ring-1 ring-navy font-bold' : ''
+                                      )}>
                                       {w.workout?.title}
-                                    </div>
+                                    </button>
                                   ))}
                                   {dayWorkouts.length > 2 && <p className="text-[8px] text-muted-foreground">+{dayWorkouts.length-2}</p>}
                                 </div>
-                              </button>
+                              </div>
                             )
                           })}
                           {(() => {
