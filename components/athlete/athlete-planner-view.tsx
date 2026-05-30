@@ -58,7 +58,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
   const [weekLogs, setWeekLogs] = useState<{actualDistance?: number, date: string}[]>([])
   const [loading, setLoading] = useState(true)
   const [currentDate, setCurrentDate] = useState(new Date())
-  const [viewMode, setViewMode] = useState<'week' | 'month'>('week')
+  const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('week')
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null)
   const [expandedToday, setExpandedToday] = useState(false)
 
@@ -276,31 +276,138 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
         <CardContent className="pt-4">
           {/* Nav + Toggle */}
           <div className="flex items-center justify-between mb-4">
-            <Button variant="ghost" size="icon" onClick={() => setCurrentDate(d => viewMode==='week' ? addWeeks(d,1) : addMonths(d,1))}>
+            <Button variant="ghost" size="icon" onClick={() => setCurrentDate(d => viewMode==='day' ? new Date(d.getTime()-86400000) : viewMode==='week' ? subWeeks(d,1) : subMonths(d,1))}>
               <ChevronLeft className="h-4 w-4"/>
             </Button>
             <div className="flex flex-col items-center gap-1.5">
               <p className="font-semibold text-navy text-base">
-                {viewMode==='week'
+                {viewMode==='day'
+                  ? format(currentDate,'EEEE, d MMM yyyy')
+                  : viewMode==='week'
                   ? `${format(weekStart,'d MMM')} – ${format(weekEnd,'d MMM yyyy')}`
                   : format(currentDate,'MMMM yyyy')}
               </p>
               <div className="flex gap-1 bg-muted rounded-full p-0.5">
+                <button onClick={() => setViewMode('day')} className={cn('text-[11px] px-3 py-0.5 rounded-full transition-all', viewMode==='day' ? 'bg-white text-navy font-semibold shadow-sm' : 'text-muted-foreground')}>יום</button>
                 <button onClick={() => setViewMode('week')} className={cn('text-[11px] px-3 py-0.5 rounded-full transition-all', viewMode==='week' ? 'bg-white text-navy font-semibold shadow-sm' : 'text-muted-foreground')}>שבוע</button>
                 <button onClick={() => setViewMode('month')} className={cn('text-[11px] px-3 py-0.5 rounded-full transition-all', viewMode==='month' ? 'bg-white text-navy font-semibold shadow-sm' : 'text-muted-foreground')}>חודש</button>
               </div>
             </div>
-            <Button variant="ghost" size="icon" onClick={() => setCurrentDate(d => viewMode==='week' ? subWeeks(d,1) : subMonths(d,1))}>
+            <Button variant="ghost" size="icon" onClick={() => setCurrentDate(d => viewMode==='day' ? new Date(d.getTime()+86400000) : viewMode==='week' ? addWeeks(d,1) : addMonths(d,1))}>
               <ChevronRight className="h-4 w-4"/>
             </Button>
           </div>
+
+          {/* Day View */}
+          {viewMode === 'day' && (
+            <div className="space-y-4">
+              {(() => {
+                const dayWorkouts = getWorkoutsForDay(currentDate)
+                const todayFlag = isToday(currentDate)
+                return (
+                  <div>
+                    {dayWorkouts.length === 0 ? (
+                      <div className="text-center py-12 text-muted-foreground">
+                        <p className="text-lg font-medium">אין אימון מתוכנן</p>
+                        <p className="text-sm mt-1">{todayFlag ? 'יום מנוחה!' : 'לא נקבע אימון ליום זה'}</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {dayWorkouts.map(w => (
+                          <div key={w.id} className="rounded-2xl border border-border overflow-hidden">
+                            <div className="bg-navy/5 px-4 py-3 flex items-center justify-between">
+                              <div>
+                                <p className="font-bold text-navy text-lg">{w.workout.title}</p>
+                                <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+                                  {w.workout.distance && <span>{w.workout.distance} ק"מ</span>}
+                                  {w.workout.duration && <span>{w.workout.duration} דק'</span>}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <span className={cn('w-3 h-3 rounded-full',
+                                  w.status==='completed' ? 'bg-emerald-500' : w.status==='skipped' ? 'bg-red-400' : 'bg-amber-400'
+                                )}/>
+                                <span className="text-xs text-muted-foreground">
+                                  {w.status==='completed'?'הושלם':w.status==='skipped'?'דולג':'מתוכנן'}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="p-4 space-y-3">
+                              {w.workout.description && <p className="text-sm text-muted-foreground leading-relaxed">{w.workout.description}</p>}
+                              {w.workout.warmup && (
+                                <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-100">
+                                  <p className="text-xs font-bold text-emerald-700 mb-1">חימום</p>
+                                  <p className="text-sm text-emerald-800">{w.workout.warmup}</p>
+                                </div>
+                              )}
+                              {w.workout.sets && w.workout.sets.length > 0 && (
+                                <div className="space-y-2">
+                                  <p className="text-xs font-bold text-navy uppercase tracking-wide border-b pb-1">סטים</p>
+                                  {w.workout.sets.map((set, si) => {
+                                    const hasIntervals = (set as any).intervals?.length > 0
+                                    return (
+                                      <div key={si} className="rounded-xl border overflow-hidden">
+                                        <div className="bg-navy/5 px-3 py-2 flex items-center justify-between">
+                                          <span className="text-sm font-bold text-navy">
+                                            סט {si+1}{set.reps>1?` · ${set.reps} חזרות`:''}
+                                            {!hasIntervals && (set.distance||set.duration) && ` · ${set.distance||set.duration}`}
+                                            {!hasIntervals && set.pace && <span className="font-normal text-muted-foreground"> @ {set.pace}</span>}
+                                          </span>
+                                          {set.rest && <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">מנוחה: {set.rest}</span>}
+                                        </div>
+                                        {hasIntervals && (
+                                          <div className="px-3 py-2 space-y-1.5">
+                                            {((set as any).intervals as any[]).map((iv:any,ii:number) => (
+                                              <div key={ii} className="flex items-center gap-3 bg-white rounded-lg px-3 py-2 border border-border/50">
+                                                <span className="w-6 h-6 rounded-full bg-navy text-white font-bold flex items-center justify-center text-xs flex-shrink-0">{ii+1}</span>
+                                                <span className="font-bold text-navy">{iv.distance}</span>
+                                                {iv.pace && <span className="text-muted-foreground text-sm">@ {iv.pace}</span>}
+                                                {iv.rest && <span className="text-muted-foreground text-sm ml-auto">מנוחה: {iv.rest}</span>}
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              )}
+                              {w.workout.cooldown && (
+                                <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
+                                  <p className="text-xs font-bold text-blue-700 mb-1">שחרור</p>
+                                  <p className="text-sm text-blue-800">{w.workout.cooldown}</p>
+                                </div>
+                              )}
+                              {w.workout.notes && (
+                                <div className="bg-muted/30 rounded-xl p-3">
+                                  <p className="text-xs font-bold text-muted-foreground mb-1">הערות מאמן</p>
+                                  <p className="text-sm text-navy">{w.workout.notes}</p>
+                                </div>
+                              )}
+                              <WorkoutLogForm
+                                workoutId={w.workoutId}
+                                assignedWorkoutId={w.id}
+                                athleteId={athleteId}
+                                scheduledDate={w.scheduledDate}
+                                workout={w.workout}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+            </div>
+          )}
 
           {/* Week View */}
           {viewMode === 'week' && (
             <div>
               {/* Week grid - always horizontal, scrollable on mobile */}
               <div className="overflow-x-auto pb-2">
-                <div style={{minWidth:'480px'}}>
+                <div style={{minWidth:'600px'}}>
                   <div className="grid grid-cols-8 gap-1.5 mb-1.5">
                     {weekDays.map((_,i) => (
                       <div key={i} className="text-center text-xs font-bold text-navy py-1">
@@ -315,7 +422,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                       const todayFlag = isToday(day)
                       const hasCompleted = dayWorkouts.some(w => w.status==='completed')
                       return (
-                        <div key={di} className={cn('min-h-[130px] rounded-xl border transition-all',
+                        <div key={di} className={cn('min-h-[150px] rounded-xl border transition-all',
                           todayFlag ? 'border-gold bg-gold/5' : 'border-border',
                         )}>
                           <div className="p-1.5 border-b border-border/40 text-center">
@@ -326,12 +433,12 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                             {dayWorkouts.map(w => (
                               <button key={w.id}
                                 onClick={() => setSelectedWorkoutId(prev => prev === w.id ? null : w.id)}
-                                className={cn('w-full text-left text-xs rounded-lg px-2 py-2.5 border leading-snug transition-all hover:opacity-80',
+                                className={cn('w-full text-left text-[11px] rounded-lg px-2 py-2 border leading-snug transition-all hover:opacity-80',
                                   TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy,
                                   w.status==='completed' ? 'opacity-60' : '',
                                   selectedWorkoutId === w.id ? 'ring-2 ring-navy' : ''
                                 )}>
-                                <p className="font-semibold leading-tight text-[11px] break-words">{w.workout?.title}</p>
+                                <p className="font-semibold leading-snug text-xs break-words">{w.workout?.title}</p>
                                 {w.workout?.distance && <p className="opacity-70 text-[10px] mt-0.5">{w.workout.distance}k</p>}
                                 {w.workout?.duration && !w.workout?.distance && <p className="opacity-70">{w.workout.duration}'</p>}
                               </button>
