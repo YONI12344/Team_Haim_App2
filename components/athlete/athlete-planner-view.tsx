@@ -299,14 +299,14 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
             <div>
               {/* Week grid - always horizontal, scrollable on mobile */}
               <div className="overflow-x-auto -mx-2 px-2">
-                <div style={{minWidth:'560px'}}>
+                <div style={{minWidth:'700px'}}>
                   <div className="grid grid-cols-8 gap-2 mb-2">
                     {weekDays.map((_,i) => (
-                      <div key={i} className="text-center text-xs font-semibold text-muted-foreground py-1">
+                      <div key={i} className="text-center text-sm font-bold text-navy py-1">
                         {language === 'he' ? DAY_HE_LABELS[i] : DAY_EN[i]}
                       </div>
                     ))}
-                    <div className="text-center text-xs font-semibold text-muted-foreground py-1">ק"מ</div>
+                    <div className="text-center text-sm font-bold text-navy py-1">ק"מ</div>
                   </div>
                   <div className="grid grid-cols-8 gap-2">
                     {weekDays.map((day, di) => {
@@ -314,7 +314,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                       const todayFlag = isToday(day)
                       const hasCompleted = dayWorkouts.some(w => w.status==='completed')
                       return (
-                        <div key={di} className={cn('min-h-[130px] rounded-xl border transition-all',
+                        <div key={di} className={cn('min-h-[160px] rounded-xl border transition-all',
                           todayFlag ? 'border-gold bg-gold/5' : 'border-border',
                         )}>
                           <div className="p-1.5 border-b border-border/40 text-center">
@@ -325,7 +325,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                             {dayWorkouts.map(w => (
                               <button key={w.id}
                                 onClick={() => setSelectedWorkoutId(prev => prev === w.id ? null : w.id)}
-                                className={cn('w-full text-left text-[10px] rounded-lg px-1.5 py-1.5 border leading-tight transition-all hover:opacity-80',
+                                className={cn('w-full text-left text-xs rounded-lg px-2 py-2 border leading-tight transition-all hover:opacity-80',
                                   TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy,
                                   w.status==='completed' ? 'opacity-60' : '',
                                   selectedWorkoutId === w.id ? 'ring-2 ring-navy' : ''
