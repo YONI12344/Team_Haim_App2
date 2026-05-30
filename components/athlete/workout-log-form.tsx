@@ -177,30 +177,24 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
 
   if (collapsed) {
     return (
-      <div className="mt-4 pt-4 border-t border-border">
+      <div className="mt-3 pt-3 border-t border-border">
         <div className="flex items-start justify-between gap-2">
-          <div className="space-y-1.5 flex-1">
-            <div className="flex items-center gap-2 text-emerald-600">
-              <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
-              <span className="text-sm font-bold">{t.loggedBadge}</span>
+          <div className="flex-1 space-y-1">
+            <div className="flex items-center gap-2 flex-wrap text-xs">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
+              {effort != null && <span className="font-bold text-navy">מאמץ {effort}/10</span>}
+              {actualDistance && <span className="text-muted-foreground">· {actualDistance} ק"מ</span>}
+              {actualPace && <span className="text-muted-foreground">· {actualPace}/ק"מ</span>}
             </div>
-            <div className="flex flex-wrap gap-2">
-              {effort != null && (
-                <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">מאמץ {effort}/10</span>
-              )}
-              {actualDistance && (
-                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{actualDistance} ק"מ</span>
-              )}
-              {actualPace && (
-                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">טמפו {actualPace}</span>
-              )}
-            </div>
-            {comment && (
-              <p className="text-xs text-muted-foreground italic line-clamp-2">"{comment}"</p>
+            {comment && <p className="text-xs text-muted-foreground italic line-clamp-1">"{comment}"</p>}
+            {splitLogs && splitLogs.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {splitLogs.filter((s:any) => s.time).map((s:any, i:number) => `${s.distance||i+1}: ${s.time}`).join(' · ')}
+              </p>
             )}
           </div>
-          <Button size="sm" variant="ghost" className="text-xs h-7 flex-shrink-0" onClick={() => setCollapsed(false)}>
-            ✏️ ערוך
+          <Button size="sm" variant="ghost" className="h-6 w-6 p-0 flex-shrink-0" onClick={() => setCollapsed(false)}>
+            <span className="text-xs">✏️</span>
           </Button>
         </div>
       </div>

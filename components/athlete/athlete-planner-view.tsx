@@ -300,102 +300,79 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
 
           {/* Day View */}
           {viewMode === 'day' && (
-            <div className="space-y-4">
+            <div className="space-y-2">
               {(() => {
                 const dayWorkouts = getWorkoutsForDay(currentDate)
-                const todayFlag = isToday(currentDate)
-                return (
-                  <div>
-                    {dayWorkouts.length === 0 ? (
-                      <div className="text-center py-12 text-muted-foreground">
-                        <p className="text-lg font-medium">אין אימון מתוכנן</p>
-                        <p className="text-sm mt-1">{todayFlag ? 'יום מנוחה!' : 'לא נקבע אימון ליום זה'}</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {dayWorkouts.map(w => (
-                          <div key={w.id} className="rounded-2xl border border-border overflow-hidden">
-                            <div className="bg-navy/5 px-4 py-3 flex items-center justify-between">
-                              <div>
-                                <p className="font-bold text-navy text-lg">{w.workout.title}</p>
-                                <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
-                                  {w.workout.distance && <span>{w.workout.distance} ק"מ</span>}
-                                  {w.workout.duration && <span>{w.workout.duration} דק'</span>}
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-1.5">
-                                <span className={cn('w-3 h-3 rounded-full',
-                                  w.status==='completed' ? 'bg-emerald-500' : w.status==='skipped' ? 'bg-red-400' : 'bg-amber-400'
-                                )}/>
-                                <span className="text-xs text-muted-foreground">
-                                  {w.status==='completed'?'הושלם':w.status==='skipped'?'דולג':'מתוכנן'}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="p-4 space-y-3">
-                              {w.workout.description && <p className="text-sm text-muted-foreground leading-relaxed">{w.workout.description}</p>}
-                              {w.workout.warmup && (
-                                <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-100">
-                                  <p className="text-xs font-bold text-emerald-700 mb-1">חימום</p>
-                                  <p className="text-sm text-emerald-800">{w.workout.warmup}</p>
-                                </div>
-                              )}
-                              {w.workout.sets && w.workout.sets.length > 0 && (
-                                <div className="space-y-2">
-                                  <p className="text-xs font-bold text-navy uppercase tracking-wide border-b pb-1">סטים</p>
-                                  {w.workout.sets.map((set, si) => {
-                                    const hasIntervals = (set as any).intervals?.length > 0
-                                    return (
-                                      <div key={si} className="rounded-xl border overflow-hidden">
-                                        <div className="bg-navy/5 px-3 py-2 flex items-center justify-between">
-                                          <span className="text-sm font-bold text-navy">
-                                            סט {si+1}{set.reps>1?` · ${set.reps} חזרות`:''}
-                                            {!hasIntervals && (set.distance||set.duration) && ` · ${set.distance||set.duration}`}
-                                            {!hasIntervals && set.pace && <span className="font-normal text-muted-foreground"> @ {set.pace}</span>}
-                                          </span>
-                                          {set.rest && <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">מנוחה: {set.rest}</span>}
-                                        </div>
-                                        {hasIntervals && (
-                                          <div className="px-3 py-2 space-y-1.5">
-                                            {((set as any).intervals as any[]).map((iv:any,ii:number) => (
-                                              <div key={ii} className="flex items-center gap-3 bg-white rounded-lg px-3 py-2 border border-border/50">
-                                                <span className="w-6 h-6 rounded-full bg-navy text-white font-bold flex items-center justify-center text-xs flex-shrink-0">{ii+1}</span>
-                                                <span className="font-bold text-navy">{iv.distance}</span>
-                                                {iv.pace && <span className="text-muted-foreground text-sm">@ {iv.pace}</span>}
-                                                {iv.rest && <span className="text-muted-foreground text-sm ml-auto">מנוחה: {iv.rest}</span>}
-                                              </div>
-                                            ))}
-                                          </div>
-                                        )}
-                                      </div>
-                                    )
-                                  })}
-                                </div>
-                              )}
-                              {w.workout.cooldown && (
-                                <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
-                                  <p className="text-xs font-bold text-blue-700 mb-1">שחרור</p>
-                                  <p className="text-sm text-blue-800">{w.workout.cooldown}</p>
-                                </div>
-                              )}
-                              {w.workout.notes && (
-                                <div className="bg-muted/30 rounded-xl p-3">
-                                  <p className="text-xs font-bold text-muted-foreground mb-1">הערות מאמן</p>
-                                  <p className="text-sm text-navy">{w.workout.notes}</p>
-                                </div>
-                              )}
-                              <WorkoutLogForm
-                                workoutId={w.workoutId}
-                                assignedWorkoutId={w.id}
-                                athleteId={athleteId}
-                                scheduledDate={w.scheduledDate}
-                                workout={w.workout}
-                              />
+                return dayWorkouts.length === 0 ? (
+                  <div className="text-center py-10 text-muted-foreground">
+                    <p className="font-medium">אין אימון מתוכנן</p>
+                    <p className="text-sm mt-1">{isToday(currentDate) ? 'יום מנוחה!' : 'לא נקבע אימון'}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {dayWorkouts.map(w => (
+                      <div key={w.id} className="rounded-xl border border-border overflow-hidden">
+                        {/* Workout header - always visible */}
+                        <button
+                          className="w-full text-right px-4 py-3 flex items-center justify-between hover:bg-muted/30 transition-colors"
+                          onClick={() => setSelectedWorkoutId(prev => prev === w.id ? null : w.id)}>
+                          <div className="flex items-center gap-2">
+                            <span className={cn('w-2.5 h-2.5 rounded-full flex-shrink-0',
+                              w.status==='completed' ? 'bg-emerald-500' : w.status==='skipped' ? 'bg-red-400' : 'bg-amber-400'
+                            )}/>
+                            <div className="text-xs text-muted-foreground">
+                              {w.workout.distance && `${w.workout.distance} ק"מ`}
+                              {w.workout.duration && ` · ${w.workout.duration} דק'`}
                             </div>
                           </div>
-                        ))}
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-navy text-sm">{w.workout.title}</p>
+                            <ChevronDown className={cn('h-4 w-4 text-muted-foreground transition-transform', selectedWorkoutId === w.id ? 'rotate-180' : '')}/>
+                          </div>
+                        </button>
+                        {/* Expanded content */}
+                        {selectedWorkoutId === w.id && (
+                          <div className="px-4 pb-4 space-y-3 border-t border-border/40">
+                            {w.workout.description && <p className="text-sm text-muted-foreground pt-3">{w.workout.description}</p>}
+                            {w.workout.sets && w.workout.sets.length > 0 && (
+                              <div className="space-y-1.5 pt-2">
+                                {w.workout.sets.map((set, si) => {
+                                  const hasIntervals = (set as any).intervals?.length > 0
+                                  return (
+                                    <div key={si} className="rounded-lg border bg-muted/20 p-2.5">
+                                      <p className="text-xs font-bold text-navy mb-1">
+                                        סט {si+1}{set.reps>1?` · ${set.reps}×`:''}
+                                        {!hasIntervals && (set.distance||set.duration) && ` ${set.distance||set.duration}`}
+                                        {!hasIntervals && set.pace && <span className="font-normal text-muted-foreground"> @ {set.pace}</span>}
+                                      </p>
+                                      {hasIntervals && (
+                                        <div className="flex flex-wrap gap-1.5">
+                                          {((set as any).intervals as any[]).map((iv:any, ii:number) => (
+                                            <span key={ii} className="text-xs bg-navy/10 text-navy rounded-full px-2 py-0.5">
+                                              {ii+1}. {iv.distance}{iv.pace && ` @ ${iv.pace}`}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            )}
+                            {w.workout.notes && (
+                              <p className="text-xs text-muted-foreground bg-muted/30 rounded-lg px-3 py-2">{w.workout.notes}</p>
+                            )}
+                            <WorkoutLogForm
+                              workoutId={w.workoutId}
+                              assignedWorkoutId={w.id}
+                              athleteId={athleteId}
+                              scheduledDate={w.scheduledDate}
+                              workout={w.workout}
+                            />
+                          </div>
+                        )}
                       </div>
-                    )}
+                    ))}
                   </div>
                 )
               })()}
