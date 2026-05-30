@@ -475,7 +475,7 @@ export function AthletePlanner({ athleteId }: Props) {
   )
 
   return (
-    <div className="flex gap-4">
+    <div className="flex flex-col lg:flex-row gap-4">
       {/* Main content */}
       <div className="flex-1 min-w-0 space-y-4">
 
@@ -549,10 +549,14 @@ export function AthletePlanner({ athleteId }: Props) {
                       const todayFlag = isToday(day)
                       return (
                         <div key={di}
-                          onClick={() => copiedWorkout && handlePasteWorkout(dateStr)}
-                          className={cn('min-h-[130px] rounded-xl border transition-all',
-                            todayFlag ? 'border-gold bg-gold/5' : 'border-border',
-                            copiedWorkout ? 'cursor-pointer hover:border-gold hover:bg-gold/5' : ''
+                          onClick={() => {
+                            if (copiedWorkout) handlePasteWorkout(dateStr)
+                            else setSelectedDate(day)
+                          }}
+                          className={cn('min-h-[130px] rounded-xl border transition-all cursor-pointer',
+                            todayFlag ? 'border-gold bg-gold/5' : 'border-border hover:border-gold/40',
+                            selectedDate && isSameDay(day, selectedDate) && selectedWorkout ? 'ring-2 ring-gold border-gold bg-gold/5' : '',
+                            copiedWorkout ? 'hover:border-gold hover:bg-gold/5' : ''
                           )}>
                           <div className="p-1.5 border-b border-border/40 text-center">
                             <p className={cn('text-xs font-bold', todayFlag ? 'text-gold' : 'text-navy/70')}>{format(day,'d')}</p>
@@ -609,7 +613,10 @@ export function AthletePlanner({ athleteId }: Props) {
                             const todayFlag = isToday(day)
                             return (
                               <div key={di}
-                                onClick={() => copiedWorkout && inMonth && handlePasteWorkout(dateStr)}
+                                onClick={() => {
+                                  if (copiedWorkout && inMonth) handlePasteWorkout(dateStr)
+                                  else if (inMonth) setSelectedDate(day)
+                                }}
                                 className={cn('min-h-[80px] rounded-lg p-1 border transition-all',
                                   !inMonth ? 'opacity-20 border-transparent' : 'border-border',
                                   todayFlag ? 'border-gold/60 bg-gold/5' : '',
@@ -755,7 +762,7 @@ export function AthletePlanner({ athleteId }: Props) {
       </div>
 
       {/* Right sidebar */}
-      <div className="w-72 flex-shrink-0 space-y-4">
+      <div className="w-full lg:w-72 lg:flex-shrink-0 space-y-4">
 
         {/* Assign workout panel */}
         <Card className="lg:sticky lg:top-4">
@@ -805,20 +812,30 @@ export function AthletePlanner({ athleteId }: Props) {
             <CardTitle className="text-sm">נתוני אתלט</CardTitle>
           </CardHeader>
           <CardContent className="px-4 pb-4 space-y-3">
-            {/* Training paces */}
-            {athlete?.trainingPaces && athlete.trainingPaces.length > 0 && (
-              <div>
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">טמפואים</p>
-                <div className="space-y-1">
+            {/* Training paces - editable */}
+            <div>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">אזור קצב</p>
+              {athlete?.trainingPaces && athlete.trainingPaces.length > 0 ? (
+                <div className="space-y-1.5">
                   {athlete.trainingPaces.map((p, i) => (
-                    <div key={i} className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground capitalize">{p.type}</span>
-                      <span className="font-bold text-navy">{p.pace}/km</span>
+                    <div key={i} className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-muted-foreground capitalize w-20 flex-shrink-0">{p.type}</span>
+                      <Input
+                        className="h-6 text-xs font-bold text-navy text-right w-20"
+                        value={p.pace}
+                        onChange={async (e) => {
+                          if (!athlete) return
+                          const newPaces = athlete.trainingPaces.map((tp, ti) => ti === i ? { ...tp, pace: e.target.value } : tp)
+                          setAthlete(prev => prev ? { ...prev, trainingPaces: newPaces } : prev)
+                          const { updateDoc: ud, doc: dc } = await import('firebase/firestore')
+                          await ud(dc(db, 'users', athleteId), { trainingPaces: newPaces })
+                        }}
+                      />
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              ) : <p className="text-xs text-muted-foreground">לא הוגדרו טמפואים</p>}
+            </div>
 
             {/* Goals */}
             {athlete?.goals && athlete.goals.filter(g=>g.status==='active').length > 0 && (
