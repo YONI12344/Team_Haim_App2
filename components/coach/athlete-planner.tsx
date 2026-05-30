@@ -89,6 +89,7 @@ export function AthletePlanner({ athleteId }: Props) {
   const [creatingWorkout, setCreatingWorkout] = useState(false)
   const [showBuilderDialog, setShowBuilderDialog] = useState(false)
   const [builderWorkoutId, setBuilderWorkoutId] = useState<string | undefined>(undefined)
+  const [editingAssignedId, setEditingAssignedId] = useState<string | null>(null)
   const [editingWorkout, setEditingWorkout] = useState<Workout | null>(null)
   const [editWO, setEditWO] = useState({ title: '', type: 'easy' as WorkoutType, distance: '', duration: '', description: '', notes: '' })
   const [savingEdit, setSavingEdit] = useState(false)
@@ -393,6 +394,32 @@ export function AthletePlanner({ athleteId }: Props) {
     days.reduce((s, d) => s + getWorkoutsForDate2(format(d,'yyyy-MM-dd')).reduce((a,w) => a+(w.workout?.distance??0),0),0)
   , [getWorkoutsForDate2])
 
+  const handleCopyWeek = async () => {
+    const from = format(weekStart, 'yyyy-MM-dd')
+    const to = format(weekEnd, 'yyyy-MM-dd')
+    const weekWorkouts = assignedWorkouts.filter(w => w.scheduledDate >= from && w.scheduledDate <= to)
+    if (weekWorkouts.length === 0) { toast.error('אין אימונים בשבוע זה'); return }
+    const nextWeekStart = addWeeks(weekStart, 1)
+    try {
+      await Promise.all(weekWorkouts.map(w => {
+        const srcDate = new Date(w.scheduledDate)
+        const dayOfWeek = srcDate.getDay()
+        const targetDate = format(addWeeks(startOfWeek(weekStart,{weekStartsOn:0}),1), 'yyyy-MM-dd').slice(0,8) + String(dayOfWeek)
+        const targetDay = new Date(nextWeekStart)
+        targetDay.setDate(nextWeekStart.getDate() + ((dayOfWeek - nextWeekStart.getDay() + 7) % 7))
+        return addDoc(collection(db, 'assignedWorkouts'), {
+          workoutId: w.workoutId, workout: w.workout,
+          athleteId, assignedBy: user?.id || null,
+          scheduledDate: format(targetDay, 'yyyy-MM-dd'),
+          status: 'scheduled', createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+        })
+      }))
+      toast.success('שבוע הועתק לשבוע הבא!')
+      const snap = await getDocs(query(collection(db,'assignedWorkouts'),where('athleteId','==',athleteId)))
+      setAssignedWorkouts(snap.docs.map(d => ({...(d.data() as AssignedWorkout), id: d.id})))
+    } catch { toast.error('שגיאה בהעתקה') }
+  }
+
   const handleDeleteWorkout = async (aw: AssignedWorkout) => {
     try {
       await deleteDoc(doc(db, 'assignedWorkouts', aw.id))
@@ -500,6 +527,11 @@ export function AthletePlanner({ athleteId }: Props) {
                 </div>
               </div>
               <Button variant="ghost" size="icon" onClick={() => setCurrentDate(d => viewMode==='week' ? addWeeks(d,1) : addMonths(d,1))}><ChevronLeft className="h-4 w-4"/></Button>
+              {viewMode === 'week' && (
+                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleCopyWeek}>
+                  <Copy className="h-3 w-3 mr-1"/>העתק שבוע
+                </Button>
+              )}
             </div>
 
             {/* Week View */}
@@ -634,7 +666,7 @@ export function AthletePlanner({ athleteId }: Props) {
                   <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setCopiedWorkout(selectedAW); setSelectedAssignedId(null); toast.success('אימון הועתק') }}>
                     <Copy className="h-3 w-3 mr-1"/>העתק
                   </Button>
-                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setBuilderWorkoutId(selectedAW.workoutId); setShowBuilderDialog(true) }}>
+                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setBuilderWorkoutId(selectedAW.workoutId); setEditingAssignedId(selectedAW.id); setShowBuilderDialog(true) }}>
                     <Pencil className="h-3 w-3 mr-1"/>ערוך
                   </Button>
                   <Button variant="outline" size="sm" className="h-7 text-xs text-destructive hover:text-destructive" onClick={() => handleDeleteWorkout(selectedAW)}>
@@ -838,18 +870,25 @@ export function AthletePlanner({ athleteId }: Props) {
               hideBackButton
               onDone={async () => {
                 const wid = builderWorkoutId
+                const aid = editingAssignedId
                 setShowBuilderDialog(false)
                 setBuilderWorkoutId(undefined)
-                const wSnap = await getDocs(collection(db, 'workouts'))
-                const freshLib = wSnap.docs.map(d => ({ ...(d.data() as Workout), id: d.id }))
-                setWorkoutLibrary(freshLib)
+                setEditingAssignedId(null)
                 if (wid) {
-                  const fw = freshLib.find(w => w.id === wid)
-                  if (fw) {
-                    const awSnap = await getDocs(query(collection(db, 'assignedWorkouts'), where('athleteId','==',athleteId), where('workoutId','==',wid)))
-                    await Promise.all(awSnap.docs.map(d => { const {updateDoc: ud, doc: dc} = require('firebase/firestore'); return ud(dc(db,'assignedWorkouts',d.id),{workout:fw}) }))
+                  // Get fresh workout data
+                  const { getDoc, updateDoc: ud, doc: dc } = await import('firebase/firestore')
+                  const wSnap = await getDoc(dc(db, 'workouts', wid))
+                  if (wSnap.exists()) {
+                    const freshWorkout = { ...wSnap.data(), id: wid } as Workout
+                    // Update only the specific assigned workout
+                    if (aid) {
+                      await ud(dc(db, 'assignedWorkouts', aid), { workout: freshWorkout })
+                    }
                   }
                 }
+                // Reload library and assignments
+                const wLibSnap = await getDocs(collection(db, 'workouts'))
+                setWorkoutLibrary(wLibSnap.docs.map(d => ({ ...(d.data() as Workout), id: d.id })))
                 const snap = await getDocs(query(collection(db,'assignedWorkouts'),where('athleteId','==',athleteId)))
                 setAssignedWorkouts(snap.docs.map(d => ({...(d.data() as AssignedWorkout), id: d.id})))
               }}
