@@ -314,7 +314,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                       const todayFlag = isToday(day)
                       const hasCompleted = dayWorkouts.some(w => w.status==='completed')
                       return (
-                        <div key={di} className={cn('min-h-[160px] rounded-xl border transition-all',
+                        <div key={di} className={cn('min-h-[180px] rounded-xl border transition-all',
                           todayFlag ? 'border-gold bg-gold/5' : 'border-border',
                         )}>
                           <div className="p-1.5 border-b border-border/40 text-center">
@@ -325,13 +325,13 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                             {dayWorkouts.map(w => (
                               <button key={w.id}
                                 onClick={() => setSelectedWorkoutId(prev => prev === w.id ? null : w.id)}
-                                className={cn('w-full text-left text-xs rounded-lg px-2 py-2 border leading-tight transition-all hover:opacity-80',
+                                className={cn('w-full text-left text-xs rounded-lg px-2 py-2.5 border leading-snug transition-all hover:opacity-80',
                                   TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy,
                                   w.status==='completed' ? 'opacity-60' : '',
                                   selectedWorkoutId === w.id ? 'ring-2 ring-navy' : ''
                                 )}>
-                                <p className="font-semibold truncate">{w.workout?.title}</p>
-                                {w.workout?.distance && <p className="opacity-70">{w.workout.distance}k</p>}
+                                <p className="font-semibold leading-tight text-[11px] break-words">{w.workout?.title}</p>
+                                {w.workout?.distance && <p className="opacity-70 text-[10px] mt-0.5">{w.workout.distance}k</p>}
                                 {w.workout?.duration && !w.workout?.distance && <p className="opacity-70">{w.workout.duration}'</p>}
                               </button>
                             ))}
