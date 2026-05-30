@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo, useCallback } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,12 +12,12 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   ArrowLeft, ChevronLeft, ChevronRight, Plus, X,
-  Loader2, MapPin, Clock, Check, Calendar,
+  Loader2, MapPin, Clock, Check, Calendar, Search, Copy, Pencil, Trash2, ClipboardPaste,
 } from 'lucide-react'
 import Link from 'next/link'
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
-  addMonths, subMonths, eachDayOfInterval, isSameMonth,
+  addMonths, subMonths, addWeeks, subWeeks, eachDayOfInterval, eachWeekOfInterval, isSameMonth,
   isSameDay, isToday, parseISO,
 } from 'date-fns'
 import { cn } from '@/lib/utils'
@@ -376,384 +376,454 @@ export function AthletePlanner({ athleteId }: Props) {
   const selectedDayWorkouts = selectedDate ? getWorkoutsForDay(selectedDate) : []
   const selectedDayType     = selectedDate ? getDayType(selectedDate) : 'rest'
 
+  // Add week navigation state
+  const [currentDate, setCurrentDate] = useState(new Date())
+  const [viewMode, setViewMode] = useState<'week' | 'month'>('month')
+  const [selectedAssignedId, setSelectedAssignedId] = useState<string | null>(null)
+  const [copiedWorkout, setCopiedWorkout] = useState<AssignedWorkout | null>(null)
+  const [librarySearch, setLibrarySearch] = useState('')
+
+  const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 })
+  const weekEnd = endOfWeek(currentDate, { weekStartsOn: 0 })
+  const weekDays = useMemo(() => eachDayOfInterval({ start: weekStart, end: weekEnd }), [currentDate])
+  const monthWeeks2 = useMemo(() => {
+    const ms = startOfMonth(currentDate), me = endOfMonth(currentDate)
+    return eachWeekOfInterval({ start: ms, end: me }, { weekStartsOn: 0 })
+  }, [currentDate])
+
+  const DAY_LABELS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+  const TYPE_COLORS: Record<string, string> = {
+    easy: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+    long_run: 'bg-orange-100 text-orange-700 border-orange-200',
+    tempo: 'bg-purple-100 text-purple-700 border-purple-200',
+    intervals: 'bg-blue-100 text-blue-700 border-blue-200',
+    hill_repeats: 'bg-amber-100 text-amber-700 border-amber-200',
+    fartlek: 'bg-cyan-100 text-cyan-700 border-cyan-200',
+    recovery: 'bg-gray-100 text-gray-600 border-gray-200',
+    rest: 'bg-muted text-muted-foreground',
+    race: 'bg-red-100 text-red-700 border-red-200',
+    strength: 'bg-violet-100 text-violet-700 border-violet-200',
+  }
+
+  const getWorkoutsForDate2 = useCallback((dateStr: string) =>
+    assignedWorkouts.filter(w => w.scheduledDate === dateStr)
+  , [assignedWorkouts])
+
+  const getWeekKm2 = useCallback((days: Date[]) =>
+    days.reduce((s, d) => s + getWorkoutsForDate2(format(d,'yyyy-MM-dd')).reduce((a,w) => a+(w.workout?.distance??0),0),0)
+  , [getWorkoutsForDate2])
+
+  const handleDeleteWorkout = async (aw: AssignedWorkout) => {
+    try {
+      await deleteDoc(doc(db, 'assignedWorkouts', aw.id))
+      setAssignedWorkouts(prev => prev.filter(w => w.id !== aw.id))
+      if (selectedAssignedId === aw.id) setSelectedAssignedId(null)
+      toast.success('אימון נמחק')
+    } catch { toast.error('שגיאה במחיקה') }
+  }
+
+  const handlePasteWorkout = async (dateStr: string) => {
+    if (!copiedWorkout) return
+    try {
+      const ref = await addDoc(collection(db, 'assignedWorkouts'), {
+        workoutId: copiedWorkout.workoutId, workout: copiedWorkout.workout,
+        athleteId, assignedBy: user?.id || null,
+        scheduledDate: dateStr, status: 'scheduled',
+        createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+      })
+      setAssignedWorkouts(prev => [...prev, { ...copiedWorkout, id: ref.id, scheduledDate: dateStr, status: 'scheduled' } as any])
+      toast.success('אימון הודבק!')
+      setCopiedWorkout(null)
+    } catch { toast.error('שגיאה בהדבקה') }
+  }
+
+  const selectedAW = useMemo(() => assignedWorkouts.find(w => w.id === selectedAssignedId) || null, [assignedWorkouts, selectedAssignedId])
+  const selectedLog = useMemo(() => selectedAW ? (logs.find(l => l.assignedWorkoutId === selectedAW.id) || logs.find(l => l.workoutId === selectedAW.workoutId && l.date === selectedAW.scheduledDate)) : null, [selectedAW, logs])
+  const filteredLibrary = useMemo(() => workoutLibrary.filter(w => w.title?.toLowerCase().includes(librarySearch.toLowerCase())), [workoutLibrary, librarySearch])
+
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-[400px]">
+      <Loader2 className="h-8 w-8 animate-spin text-gold" />
+    </div>
+  )
+
   return (
-    <div className="space-y-4">
+    <div className="flex gap-4">
+      {/* Main content */}
+      <div className="flex-1 min-w-0 space-y-4">
 
-      {/* ── Header ── */}
-      <div className="flex items-center gap-3">
-        <Link href={`/coach/athletes/${athleteId}`}>
-          <Button variant="ghost" size="sm">
-            <ArrowLeft className="h-4 w-4 mr-2" />Back
-          </Button>
-        </Link>
-        <Avatar className="h-10 w-10 border-2 border-gold/20">
-          <AvatarImage src={athlete.photoURL} alt={athlete.name} />
-          <AvatarFallback className="bg-gold/10 text-gold">{getInitials(athlete.name)}</AvatarFallback>
-        </Avatar>
-        <div>
-          <h1 className="text-xl font-serif font-bold text-navy">{athlete.name} — Training Planner</h1>
-          <p className="text-sm text-muted-foreground">{athlete.events.slice(0,3).join(' · ')}</p>
+        {/* Athlete header */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <Link href={`/coach/athletes/${athleteId}`}>
+            <Button variant="ghost" size="sm" className="text-muted-foreground">
+              <ArrowLeft className="h-4 w-4 mr-1"/>חזרה
+            </Button>
+          </Link>
+          <Avatar className="h-10 w-10">
+            <AvatarImage src={athlete?.photoURL}/>
+            <AvatarFallback className="bg-navy text-white">{athlete?.name?.charAt(0)}</AvatarFallback>
+          </Avatar>
+          <div>
+            <h1 className="font-bold text-navy text-xl">{athlete?.name}</h1>
+            <div className="flex items-center gap-2 flex-wrap">
+              {journey && <Badge className="bg-navy/10 text-navy border-navy/20 text-xs">{journey.stageName} · שבוע {journey.weekInStage}/{journey.totalWeeksInStage}</Badge>}
+              {journey && <Badge variant="outline" className={cn('text-xs', journey.isOffWeek ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-emerald-100 text-emerald-700 border-emerald-200')}>{journey.isOffWeek ? 'שבוע מנוחה' : 'שבוע אימון'}</Badge>}
+              {athlete?.weeklyKmRange && <span className="text-xs text-muted-foreground">יעד: {athlete.weeklyKmRange.min}–{athlete.weeklyKmRange.max} ק"מ/שבוע</span>}
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* ── Info Banner ── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-
-        {/* Stage card */}
-        <Card className="border-navy/20">
-          <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Current Stage</p>
-            {journey ? (
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Badge className="bg-navy/10 text-navy border-navy/20">{journey.stageName}</Badge>
-                  <span className="text-sm font-semibold text-navy">
-                    Week {journey.weekInStage}/{journey.totalWeeksInStage}
-                  </span>
-                  <Badge variant="outline" className={cn('text-xs', journey.isOffWeek
-                    ? 'bg-amber-100 text-amber-700 border-amber-200'
-                    : 'bg-emerald-100 text-emerald-700 border-emerald-200')}>
-                    {journey.isOffWeek ? '🔄 Off week' : '💪 On week'}
-                  </Badge>
-                </div>
-                {journey.goalRaceEvent && (
-                  <p className="text-xs text-muted-foreground">
-                    🏁 {journey.goalRaceEvent} · {format(parseISO(journey.goalRaceDate), 'MMM d, yyyy')}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">No journey set up yet</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* KM card */}
-        <Card className="border-gold/30">
-          <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">This Week KM</p>
-            {athlete.weeklyKmRange ? (
-              <div className="space-y-1.5">
-                <div className="flex items-end gap-2">
-                  <span className="text-2xl font-bold text-navy">{thisWeekKm}</span>
-                  <span className="text-sm text-muted-foreground mb-0.5">
-                    / {athlete.weeklyKmRange.min}–{athlete.weeklyKmRange.max} km
-                  </span>
-                </div>
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div
-                    className={cn('h-2 rounded-full transition-all',
-                      thisWeekKm >= athlete.weeklyKmRange.min ? 'bg-emerald-500' : 'bg-gold')}
-                    style={{ width: `${Math.min(100, (thisWeekKm / athlete.weeklyKmRange.max) * 100)}%` }}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {thisWeekKm >= athlete.weeklyKmRange.min
-                    ? '✓ Target reached this week'
-                    : `${athlete.weeklyKmRange.min - thisWeekKm}–${athlete.weeklyKmRange.max - thisWeekKm} km still to assign`}
-                </p>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">No km target set — set it in profile</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Schedule template card */}
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Weekly Template</p>
-            {athlete.weekSchedule ? (
-              <div className="grid grid-cols-7 gap-1">
-                {(['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] as const).map((label, i) => {
-                  const key = WEEKDAY_KEYS[i === 6 ? 0 : i + 1]
-                  const type: TrainingDayType = (athlete.weekSchedule![key] as TrainingDayType) || 'rest'
-                  return (
-                    <div key={label} className="text-center">
-                      <p className="text-[10px] text-muted-foreground mb-1">{label}</p>
-                      <div className={cn('rounded px-0.5 py-1 text-center', DAY_BG[type])}>
-                        <span className={cn('w-2 h-2 rounded-full inline-block', DAY_DOT[type])} />
-                        <p className="text-[9px] mt-0.5 font-medium capitalize leading-tight">
-                          {type === 'long_run' ? 'Long' : type === 'workout' ? 'WO' : type}
-                        </p>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">No template set — set it in profile</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* ── Calendar + Panel ── */}
-      <div className="grid lg:grid-cols-3 gap-4">
+        {/* Copy banner */}
+        {copiedWorkout && (
+          <div className="rounded-xl border-2 border-gold bg-gold/5 px-4 py-2 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ClipboardPaste className="h-4 w-4 text-gold"/>
+              <p className="text-sm font-medium text-navy">מועתק: <span className="text-gold font-bold">{copiedWorkout.workout?.title}</span> — לחץ על יום לשיבוץ</p>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => setCopiedWorkout(null)}><X className="h-3.5 w-3.5"/></Button>
+          </div>
+        )}
 
         {/* Calendar */}
-        <div className="lg:col-span-2">
-          <Card>
-            <CardContent className="pt-4">
-              {/* Month nav */}
-              <div className="flex items-center justify-between mb-4">
-                <Button variant="ghost" size="sm" onClick={() => setCurrentMonth(m => subMonths(m, 1))}>
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <h2 className="font-semibold text-navy text-lg">{format(currentMonth, 'MMMM yyyy')}</h2>
-                <Button variant="ghost" size="sm" onClick={() => setCurrentMonth(m => addMonths(m, 1))}>
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-
-              {/* Column headers */}
-              <div className="grid grid-cols-8 gap-1 mb-1">
-                {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => (
-                  <div key={d} className="text-center text-xs font-medium text-muted-foreground py-1">{d}</div>
-                ))}
-                <div className="text-center text-xs font-medium text-muted-foreground py-1">KM</div>
-              </div>
-
-              {/* Weeks */}
-              <div className="space-y-1">
-                {calendarWeeks.map((week, wi) => {
-                  const weekKm = getWeekKm(week)
-                  return (
-                    <div key={wi} className="grid grid-cols-8 gap-1 items-stretch">
-                      {week.map((day, di) => {
-                        const inMonth = isSameMonth(day, currentMonth)
-                        const dayWorkouts = getWorkoutsForDay(day)
-                        const dayType = getDayType(day)
-                        const isSelected = selectedDate ? isSameDay(day, selectedDate) : false
-                        const todayFlag = isToday(day)
-                        return (
-                          <button
-                            key={di}
-                            onClick={() => { setSelectedDate(day); setSelectedWorkout(null) }}
-                            className={cn(
-                              'min-h-[72px] rounded-lg p-1.5 text-left border transition-all text-navy',
-                              !inMonth && 'opacity-25 pointer-events-none',
-                              inMonth && DAY_BG[dayType],
-                              isSelected ? 'ring-2 ring-gold border-gold' : 'border-border hover:border-gold/50',
-                              todayFlag && !isSelected && 'border-gold/40',
-                            )}
-                          >
-                            <div className="flex items-center justify-between mb-1">
-                              <span className={cn(
-                                'text-xs font-semibold',
-                                todayFlag
-                                  ? 'w-5 h-5 flex items-center justify-center bg-gold text-white rounded-full text-[10px]'
-                                  : 'text-navy',
-                              )}>
-                                {format(day, 'd')}
-                              </span>
-                              {inMonth && dayType !== 'rest' && dayType !== 'off' && (
-                                <span className={cn('w-1.5 h-1.5 rounded-full', DAY_DOT[dayType])} />
-                              )}
-                            </div>
-                            <div className="space-y-0.5">
-                              {dayWorkouts.slice(0,2).map(w => (
-                                <div key={w.id} className="text-[10px] leading-tight bg-white/80 rounded px-1 py-0.5 truncate">
-                                  {w.workout.title}{w.workout.distance ? ` ${w.workout.distance}k` : ''}
-                                </div>
-                              ))}
-                              {dayWorkouts.length > 2 && (
-                                <p className="text-[10px] text-muted-foreground">+{dayWorkouts.length - 2}</p>
-                              )}
-                            </div>
-                          </button>
-                        )
-                      })}
-                      {/* Week KM */}
-                      <div className="flex flex-col items-center justify-center rounded-lg bg-muted/30 px-1">
-                        {weekKm > 0 ? (
-                          <>
-                            <p className="text-sm font-bold text-navy">{weekKm}</p>
-                            <p className="text-[10px] text-muted-foreground">km</p>
-                            {athlete.weeklyKmRange && (
-                              <p className={cn('text-[9px] mt-0.5',
-                                weekKm >= athlete.weeklyKmRange.min ? 'text-emerald-600' : 'text-amber-600')}>
-                                {weekKm >= athlete.weeklyKmRange.min ? '✓' : `↑${athlete.weeklyKmRange.min - weekKm}`}
-                              </p>
-                            )}
-                          </>
-                        ) : (
-                          <p className="text-[10px] text-muted-foreground">—</p>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-
-              {/* Legend */}
-              <div className="flex gap-4 mt-3 flex-wrap border-t pt-3">
-                {[['easy','bg-emerald-400','Easy'],['workout','bg-blue-400','Workout'],['long_run','bg-orange-400','Long Run']].map(([,dot,label]) => (
-                  <div key={label} className="flex items-center gap-1.5">
-                    <span className={cn('w-2.5 h-2.5 rounded-full', dot)} />
-                    <span className="text-xs text-muted-foreground">{label}</span>
-                  </div>
-                ))}
-                <div className="flex items-center gap-1.5 ml-auto">
-                  <span className="text-xs text-muted-foreground">KM column = week total</span>
+        <Card>
+          <CardContent className="pt-4">
+            {/* Nav + Toggle */}
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+              <Button variant="ghost" size="icon" onClick={() => setCurrentDate(d => viewMode==='week' ? subWeeks(d,1) : subMonths(d,1))}><ChevronRight className="h-4 w-4"/></Button>
+              <div className="flex flex-col items-center gap-1">
+                <p className="font-semibold text-navy text-base">
+                  {viewMode==='week' ? `${format(weekStart,'d MMM')} – ${format(weekEnd,'d MMM yyyy')}` : format(currentDate,'MMMM yyyy')}
+                </p>
+                <div className="flex gap-1 bg-muted rounded-full p-0.5">
+                  <button onClick={() => setViewMode('week')} className={cn('text-[11px] px-3 py-0.5 rounded-full transition-all', viewMode==='week' ? 'bg-white text-navy font-semibold shadow-sm' : 'text-muted-foreground')}>שבוע</button>
+                  <button onClick={() => setViewMode('month')} className={cn('text-[11px] px-3 py-0.5 rounded-full transition-all', viewMode==='month' ? 'bg-white text-navy font-semibold shadow-sm' : 'text-muted-foreground')}>חודש</button>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+              <Button variant="ghost" size="icon" onClick={() => setCurrentDate(d => viewMode==='week' ? addWeeks(d,1) : addMonths(d,1))}><ChevronLeft className="h-4 w-4"/></Button>
+            </div>
 
-        {/* ── Assign Panel ── */}
-        <div>
-          <Card className="sticky top-4">
-            <CardContent className="pt-4">
-              {selectedDate ? (
-                <div className="space-y-4">
-                  {/* Day header */}
-                  <div className="border-b pb-3">
-                    <h3 className="font-bold text-navy text-lg">{format(selectedDate, 'EEEE')}</h3>
-                    <p className="text-sm text-muted-foreground">{format(selectedDate, 'MMMM d, yyyy')}</p>
-                    <Badge variant="outline" className={cn('mt-1.5 text-xs capitalize', DAY_BADGE[selectedDayType])}>
-                      {selectedDayType.replace('_',' ')} day
+            {/* Week View */}
+            {viewMode === 'week' && (
+              <div className="overflow-x-auto -mx-2 px-2">
+                <div style={{minWidth:'560px'}}>
+                  <div className="grid grid-cols-8 gap-2 mb-2">
+                    {DAY_LABELS.map((d,i) => <div key={i} className="text-center text-xs font-semibold text-muted-foreground py-1">{d}</div>)}
+                    <div className="text-center text-xs font-semibold text-muted-foreground py-1">KM</div>
+                  </div>
+                  <div className="grid grid-cols-8 gap-2">
+                    {weekDays.map((day, di) => {
+                      const dateStr = format(day, 'yyyy-MM-dd')
+                      const dayWorkouts = getWorkoutsForDate2(dateStr)
+                      const todayFlag = isToday(day)
+                      return (
+                        <div key={di}
+                          onClick={() => copiedWorkout && handlePasteWorkout(dateStr)}
+                          className={cn('min-h-[130px] rounded-xl border transition-all',
+                            todayFlag ? 'border-gold bg-gold/5' : 'border-border',
+                            copiedWorkout ? 'cursor-pointer hover:border-gold hover:bg-gold/5' : ''
+                          )}>
+                          <div className="p-1.5 border-b border-border/40 text-center">
+                            <p className={cn('text-xs font-bold', todayFlag ? 'text-gold' : 'text-navy/70')}>{format(day,'d')}</p>
+                          </div>
+                          <div className="p-1.5 space-y-1">
+                            {dayWorkouts.map(w => (
+                              <button key={w.id}
+                                onClick={e => { e.stopPropagation(); setSelectedAssignedId(prev => prev === w.id ? null : w.id) }}
+                                className={cn('w-full text-left text-[10px] rounded-lg px-1.5 py-1.5 border transition-all hover:opacity-80',
+                                  TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy,
+                                  w.status==='completed' ? 'opacity-60' : '',
+                                  selectedAssignedId === w.id ? 'ring-2 ring-navy' : ''
+                                )}>
+                                <p className="font-semibold truncate">{w.workout?.title}</p>
+                                {w.workout?.distance && <p className="opacity-70">{w.workout.distance}k</p>}
+                              </button>
+                            ))}
+                            {copiedWorkout && dayWorkouts.length === 0 && (
+                              <div className="h-8 rounded border-2 border-dashed border-gold/40 flex items-center justify-center">
+                                <Plus className="h-3 w-3 text-gold/50"/>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                    <div className="flex flex-col items-center justify-center rounded-xl bg-muted/30 border border-border/30 min-h-[130px]">
+                      <p className="text-lg font-bold text-navy">{getWeekKm2(weekDays)}</p>
+                      <p className="text-[10px] text-muted-foreground">ק"מ</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Month View */}
+            {viewMode === 'month' && (
+              <div className="overflow-x-auto -mx-2 px-2">
+                <div style={{minWidth:'480px'}}>
+                  <div className="grid grid-cols-8 gap-1 mb-1">
+                    {DAY_LABELS.map((d,i) => <div key={i} className="text-center text-[10px] font-semibold text-muted-foreground py-1">{d}</div>)}
+                    <div className="text-center text-[10px] font-semibold text-muted-foreground py-1">KM</div>
+                  </div>
+                  <div className="space-y-1">
+                    {monthWeeks2.map((weekStartDay, wi) => {
+                      const days = eachDayOfInterval({ start: weekStartDay, end: endOfWeek(weekStartDay,{weekStartsOn:0}) })
+                      const wKm = getWeekKm2(days)
+                      return (
+                        <div key={wi} className="grid grid-cols-8 gap-1">
+                          {days.map((day, di) => {
+                            const inMonth = isSameMonth(day, currentDate)
+                            const dateStr = format(day, 'yyyy-MM-dd')
+                            const dayWorkouts = getWorkoutsForDate2(dateStr)
+                            const todayFlag = isToday(day)
+                            return (
+                              <div key={di}
+                                onClick={() => copiedWorkout && inMonth && handlePasteWorkout(dateStr)}
+                                className={cn('min-h-[80px] rounded-lg p-1 border transition-all',
+                                  !inMonth ? 'opacity-20 border-transparent' : 'border-border',
+                                  todayFlag ? 'border-gold/60 bg-gold/5' : '',
+                                  copiedWorkout && inMonth ? 'cursor-pointer hover:border-gold' : ''
+                                )}>
+                                <p className={cn('text-[10px] font-semibold mb-1', todayFlag ? 'text-gold' : 'text-navy')}>{format(day,'d')}</p>
+                                <div className="space-y-0.5">
+                                  {dayWorkouts.slice(0,3).map(w => (
+                                    <button key={w.id}
+                                      onClick={e => { e.stopPropagation(); setSelectedAssignedId(prev => prev === w.id ? null : w.id) }}
+                                      className={cn('w-full text-left text-[8px] rounded px-0.5 py-0.5 border truncate hover:opacity-75',
+                                        TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy,
+                                        selectedAssignedId === w.id ? 'ring-1 ring-navy font-bold' : ''
+                                      )}>
+                                      {w.workout?.title}
+                                    </button>
+                                  ))}
+                                  {dayWorkouts.length > 3 && <p className="text-[8px] text-muted-foreground">+{dayWorkouts.length-3}</p>}
+                                </div>
+                              </div>
+                            )
+                          })}
+                          <div className="flex flex-col items-center justify-center rounded-lg bg-muted/30">
+                            {wKm > 0 ? <><p className="text-xs font-bold text-navy">{wKm}</p><p className="text-[9px] text-muted-foreground">ק"מ</p></> : <p className="text-[9px] text-muted-foreground">—</p>}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Selected workout detail + log */}
+        {selectedAW && (
+          <Card className="border-gold/30">
+            <CardContent className="pt-4 space-y-3">
+              {/* Header */}
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="font-bold text-navy text-lg">{selectedAW.workout?.title}</p>
+                  <p className="text-xs text-muted-foreground">{format(parseISO(selectedAW.scheduledDate),'EEEE, d MMMM yyyy')}</p>
+                  <div className="flex gap-2 mt-1 flex-wrap">
+                    {selectedAW.workout?.distance && <Badge variant="outline" className="text-xs"><MapPin className="h-3 w-3 mr-1"/>{selectedAW.workout.distance} ק"מ</Badge>}
+                    {selectedAW.workout?.duration && <Badge variant="outline" className="text-xs"><Clock className="h-3 w-3 mr-1"/>{selectedAW.workout.duration} דק'</Badge>}
+                    <Badge variant="outline" className={cn('text-xs', selectedAW.status==='completed' ? 'bg-emerald-100 text-emerald-700' : selectedAW.status==='skipped' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-700')}>
+                      {selectedAW.status==='completed'?'הושלם':selectedAW.status==='skipped'?'דולג':'מתוכנן'}
                     </Badge>
                   </div>
-
-                  {/* Already assigned */}
-                  {selectedDayWorkouts.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Assigned</p>
-                      {selectedDayWorkouts.map(w => {
-                        const log = logs.find(l => l.assignedWorkoutId === w.id) || logs.find(l => l.workoutId === w.workoutId && l.date === w.scheduledDate) || logs.find(l => l.workoutId === w.workoutId)
-                        const isCompleted = w.status === 'completed'
-                        const isSkipped = w.status === 'skipped'
-                        return (
-                          <div key={w.id} className={cn("rounded-lg border overflow-hidden", isCompleted ? 'border-emerald-200' : isSkipped ? 'border-red-200' : 'border-border')}>
-                            <div className={cn("flex items-center justify-between p-2", isCompleted ? 'bg-emerald-50' : isSkipped ? 'bg-red-50' : 'bg-muted/30')}>
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2">
-                                  <p className="text-sm font-medium text-navy truncate">{w.workout.title}</p>
-                                  <Badge variant="outline" className={cn('text-[10px] flex-shrink-0', isCompleted ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : isSkipped ? 'bg-red-100 text-red-600 border-red-200' : 'bg-amber-100 text-amber-700 border-amber-200')}>
-                                    {isCompleted ? 'הושלם' : isSkipped ? 'דולג' : 'מתוכנן'}
-                                  </Badge>
-                                </div>
-                                <p className="text-xs text-muted-foreground">
-                                  {w.workout.distance ? `${w.workout.distance} km` : ''}
-                                  {w.workout.duration ? ` · ${w.workout.duration} min` : ''}
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-1 flex-shrink-0">
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-gold"
-                                  onClick={() => { setBuilderWorkoutId(w.workoutId); setShowBuilderDialog(true) }}>
-                                  <span className="text-xs">✏️</span>
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => handleRemove(w.id)}>
-                                  <X className="h-3.5 w-3.5" />
-                                </Button>
-                              </div>
-                            </div>
-                            {log && (
-                              <div className="px-3 py-2 space-y-1.5 border-t border-border/50 bg-white/50">
-                                <div className="flex items-center gap-3 flex-wrap">
-                                  <span className="text-xs font-semibold text-navy">מאמץ: {log.effort}/10</span>
-                                  {log.actualDistance && <span className="text-xs text-muted-foreground">{log.actualDistance} ק"מ בפועל</span>}
-                                  {log.actualPace && <span className="text-xs text-muted-foreground">טמפו: {log.actualPace}</span>}
-                                </div>
-                                {log.comment && (
-                                  <div className="bg-muted/40 rounded-lg px-2.5 py-2">
-                                    <p className="text-[10px] text-muted-foreground font-medium mb-0.5">הערות אתלט</p>
-                                    <p className="text-xs text-navy leading-relaxed">{log.comment}</p>
-                                  </div>
-                                )}
-                                {log.splitLogs && log.splitLogs.length > 0 && (
-                                  <div className="space-y-1">
-                                    <p className="text-[10px] text-muted-foreground font-medium">זמנים</p>
-                                    {log.splitLogs.map((split, i) => (
-                                      <div key={i} className="flex items-center gap-2 text-xs bg-white rounded px-2 py-1 border border-border/40">
-                                        <span className="font-bold text-navy w-16 flex-shrink-0">{split.distance || `חזרה ${i+1}`}</span>
-                                        {split.time && <span className="text-muted-foreground">{split.time}</span>}
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-
-                  {/* Workout picker */}
-                  <div className="space-y-2">
-
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                        {selectedDayWorkouts.length > 0 ? 'הוסף עוד' : 'בחר אימון'}
-                      </p>
-                      <Button size="sm" variant="outline"
-                        className="h-7 text-xs border-gold/40 text-gold hover:bg-gold/10"
-                        onClick={() => { setBuilderWorkoutId(undefined); setShowBuilderDialog(true) }}>
-                        ➕ צור חדש
-                      </Button>
-                    </div>
-                    <div className="space-y-1.5 max-h-[260px] overflow-y-auto pr-1">
-                      {workoutLibrary.map(workout => (
-                        <button
-                          key={workout.id}
-                          onClick={() => setSelectedWorkout(
-                            selectedWorkout?.id === workout.id ? null : workout
-                          )}
-                          className={cn(
-                            'w-full p-2.5 rounded-lg border text-left transition-all',
-                            selectedWorkout?.id === workout.id
-                              ? 'border-gold bg-gold/5'
-                              : 'border-border hover:bg-muted/50',
-                          )}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-navy truncate">{workout.title}</p>
-                              <div className="flex gap-2 text-xs text-muted-foreground mt-0.5">
-                                {workout.distance && (
-                                  <span className="flex items-center gap-0.5">
-                                    <MapPin className="h-3 w-3" />{workout.distance} km
-                                  </span>
-                                )}
-                                {workout.duration && (
-                                  <span className="flex items-center gap-0.5">
-                                    <Clock className="h-3 w-3" />{workout.duration} min
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            {selectedWorkout?.id === workout.id && (
-                              <Check className="h-4 w-4 text-gold flex-shrink-0" />
-                            )}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <Button
-                    onClick={handleAssign}
-                    disabled={!selectedWorkout || assigning}
-                    className="w-full bg-gold hover:bg-gold/90 text-navy"
-                  >
-                    {assigning
-                      ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Assigning…</>
-                      : <><Plus className="h-4 w-4 mr-2" />Assign Workout</>}
+                </div>
+                <div className="flex gap-1 flex-shrink-0">
+                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setCopiedWorkout(selectedAW); setSelectedAssignedId(null); toast.success('אימון הועתק') }}>
+                    <Copy className="h-3 w-3 mr-1"/>העתק
+                  </Button>
+                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setBuilderWorkoutId(selectedAW.workoutId); setShowBuilderDialog(true) }}>
+                    <Pencil className="h-3 w-3 mr-1"/>ערוך
+                  </Button>
+                  <Button variant="outline" size="sm" className="h-7 text-xs text-destructive hover:text-destructive" onClick={() => handleDeleteWorkout(selectedAW)}>
+                    <Trash2 className="h-3 w-3 mr-1"/>מחק
                   </Button>
                 </div>
-              ) : (
-                <div className="text-center py-10 text-muted-foreground">
-                  <Calendar className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                  <p className="text-sm font-medium">Click any day</p>
-                  <p className="text-xs mt-1">to view or assign workouts</p>
+              </div>
+
+              {/* Workout details */}
+              {selectedAW.workout?.description && <p className="text-xs text-muted-foreground leading-relaxed">{selectedAW.workout.description}</p>}
+              {selectedAW.workout?.warmup && (
+                <div className="bg-emerald-50 rounded-lg p-2.5 border border-emerald-100">
+                  <p className="text-xs font-semibold text-emerald-700 mb-1">חימום</p>
+                  <p className="text-xs text-emerald-800">{selectedAW.workout.warmup}</p>
+                </div>
+              )}
+              {selectedAW.workout?.sets && selectedAW.workout.sets.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-navy border-b pb-1">סטים</p>
+                  {selectedAW.workout.sets.map((set, si) => {
+                    const hasIntervals = (set as any).intervals?.length > 0
+                    return (
+                      <div key={si} className="rounded-lg border overflow-hidden">
+                        <div className="bg-navy/5 px-3 py-2 flex items-center justify-between">
+                          <span className="text-xs font-bold text-navy">סט {si+1}{set.reps>1?` · ${set.reps} חזרות`:''}
+                            {!hasIntervals && (set.distance||set.duration) && ` · ${set.distance||set.duration}`}
+                            {!hasIntervals && set.pace && <span className="font-normal text-muted-foreground"> @ {set.pace}</span>}
+                          </span>
+                          {set.rest && <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">מנוחה: {set.rest}</span>}
+                        </div>
+                        {hasIntervals && (
+                          <div className="px-3 py-2 space-y-1">
+                            {((set as any).intervals as any[]).map((iv:any, ii:number) => (
+                              <div key={ii} className="flex items-center gap-2 text-xs bg-white/70 rounded px-2 py-1.5 border border-border/50">
+                                <span className="w-5 h-5 rounded-full bg-navy text-white font-bold flex items-center justify-center text-[10px]">{ii+1}</span>
+                                <span className="font-bold text-navy">{iv.distance}</span>
+                                {iv.pace && <span className="text-muted-foreground">@ {iv.pace}</span>}
+                                {iv.rest && <span className="text-muted-foreground ml-auto">מנוחה: {iv.rest}</span>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+              {selectedAW.workout?.cooldown && (
+                <div className="bg-blue-50 rounded-lg p-2.5 border border-blue-100">
+                  <p className="text-xs font-semibold text-blue-700 mb-1">שחרור</p>
+                  <p className="text-xs text-blue-800">{selectedAW.workout.cooldown}</p>
+                </div>
+              )}
+
+              {/* Athlete log */}
+              {selectedLog && (
+                <div className="rounded-xl border-2 border-emerald-200 bg-emerald-50 p-3 space-y-2">
+                  <p className="text-xs font-bold text-emerald-700">דוח אתלט</p>
+                  <div className="flex flex-wrap gap-3 text-xs">
+                    <span className="bg-white rounded-lg px-2 py-1 border border-emerald-200">מאמץ: <strong>{selectedLog.effort}/10</strong></span>
+                    {selectedLog.actualDistance && <span className="bg-white rounded-lg px-2 py-1 border border-emerald-200">ק"מ בפועל: <strong>{selectedLog.actualDistance}</strong></span>}
+                    {selectedLog.actualPace && <span className="bg-white rounded-lg px-2 py-1 border border-emerald-200">טמפו: <strong>{selectedLog.actualPace}</strong></span>}
+                  </div>
+                  {selectedLog.comment && (
+                    <div className="bg-white rounded-lg p-2.5 border border-emerald-200">
+                      <p className="text-[10px] text-emerald-700 font-semibold mb-1">הערות אתלט</p>
+                      <p className="text-xs text-navy leading-relaxed">{selectedLog.comment}</p>
+                    </div>
+                  )}
+                  {selectedLog.splitLogs && selectedLog.splitLogs.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-emerald-700 font-semibold">זמנים</p>
+                      {selectedLog.splitLogs.map((s:any, i:number) => (
+                        <div key={i} className="flex items-center gap-2 text-xs bg-white rounded px-2 py-1 border border-emerald-200">
+                          <span className="font-bold text-navy w-16">{s.distance || `חזרה ${i+1}`}</span>
+                          {s.time && <span className="text-emerald-700 font-bold">{s.time}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
           </Card>
-        </div>
+        )}
+      </div>
+
+      {/* Right sidebar */}
+      <div className="w-72 flex-shrink-0 space-y-4">
+
+        {/* Assign workout panel */}
+        <Card className="lg:sticky lg:top-4">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm">שיבוץ אימון</CardTitle>
+              <Button size="sm" variant="outline" className="h-7 text-xs border-gold/40 text-gold hover:bg-gold/10"
+                onClick={() => { setBuilderWorkoutId(undefined); setShowBuilderDialog(true) }}>
+                <Plus className="h-3 w-3 mr-1"/>צור חדש
+              </Button>
+            </div>
+            {selectedDate && <p className="text-xs text-muted-foreground mt-1">{format(selectedDate,'EEEE, d MMMM')}</p>}
+            <div className="relative mt-2">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground"/>
+              <Input value={librarySearch} onChange={e => setLibrarySearch(e.target.value)} placeholder="חיפוש אימון..." className="pl-7 h-7 text-xs" dir="auto"/>
+            </div>
+          </CardHeader>
+          <CardContent className="px-3 pb-3">
+            <div className="space-y-1 max-h-48 overflow-y-auto">
+              {filteredLibrary.map(workout => (
+                <button key={workout.id}
+                  onClick={() => setSelectedWorkout(selectedWorkout?.id === workout.id ? null : workout)}
+                  className={cn('w-full text-left rounded-lg border p-2 text-xs transition-all',
+                    selectedWorkout?.id === workout.id ? 'border-gold bg-gold/5' : 'border-border hover:border-gold/40'
+                  )}>
+                  <p className="font-semibold truncate text-navy">{workout.title}</p>
+                  <div className="flex gap-2 text-muted-foreground mt-0.5">
+                    {workout.distance && <span>{workout.distance}k</span>}
+                    {workout.duration && <span>{workout.duration}'</span>}
+                  </div>
+                </button>
+              ))}
+            </div>
+            {selectedWorkout && selectedDate && (
+              <Button onClick={handleAssign} disabled={assigning} className="w-full mt-2 bg-gold hover:bg-gold/90 text-navy h-8 text-sm">
+                {assigning ? <Loader2 className="h-4 w-4 animate-spin mr-1"/> : <Plus className="h-4 w-4 mr-1"/>}
+                שבץ ל-{format(selectedDate,'d/M')}
+              </Button>
+            )}
+            {!selectedDate && <p className="text-xs text-muted-foreground text-center mt-2">לחץ על יום בלוח לשיבוץ</p>}
+          </CardContent>
+        </Card>
+
+        {/* Athlete data */}
+        <Card>
+          <CardHeader className="pb-2 pt-4 px-4">
+            <CardTitle className="text-sm">נתוני אתלט</CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4 space-y-3">
+            {/* Training paces */}
+            {athlete?.trainingPaces && athlete.trainingPaces.length > 0 && (
+              <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">טמפואים</p>
+                <div className="space-y-1">
+                  {athlete.trainingPaces.map((p, i) => (
+                    <div key={i} className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground capitalize">{p.type}</span>
+                      <span className="font-bold text-navy">{p.pace}/km</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Goals */}
+            {athlete?.goals && athlete.goals.filter(g=>g.status==='active').length > 0 && (
+              <div className="border-t pt-3">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">מטרות</p>
+                {athlete.goals.filter(g=>g.status==='active').map((g,i) => (
+                  <div key={i} className="text-xs text-navy">{g.title}</div>
+                ))}
+              </div>
+            )}
+
+            {/* Events */}
+            {athlete?.events && athlete.events.length > 0 && (
+              <div className="border-t pt-3">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">אירועים</p>
+                <div className="flex flex-wrap gap-1">
+                  {athlete.events.map((e,i) => <Badge key={i} variant="outline" className="text-[10px]">{e}</Badge>)}
+                </div>
+              </div>
+            )}
+
+            {/* Personal Records */}
+            {athlete?.personalRecords && athlete.personalRecords.length > 0 && (
+              <div className="border-t pt-3">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">שיאים אישיים</p>
+                <div className="space-y-1">
+                  {athlete.personalRecords.slice(0,5).map((pr,i) => (
+                    <div key={i} className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">{pr.event}</span>
+                      <span className="font-bold text-navy">{pr.time}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Full Workout Builder Dialog */}
@@ -767,144 +837,24 @@ export function AthletePlanner({ athleteId }: Props) {
               workoutId={builderWorkoutId}
               hideBackButton
               onDone={async () => {
-                const editedId = builderWorkoutId
+                const wid = builderWorkoutId
                 setShowBuilderDialog(false)
                 setBuilderWorkoutId(undefined)
-                // Reload workout library
                 const wSnap = await getDocs(collection(db, 'workouts'))
-                const freshLibrary = wSnap.docs.map(d => ({ ...(d.data() as Workout), id: d.id }))
-                setWorkoutLibrary(freshLibrary)
-                if (editedId) {
-                  // Option B: update snapshot only for THIS athlete's assigned workouts
-                  const freshWorkout = freshLibrary.find(w => w.id === editedId)
-                  if (freshWorkout) {
-                    const { updateDoc, doc: fDoc } = await import('firebase/firestore')
-                    const awSnap = await getDocs(query(
-                      collection(db, 'assignedWorkouts'),
-                      where('athleteId', '==', athleteId),
-                      where('workoutId', '==', editedId)
-                    ))
-                    await Promise.all(awSnap.docs.map(d =>
-                      updateDoc(fDoc(db, 'assignedWorkouts', d.id), { workout: freshWorkout })
-                    ))
+                const freshLib = wSnap.docs.map(d => ({ ...(d.data() as Workout), id: d.id }))
+                setWorkoutLibrary(freshLib)
+                if (wid) {
+                  const fw = freshLib.find(w => w.id === wid)
+                  if (fw) {
+                    const awSnap = await getDocs(query(collection(db, 'assignedWorkouts'), where('athleteId','==',athleteId), where('workoutId','==',wid)))
+                    await Promise.all(awSnap.docs.map(d => { const {updateDoc: ud, doc: dc} = require('firebase/firestore'); return ud(dc(db,'assignedWorkouts',d.id),{workout:fw}) }))
                   }
                 }
-                // Reload assigned workouts for this athlete only
-                const snap = await getDocs(query(collection(db, 'assignedWorkouts'), where('athleteId', '==', athleteId)))
-                setAssignedWorkouts(snap.docs.map(d => ({ ...(d.data() as AssignedWorkout), id: d.id })))
+                const snap = await getDocs(query(collection(db,'assignedWorkouts'),where('athleteId','==',athleteId)))
+                setAssignedWorkouts(snap.docs.map(d => ({...(d.data() as AssignedWorkout), id: d.id})))
               }}
             />
           )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Workout Dialog */}
-      <Dialog open={!!editingWorkout} onOpenChange={(open) => !open && setEditingWorkout(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>✏️ ערוך אימון</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div className="space-y-1">
-              <Label>שם האימון *</Label>
-              <Input value={editWO.title} onChange={e => setEditWO(p => ({...p, title: e.target.value}))} dir="auto" />
-            </div>
-            <div className="space-y-1">
-              <Label>סוג</Label>
-              <Select value={editWO.type} onValueChange={v => setEditWO(p => ({...p, type: v as WorkoutType}))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {['easy','long_run','tempo','intervals','hill_repeats','fartlek','recovery','strength','rest','race'].map(t => (
-                    <SelectItem key={t} value={t}>{t.replace('_',' ')}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <Label>מרחק (ק"מ)</Label>
-                <Input type="number" placeholder="10" value={editWO.distance} onChange={e => setEditWO(p => ({...p, distance: e.target.value}))} />
-              </div>
-              <div className="space-y-1">
-                <Label>משך (דק')</Label>
-                <Input type="number" placeholder="60" value={editWO.duration} onChange={e => setEditWO(p => ({...p, duration: e.target.value}))} />
-              </div>
-            </div>
-            <div className="space-y-1">
-              <Label>תיאור</Label>
-              <Textarea value={editWO.description} onChange={e => setEditWO(p => ({...p, description: e.target.value}))} rows={2} dir="auto" />
-            </div>
-            <div className="space-y-1">
-              <Label>הערות</Label>
-              <Textarea value={editWO.notes} onChange={e => setEditWO(p => ({...p, notes: e.target.value}))} rows={2} dir="auto" />
-            </div>
-          </div>
-          <div className="flex gap-2 pt-2">
-            <Button onClick={handleSaveEdit} disabled={savingEdit} className="flex-1 bg-gold hover:bg-gold/90 text-navy">
-              {savingEdit ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              שמור שינויים
-            </Button>
-            <Button variant="outline" onClick={() => setEditingWorkout(null)}>ביטול</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Create Workout Dialog */}
-      <Dialog open={showCreateWorkout} onOpenChange={setShowCreateWorkout}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>➕ צור אימון חדש</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 pt-2">
-            <div className="space-y-1">
-              <Label className="text-sm">שם האימון *</Label>
-              <Input placeholder="למשל: ריצה קלה 60 דקות"
-                value={newWO.title} onChange={e => setNewWO(p => ({...p, title: e.target.value}))} />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-sm">סוג</Label>
-              <Select value={newWO.type} onValueChange={v => setNewWO(p => ({...p, type: v as WorkoutType}))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="easy">קל</SelectItem>
-                  <SelectItem value="long_run">ריצה ארוכה</SelectItem>
-                  <SelectItem value="tempo">טמפו</SelectItem>
-                  <SelectItem value="intervals">אינטרוולים</SelectItem>
-                  <SelectItem value="hill_repeats">גבעות</SelectItem>
-                  <SelectItem value="fartlek">פארטלק</SelectItem>
-                  <SelectItem value="recovery">התאוששות</SelectItem>
-                  <SelectItem value="strength">כוח</SelectItem>
-                  <SelectItem value="rest">מנוחה</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-sm">מרחק (ק"מ)</Label>
-                <Input type="number" placeholder="10" value={newWO.distance}
-                  onChange={e => setNewWO(p => ({...p, distance: e.target.value}))} />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-sm">משך (דקות)</Label>
-                <Input type="number" placeholder="60" value={newWO.duration}
-                  onChange={e => setNewWO(p => ({...p, duration: e.target.value}))} />
-              </div>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-sm">תיאור</Label>
-              <Textarea placeholder="תיאור האימון..." className="resize-none h-20"
-                value={newWO.description} onChange={e => setNewWO(p => ({...p, description: e.target.value}))} />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-sm">הערות</Label>
-              <Input placeholder="הערות נוספות..." value={newWO.notes}
-                onChange={e => setNewWO(p => ({...p, notes: e.target.value}))} />
-            </div>
-            <Button onClick={handleCreateWorkout} disabled={!newWO.title.trim() || creatingWorkout}
-              className="w-full bg-gold hover:bg-gold/90 text-navy">
-              {creatingWorkout ? 'יוצר...' : '✅ צור אימון'}
-            </Button>
-          </div>
         </DialogContent>
       </Dialog>
     </div>
