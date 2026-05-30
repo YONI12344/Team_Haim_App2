@@ -363,28 +363,6 @@ export function AthletePlanner({ athleteId }: Props) {
   const getInitials = (name: string) =>
     name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 
-  if (loading) return (
-    <div className="flex items-center justify-center min-h-[400px]">
-      <Loader2 className="h-8 w-8 animate-spin text-gold" />
-    </div>
-  )
-
-  if (!athlete) return (
-    <div className="p-6">
-      <Link href="/coach/athletes">
-        <Button variant="ghost"><ArrowLeft className="h-4 w-4 mr-2" />Back</Button>
-      </Link>
-      <p className="mt-4 text-muted-foreground">Athlete not found.</p>
-    </div>
-  )
-
-  const selectedDayWorkouts = selectedDate ? getWorkoutsForDay(selectedDate) : []
-  const selectedDayType     = selectedDate ? getDayType(selectedDate) : 'rest'
-
-
-
-  const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 })
-  const weekEnd = endOfWeek(currentDate, { weekStartsOn: 0 })
   const weekDays = useMemo(() => eachDayOfInterval({ start: weekStart, end: weekEnd }), [currentDate])
   const monthWeeks2 = useMemo(() => {
     const ms = startOfMonth(currentDate), me = endOfMonth(currentDate)
@@ -440,6 +418,28 @@ export function AthletePlanner({ athleteId }: Props) {
   const selectedAW = useMemo(() => assignedWorkouts.find(w => w.id === selectedAssignedId) || null, [assignedWorkouts, selectedAssignedId])
   const selectedLog = useMemo(() => selectedAW ? (logs.find(l => l.assignedWorkoutId === selectedAW.id) || logs.find(l => l.workoutId === selectedAW.workoutId && l.date === selectedAW.scheduledDate)) : null, [selectedAW, logs])
   const filteredLibrary = useMemo(() => workoutLibrary.filter(w => w.title?.toLowerCase().includes(librarySearch.toLowerCase())), [workoutLibrary, librarySearch])
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-[400px]">
+      <Loader2 className="h-8 w-8 animate-spin text-gold" />
+    </div>
+  )
+
+  if (!athlete) return (
+    <div className="p-6">
+      <Link href="/coach/athletes">
+        <Button variant="ghost"><ArrowLeft className="h-4 w-4 mr-2" />Back</Button>
+      </Link>
+      <p className="mt-4 text-muted-foreground">Athlete not found.</p>
+    </div>
+  )
+
+  const selectedDayWorkouts = selectedDate ? getWorkoutsForDay(selectedDate) : []
+  const selectedDayType     = selectedDate ? getDayType(selectedDate) : 'rest'
+
+
+
+  const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 })
+  const weekEnd = endOfWeek(currentDate, { weekStartsOn: 0 })
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-[400px]">
