@@ -240,15 +240,16 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
       {todayWorkouts.length > 0 && (
         <div className="space-y-2">
           {todayWorkouts.map(w => (
-            <div key={w.id} className={cn('rounded-2xl border-2 overflow-hidden transition-all',
-              w.status==='completed' ? 'border-emerald-200 bg-emerald-50' : 'border-gold/40 bg-gold/5'
-            )}>
+            <div key={w.id} className="rounded-2xl border border-border overflow-hidden transition-all bg-white">
               <button className="w-full text-right px-4 py-3 flex items-center justify-between"
                 onClick={() => setExpandedToday(e => !e)}>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Badge variant="outline" className={cn('text-xs', STATUS_STYLES[w.status] || STATUS_STYLES.scheduled)}>
+                  <span className={cn('w-2.5 h-2.5 rounded-full flex-shrink-0',
+                    w.status==='completed' ? 'bg-emerald-500' : w.status==='skipped' ? 'bg-red-400' : 'bg-amber-400'
+                  )}/>
+                  <span className="text-xs text-muted-foreground">
                     {w.status==='completed'?'הושלם':w.status==='skipped'?'דולג':'מתוכנן'}
-                  </Badge>
+                  </span>
                   {w.workout.distance && <span className="text-xs text-muted-foreground">{w.workout.distance} ק"מ</span>}
                   {w.workout.duration && <span className="text-xs text-muted-foreground">{w.workout.duration} דק'</span>}
                 </div>
@@ -275,7 +276,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
         <CardContent className="pt-4">
           {/* Nav + Toggle */}
           <div className="flex items-center justify-between mb-4">
-            <Button variant="ghost" size="icon" onClick={() => setCurrentDate(d => viewMode==='week' ? subWeeks(d,1) : subMonths(d,1))}>
+            <Button variant="ghost" size="icon" onClick={() => setCurrentDate(d => viewMode==='week' ? addWeeks(d,1) : addMonths(d,1))}>
               <ChevronLeft className="h-4 w-4"/>
             </Button>
             <div className="flex flex-col items-center gap-1.5">
@@ -289,7 +290,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                 <button onClick={() => setViewMode('month')} className={cn('text-[11px] px-3 py-0.5 rounded-full transition-all', viewMode==='month' ? 'bg-white text-navy font-semibold shadow-sm' : 'text-muted-foreground')}>חודש</button>
               </div>
             </div>
-            <Button variant="ghost" size="icon" onClick={() => setCurrentDate(d => viewMode==='week' ? addWeeks(d,1) : addMonths(d,1))}>
+            <Button variant="ghost" size="icon" onClick={() => setCurrentDate(d => viewMode==='week' ? subWeeks(d,1) : subMonths(d,1))}>
               <ChevronRight className="h-4 w-4"/>
             </Button>
           </div>
@@ -299,7 +300,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
             <div>
               {/* Week grid - always horizontal, scrollable on mobile */}
               <div className="overflow-x-auto -mx-2 px-2">
-                <div style={{minWidth:'700px'}}>
+                <div style={{minWidth:'560px'}}>
                   <div className="grid grid-cols-8 gap-2 mb-2">
                     {weekDays.map((_,i) => (
                       <div key={i} className="text-center text-sm font-bold text-navy py-1">
@@ -365,9 +366,14 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                       <p className="font-bold text-navy text-base">{selectedWorkout.workout.title}</p>
                       <p className="text-xs text-muted-foreground">{format(parseISO(selectedWorkout.scheduledDate),'EEEE, d MMMM')}</p>
                     </div>
-                    <Badge variant="outline" className={cn('text-xs flex-shrink-0', STATUS_STYLES[selectedWorkout.status] || STATUS_STYLES.scheduled)}>
-                      {selectedWorkout.status==='completed'?'הושלם':selectedWorkout.status==='skipped'?'דולג':'מתוכנן'}
-                    </Badge>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <span className={cn('w-2.5 h-2.5 rounded-full',
+                        selectedWorkout.status==='completed' ? 'bg-emerald-500' : selectedWorkout.status==='skipped' ? 'bg-red-400' : 'bg-amber-400'
+                      )}/>
+                      <span className="text-xs text-muted-foreground">
+                        {selectedWorkout.status==='completed'?'הושלם':selectedWorkout.status==='skipped'?'דולג':'מתוכנן'}
+                      </span>
+                    </div>
                   </div>
                   {renderWorkoutDetail(selectedWorkout)}
                 </div>
@@ -462,9 +468,14 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                       <p className="font-bold text-navy text-base">{selectedWorkout.workout.title}</p>
                       <p className="text-xs text-muted-foreground">{format(parseISO(selectedWorkout.scheduledDate),'EEEE, d MMMM')}</p>
                     </div>
-                    <Badge variant="outline" className={cn('text-xs flex-shrink-0', STATUS_STYLES[selectedWorkout.status] || STATUS_STYLES.scheduled)}>
-                      {selectedWorkout.status==='completed'?'הושלם':selectedWorkout.status==='skipped'?'דולג':'מתוכנן'}
-                    </Badge>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <span className={cn('w-2.5 h-2.5 rounded-full',
+                        selectedWorkout.status==='completed' ? 'bg-emerald-500' : selectedWorkout.status==='skipped' ? 'bg-red-400' : 'bg-amber-400'
+                      )}/>
+                      <span className="text-xs text-muted-foreground">
+                        {selectedWorkout.status==='completed'?'הושלם':selectedWorkout.status==='skipped'?'דולג':'מתוכנן'}
+                      </span>
+                    </div>
                   </div>
                   {renderWorkoutDetail(selectedWorkout)}
                 </div>
@@ -477,7 +488,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
       {/* Bottom Info Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {/* שלב העונה */}
-        <Card className="border-navy/20">
+        {journey && <Card className="border-navy/20">
           <CardContent className="pt-4 pb-3">
             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">שלב העונה</p>
             {journey ? (
@@ -493,9 +504,9 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                   <p className="text-xs text-muted-foreground">{journey.goalRaceEvent} · {format(parseISO(journey.goalRaceDate),'MMM d, yyyy')}</p>
                 )}
               </div>
-            ) : <p className="text-sm text-muted-foreground">אין תוכנית אימונים עדיין</p>}
+            ) : null}
           </CardContent>
-        </Card>
+        </Card>}
 
         {/* ק"מ השבוע */}
         <Card className="border-gold/30">
