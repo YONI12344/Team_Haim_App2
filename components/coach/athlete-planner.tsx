@@ -363,6 +363,8 @@ export function AthletePlanner({ athleteId }: Props) {
   const getInitials = (name: string) =>
     name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 
+  const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 })
+  const weekEnd = endOfWeek(currentDate, { weekStartsOn: 0 })
   const weekDays = useMemo(() => eachDayOfInterval({ start: weekStart, end: weekEnd }), [currentDate])
   const monthWeeks2 = useMemo(() => {
     const ms = startOfMonth(currentDate), me = endOfMonth(currentDate)
@@ -438,8 +440,6 @@ export function AthletePlanner({ athleteId }: Props) {
 
 
 
-  const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 })
-  const weekEnd = endOfWeek(currentDate, { weekStartsOn: 0 })
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-[400px]">
