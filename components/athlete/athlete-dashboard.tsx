@@ -194,6 +194,7 @@ export function AthleteDashboard() {
   const endOfThisWeekStr = format(endOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
   const thisWeekLogs = logs.filter(l => l.date >= startOfThisWeekStr && l.date <= endOfThisWeekStr)
   const totalDistance = thisWeekLogs.reduce((s, l) => s + (l.actualDistance || 0), 0)
+  const [unreadCount, setUnreadCount] = useState(0)
   const effortCount = logs.length
   const avgEffortNumeric = effortCount
     ? logs.reduce((s, l) => s + legacyEffortToNumber(l.effort), 0) / effortCount
@@ -202,6 +203,21 @@ export function AthleteDashboard() {
     .filter((w) => w.status === 'completed')
     .reduce((s, w) => s + (w.actualDuration || w.workout?.duration || 0), 0)
 
+  useEffect(() => {
+    if (!user?.id) return
+    const loadUnread = async () => {
+      try {
+        const snap = await getDocs(query(collection(db, 'conversations'), where('participants', 'array-contains', user.id)))
+        const total = snap.docs.reduce((s, d) => {
+          const data = d.data()
+          return s + (data.unreadCount?.[user.id] || 0)
+        }, 0)
+        setUnreadCount(total)
+      } catch {}
+    }
+    loadUnread()
+  }, [user?.id])
+
   const profileName = profile?.name || user?.name || t.athleteFallback
   const events = profile?.events || []
   const prs = profile?.personalRecords || []
@@ -209,14 +225,14 @@ export function AthleteDashboard() {
   const isNewAthlete = !loading && profile !== null && !profile?.onboardingComplete
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1">
         <h1 className="text-2xl md:text-3xl font-serif font-bold text-navy">
           {t.welcomeBack}, {profileName.split(' ')[0]}
         </h1>
-        <p className="text-muted-foreground">
-          {format(new Date(), 'EEEE, MMMM d, yyyy')}
+        <p className="text-sm text-muted-foreground">
+          {format(new Date(), 'd MMMM yyyy')}
         </p>
         <p className="text-sm text-muted-foreground font-medium tracking-wide">
           רצים עם הלב, חוגגים{' '}
@@ -230,7 +246,7 @@ export function AthleteDashboard() {
       {/* Today's Workouts */}
       {todayWorkouts.length > 0 && (
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardHeader className="flex flex-row items-center justify-between pb-1 pt-3">
             <CardTitle className="text-lg font-medium">{t.todaysWorkoutTitle}</CardTitle>
             {todayWorkouts.length > 1 && (
               <span className="text-sm text-gold font-medium">({todayWorkouts.length})</span>
@@ -312,20 +328,23 @@ export function AthleteDashboard() {
               <p className="text-xs text-muted-foreground">תצוגה שבועית וחודשית</p>
             </div>
           </div>
-          <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-gold transition-colors" />
+          <ArrowUpRight className="h-4 w-4 text-muted-foreground group-hover:text-gold transition-colors" />
         </Link>
 
-        <Link href="/athlete/chat" className="flex items-center justify-between p-4 rounded-xl border border-border bg-card hover:border-gold/40 hover:bg-gold/5 transition-all group">
+        <Link href="/athlete/chat" className="flex items-center justify-between p-4 rounded-xl border border-border bg-card hover:border-gold/40 hover:bg-gold/5 transition-all group relative">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-gold/10 flex items-center justify-center">
-              <Activity className="h-5 w-5 text-gold" />
+            <div className="h-10 w-10 rounded-lg bg-gold/10 flex items-center justify-center relative">
+              <MessageCircle className="h-5 w-5 text-gold" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">{unreadCount > 9 ? '9+' : unreadCount}</span>
+              )}
             </div>
             <div>
               <p className="font-semibold text-navy text-sm">{t.chat ?? 'צ׳אט עם המאמן'}</p>
               <p className="text-xs text-muted-foreground">שאל שאלות, קבל משוב</p>
             </div>
           </div>
-          <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-gold transition-colors" />
+          <ArrowUpRight className="h-4 w-4 text-muted-foreground group-hover:text-gold transition-colors" />
         </Link>
       </div>
 
