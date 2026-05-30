@@ -48,10 +48,10 @@ interface JourneySummary {
   isOffWeek: boolean; goalRaceDate: string; goalRaceEvent: string
 }
 
-export function AthletePlannerView() {
+export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: string } = {}) {
   const { user } = useAuth()
   const { language } = useLanguage()
-  const athleteId = user?.id || ''
+  const athleteId = overrideAthleteId || user?.id || ''
   const [athlete, setAthlete] = useState<AthleteProfile | null>(null)
   const [journey, setJourney] = useState<JourneySummary | null>(null)
   const [assignedWorkouts, setAssignedWorkouts] = useState<AssignedWorkout[]>([])
