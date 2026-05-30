@@ -16,9 +16,11 @@ import {
   TrendingUp,
   Flame,
   ChevronRight,
+  ArrowUpRight,
   Activity,
   Loader2,
   UserPlus,
+  MessageCircle,
 } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
