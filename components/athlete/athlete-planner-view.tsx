@@ -21,6 +21,8 @@ import { WorkoutLogForm } from '@/components/athlete/workout-log-form'
 const WEEKDAY_KEYS = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'] as const
 const DAY_HE = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת']
 const DAY_HE_SHORT = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳']
+const DAY_EN_FULL = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+const DAY_EN_FULL_LONG = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
 
 const TYPE_COLORS: Record<string, string> = {
   easy: 'bg-emerald-100 text-emerald-700 border-emerald-200',
@@ -56,7 +58,7 @@ export function AthletePlannerView() {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [viewMode, setViewMode] = useState<'week' | 'month'>('week')
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null)
-  const [expandedToday, setExpandedToday] = useState(true)
+  const [expandedToday, setExpandedToday] = useState(false)
 
   useEffect(() => {
     if (!athleteId) return
@@ -293,61 +295,103 @@ export function AthletePlannerView() {
           {/* Week View */}
           {viewMode === 'week' && (
             <div>
-              <div className="overflow-x-auto -mx-1">
-                <div style={{minWidth:'480px'}}>
-                  {/* Day headers */}
-                  <div className="grid grid-cols-8 gap-1 mb-1 px-1">
-                    {DAY_HE_SHORT.map((d,i) => (
-                      <div key={i} className="text-center text-[10px] font-medium text-muted-foreground py-1">{d}</div>
-                    ))}
-                    <div className="text-center text-[10px] font-medium text-muted-foreground py-1">ק"מ</div>
-                  </div>
-                  {/* Day cells */}
-                  <div className="grid grid-cols-8 gap-1 px-1">
-                    {weekDays.map((day, di) => {
-                      const dayWorkouts = getWorkoutsForDay(day)
-                      const todayFlag = isToday(day)
-                      const hasCompleted = dayWorkouts.some(w => w.status==='completed')
-                      const selectedInDay = dayWorkouts.some(w => w.id === selectedWorkoutId)
-                      return (
-                        <div key={di}
-                          onClick={() => {
-                            if (dayWorkouts.length === 1) setSelectedWorkoutId(prev => prev === dayWorkouts[0].id ? null : dayWorkouts[0].id)
-                            else if (dayWorkouts.length > 1) setSelectedWorkoutId(prev => prev === dayWorkouts[0].id ? null : dayWorkouts[0].id)
-                          }}
-                          className={cn('min-h-[80px] rounded-xl p-1.5 border transition-all cursor-pointer',
-                            todayFlag ? 'border-gold/60 bg-gold/5' : 'border-border hover:border-gold/40',
-                            selectedInDay ? 'ring-2 ring-gold border-gold' : '',
-                            dayWorkouts.length > 0 ? 'cursor-pointer' : 'cursor-default'
-                          )}>
-                          <p className={cn('text-[10px] font-bold text-center mb-1',
-                            todayFlag ? 'text-gold' : 'text-navy/60')}>
-                            {format(day,'d')}
-                          </p>
-                          {hasCompleted && <p className="text-[9px] text-emerald-500 text-center">✓</p>}
-                          <div className="space-y-0.5">
-                            {dayWorkouts.slice(0,2).map(w => (
-                              <div key={w.id} className={cn('text-[9px] rounded px-1 py-0.5 border leading-tight truncate',
-                                TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy,
-                                w.status==='completed' ? 'opacity-70' : ''
-                              )}>
-                                <p className="font-medium truncate">{w.workout?.title}</p>
-                                {w.workout?.distance && <p>{w.workout.distance}k</p>}
-                              </div>
-                            ))}
-                            {dayWorkouts.length > 2 && <p className="text-[9px] text-muted-foreground text-center">+{dayWorkouts.length-2}</p>}
-                          </div>
+              {/* Desktop: 7-col grid */}
+              <div className="hidden sm:block">
+                <div className="grid grid-cols-8 gap-2 mb-2">
+                  {DAY_EN_FULL.map((d,i) => (
+                    <div key={i} className="text-center text-xs font-semibold text-muted-foreground py-1">{d}</div>
+                  ))}
+                  <div className="text-center text-xs font-semibold text-muted-foreground py-1">KM</div>
+                </div>
+                <div className="grid grid-cols-8 gap-2">
+                  {weekDays.map((day, di) => {
+                    const dayWorkouts = getWorkoutsForDay(day)
+                    const todayFlag = isToday(day)
+                    const hasCompleted = dayWorkouts.some(w => w.status==='completed')
+                    const selectedInDay = dayWorkouts.some(w => w.id === selectedWorkoutId)
+                    return (
+                      <div key={di}
+                        onClick={() => dayWorkouts.length > 0 && setSelectedWorkoutId(prev => prev === dayWorkouts[0].id ? null : dayWorkouts[0].id)}
+                        className={cn('min-h-[120px] rounded-xl p-2 border transition-all',
+                          todayFlag ? 'border-gold bg-gold/5' : 'border-border hover:border-gold/40',
+                          selectedInDay ? 'ring-2 ring-gold border-gold' : '',
+                          dayWorkouts.length > 0 ? 'cursor-pointer' : ''
+                        )}>
+                        <p className={cn('text-xs font-bold text-center mb-2', todayFlag ? 'text-gold' : 'text-navy/70')}>{format(day,'d')}</p>
+                        {hasCompleted && <p className="text-xs text-emerald-500 text-center mb-1">✓</p>}
+                        <div className="space-y-1">
+                          {dayWorkouts.slice(0,2).map(w => (
+                            <div key={w.id} className={cn('text-[10px] rounded-lg px-1.5 py-1 border leading-tight',
+                              TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy,
+                              w.status==='completed' ? 'opacity-70' : ''
+                            )}>
+                              <p className="font-semibold truncate">{w.workout?.title}</p>
+                              {w.workout?.distance && <p className="opacity-70">{w.workout.distance}k</p>}
+                            </div>
+                          ))}
+                          {dayWorkouts.length > 2 && <p className="text-[10px] text-muted-foreground text-center">+{dayWorkouts.length-2}</p>}
                         </div>
-                      )
-                    })}
-                    {/* KM column */}
-                    <div className="flex flex-col items-center justify-center rounded-xl bg-muted/30 border border-border/30">
-                      <p className="text-sm font-bold text-navy">{getWeekKm(weekDays)}</p>
-                      <p className="text-[9px] text-muted-foreground">ק"מ</p>
-                      {thisWeekKmActual > 0 && (
-                        <p className="text-[9px] text-emerald-600 mt-0.5">{thisWeekKmActual} ✓</p>
+                      </div>
+                    )
+                  })}
+                  <div className="flex flex-col items-center justify-center rounded-xl bg-muted/30 border border-border/30 min-h-[120px]">
+                    <p className="text-lg font-bold text-navy">{getWeekKm(weekDays)}</p>
+                    <p className="text-xs text-muted-foreground">planned</p>
+                    {thisWeekKmActual > 0 && <>
+                      <div className="w-8 h-px bg-border my-1"/>
+                      <p className="text-sm font-bold text-emerald-600">{thisWeekKmActual}</p>
+                      <p className="text-[10px] text-emerald-600">done</p>
+                    </>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Mobile: vertical stacked list */}
+              <div className="sm:hidden space-y-2">
+                {weekDays.map((day, di) => {
+                  const dayWorkouts = getWorkoutsForDay(day)
+                  const todayFlag = isToday(day)
+                  const selectedInDay = dayWorkouts.some(w => w.id === selectedWorkoutId)
+                  return (
+                    <div key={di}
+                      onClick={() => dayWorkouts.length > 0 && setSelectedWorkoutId(prev => prev === dayWorkouts[0].id ? null : dayWorkouts[0].id)}
+                      className={cn('rounded-xl border p-3 transition-all',
+                        todayFlag ? 'border-gold bg-gold/5' : 'border-border',
+                        selectedInDay ? 'ring-2 ring-gold' : '',
+                        dayWorkouts.length > 0 ? 'cursor-pointer' : ''
+                      )}>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className={cn('text-sm font-bold', todayFlag ? 'w-7 h-7 flex items-center justify-center bg-gold text-white rounded-full text-xs' : 'text-navy')}>{format(day,'d')}</span>
+                          <span className="text-sm font-semibold text-navy">{DAY_EN_FULL_LONG[di]}</span>
+                          {todayFlag && <Badge className="text-[10px] bg-gold/20 text-gold border-gold/30">Today</Badge>}
+                        </div>
+                        {dayWorkouts.length > 0 && <span className="text-xs text-muted-foreground">{dayWorkouts.length} workout</span>}
+                      </div>
+                      {dayWorkouts.length > 0 ? (
+                        <div className="space-y-1">
+                          {dayWorkouts.map(w => (
+                            <div key={w.id} className={cn('text-sm rounded-lg px-3 py-2 border flex items-center justify-between',
+                              TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy,
+                              w.status==='completed' ? 'opacity-70' : ''
+                            )}>
+                              <span className="font-semibold">{w.workout?.title}</span>
+                              <span className="text-xs opacity-70">{w.workout?.distance ? `${w.workout.distance}k` : w.workout?.duration ? `${w.workout.duration}'` : ''}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground text-center py-1">Rest day</p>
                       )}
                     </div>
+                  )
+                })}
+                {/* Week KM summary */}
+                <div className="rounded-xl border bg-muted/30 p-3 flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Week total</span>
+                  <div className="flex items-center gap-3">
+                    {thisWeekKmActual > 0 && <span className="text-sm font-bold text-emerald-600">{thisWeekKmActual} km done</span>}
+                    <span className="text-sm font-bold text-navy">{getWeekKm(weekDays)} km planned</span>
                   </div>
                 </div>
               </div>
@@ -376,10 +420,10 @@ export function AthletePlannerView() {
               <div className="overflow-x-auto -mx-1">
                 <div style={{minWidth:'400px'}} className="px-1">
                   <div className="grid grid-cols-8 gap-1 mb-1">
-                    {DAY_HE_SHORT.map((d,i) => (
+                    {DAY_EN_FULL.map((d,i) => (
                       <div key={i} className="text-center text-[10px] font-medium text-muted-foreground py-1">{d}</div>
                     ))}
-                    <div className="text-center text-[10px] font-medium text-muted-foreground py-1">ק"מ</div>
+                    <div className="text-center text-[10px] font-medium text-muted-foreground py-1">KM</div>
                   </div>
                   <div className="space-y-1">
                     {monthWeeks.map((weekStartDay, wi) => {
@@ -420,11 +464,11 @@ export function AthletePlannerView() {
                               </button>
                             )
                           })}
-                          <div className="flex flex-col items-center justify-center rounded-lg bg-muted/30">
+                          <div className="flex flex-col items-center justify-center rounded-lg bg-muted/30 p-1">
                             {wKm > 0 ? (
                               <>
                                 <p className="text-xs font-bold text-navy">{wKm}</p>
-                                <p className="text-[9px] text-muted-foreground">ק"מ</p>
+                                <p className="text-[9px] text-muted-foreground">plan</p>
                               </>
                             ) : <p className="text-[9px] text-muted-foreground">—</p>}
                           </div>
