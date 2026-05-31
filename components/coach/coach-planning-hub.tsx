@@ -369,22 +369,7 @@ export function CoachPlanningHub() {
                                 )}>
                                 <p className="font-medium truncate">{w.workout?.title}</p>
                                 {w.workout?.distance && <p className="opacity-70">{w.workout.distance}k</p>}
-                                {selectedAssignedWorkout?.id === w.id && (
-                                  <div className="flex gap-1 mt-1.5 pt-1.5 border-t border-current/20" onClick={e => e.stopPropagation()}>
-                                    <button className="flex-1 bg-white/70 rounded px-1 py-1 text-[10px] hover:bg-white flex items-center justify-center gap-0.5 font-medium"
-                                      onClick={() => { setCopiedWorkout(w); setSelectedAssignedWorkout(null); toast.success('אימון הועתק — לחץ על יום לשיבוץ') }}>
-                                      <Copy className="h-2 w-2"/>העתק
-                                    </button>
-                                    <button className="flex-1 bg-white/70 rounded px-1 py-1 text-[10px] hover:bg-white flex items-center justify-center gap-0.5 font-medium"
-                                      onClick={() => { setSelectedAssignedWorkout(null); handleOpenEdit(w) }}>
-                                      <Pencil className="h-2 w-2"/>ערוך
-                                    </button>
-                                    <button className="flex-1 bg-white/60 rounded px-0.5 py-0.5 text-[8px] hover:bg-red-100 text-red-600 flex items-center justify-center gap-0.5"
-                                      onClick={() => handleDeleteWorkout(w)}>
-                                      <Trash2 className="h-2 w-2"/>מחק
-                                    </button>
-                                  </div>
-                                )}
+
                               </div>
                             ))}
                           </div>
@@ -392,6 +377,39 @@ export function CoachPlanningHub() {
                       )
                     })}
                   </div></div>
+                )}
+
+                {/* Action panel - shows when workout is selected */}
+                {selectedAssignedWorkout && (
+                  <div className="mx-1 mb-2 rounded-xl border-2 border-navy/20 bg-white p-3">
+                    <div className="flex items-start justify-between mb-3">
+                      <button onClick={() => setSelectedAssignedWorkout(null)} className="text-muted-foreground hover:text-navy p-1"><X className="h-4 w-4"/></button>
+                      <div className="text-right">
+                        <p className="font-bold text-navy text-sm">{selectedAssignedWorkout.workout?.title}</p>
+                        <p className="text-xs text-muted-foreground">{selectedAssignedWorkout.scheduledDate}</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        onClick={() => { setCopiedWorkout(selectedAssignedWorkout); setSelectedAssignedWorkout(null); toast.success('אימון הועתק') }}
+                        className="flex flex-col items-center gap-1.5 bg-muted/30 hover:bg-muted/60 rounded-xl p-3 transition-all">
+                        <Copy className="h-5 w-5 text-navy"/>
+                        <span className="text-xs font-medium text-navy">העתק</span>
+                      </button>
+                      <button
+                        onClick={() => { handleOpenEdit(selectedAssignedWorkout); setSelectedAssignedWorkout(null) }}
+                        className="flex flex-col items-center gap-1.5 bg-muted/30 hover:bg-muted/60 rounded-xl p-3 transition-all">
+                        <Pencil className="h-5 w-5 text-navy"/>
+                        <span className="text-xs font-medium text-navy">ערוך</span>
+                      </button>
+                      <button
+                        onClick={() => { handleDeleteWorkout(selectedAssignedWorkout); setSelectedAssignedWorkout(null) }}
+                        className="flex flex-col items-center gap-1.5 bg-red-50 hover:bg-red-100 rounded-xl p-3 transition-all">
+                        <Trash2 className="h-5 w-5 text-red-500"/>
+                        <span className="text-xs font-medium text-red-500">מחק</span>
+                      </button>
+                    </div>
+                  </div>
                 )}
 
                 {/* Month grid */}
