@@ -18,7 +18,9 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { collection, getDocs, query, where, orderBy, limit, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
+import { db, realtimeDb } from '@/lib/firebase'
+import { ref, onValue, query as rtQuery, orderByChild, limitToLast } from 'firebase/database'
+import { useAuth } from '@/contexts/auth-context'
 import type { AthleteProfile, Workout, AssignedWorkout } from '@/lib/types'
 import { useLanguage } from '@/contexts/language-context'
 import { useWorkoutTypeLabels } from '@/lib/workout-labels'
@@ -49,10 +51,36 @@ function mapDocToAthlete(d: QueryDocumentSnapshot<DocumentData>): AthleteProfile
 export function CoachDashboard() {
   const { t } = useLanguage()
   const workoutTypeLabels = useWorkoutTypeLabels()
+  const { user } = useAuth()
+  const [totalUnread, setTotalUnread] = useState(0)
   const [athletes, setAthletes] = useState<AthleteProfile[]>([])
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [assignedWorkouts, setAssignedWorkouts] = useState<AssignedWorkout[]>([])
   const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!user?.id || !athletes.length) return
+    let unsubs: (() => void)[] = []
+    const counts: Record<string, number> = {}
+    athletes.forEach(athlete => {
+      const chatId = `${user.id}_${athlete.id}`
+      const lastReadKey = `lastRead_${chatId}_${user.id}`
+      const lastRead = parseInt(localStorage.getItem(lastReadKey) || '0')
+      const msgsRef = ref(realtimeDb, `conversations/${chatId}/messages`)
+      const msgsQuery = rtQuery(msgsRef, orderByChild('timestamp'), limitToLast(20))
+      const unsub = onValue(msgsQuery, (snapshot) => {
+        let count = 0
+        snapshot.forEach((child) => {
+          const msg = child.val()
+          if (msg.senderId !== user.id && msg.timestamp > lastRead) count++
+        })
+        counts[athlete.id] = count
+        setTotalUnread(Object.values(counts).reduce((a, b) => a + b, 0))
+      })
+      unsubs.push(unsub)
+    })
+    return () => unsubs.forEach(u => u())
+  }, [user?.id, athletes.length])
 
   useEffect(() => {
     const loadData = async () => {
@@ -143,6 +171,35 @@ export function CoachDashboard() {
           {format(new Date(), 'EEEE, MMMM d, yyyy')}
         </p>
       </div>
+
+      {/* Chat - top of dashboard */}
+      <Link href="/coach/chat">
+        <Card className="border-gold/30 hover:border-gold/60 transition-colors cursor-pointer">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <div className="w-10 h-10 rounded-lg bg-gold/10 flex items-center justify-center">
+                    <MessageCircle className="h-5 w-5 text-gold" />
+                  </div>
+                  {totalUnread > 0 && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                      {totalUnread > 9 ? '9+' : totalUnread}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <p className="font-semibold text-navy">{t.messagesAction}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {totalUnread > 0 ? `${totalUnread} הודעות שלא נקראו` : 'אין הודעות חדשות'}
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="h-5 w-5 text-muted-foreground" />
+            </div>
+          </CardContent>
+        </Card>
+      </Link>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
