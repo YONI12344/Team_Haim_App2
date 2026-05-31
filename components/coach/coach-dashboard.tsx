@@ -187,7 +187,7 @@ export function CoachDashboard() {
       </div>
 
       {/* Control Dashboard shortcut */}
-      <Link href="/coach/planning-hub">
+      <Link href="/coach/workouts?tab=planning">
         <Card className="border-navy/20 hover:border-navy/40 transition-colors cursor-pointer bg-navy/5">
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center justify-between">
