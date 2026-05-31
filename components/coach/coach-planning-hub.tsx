@@ -407,25 +407,10 @@ export function CoachPlanningHub() {
                         <p className="text-xs text-muted-foreground">{selectedAssignedWorkout.scheduledDate}</p>
                       </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <button
-                        onClick={() => { setCopiedWorkout(selectedAssignedWorkout); setSelectedAssignedWorkout(null); toast.success('אימון הועתק') }}
-                        className="flex flex-col items-center gap-1.5 bg-muted/30 hover:bg-muted/60 rounded-xl p-3 transition-all">
-                        <Copy className="h-5 w-5 text-navy"/>
-                        <span className="text-xs font-medium text-navy">העתק</span>
-                      </button>
-                      <button
-                        onClick={() => { handleOpenEdit(selectedAssignedWorkout); setSelectedAssignedWorkout(null) }}
-                        className="flex flex-col items-center gap-1.5 bg-muted/30 hover:bg-muted/60 rounded-xl p-3 transition-all">
-                        <Pencil className="h-5 w-5 text-navy"/>
-                        <span className="text-xs font-medium text-navy">ערוך</span>
-                      </button>
-                      <button
-                        onClick={() => { handleDeleteWorkout(selectedAssignedWorkout); setSelectedAssignedWorkout(null) }}
-                        className="flex flex-col items-center gap-1.5 bg-red-50 hover:bg-red-100 rounded-xl p-3 transition-all">
-                        <Trash2 className="h-5 w-5 text-red-500"/>
-                        <span className="text-xs font-medium text-red-500">מחק</span>
-                      </button>
+                    <div className="flex items-center gap-2 justify-end">
+                      <button onClick={() => { setCopiedWorkout(selectedAssignedWorkout); setSelectedAssignedWorkout(null); toast.success('הועתק') }} className="flex items-center gap-1 bg-muted/40 hover:bg-muted rounded-md px-2.5 py-1.5 text-xs font-medium text-navy"><Copy className="h-3 w-3"/>העתק</button>
+                      <button onClick={() => { handleOpenEdit(selectedAssignedWorkout); setSelectedAssignedWorkout(null) }} className="flex items-center gap-1 bg-muted/40 hover:bg-muted rounded-md px-2.5 py-1.5 text-xs font-medium text-navy"><Pencil className="h-3 w-3"/>ערוך</button>
+                      <button onClick={() => { handleDeleteWorkout(selectedAssignedWorkout); setSelectedAssignedWorkout(null) }} className="flex items-center gap-1 bg-red-50 hover:bg-red-100 rounded-md px-2.5 py-1.5 text-xs font-medium text-red-600"><Trash2 className="h-3 w-3"/>מחק</button>
                     </div>
                   </div>
                 )}
