@@ -178,23 +178,39 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
   if (collapsed) {
     return (
       <div className="mt-3 pt-3 border-t border-border">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 space-y-1">
-            <div className="flex items-center gap-2 flex-wrap text-xs">
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
-              {effort != null && <span className="font-bold text-navy">מאמץ {effort}/10</span>}
-              {actualDistance && <span className="text-muted-foreground">· {actualDistance} ק"מ</span>}
-              {actualPace && <span className="text-muted-foreground">· {actualPace}/ק"מ</span>}
+        <div className="bg-white rounded-xl border border-border p-3 flex items-start justify-between gap-2">
+          <div className="flex-1 space-y-1.5">
+            {/* Stats row */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0" />
+              {effort != null && <span className="text-sm font-bold text-navy">מאמץ {effort}/10</span>}
+              {actualDistance && <span className="text-sm text-muted-foreground">· {actualDistance} ק"מ</span>}
+              {actualPace && <span className="text-sm text-muted-foreground">· {actualPace}/ק"מ</span>}
             </div>
-            {comment && <p className="text-xs text-muted-foreground italic line-clamp-1">"{comment}"</p>}
-            {splitLogs && splitLogs.length > 0 && (
-              <p className="text-xs text-muted-foreground">
-                {splitLogs.filter((s:any) => s.time).map((s:any, i:number) => `${s.distance||i+1}: ${s.time}`).join(' · ')}
-              </p>
+            {/* Comment */}
+            {comment && <p className="text-sm text-navy italic">"{comment}"</p>}
+            {/* Splits - organized by set */}
+            {splitLogs && splitLogs.filter((s:any) => s.time && s.time.includes(':') && !String(s.distance||'').includes("ד'")).length > 0 && (
+              <div className="space-y-0.5 pt-1 border-t border-border/40">
+                {Array.from(new Set(splitLogs
+                  .filter((s:any) => s.time && s.time.includes(':') && !String(s.distance||'').includes("ד'"))
+                  .map((s:any) => s.setIndex)
+                )).map((si: any) => {
+                  const items = splitLogs.filter((s:any) => s.setIndex === si && s.time && s.time.includes(':') && !String(s.distance||'').includes("ד'"))
+                  if (!items.length) return null
+                  return (
+                    <p key={si} className="text-sm text-muted-foreground">
+                      <span className="font-semibold text-navy">סט {Number(si)+1}:</span>{' '}
+                      {items.map((s:any) => s.distance ? `${s.distance} ${s.time}` : s.time).join(' · ')}
+                    </p>
+                  )
+                })}
+              </div>
             )}
           </div>
-          <Button size="sm" variant="ghost" className="h-6 w-6 p-0 flex-shrink-0" onClick={() => setCollapsed(false)}>
-            <span className="text-xs">✏️</span>
+          {/* Edit button - white */}
+          <Button size="sm" variant="outline" className="h-8 px-3 bg-white flex-shrink-0 text-sm" onClick={() => setCollapsed(false)}>
+            ✏️ ערוך
           </Button>
         </div>
       </div>
