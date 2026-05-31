@@ -74,6 +74,13 @@ export default function CoachAthleteChat({
 
   return (
     <CoachLayout hideNav>
+      {/* Mark as read */}
+      {typeof window !== 'undefined' && (() => {
+        const chatId = conversationId(user.id, athlete.id)
+        const key = `lastRead_${chatId}_${user.id}`
+        localStorage.setItem(key, Date.now().toString())
+        return null
+      })()}
       <ChatRoom
         chatId={conversationId(user.id, athlete.id)}
         currentUserId={user.id}

@@ -13,6 +13,14 @@ export default function AthleteChatPage() {
   const [coach, setCoach] = useState<CoachInfo | null>(null)
   const [loading, setLoading] = useState(true)
 
+  // Mark messages as read when chat opens
+  useEffect(() => {
+    if (!user?.id || !coach?.uid) return
+    const chatId = conversationId(coach.uid, user.id)
+    const lastReadKey = `lastRead_${chatId}_${user.id}`
+    localStorage.setItem(lastReadKey, Date.now().toString())
+  }, [user?.id, coach?.uid])
+
   useEffect(() => {
     let cancelled = false
     const load = async () => {
