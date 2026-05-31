@@ -172,6 +172,26 @@ export function CoachDashboard() {
         </p>
       </div>
 
+      {/* Control Dashboard shortcut */}
+      <Link href="/coach/planning-hub">
+        <Card className="border-navy/20 hover:border-navy/40 transition-colors cursor-pointer bg-navy/5">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-navy/10 flex items-center justify-center">
+                  <Activity className="h-5 w-5 text-navy" />
+                </div>
+                <div>
+                  <p className="font-semibold text-navy">לוח בקרה</p>
+                  <p className="text-xs text-muted-foreground">תכנון אימונים לכל הספורטאים</p>
+                </div>
+              </div>
+              <ChevronRight className="h-5 w-5 text-muted-foreground" />
+            </div>
+          </CardContent>
+        </Card>
+      </Link>
+
       {/* Chat - top of dashboard */}
       <Link href="/coach/chat">
         <Card className="border-gold/30 hover:border-gold/60 transition-colors cursor-pointer">
