@@ -36,6 +36,8 @@ import {
   type QueryDocumentSnapshot,
 } from 'firebase/firestore'
 import { db, realtimeDb } from '@/lib/firebase'
+import { ref, onValue, query as rtQuery, orderByChild, limitToLast } from 'firebase/database'
+import { getCoachInfo, conversationId } from '@/lib/coach'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
 import { useWorkoutTypeLabels, workoutTypeColors } from '@/lib/workout-labels'
