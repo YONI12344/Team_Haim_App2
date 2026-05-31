@@ -62,6 +62,10 @@ export function CoachDashboard() {
     if (!user?.id || !athletes.length) return
     let unsubs: (() => void)[] = []
     const counts: Record<string, number> = {}
+    // Request notification permission
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
     athletes.forEach(athlete => {
       const chatId = `${user.id}_${athlete.id}`
       const lastReadKey = `lastRead_${chatId}_${user.id}`
@@ -70,9 +74,19 @@ export function CoachDashboard() {
       const msgsQuery = rtQuery(msgsRef, orderByChild('timestamp'), limitToLast(20))
       const unsub = onValue(msgsQuery, (snapshot) => {
         let count = 0
+        const now = Date.now()
         snapshot.forEach((child) => {
           const msg = child.val()
-          if (msg.senderId !== user.id && msg.timestamp > lastRead) count++
+          if (msg.senderId !== user.id && msg.timestamp > lastRead) {
+            count++
+            if (msg.timestamp > now - 15000 && 'Notification' in window && Notification.permission === 'granted') {
+              const athleteName = athlete.name || 'ספורטאי'
+              new Notification(`הודעה חדשה מ${athleteName} 💬`, {
+                body: msg.content,
+                icon: '/favicon.ico'
+              })
+            }
+          }
         })
         counts[athlete.id] = count
         setTotalUnread(Object.values(counts).reduce((a, b) => a + b, 0))
