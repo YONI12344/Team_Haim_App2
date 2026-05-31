@@ -320,81 +320,51 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
             </Button>
           </div>
 
-          {/* Day View */}
+          {/* Day View - same as week view single column */}
           {viewMode === 'day' && (
-            <div className="space-y-2">
-              {(() => {
-                const dayWorkouts = getWorkoutsForDay(currentDate)
-                return dayWorkouts.length === 0 ? (
-                  <div className="text-center py-10 text-muted-foreground">
-                    <p className="font-medium">אין אימון מתוכנן</p>
-                    <p className="text-sm mt-1">{isToday(currentDate) ? 'יום מנוחה!' : 'לא נקבע אימון'}</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {dayWorkouts.map(w => (
-                      <div key={w.id} className="rounded-xl border border-border overflow-hidden">
-                        {/* Workout header - always visible */}
-                        <button
-                          className="w-full text-right px-4 py-3 flex items-center justify-between hover:bg-muted/30 transition-colors"
-                          onClick={() => setSelectedWorkoutId(prev => prev === w.id ? null : w.id)}>
-                          <div className="flex items-center gap-2">
-                            <span className={cn('w-2.5 h-2.5 rounded-full flex-shrink-0',
-                              w.status==='completed' ? 'bg-emerald-500' : w.status==='skipped' ? 'bg-red-400' : 'bg-amber-400'
-                            )}/>
-                            <div className="text-xs text-muted-foreground">
-                              {w.workout.distance && `${w.workout.distance} ק"מ`}
-                              {w.workout.duration && ` · ${w.workout.duration} דק'`}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <p className="font-semibold text-navy text-sm">{w.workout.title}</p>
-                            <ChevronDown className={cn('h-4 w-4 text-muted-foreground transition-transform', selectedWorkoutId === w.id ? 'rotate-180' : '')}/>
-                          </div>
+            <div className="space-y-3">
+              <div className={cn('rounded-xl border-2 min-h-[100px] p-3',
+                isToday(currentDate) ? 'border-gold bg-gold/5' : 'border-border'
+              )}>
+                <p className={cn('text-xs font-bold mb-2 text-right', isToday(currentDate) ? 'text-gold' : 'text-muted-foreground')}>
+                  {format(currentDate,'EEEE, d MMMM')}
+                </p>
+                {(() => {
+                  const dayWorkouts = getWorkoutsForDay(currentDate)
+                  return dayWorkouts.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">אין אימון מתוכנן</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {dayWorkouts.map(w => (
+                        <button key={w.id}
+                          onClick={() => setSelectedWorkoutId(prev => prev === w.id ? null : w.id)}
+                          className={cn('w-full text-right rounded-lg px-2.5 py-2 border transition-all hover:opacity-80',
+                            TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy,
+                            selectedWorkoutId === w.id ? 'ring-2 ring-navy' : '',
+                            w.status==='completed' ? 'opacity-60' : ''
+                          )}>
+                          <p className="font-semibold text-sm leading-snug">{w.workout.title}</p>
+                          <p className="text-xs opacity-70 mt-0.5">
+                            {w.workout.distance && `${w.workout.distance}k`}
+                            {w.workout.duration && ` · ${w.workout.duration}'`}
+                          </p>
                         </button>
-                        {/* Expanded content */}
-                        {selectedWorkoutId === w.id && (
-                          <div className="px-4 pb-4 space-y-3 border-t border-border/40">
-                            {w.workout.description && <p className="text-sm text-muted-foreground pt-3">{w.workout.description}</p>}
-                            {w.workout.sets && w.workout.sets.length > 0 && (
-                              <div className="space-y-1.5 pt-2">
-                                {w.workout.sets.map((set, si) => {
-                                  const hasIntervals = (set as any).intervals?.length > 0
-                                  return (
-                                    <div key={si} className="rounded-lg border bg-muted/20 p-2.5">
-                                      <p className="text-xs font-bold text-navy mb-1">
-                                        סט {si+1}{set.reps>1?` · ${set.reps}×`:''}
-                                        {!hasIntervals && (set.distance||set.duration) && ` ${set.distance||set.duration}`}
-                                        {!hasIntervals && set.pace && <span className="font-normal text-muted-foreground"> @ {set.pace}</span>}
-                                      </p>
-                                      {hasIntervals && (
-                                        <div className="flex flex-wrap gap-1.5">
-                                          {((set as any).intervals as any[]).map((iv:any, ii:number) => (
-                                            <span key={ii} className="text-xs bg-navy/10 text-navy rounded-full px-2 py-0.5">
-                                              {ii+1}. {iv.distance}{iv.pace && ` @ ${iv.pace}`}
-                                            </span>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </div>
-                                  )
-                                })}
-                              </div>
-                            )}
-                            {w.workout.notes && (
-                              <p className="text-xs text-muted-foreground bg-muted/30 rounded-lg px-3 py-2">{w.workout.notes}</p>
-                            )}
-                            <WorkoutLogForm
-                              workoutId={w.workoutId}
-                              assignedWorkoutId={w.id}
-                              athleteId={athleteId}
-                              scheduledDate={w.scheduledDate}
-                              workout={w.workout}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+                  )
+                })()}
+              </div>
+              {selectedWorkoutId && (() => {
+                const w = getWorkoutsForDay(currentDate).find(x => x.id === selectedWorkoutId)
+                if (!w) return null
+                return (
+                  <div>
+                    <p className="font-bold text-navy text-base px-1 mb-1 text-right">{w.workout.title}</p>
+                    <div className="flex gap-3 text-sm text-muted-foreground px-1 mb-2 justify-end">
+                      {w.workout.distance && <span>{w.workout.distance} ק"מ</span>}
+                      {w.workout.duration && <span>{w.workout.duration} דק'</span>}
+                    </div>
+                    {renderWorkoutDetail(w)}
                   </div>
                 )
               })()}
