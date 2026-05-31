@@ -26,12 +26,12 @@ const DAY_EN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 const DAY_HE_LABELS = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳']
 
 const TYPE_COLORS: Record<string, string> = {
-  easy: 'bg-amber-50 text-amber-900 border-amber-200',
-  long_run: 'bg-amber-50 text-amber-900 border-amber-200',
-  tempo: 'bg-blue-50 text-blue-900 border-blue-200',
+  easy: 'bg-amber-50 text-amber-800 border-amber-200',
+  long_run: 'bg-yellow-50 text-yellow-800 border-yellow-300',
+  tempo: 'bg-slate-100 text-slate-800 border-slate-300',
   intervals: 'bg-blue-50 text-blue-900 border-blue-200',
-  hill_repeats: 'bg-blue-50 text-blue-900 border-blue-200',
-  fartlek: 'bg-blue-50 text-blue-900 border-blue-200',
+  hill_repeats: 'bg-indigo-50 text-indigo-900 border-indigo-200',
+  fartlek: 'bg-cyan-50 text-cyan-900 border-cyan-200',
   recovery: 'bg-gray-100 text-gray-600 border-gray-200',
   rest: 'bg-muted text-muted-foreground',
   race: 'bg-red-100 text-red-700 border-red-200',
@@ -343,7 +343,10 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                             selectedWorkoutId === w.id ? 'ring-2 ring-navy' : '',
                             w.status==='completed' ? 'opacity-60' : ''
                           )}>
-                          <p className="font-semibold text-sm leading-snug">{w.workout.title}</p>
+                          <div className="flex items-start justify-between gap-1">
+                            <p className="font-semibold text-sm leading-snug flex-1">{w.workout.title}</p>
+                            {w.status==='completed' && <span className="text-emerald-500 font-bold text-sm flex-shrink-0">✓</span>}
+                          </div>
                           <p className="text-xs opacity-70 mt-0.5">
                             {w.workout.distance && `${w.workout.distance}k`}
                             {w.workout.duration && ` · ${w.workout.duration}'`}
