@@ -46,6 +46,13 @@ interface CopiedWeek {
   weekLabel: string
 }
 
+// Module-level cache - persists between page navigations
+let _cachedAthletes: any[] | null = null
+let _cachedLibrary: any[] | null = null
+let _cachedAssigned: any[] | null = null
+let _cacheTime = 0
+const CACHE_TTL = 60000 // 1 minute
+
 export function CoachPlanningHub() {
   const [viewMode, setViewMode] = useState<'week' | 'month'>('week')
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -71,6 +78,15 @@ export function CoachPlanningHub() {
 
   useEffect(() => {
     const load = async () => {
+      // Use cache if fresh
+      const now = Date.now()
+      if (_cachedAthletes && _cachedLibrary && _cachedAssigned && (now - _cacheTime < CACHE_TTL)) {
+        setAthletes(_cachedAthletes)
+        setWorkoutLibrary(_cachedLibrary)
+        setAssignedWorkouts(_cachedAssigned)
+        setLoading(false)
+        return
+      }
       setLoading(true)
       try {
         const [usersSnap, awSnap, wSnap] = await Promise.all([
@@ -97,7 +113,9 @@ export function CoachPlanningHub() {
         setAthleteData(result)
         setSelectedAthletes(result.map(d => d.athlete.id))
       } catch (err) { console.error(err) }
-      finally { setLoading(false) }
+      finally {
+        setLoading(false)
+      }
     }
     load()
   }, [])
