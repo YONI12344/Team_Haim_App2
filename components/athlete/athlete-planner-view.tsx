@@ -60,6 +60,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
   const [currentDate, setCurrentDate] = useState(new Date())
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('week')
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null)
+  const [openLogForms, setOpenLogForms] = useState<Set<string>>(new Set())
   const [expandedToday, setExpandedToday] = useState(false)
 
   useEffect(() => {
@@ -226,14 +227,24 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
         </div>
       )}
       {/* Log form */}
-      <div className="px-4 py-4 border-t border-border">
-        <WorkoutLogForm
-          workoutId={w.workoutId}
-          assignedWorkoutId={w.id}
-          athleteId={athleteId}
-          scheduledDate={w.scheduledDate}
-          workout={w.workout}
-        />
+      <div className="border-t border-border">
+        {(w.status === 'completed' || openLogForms.has(w.id)) ? (
+          <div className="px-4 py-4">
+            <WorkoutLogForm
+              workoutId={w.workoutId}
+              assignedWorkoutId={w.id}
+              athleteId={athleteId}
+              scheduledDate={w.scheduledDate}
+              workout={w.workout}
+            />
+          </div>
+        ) : (
+          <button
+            onClick={() => setOpenLogForms(prev => new Set([...prev, w.id]))}
+            className="w-full px-4 py-3 text-sm font-medium text-navy hover:bg-muted/30 transition-colors text-right">
+            + תעד אימון
+          </button>
+        )}
       </div>
     </div>
   )
