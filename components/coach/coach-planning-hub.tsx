@@ -331,7 +331,7 @@ export function CoachPlanningHub() {
 
                 {/* Week grid */}
                 {viewMode === 'week' && (
-                  <div className="overflow-x-auto -mx-1"><div style={{minWidth:"480px"}} className="grid grid-cols-7 divide-x divide-border/50">
+                  <div className="overflow-x-auto -mx-1"><div style={{minWidth:"700px"}} className="grid grid-cols-7 divide-x divide-border/50">
                     {weekDays.map((day, di) => {
                       const dayWorkouts = getWorkoutsForDay(data, day)
                       const isToday = isSameDay(day, new Date())
@@ -346,11 +346,11 @@ export function CoachPlanningHub() {
                             setCopiedWorkout(null)
                           }
                         }}
-                          className={cn('min-h-[90px] p-1.5 transition-all',
+                          className={cn('min-h-[140px] p-2 transition-all',
                             isToday && 'bg-gold/5',
                             isAssignTarget && 'cursor-pointer hover:bg-gold/10 hover:border-gold/30'
                           )}>
-                          <p className={cn('text-[10px] font-medium text-center mb-1', isToday ? 'text-gold font-bold' : 'text-muted-foreground')}>
+                          <p className={cn('text-xs font-medium text-center mb-1', isToday ? 'text-gold font-bold' : 'text-muted-foreground')}>
                             {DAY_LABELS[di]} {format(day,'d')}
                           </p>
                           {isAssignTarget && dayWorkouts.length === 0 && (
@@ -362,7 +362,7 @@ export function CoachPlanningHub() {
                             {dayWorkouts.map(w => (
                               <div key={w.id}
                                 onClick={e => { e.stopPropagation(); setSelectedAssignedWorkout(selectedAssignedWorkout?.id === w.id ? null : w) }}
-                                className={cn('text-[9px] rounded px-1 py-0.5 border leading-tight cursor-pointer transition-all',
+                                className={cn('text-[11px] rounded px-1.5 py-1 border leading-tight cursor-pointer transition-all',
                                   TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy,
                                   selectedAssignedWorkout?.id === w.id ? 'ring-1 ring-navy' : 'hover:opacity-80',
                                   copiedWorkout?.workoutId === w.workoutId ? 'ring-1 ring-gold' : ''
@@ -370,12 +370,12 @@ export function CoachPlanningHub() {
                                 <p className="font-medium truncate">{w.workout?.title}</p>
                                 {w.workout?.distance && <p className="opacity-70">{w.workout.distance}k</p>}
                                 {selectedAssignedWorkout?.id === w.id && (
-                                  <div className="flex gap-0.5 mt-1 pt-1 border-t border-current/20" onClick={e => e.stopPropagation()}>
-                                    <button className="flex-1 bg-white/60 rounded px-0.5 py-0.5 text-[8px] hover:bg-white flex items-center justify-center gap-0.5"
+                                  <div className="flex gap-1 mt-1.5 pt-1.5 border-t border-current/20" onClick={e => e.stopPropagation()}>
+                                    <button className="flex-1 bg-white/70 rounded px-1 py-1 text-[10px] hover:bg-white flex items-center justify-center gap-0.5 font-medium"
                                       onClick={() => { setCopiedWorkout(w); setSelectedAssignedWorkout(null); toast.success('אימון הועתק — לחץ על יום לשיבוץ') }}>
                                       <Copy className="h-2 w-2"/>העתק
                                     </button>
-                                    <button className="flex-1 bg-white/60 rounded px-0.5 py-0.5 text-[8px] hover:bg-white flex items-center justify-center gap-0.5"
+                                    <button className="flex-1 bg-white/70 rounded px-1 py-1 text-[10px] hover:bg-white flex items-center justify-center gap-0.5 font-medium"
                                       onClick={() => { setSelectedAssignedWorkout(null); handleOpenEdit(w) }}>
                                       <Pencil className="h-2 w-2"/>ערוך
                                     </button>
