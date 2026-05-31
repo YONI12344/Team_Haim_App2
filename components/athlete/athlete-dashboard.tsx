@@ -94,7 +94,7 @@ export function AthleteDashboard() {
     let unsubChat: (() => void) | null = null
     const setupChat = async () => {
       try {
-        const coachInfo = await getCoachInfo(user.id)
+        const coachInfo = await getCoachInfo()
         if (!coachInfo?.uid) return
         const chatId = conversationId(coachInfo.uid, user.id)
         const lastReadKey = `lastRead_${chatId}_${user.id}`
