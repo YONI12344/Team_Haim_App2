@@ -220,7 +220,7 @@ export function CoachPlanningHub() {
   )
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4">
+    <div className="flex flex-col lg:flex-row gap-4" dir="rtl">
       {/* Main area */}
       <div className="flex-1 min-w-0 space-y-4">
         {/* Header */}
