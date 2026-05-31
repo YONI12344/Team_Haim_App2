@@ -35,7 +35,7 @@ import {
   type DocumentData,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
+import { db, realtimeDb } from '@/lib/firebase'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
 import { useWorkoutTypeLabels, workoutTypeColors } from '@/lib/workout-labels'
@@ -88,6 +88,43 @@ export function AthleteDashboard() {
   const [logs, setLogs] = useState<WorkoutLog[]>([])
   const [loading, setLoading] = useState(true)
   const [unreadCount, setUnreadCount] = useState(0)
+
+  useEffect(() => {
+    if (!user?.id) return
+    let unsubChat: (() => void) | null = null
+    const setupChat = async () => {
+      try {
+        const coachInfo = await getCoachInfo(user.id)
+        if (!coachInfo?.uid) return
+        const chatId = conversationId(coachInfo.uid, user.id)
+        const lastReadKey = `lastRead_${chatId}_${user.id}`
+        const lastRead = parseInt(localStorage.getItem(lastReadKey) || '0')
+        const msgsRef = ref(realtimeDb, `conversations/${chatId}/messages`)
+        const msgsQuery = rtQuery(msgsRef, orderByChild('timestamp'), limitToLast(50))
+        unsubChat = onValue(msgsQuery, (snapshot) => {
+          let count = 0
+          const now = Date.now()
+          snapshot.forEach((child) => {
+            const msg = child.val()
+            if (msg.senderId !== user.id && msg.timestamp > lastRead) {
+              count++
+              // Show browser notification for very recent messages
+              if (msg.timestamp > now - 15000 && 'Notification' in window && Notification.permission === 'granted') {
+                new Notification('הודעה חדשה מהמאמן 💬', { body: msg.content, icon: '/favicon.ico' })
+              }
+            }
+          })
+          setUnreadCount(count)
+        })
+      } catch {}
+    }
+    setupChat()
+    // Request notification permission
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
+    return () => { if (unsubChat) unsubChat() }
+  }, [user?.id])
 
   useEffect(() => {
     if (!user?.id) return
