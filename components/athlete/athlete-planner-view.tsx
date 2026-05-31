@@ -26,12 +26,12 @@ const DAY_EN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 const DAY_HE_LABELS = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳']
 
 const TYPE_COLORS: Record<string, string> = {
-  easy: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  long_run: 'bg-orange-100 text-orange-700 border-orange-200',
-  tempo: 'bg-purple-100 text-purple-700 border-purple-200',
-  intervals: 'bg-blue-100 text-blue-700 border-blue-200',
-  hill_repeats: 'bg-amber-100 text-amber-700 border-amber-200',
-  fartlek: 'bg-cyan-100 text-cyan-700 border-cyan-200',
+  easy: 'bg-white text-navy border-border',
+  long_run: 'bg-white text-navy border-border',
+  tempo: 'bg-white text-navy border-border',
+  intervals: 'bg-white text-navy border-border',
+  hill_repeats: 'bg-white text-navy border-border',
+  fartlek: 'bg-white text-navy border-border',
   recovery: 'bg-gray-100 text-gray-600 border-gray-200',
   rest: 'bg-muted text-muted-foreground',
   race: 'bg-red-100 text-red-700 border-red-200',
@@ -188,9 +188,14 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
             <div className="px-4 py-3 border-t border-border">
               <p className="text-sm font-bold text-navy text-right">
                 סט {si+1}
-                {set.reps > 1 && <span className="font-normal"> · {set.reps}×</span>}
-                {!hasIntervals && (set.distance||set.duration) && <span className="font-normal"> · {set.distance||set.duration}</span>}
-                {!hasIntervals && set.pace && <span className="font-normal text-muted-foreground"> @ {set.pace}</span>}
+                {set.reps > 1 && !hasIntervals
+                  ? <span className="font-normal"> · {set.reps}× {set.distance||set.duration||''}{set.pace ? ` @ ${set.pace}` : ''}</span>
+                  : <>
+                    {!hasIntervals && (set.distance||set.duration) && <span className="font-normal"> · {set.distance||set.duration}</span>}
+                    {!hasIntervals && set.pace && <span className="font-normal text-muted-foreground"> @ {set.pace}</span>}
+                  </>
+                }
+                {hasIntervals && set.reps > 1 && <span className="font-normal text-muted-foreground"> · {set.reps}×</span>}
               </p>
               {!hasIntervals && set.rest && (
                 <p className="text-xs text-muted-foreground text-right mt-1">מנוחה: {set.rest}</p>
@@ -205,7 +210,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                   <span className="w-6 h-6 rounded-full bg-navy text-white font-bold flex items-center justify-center text-xs flex-shrink-0">{ii+1}</span>
                 </div>
                 {iv.rest && (
-                  <div className="px-4 py-2 border-t border-border/50 bg-muted/10">
+                  <div className="px-4 py-1.5 border-t border-border/30">
                     <p className="text-xs text-muted-foreground text-right">מנוחה: {iv.rest}</p>
                   </div>
                 )}
