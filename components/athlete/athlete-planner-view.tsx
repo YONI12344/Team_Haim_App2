@@ -161,96 +161,83 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
   )
 
   const renderWorkoutDetail = (w: AssignedWorkout) => (
-    <div className="space-y-3 pt-3 border-t mt-3">
-      <div className="flex gap-3 text-xs text-muted-foreground flex-wrap">
-        {w.workout.distance && <span className="flex items-center gap-1"><MapPin className="h-3 w-3"/>{w.workout.distance} ק"מ</span>}
-        {w.workout.duration && <span className="flex items-center gap-1"><Clock className="h-3 w-3"/>{w.workout.duration} דק'</span>}
-      </div>
-      {w.workout.description && <p className="text-xs text-muted-foreground leading-relaxed">{w.workout.description}</p>}
+    <div className="border border-border rounded-xl overflow-hidden bg-white">
+      {/* Warmup */}
       {w.workout.warmup && (
-        <div className="bg-emerald-50 rounded-lg p-2.5 border border-emerald-100">
-          <p className="text-xs font-semibold text-emerald-700 mb-1">חימום</p>
-          <p className="text-xs text-emerald-800">{w.workout.warmup}</p>
+        <div className="px-4 py-3 border-b border-border">
+          <p className="text-sm text-muted-foreground text-right">חימום: {w.workout.warmup}</p>
         </div>
       )}
-      {w.workout.sets && w.workout.sets.length > 0 && (
-        <div className="space-y-0 border border-border rounded-xl overflow-hidden">
-          {w.workout.sets.map((set: any, si: number) => {
-            const hasIntervals = set.intervals && set.intervals.length > 0
-            return (
-              <div key={set.id||si}>
-                {/* Rest between sets */}
-                {si > 0 && (
-                  <div className="flex items-center gap-3 px-4 py-1.5 bg-muted/10">
-                    <div className="flex-1 h-px bg-border"/>
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">
-                      {set.rest ? `מנוחה בין סטים: ${set.rest}` : 'המשך'}
-                    </span>
-                    <div className="flex-1 h-px bg-border"/>
+      {/* Sets */}
+      {w.workout.sets && w.workout.sets.length > 0 && w.workout.sets.map((set: any, si: number) => {
+        const hasIntervals = set.intervals && set.intervals.length > 0
+        return (
+          <div key={set.id||si}>
+            {/* Rest between sets separator */}
+            {si > 0 && (
+              <div className="flex items-center gap-3 px-4" style={{height:'28px'}}>
+                <div className="flex-1 h-px bg-border"/>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  {set.rest ? `מנוחה בין סטים: ${set.rest}` : 'המשך לסט הבא'}
+                </span>
+                <div className="flex-1 h-px bg-border"/>
+              </div>
+            )}
+            {/* Set header */}
+            <div className="px-4 py-3 border-t border-border">
+              <p className="text-sm font-bold text-navy text-right">
+                סט {si+1}
+                {set.reps > 1 && <span className="font-normal"> · {set.reps}×</span>}
+                {!hasIntervals && (set.distance||set.duration) && <span className="font-normal"> · {set.distance||set.duration}</span>}
+                {!hasIntervals && set.pace && <span className="font-normal text-muted-foreground"> @ {set.pace}</span>}
+              </p>
+              {!hasIntervals && set.rest && (
+                <p className="text-xs text-muted-foreground text-right mt-1">מנוחה: {set.rest}</p>
+              )}
+            </div>
+            {/* Intervals */}
+            {hasIntervals && set.intervals.map((iv: any, ii: number) => (
+              <div key={iv.id||ii}>
+                <div className="px-4 py-3 border-t border-border flex items-center justify-end gap-3">
+                  {iv.pace && <span className="text-sm text-muted-foreground">@ {iv.pace}</span>}
+                  <span className="text-base font-bold text-navy">{iv.distance}</span>
+                  <span className="w-6 h-6 rounded-full bg-navy text-white font-bold flex items-center justify-center text-xs flex-shrink-0">{ii+1}</span>
+                </div>
+                {iv.rest && (
+                  <div className="px-4 py-2 border-t border-border/50 bg-muted/10">
+                    <p className="text-xs text-muted-foreground text-right">מנוחה: {iv.rest}</p>
                   </div>
                 )}
-                {/* Set header */}
-                <div className="flex items-center justify-between px-4 py-3 bg-muted/20 border-b border-border/40">
-                  <span className="text-xs text-muted-foreground">
-                    {set.rest && si === 0 ? `מנוחה: ${set.rest}` : ''}
-                  </span>
-                  <p className="text-sm font-bold text-navy text-right">
-                    סט {si+1}
-                    {set.reps > 1 && <span className="font-normal text-muted-foreground"> · {set.reps}×</span>}
-                    {!hasIntervals && (set.distance||set.duration) && <span className="font-normal"> · {set.distance||set.duration}</span>}
-                    {!hasIntervals && set.pace && <span className="font-normal text-muted-foreground"> @ {set.pace}</span>}
-                  </p>
-                </div>
-                {/* Intervals */}
-                {hasIntervals && set.intervals.map((iv: any, ii: number) => (
-                  <div key={iv.id||ii}>
-                    <div className="flex items-center justify-between px-4 py-3 bg-white">
-                      <span className="text-xs text-muted-foreground">
-                        {iv.rest || ''}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        {iv.pace && <span className="text-sm text-muted-foreground">@ {iv.pace}</span>}
-                        <span className="text-base font-bold text-navy">{iv.distance}</span>
-                        <span className="w-6 h-6 rounded-full bg-navy text-white font-bold flex items-center justify-center text-xs flex-shrink-0">{ii+1}</span>
-                      </div>
-                    </div>
-                    {ii < set.intervals.length - 1 && (
-                      <div className="h-px bg-border mx-4"/>
-                    )}
-                  </div>
-                ))}
               </div>
-            )
-          })}
-        </div>
-      )}
+            ))}
+          </div>
+        )
+      })}
+      {/* Cooldown */}
       {w.workout.cooldown && (
-        <div className="bg-blue-50 rounded-lg p-2.5 border border-blue-100">
-          <p className="text-xs font-semibold text-blue-700 mb-1">שחרור</p>
-          <p className="text-xs text-blue-800">{w.workout.cooldown}</p>
+        <div className="px-4 py-3 border-t border-border">
+          <p className="text-sm text-muted-foreground text-right">שחרור: {w.workout.cooldown}</p>
         </div>
       )}
+      {/* Coach notes */}
       {w.workout.notes && (
-        <div className="bg-muted/30 rounded-lg p-2.5">
-          <p className="text-xs font-semibold text-muted-foreground mb-1">הערות מאמן</p>
-          <p className="text-xs text-navy">{w.workout.notes}</p>
+        <div className="px-4 py-3 border-t border-border">
+          <p className="text-sm text-navy text-right">הערות מאמן: {w.workout.notes}</p>
         </div>
       )}
-      {w.coachFeedback && (
-        <div className="bg-gold/5 rounded-lg p-2.5 border border-gold/20">
-          <p className="text-xs font-semibold text-gold mb-1">משוב מאמן</p>
-          <p className="text-xs text-navy">{w.coachFeedback}</p>
-        </div>
-      )}
-      <WorkoutLogForm
-        workoutId={w.workoutId}
-        assignedWorkoutId={w.id}
-        athleteId={athleteId}
-        scheduledDate={w.scheduledDate}
-        workout={w.workout}
-      />
+      {/* Log form */}
+      <div className="px-4 py-4 border-t border-border">
+        <WorkoutLogForm
+          workoutId={w.workoutId}
+          assignedWorkoutId={w.id}
+          athleteId={athleteId}
+          scheduledDate={w.scheduledDate}
+          workout={w.workout}
+        />
+      </div>
     </div>
   )
+
 
   return (
     <div className="space-y-4 pb-8">
