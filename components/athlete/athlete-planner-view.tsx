@@ -174,62 +174,51 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
         </div>
       )}
       {w.workout.sets && w.workout.sets.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-sm font-bold text-navy">סטים</p>
+        <div className="space-y-0 border border-border rounded-xl overflow-hidden">
           {w.workout.sets.map((set: any, si: number) => {
             const hasIntervals = set.intervals && set.intervals.length > 0
-            const repsWord = set.reps > 1 ? `${set.reps} חזרות` : ''
             return (
               <div key={set.id||si}>
-                {/* Rest between sets separator */}
-                {si > 0 && set.rest && (
-                  <div className="flex items-center gap-2 my-3">
+                {/* Rest between sets */}
+                {si > 0 && (
+                  <div className="flex items-center gap-3 px-4 py-1.5 bg-muted/10">
                     <div className="flex-1 h-px bg-border"/>
-                    <span className="text-xs text-muted-foreground px-2 whitespace-nowrap">מנוחה בין סטים: {set.rest}</span>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                      {set.rest ? `מנוחה בין סטים: ${set.rest}` : 'המשך'}
+                    </span>
                     <div className="flex-1 h-px bg-border"/>
                   </div>
                 )}
-                <div className="rounded-xl border border-border bg-white overflow-hidden">
-                  {/* Set header */}
-                  <div className="px-4 py-3 bg-muted/20 border-b border-border/50">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {set.rest && (
-                          <span className="text-xs text-muted-foreground bg-white border border-border px-2 py-0.5 rounded-full">
-                            מנוחה: {set.rest}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm font-bold text-navy">
-                        סט {si+1}{repsWord ? ` · ${repsWord}` : ''}
-                        {!hasIntervals && (set.distance||set.duration) && <span className="font-normal"> · {set.distance||set.duration}</span>}
-                        {!hasIntervals && set.pace && <span className="font-normal text-muted-foreground"> @ {set.pace}</span>}
-                      </p>
-                    </div>
-                  </div>
-                  {/* Intervals */}
-                  {hasIntervals && (
-                    <div className="px-3 py-2">
-                      {set.intervals.map((iv: any, ii: number) => (
-                        <div key={iv.id||ii}>
-                          <div className="flex items-center gap-3 py-3 px-1">
-                            <span className="w-7 h-7 rounded-full bg-navy text-white font-bold flex items-center justify-center text-xs flex-shrink-0">{ii+1}</span>
-                            <span className="font-bold text-navy text-sm flex-1">{iv.distance}</span>
-                            {iv.pace && <span className="text-sm text-muted-foreground">@ {iv.pace}</span>}
-                          </div>
-                          {/* Rest between reps - line separator */}
-                          {ii < set.intervals.length - 1 && (
-                            <div className="flex items-center gap-2 mx-2">
-                              <div className="flex-1 h-px bg-border"/>
-                              {iv.rest && <span className="text-xs text-muted-foreground whitespace-nowrap px-2">מנוחה: {iv.rest}</span>}
-                              <div className="flex-1 h-px bg-border"/>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                {/* Set header */}
+                <div className="flex items-center justify-between px-4 py-3 bg-muted/20 border-b border-border/40">
+                  <span className="text-xs text-muted-foreground">
+                    {set.rest && si === 0 ? `מנוחה: ${set.rest}` : ''}
+                  </span>
+                  <p className="text-sm font-bold text-navy text-right">
+                    סט {si+1}
+                    {set.reps > 1 && <span className="font-normal text-muted-foreground"> · {set.reps}×</span>}
+                    {!hasIntervals && (set.distance||set.duration) && <span className="font-normal"> · {set.distance||set.duration}</span>}
+                    {!hasIntervals && set.pace && <span className="font-normal text-muted-foreground"> @ {set.pace}</span>}
+                  </p>
                 </div>
+                {/* Intervals */}
+                {hasIntervals && set.intervals.map((iv: any, ii: number) => (
+                  <div key={iv.id||ii}>
+                    <div className="flex items-center justify-between px-4 py-3 bg-white">
+                      <span className="text-xs text-muted-foreground">
+                        {iv.rest || ''}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {iv.pace && <span className="text-sm text-muted-foreground">@ {iv.pace}</span>}
+                        <span className="text-base font-bold text-navy">{iv.distance}</span>
+                        <span className="w-6 h-6 rounded-full bg-navy text-white font-bold flex items-center justify-center text-xs flex-shrink-0">{ii+1}</span>
+                      </div>
+                    </div>
+                    {ii < set.intervals.length - 1 && (
+                      <div className="h-px bg-border mx-4"/>
+                    )}
+                  </div>
+                ))}
               </div>
             )
           })}
