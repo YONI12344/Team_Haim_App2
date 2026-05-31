@@ -26,12 +26,12 @@ const DAY_EN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 const DAY_HE_LABELS = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳']
 
 const TYPE_COLORS: Record<string, string> = {
-  easy: 'bg-white text-navy border-border',
-  long_run: 'bg-white text-navy border-border',
-  tempo: 'bg-white text-navy border-border',
-  intervals: 'bg-white text-navy border-border',
-  hill_repeats: 'bg-white text-navy border-border',
-  fartlek: 'bg-white text-navy border-border',
+  easy: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+  long_run: 'bg-orange-50 text-orange-900 border-orange-200',
+  tempo: 'bg-violet-50 text-violet-900 border-violet-200',
+  intervals: 'bg-sky-50 text-sky-900 border-sky-200',
+  hill_repeats: 'bg-amber-50 text-amber-900 border-amber-200',
+  fartlek: 'bg-teal-50 text-teal-900 border-teal-200',
   recovery: 'bg-gray-100 text-gray-600 border-gray-200',
   rest: 'bg-muted text-muted-foreground',
   race: 'bg-red-100 text-red-700 border-red-200',
