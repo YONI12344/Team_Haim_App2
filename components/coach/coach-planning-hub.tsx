@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ChevronLeft, ChevronRight, Copy, Loader2, Plus, X, Search, Check, ClipboardPaste, Pencil, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Copy, Loader2, Plus, X, Search, Check, ClipboardPaste, Pencil, Trash2, Eye } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { WorkoutBuilder } from '@/components/coach/workout-builder'
 import { WorkoutDetailCard } from '@/components/shared/workout-detail-card'
@@ -424,6 +424,7 @@ export function CoachPlanningHub() {
                         <button onClick={() => { setCopiedWorkout(selectedAssignedWorkout); setSelectedAssignedWorkout(null); toast.success('הועתק') }} className="flex items-center gap-1 bg-muted/40 hover:bg-muted rounded px-2 py-1 text-xs font-medium text-navy"><Copy className="h-3 w-3"/>העתק</button>
                         <button onClick={() => { handleOpenEdit(selectedAssignedWorkout); setSelectedAssignedWorkout(null) }} className="flex items-center gap-1 bg-muted/40 hover:bg-muted rounded px-2 py-1 text-xs font-medium text-navy"><Pencil className="h-3 w-3"/>ערוך</button>
                         <button onClick={() => { handleDeleteWorkout(selectedAssignedWorkout); setSelectedAssignedWorkout(null) }} className="flex items-center gap-1 bg-red-50 hover:bg-red-100 rounded px-2 py-1 text-xs font-medium text-red-600"><Trash2 className="h-3 w-3"/>מחק</button>
+                        <button onClick={() => setShowAthleteView(true)} className="flex items-center gap-1 bg-blue-50 hover:bg-blue-100 rounded px-2 py-1 text-xs font-medium text-blue-600"><Eye className="h-3 w-3"/>תצוגת אתלט</button>
                       </div>
                       <div className="flex items-center gap-2">
                         <p className="text-xs font-semibold text-navy">{selectedAssignedWorkout.workout?.title}</p>
