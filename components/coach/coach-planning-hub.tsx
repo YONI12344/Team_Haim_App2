@@ -64,6 +64,7 @@ export function CoachPlanningHub() {
   const [pasting, setPasting] = useState<string | null>(null)
   const [librarySearch, setLibrarySearch] = useState('')
   const [selectedLibraryWorkout, setSelectedLibraryWorkout] = useState<Workout | null>(null)
+  const [showAthleteView, setShowAthleteView] = useState(false)
   const [selectedAssignedWorkout, setSelectedAssignedWorkout] = useState<AssignedWorkout | null>(null)
   const [copiedWorkout, setCopiedWorkout] = useState<AssignedWorkout | null>(null)
   const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null)
