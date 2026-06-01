@@ -18,9 +18,13 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
   updateUserRole: (role: UserRole) => Promise<void>
+  canBeCoach: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
+
+// 🔒 SECURITY: ONLY THIS EMAIL CAN BE A COACH
+const COACH_EMAIL = 'info.teamhaim@gmail.com'
 
 function getSafeName(fbUser: FirebaseUser): string {
   return fbUser.displayName || fbUser.email?.split('@')[0] || 'User'
@@ -60,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const newUser: Omit<User, 'id' | 'createdAt' | 'updatedAt'> & { createdAt: ReturnType<typeof serverTimestamp>, updatedAt: ReturnType<typeof serverTimestamp> } = {
               email: fbUser.email || '',
               name: safeName,
-              role: 'athlete', // Default role
+              role: 'athlete', // Default role - ALWAYS athlete for new users
               photoURL: fbUser.photoURL || undefined,
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
@@ -122,6 +126,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const updateUserRole = async (role: UserRole) => {
     if (!firebaseUser) return
     
+    // 🔒 SECURITY CHECK: Only allow coach role if email matches EXACTLY
+    if (role === 'coach') {
+      const userEmail = firebaseUser.email?.toLowerCase().trim() || ''
+      const coachEmail = COACH_EMAIL.toLowerCase().trim()
+      
+      if (userEmail !== coachEmail) {
+        console.error(`❌ UNAUTHORIZED: Email "${firebaseUser.email}" tried to become coach. Only "${COACH_EMAIL}" allowed.`)
+        throw new Error(`Unauthorized: Only ${COACH_EMAIL} can access coach features.`)
+      }
+    }
+    
     try {
       const userRef = doc(db, 'users', firebaseUser.uid)
       await setDoc(userRef, { role, updatedAt: serverTimestamp() }, { merge: true })
@@ -131,15 +146,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error('Error updating user role:', error)
-      // Still update local state so navigation works
-      if (user) {
-        setUser({ ...user, role, updatedAt: new Date() })
-      }
+      throw error
     }
   }
 
+  // Check if current user's email can be a coach
+  const canBeCoach = firebaseUser?.email?.toLowerCase().trim() === COACH_EMAIL.toLowerCase().trim()
+
   return (
-    <AuthContext.Provider value={{ user, firebaseUser, loading, signInWithGoogle, signOut, updateUserRole }}>
+    <AuthContext.Provider value={{ user, firebaseUser, loading, signInWithGoogle, signOut, updateUserRole, canBeCoach }}>
       {children}
     </AuthContext.Provider>
   )
