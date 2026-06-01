@@ -204,10 +204,10 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
             {/* Intervals */}
             {hasIntervals && set.intervals.map((iv: any, ii: number) => (
               <div key={iv.id||ii}>
-                <div className="px-4 py-3 border-t border-border flex items-center justify-end gap-3">
-                  {iv.pace && <span className="text-sm text-muted-foreground">@ {iv.pace}</span>}
-                  <span className="text-base font-bold text-navy">{iv.distance}</span>
+                <div className="px-4 py-3 border-t border-border flex items-center gap-3" dir="ltr">
                   <span className="w-6 h-6 rounded-full bg-navy text-white font-bold flex items-center justify-center text-xs flex-shrink-0">{ii+1}</span>
+                  <span className="text-base font-bold text-navy">{iv.distance}</span>
+                  {iv.pace && <span className="text-sm text-muted-foreground">@ {iv.pace}</span>}
                 </div>
                 {iv.rest && (
                   <div className="px-4 py-1.5 border-t border-border/30">
