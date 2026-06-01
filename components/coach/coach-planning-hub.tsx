@@ -542,7 +542,6 @@ export function CoachPlanningHub() {
           )}
         </DialogContent>
       </Dialog>
-    </div>
       {/* Athlete View Popup */}
       {showAthleteView && selectedAssignedWorkout && (
         <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4" onClick={() => setShowAthleteView(false)}>
@@ -557,5 +556,6 @@ export function CoachPlanningHub() {
           </div>
         </div>
       )}
+    </div>
   )
 }
