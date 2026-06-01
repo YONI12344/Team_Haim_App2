@@ -398,23 +398,7 @@ export function CoachPlanningHub() {
                   </div></div>
                 )}
 
-                {/* Action panel - shows when workout is selected */}
-                {selectedAssignedWorkout && (
-                  <div className="mx-1 mb-2 rounded-xl border-2 border-navy/20 bg-white p-3">
-                    <div className="flex items-start justify-between mb-3">
-                      <button onClick={() => setSelectedAssignedWorkout(null)} className="text-muted-foreground hover:text-navy p-1"><X className="h-4 w-4"/></button>
-                      <div className="text-right">
-                        <p className="font-bold text-navy text-sm">{selectedAssignedWorkout.workout?.title}</p>
-                        <p className="text-xs text-muted-foreground">{selectedAssignedWorkout.scheduledDate}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 justify-end">
-                      <button onClick={() => { setCopiedWorkout(selectedAssignedWorkout); setSelectedAssignedWorkout(null); toast.success('הועתק') }} className="flex items-center gap-1 bg-muted/40 hover:bg-muted rounded-md px-2.5 py-1.5 text-xs font-medium text-navy"><Copy className="h-3 w-3"/>העתק</button>
-                      <button onClick={() => { handleOpenEdit(selectedAssignedWorkout); setSelectedAssignedWorkout(null) }} className="flex items-center gap-1 bg-muted/40 hover:bg-muted rounded-md px-2.5 py-1.5 text-xs font-medium text-navy"><Pencil className="h-3 w-3"/>ערוך</button>
-                      <button onClick={() => { handleDeleteWorkout(selectedAssignedWorkout); setSelectedAssignedWorkout(null) }} className="flex items-center gap-1 bg-red-50 hover:bg-red-100 rounded-md px-2.5 py-1.5 text-xs font-medium text-red-600"><Trash2 className="h-3 w-3"/>מחק</button>
-                    </div>
-                  </div>
-                )}
+
 
                 {/* Workout detail - same as athlete view */}
                 {selectedAssignedWorkout && (
