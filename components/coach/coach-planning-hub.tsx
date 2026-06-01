@@ -433,7 +433,7 @@ export function CoachPlanningHub() {
                     <WorkoutDetailCard
                       w={selectedAssignedWorkout}
                       showLog={true}
-                      log={athleteLogs[selectedAssignedWorkout.athleteId]?.find((l: any) => l.assignedWorkoutId === selectedAssignedWorkout.id)}
+                      log={null}
                     />
                   </div>
                 )}
