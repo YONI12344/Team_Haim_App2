@@ -431,11 +431,7 @@ export function CoachPlanningHub() {
                         <button onClick={() => setSelectedAssignedWorkout(null)}><X className="h-3.5 w-3.5 text-muted-foreground"/></button>
                       </div>
                     </div>
-                    <WorkoutDetailCard
-                      w={selectedAssignedWorkout}
-                      showLog={true}
-                      log={null}
-                    />
+
                   </div>
                 )}
 
