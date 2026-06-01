@@ -11,12 +11,13 @@ import { useEffect, useState } from 'react'
 import type { UserRole } from '@/lib/types'
 
 export default function LoginPage() {
-  const { user, loading, signInWithGoogle, updateUserRole } = useAuth()
+  const { user, loading, signInWithGoogle, updateUserRole, canBeCoach } = useAuth()
   const { t } = useLanguage()
   const router = useRouter()
   const [isSigningIn, setIsSigningIn] = useState(false)
   const [showRoleSelection, setShowRoleSelection] = useState(false)
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!loading && user) {
@@ -31,20 +32,35 @@ export default function LoginPage() {
 
   const handleGoogleSignIn = async () => {
     setIsSigningIn(true)
+    setError(null)
     try {
       await signInWithGoogle()
       setShowRoleSelection(true)
     } catch (error) {
       console.error('Sign in error:', error)
+      setError('Failed to sign in. Please try again.')
     } finally {
       setIsSigningIn(false)
     }
   }
 
   const handleRoleSelection = async (role: UserRole) => {
+    setError(null)
+    
+    // ✅ SECURITY: Don't allow non-coach email to select coach role
+    if (role === 'coach' && !canBeCoach) {
+      setError('Only the registered coach can access coach features.')
+      return
+    }
+    
     setSelectedRole(role)
-    await updateUserRole(role)
-    router.push(role === 'coach' ? '/coach' : '/athlete')
+    try {
+      await updateUserRole(role)
+      router.push(role === 'coach' ? '/coach' : '/athlete')
+    } catch (err) {
+      setError('Failed to set role. Please try again.')
+      setSelectedRole(null)
+    }
   }
 
   if (loading) {
@@ -141,6 +157,13 @@ export default function LoginPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-6 space-y-4">
+              {/* Error Message */}
+              {error && (
+                <div className="p-3 rounded-lg bg-red-50 border border-red-200">
+                  <p className="text-sm text-red-700">{error}</p>
+                </div>
+              )}
+
               <button
                 onClick={() => handleRoleSelection('athlete')}
                 disabled={selectedRole !== null}
@@ -161,18 +184,29 @@ export default function LoginPage() {
 
               <button
                 onClick={() => handleRoleSelection('coach')}
-                disabled={selectedRole !== null}
-                className="w-full p-6 rounded-lg border-2 border-border hover:border-navy hover:bg-navy-tint transition-luxury text-start group disabled:opacity-50"
+                disabled={selectedRole !== null || !canBeCoach}
+                title={!canBeCoach ? 'Only the coach email can access this role' : ''}
+                className={`w-full p-6 rounded-lg border-2 transition-luxury text-start group ${
+                  !canBeCoach
+                    ? 'border-gray-200 opacity-50 cursor-not-allowed'
+                    : 'border-border hover:border-navy hover:bg-navy-tint'
+                } ${selectedRole !== null ? 'disabled:opacity-50' : ''}`}
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-navy/10 flex items-center justify-center group-hover:bg-navy/20 transition-luxury">
-                    <svg className="w-6 h-6 text-navy" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-luxury ${
+                    !canBeCoach ? 'bg-gray-100' : 'bg-navy/10 group-hover:bg-navy/20'
+                  }`}>
+                    <svg className={`w-6 h-6 ${!canBeCoach ? 'text-gray-400' : 'text-navy'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2[...]" />
                     </svg>
                   </div>
                   <div>
-                    <h3 className="font-display font-semibold text-navy text-lg">{t.coach}</h3>
-                    <p className="text-sm text-muted-foreground">{t.coachRoleDesc}</p>
+                    <h3 className={`font-display font-semibold text-lg ${!canBeCoach ? 'text-gray-400' : 'text-navy'}`}>
+                      {t.coach}
+                    </h3>
+                    <p className={`text-sm ${!canBeCoach ? 'text-gray-400' : 'text-muted-foreground'}`}>
+                      {!canBeCoach ? '🔒 Coach access restricted' : t.coachRoleDesc}
+                    </p>
                   </div>
                 </div>
               </button>
@@ -192,7 +226,7 @@ export default function LoginPage() {
           <div className="text-center">
             <div className="w-12 h-12 rounded-full bg-navy/10 flex items-center justify-center mx-auto mb-4">
               <svg className="w-6 h-6 text-navy" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2[...]" />
               </svg>
             </div>
             <h3 className="font-display font-semibold text-navy mb-2">{t.trackProgress}</h3>
@@ -212,7 +246,7 @@ export default function LoginPage() {
           <div className="text-center">
             <div className="w-12 h-12 rounded-full bg-navy/10 flex items-center justify-center mx-auto mb-4">
               <svg className="w-6 h-6 text-navy" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.0[...]" />
               </svg>
             </div>
             <h3 className="font-display font-semibold text-navy mb-2">{t.directCommunication}</h3>
