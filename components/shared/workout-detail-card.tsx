@@ -1,6 +1,7 @@
 'use client'
 
 import { AssignedWorkout } from '@/lib/types'
+import { useLanguage } from '@/contexts/language-context'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -10,11 +11,12 @@ interface Props {
 }
 
 export function WorkoutDetailCard({ w, showLog, log }: Props) {
+  const { t } = useLanguage()
   return (
     <div className="border border-border rounded-xl overflow-hidden bg-white" dir="rtl">
       {w.workout.warmup && (
         <div className="px-4 py-2.5 border-b border-border">
-          <p className="text-sm text-muted-foreground text-right">חימום: {w.workout.warmup}</p>
+          <p className="text-sm text-muted-foreground text-right">{t.warmupLabel}: {w.workout.warmup}</p>
         </div>
       )}
       {w.workout.sets && w.workout.sets.length > 0 && (w.workout.sets as any[]).map((set: any, si: number) => {
@@ -25,7 +27,7 @@ export function WorkoutDetailCard({ w, showLog, log }: Props) {
               <div className="flex items-center gap-3 px-4" style={{height:'24px'}}>
                 <div className="flex-1 h-px bg-border"/>
                 <span className="text-xs text-muted-foreground whitespace-nowrap">
-                  {set.rest ? `מנוחה בין סטים: ${set.rest}` : 'המשך'}
+                  {set.rest ? `${t.restBetweenSets}: ${set.rest}` : t.continueToNext}
                 </span>
                 <div className="flex-1 h-px bg-border"/>
               </div>
@@ -63,12 +65,12 @@ export function WorkoutDetailCard({ w, showLog, log }: Props) {
       })}
       {w.workout.cooldown && (
         <div className="px-4 py-2.5 border-t border-border">
-          <p className="text-sm text-muted-foreground text-right">שחרור: {w.workout.cooldown}</p>
+          <p className="text-sm text-muted-foreground text-right">{t.cooldownLabel}: {w.workout.cooldown}</p>
         </div>
       )}
       {w.workout.notes && (
         <div className="px-4 py-2.5 border-t border-border">
-          <p className="text-sm text-navy text-right">הערות מאמן: {w.workout.notes}</p>
+          <p className="text-sm text-navy text-right">{t.coachNotesLabel}: {w.workout.notes}</p>
         </div>
       )}
       {showLog && log && (
