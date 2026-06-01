@@ -50,7 +50,7 @@ interface JourneySummary {
 
 export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: string } = {}) {
   const { user } = useAuth()
-  const { language } = useLanguage()
+  const { language, t } = useLanguage()
   const athleteId = overrideAthleteId || user?.id || ''
   const [athlete, setAthlete] = useState<AthleteProfile | null>(null)
   const [journey, setJourney] = useState<JourneySummary | null>(null)
@@ -166,7 +166,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
       {/* Warmup */}
       {w.workout.warmup && (
         <div className="px-4 py-3 border-b border-border">
-          <p className="text-sm text-muted-foreground text-right">חימום: {w.workout.warmup}</p>
+          <p className="text-sm text-muted-foreground text-right">{t.warmupLabel}: {w.workout.warmup}</p>
         </div>
       )}
       {/* Sets */}
@@ -179,7 +179,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
               <div className="flex items-center gap-3 px-4" style={{height:'28px'}}>
                 <div className="flex-1 h-px bg-border"/>
                 <span className="text-xs text-muted-foreground whitespace-nowrap">
-                  {set.rest ? `מנוחה בין סטים: ${set.rest}` : 'המשך לסט הבא'}
+                  {set.rest ? `${t.restBetweenSets}: ${set.rest}` : t.continueToNext}
                 </span>
                 <div className="flex-1 h-px bg-border"/>
               </div>
@@ -224,13 +224,13 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
       {/* Cooldown */}
       {w.workout.cooldown && (
         <div className="px-4 py-3 border-t border-border">
-          <p className="text-sm text-muted-foreground text-right">שחרור: {w.workout.cooldown}</p>
+          <p className="text-sm text-muted-foreground text-right">{t.cooldownLabel}: {w.workout.cooldown}</p>
         </div>
       )}
       {/* Coach notes */}
       {w.workout.notes && (
         <div className="px-4 py-3 border-t border-border">
-          <p className="text-sm text-navy text-right">הערות מאמן: {w.workout.notes}</p>
+          <p className="text-sm text-navy text-right">{t.coachNotesLabel}: {w.workout.notes}</p>
         </div>
       )}
       {/* Log form */}
@@ -272,7 +272,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                     w.status==='completed' ? 'bg-emerald-500' : w.status==='skipped' ? 'bg-red-400' : 'bg-amber-400'
                   )}/>
                   <span className="text-xs text-muted-foreground">
-                    {w.status==='completed'?'הושלם':w.status==='skipped'?'דולג':'מתוכנן'}
+                    {w.status==='completed'?t.completedBadge:w.status==='skipped'?t.skippedBadge:t.scheduledBadge}
                   </span>
                   {w.workout.distance && <span className="text-xs text-muted-foreground">{w.workout.distance} ק"מ</span>}
                   {w.workout.duration && <span className="text-xs text-muted-foreground">{w.workout.duration} דק'</span>}
@@ -312,9 +312,9 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                   : format(currentDate,'MMMM yyyy')}
               </p>
               <div className="flex gap-1 bg-muted rounded-full p-0.5">
-                <button onClick={() => setViewMode('day')} className={cn('text-[11px] px-3 py-0.5 rounded-full transition-all', viewMode==='day' ? 'bg-white text-navy font-semibold shadow-sm' : 'text-muted-foreground')}>יום</button>
-                <button onClick={() => setViewMode('week')} className={cn('text-[11px] px-3 py-0.5 rounded-full transition-all', viewMode==='week' ? 'bg-white text-navy font-semibold shadow-sm' : 'text-muted-foreground')}>שבוע</button>
-                <button onClick={() => setViewMode('month')} className={cn('text-[11px] px-3 py-0.5 rounded-full transition-all', viewMode==='month' ? 'bg-white text-navy font-semibold shadow-sm' : 'text-muted-foreground')}>חודש</button>
+                <button onClick={() => setViewMode('day')} className={cn('text-[11px] px-3 py-0.5 rounded-full transition-all', viewMode==='day' ? 'bg-white text-navy font-semibold shadow-sm' : 'text-muted-foreground')}>{t.dayView}</button>
+                <button onClick={() => setViewMode('week')} className={cn('text-[11px] px-3 py-0.5 rounded-full transition-all', viewMode==='week' ? 'bg-white text-navy font-semibold shadow-sm' : 'text-muted-foreground')}>{t.weekView}</button>
+                <button onClick={() => setViewMode('month')} className={cn('text-[11px] px-3 py-0.5 rounded-full transition-all', viewMode==='month' ? 'bg-white text-navy font-semibold shadow-sm' : 'text-muted-foreground')}>{t.monthView}</button>
               </div>
             </div>
             <Button variant="ghost" size="icon" onClick={() => setCurrentDate(d => viewMode==='day' ? new Date(d.getTime()+86400000) : viewMode==='week' ? addWeeks(d,1) : addMonths(d,1))}>
@@ -452,7 +452,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                         selectedWorkout.status==='completed' ? 'bg-emerald-500' : selectedWorkout.status==='skipped' ? 'bg-red-400' : 'bg-amber-400'
                       )}/>
                       <span className="text-xs text-muted-foreground">
-                        {selectedWorkout.status==='completed'?'הושלם':selectedWorkout.status==='skipped'?'דולג':'מתוכנן'}
+                        {selectedWorkout.status==='completed'?t.completedBadge:selectedWorkout.status==='skipped'?t.skippedBadge:t.scheduledBadge}
                       </span>
                     </div>
                   </div>
@@ -554,7 +554,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                         selectedWorkout.status==='completed' ? 'bg-emerald-500' : selectedWorkout.status==='skipped' ? 'bg-red-400' : 'bg-amber-400'
                       )}/>
                       <span className="text-xs text-muted-foreground">
-                        {selectedWorkout.status==='completed'?'הושלם':selectedWorkout.status==='skipped'?'דולג':'מתוכנן'}
+                        {selectedWorkout.status==='completed'?t.completedBadge:selectedWorkout.status==='skipped'?t.skippedBadge:t.scheduledBadge}
                       </span>
                     </div>
                   </div>

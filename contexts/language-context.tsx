@@ -157,6 +157,20 @@ interface Translations {
   paceEffortLabel: string
   paceEffortPh: string
   restLabel: string
+  restBetweenSets: string
+  restBetweenReps: string
+  setsLabel: string
+  repLabel: string
+  repsLabel: string
+  coachNotesLabel: string
+  logWorkoutBtn: string
+  completedBadge: string
+  skippedBadge: string
+  scheduledBadge: string
+  continueToNext: string
+  dayView: string
+  weekView: string
+  monthView: string
   restPh: string
   updatingDots: string
   creatingDots: string
@@ -716,6 +730,20 @@ const translations: Record<Language, Translations> = {
     paceEffortLabel: 'Pace/Effort',
     paceEffortPh: 'e.g., 68-70 sec',
     restLabel: 'Rest',
+    restBetweenSets: 'Rest between sets',
+    restBetweenReps: 'Rest',
+    setsLabel: 'Sets',
+    repLabel: 'Round',
+    repsLabel: 'Rounds',
+    coachNotesLabel: 'Coach notes',
+    logWorkoutBtn: 'Log workout',
+    completedBadge: 'Done',
+    skippedBadge: 'Skipped',
+    scheduledBadge: 'Planned',
+    continueToNext: 'Continue',
+    dayView: 'Day',
+    weekView: 'Week',
+    monthView: 'Month',
     restPh: 'e.g., 90 sec jog',
     updatingDots: 'Updating...',
     creatingDots: 'Creating...',
@@ -1252,6 +1280,20 @@ const translations: Record<Language, Translations> = {
     paceEffortLabel: 'קצב/מאמץ',
     paceEffortPh: 'לדוגמה: 68-70 שניות',
     restLabel: 'מנוחה',
+    restBetweenSets: 'מנוחה בין סטים',
+    restBetweenReps: 'מנוחה',
+    setsLabel: 'סטים',
+    repLabel: 'חזרה',
+    repsLabel: 'חזרות',
+    coachNotesLabel: 'הערות מאמן',
+    logWorkoutBtn: 'תעד אימון',
+    completedBadge: 'הושלם',
+    skippedBadge: 'דולג',
+    scheduledBadge: 'מתוכנן',
+    continueToNext: 'המשך',
+    dayView: 'יום',
+    weekView: 'שבוע',
+    monthView: 'חודש',
     restPh: 'לדוגמה: 90 שניות ריצה קלה',
     updatingDots: 'מעדכן...',
     creatingDots: 'יוצר...',
