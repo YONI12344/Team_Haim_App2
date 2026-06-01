@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChevronLeft, ChevronRight, Copy, Loader2, Plus, X, Search, Check, ClipboardPaste, Pencil, Trash2 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { WorkoutBuilder } from '@/components/coach/workout-builder'
+import { WorkoutDetailCard } from '@/components/shared/workout-detail-card'
 import { deleteDoc, doc, updateDoc } from 'firebase/firestore'
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, startOfMonth, endOfMonth, addMonths, subMonths, eachWeekOfInterval } from 'date-fns'
 import { cn } from '@/lib/utils'
@@ -412,6 +413,28 @@ export function CoachPlanningHub() {
                       <button onClick={() => { handleOpenEdit(selectedAssignedWorkout); setSelectedAssignedWorkout(null) }} className="flex items-center gap-1 bg-muted/40 hover:bg-muted rounded-md px-2.5 py-1.5 text-xs font-medium text-navy"><Pencil className="h-3 w-3"/>ערוך</button>
                       <button onClick={() => { handleDeleteWorkout(selectedAssignedWorkout); setSelectedAssignedWorkout(null) }} className="flex items-center gap-1 bg-red-50 hover:bg-red-100 rounded-md px-2.5 py-1.5 text-xs font-medium text-red-600"><Trash2 className="h-3 w-3"/>מחק</button>
                     </div>
+                  </div>
+                )}
+
+                {/* Workout detail - same as athlete view */}
+                {selectedAssignedWorkout && (
+                  <div className="mx-2 mb-3 space-y-2">
+                    <div className="flex items-center justify-between px-1">
+                      <div className="flex items-center gap-1.5">
+                        <button onClick={() => { setCopiedWorkout(selectedAssignedWorkout); setSelectedAssignedWorkout(null); toast.success('הועתק') }} className="flex items-center gap-1 bg-muted/40 hover:bg-muted rounded px-2 py-1 text-xs font-medium text-navy"><Copy className="h-3 w-3"/>העתק</button>
+                        <button onClick={() => { handleOpenEdit(selectedAssignedWorkout); setSelectedAssignedWorkout(null) }} className="flex items-center gap-1 bg-muted/40 hover:bg-muted rounded px-2 py-1 text-xs font-medium text-navy"><Pencil className="h-3 w-3"/>ערוך</button>
+                        <button onClick={() => { handleDeleteWorkout(selectedAssignedWorkout); setSelectedAssignedWorkout(null) }} className="flex items-center gap-1 bg-red-50 hover:bg-red-100 rounded px-2 py-1 text-xs font-medium text-red-600"><Trash2 className="h-3 w-3"/>מחק</button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-semibold text-navy">{selectedAssignedWorkout.workout?.title}</p>
+                        <button onClick={() => setSelectedAssignedWorkout(null)}><X className="h-3.5 w-3.5 text-muted-foreground"/></button>
+                      </div>
+                    </div>
+                    <WorkoutDetailCard
+                      w={selectedAssignedWorkout}
+                      showLog={true}
+                      log={athleteLogs[selectedAssignedWorkout.athleteId]?.find((l: any) => l.assignedWorkoutId === selectedAssignedWorkout.id)}
+                    />
                   </div>
                 )}
 
