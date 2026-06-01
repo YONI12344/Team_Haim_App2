@@ -543,5 +543,19 @@ export function CoachPlanningHub() {
         </DialogContent>
       </Dialog>
     </div>
+      {/* Athlete View Popup */}
+      {showAthleteView && selectedAssignedWorkout && (
+        <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4" onClick={() => setShowAthleteView(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-md max-h-[85vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()} dir="rtl">
+            <div className="flex items-center justify-between px-4 py-3 border-b sticky top-0 bg-white">
+              <button onClick={() => setShowAthleteView(false)}><X className="h-5 w-5 text-muted-foreground"/></button>
+              <p className="font-bold text-navy">{selectedAssignedWorkout.workout?.title}</p>
+            </div>
+            <div className="p-4">
+              <WorkoutDetailCard w={selectedAssignedWorkout} showLog={false} log={null} />
+            </div>
+          </div>
+        </div>
+      )}
   )
 }
