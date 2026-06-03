@@ -1,0 +1,59 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isCoach() {
+      return request.auth != null
+        && request.auth.token.email == 'info.teamhaim@gmail.com';
+    }
+    function isSelf(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if isSelf(userId) || isCoach();
+
+      match /journey/{journeyId} {
+        allow read, write: if isSelf(userId) || isCoach();
+      }
+    }
+
+    match /workouts/{workoutId} {
+      allow read: if request.auth != null;
+      allow write: if isCoach();
+    }
+
+    match /assignedWorkouts/{docId} {
+      allow read: if request.auth != null;
+      allow create, delete: if isCoach();
+      allow update: if isCoach()
+        || (request.auth != null
+            && resource.data.athleteId == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['status', 'completedAt', 'athleteNotes', 'updatedAt']));
+    }
+
+    match /logs/{logId} {
+      allow read: if request.auth != null
+        && (isCoach() || resource.data.athleteId == request.auth.uid);
+      allow create: if request.auth != null
+        && (isCoach() || request.resource.data.athleteId == request.auth.uid);
+      allow update, delete: if isCoach()
+        || (request.auth != null && resource.data.athleteId == request.auth.uid);
+    }
+
+    match /messages/{messageId} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /goals/{goalId} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /settings/googleSheets {
+      allow read: if request.auth != null;
+      allow write: if isCoach();
+    }
+  }
+}
