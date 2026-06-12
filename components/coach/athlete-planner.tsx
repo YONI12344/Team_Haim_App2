@@ -513,7 +513,7 @@ export function AthletePlanner({ athleteId }: Props) {
         const d = addDays(planStart, i)
         const dayNum = d.getDay()
         const isTrain = selectedTrainingDays.includes(dayNum)
-        if (isTrain) trainingOffsets.push(i) else restOffsets.push(i)
+        if (isTrain) { trainingOffsets.push(i) } else { restOffsets.push(i) }
         return `dayOffset ${i}: ${HEBREW_DAY_NAMES[dayNum]} ${format(d, 'd/M/yyyy')} → ${isTrain ? 'יום אימון' : 'מנוחה (type: rest)'}`
       }).join('\n')
 
