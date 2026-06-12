@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -13,11 +13,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   ArrowLeft, ChevronLeft, ChevronRight, Plus, X,
   Loader2, MapPin, Clock, Check, Calendar, Search, Copy, Pencil, Trash2, ClipboardPaste,
+  Send, BarChart2,
 } from 'lucide-react'
 import Link from 'next/link'
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
-  addMonths, subMonths, addWeeks, subWeeks, eachDayOfInterval, eachWeekOfInterval, isSameMonth,
+  addMonths, subMonths, addWeeks, subWeeks, addDays, eachDayOfInterval, eachWeekOfInterval, isSameMonth,
   isSameDay, isToday, parseISO,
 } from 'date-fns'
 import { cn } from '@/lib/utils'
@@ -60,6 +61,28 @@ const DAY_BADGE: Record<string, string> = {
   long_run: 'bg-orange-100 text-orange-700 border-orange-200',
 }
 
+const HEBREW_DAY_NAMES = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
+
+function parseTrainingDayNums(daysStr: string): number[] {
+  const dayMap: Record<string, number> = {
+    'ראשון': 0, 'שני': 1, 'שלישי': 2, 'רביעי': 3, 'חמישי': 4, 'שישי': 5, 'שבת': 6,
+  }
+  const found = new Set<number>()
+  Object.entries(dayMap).forEach(([name, num]) => {
+    if (daysStr.includes(name)) found.add(num)
+  })
+  return [...found].sort((a, b) => a - b)
+}
+
+interface ChatMessage { role: 'ai' | 'coach'; text: string }
+interface ChatContext {
+  daysPerWeek?: string
+  trainingDays?: string
+  mainGoal?: string
+  fitnessLevel?: string
+  specialFocus?: string
+}
+
 interface JourneySummary {
   stageName: string
   weekInStage: number
@@ -100,14 +123,22 @@ export function AthletePlanner({ athleteId }: Props) {
   const [copiedWorkout, setCopiedWorkout] = useState<AssignedWorkout | null>(null)
   const [librarySearch, setLibrarySearch] = useState('')
 
-  // AI coaching flow
-  const [fitnessDescription, setFitnessDescription] = useState('')
-  const [analyzing, setAnalyzing] = useState(false)
-  const [analysisResult, setAnalysisResult] = useState('')
-  const [coachFeedback, setCoachFeedback] = useState('')
-  const [generatingPlan, setGeneratingPlan] = useState(false)
+  // AI chat coaching flow
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
+  const [chatInput, setChatInput] = useState('')
+  const [chatStep, setChatStep] = useState(0)
+  const [chatContext, setChatContext] = useState<ChatContext>({})
+  const [chatLoading, setChatLoading] = useState(false)
   const [generatedPlan, setGeneratedPlan] = useState<any>(null)
   const [approvingPlan, setApprovingPlan] = useState(false)
+  const chatEndRef = useRef<HTMLDivElement>(null)
+
+  // Weekly summary
+  const [showWeeklySummary, setShowWeeklySummary] = useState(false)
+  const [weeklySummaryLoading, setWeeklySummaryLoading] = useState(false)
+  const [weeklySummary, setWeeklySummary] = useState<any>(null)
+  const [weeklyCoachNote, setWeeklyCoachNote] = useState('')
+  const [savingWeeklySummary, setSavingWeeklySummary] = useState(false)
 
   // ── Load athlete + journey + workout library ──────────────────────────────
   useEffect(() => {
@@ -457,70 +488,120 @@ export function AthletePlanner({ athleteId }: Props) {
   const selectedLog = useMemo(() => selectedAW ? (logs.find(l => l.assignedWorkoutId === selectedAW.id) || logs.find(l => l.workoutId === selectedAW.workoutId && l.date === selectedAW.scheduledDate)) : null, [selectedAW, logs])
   const filteredLibrary = useMemo(() => workoutLibrary.filter(w => w.title?.toLowerCase().includes(librarySearch.toLowerCase())), [workoutLibrary, librarySearch])
 
-  const handleAnalyzeAthlete = async () => {
+  const handleStartChat = () => {
     if (!athlete) return
-    setAnalyzing(true)
-    setAnalysisResult('')
-    try {
-      const recentWorkouts = [...assignedWorkouts]
-        .sort((a, b) => b.scheduledDate.localeCompare(a.scheduledDate))
-        .slice(0, 10)
-        .map(w => ({ date: w.scheduledDate, title: w.workout?.title, type: w.workout?.type, distance: w.workout?.distance, status: w.status }))
-      const recentLog = [...logs]
-        .filter(l => l.effort || l.comment)
-        .sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0]
-      const res = await fetch('/api/analyze-athlete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          athleteName: athlete.name,
-          fitnessDescription,
-          goalRace: journey?.goalRaceEvent || athlete.events?.[0] || 'לא הוגדר',
-          goalRaceDate: journey?.goalRaceDate || 'לא הוגדר',
-          lastWorkouts: recentWorkouts,
-          lastWorkoutFeel: recentLog?.effort ?? 7,
-          lastWorkoutComment: recentLog?.comment || '',
-        }),
-      })
-      const data = await res.json()
-      if (data.error) throw new Error(data.error)
-      setAnalysisResult(data.text)
-    } catch (err) {
-      toast.error('שגיאה בניתוח: ' + String(err))
-    } finally {
-      setAnalyzing(false)
+    setChatMessages([{ role: 'ai', text: `שלום! בואו נתכנן אימונים עבור ${athlete.name}. כמה ימים בשבוע הוא מתאמן?` }])
+    setChatStep(0)
+    setChatContext({})
+    setGeneratedPlan(null)
+    setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
+  }
+
+  const handleChatSend = async () => {
+    if (!chatInput.trim() || chatLoading || !athlete) return
+    const userText = chatInput.trim()
+    setChatInput('')
+    const newMessages: ChatMessage[] = [...chatMessages, { role: 'coach', text: userText }]
+    setChatMessages(newMessages)
+    const newCtx = { ...chatContext }
+
+    const pushAI = (text: string) => {
+      setChatMessages([...newMessages, { role: 'ai', text }])
+      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+    }
+
+    if (chatStep === 0) {
+      newCtx.daysPerWeek = userText
+      setChatContext(newCtx)
+      pushAI('אילו ימים? (לדוגמה: שני, רביעי, שישי)')
+      setChatStep(1)
+    } else if (chatStep === 1) {
+      newCtx.trainingDays = userText
+      setChatContext(newCtx)
+      pushAI('מה המטרה העיקרית לשבועיים הקרובים?')
+      setChatStep(2)
+    } else if (chatStep === 2) {
+      newCtx.mainGoal = userText
+      setChatContext(newCtx)
+      pushAI('ספר לי על הכושר הנוכחי שלו')
+      setChatStep(3)
+    } else if (chatStep === 3) {
+      newCtx.fitnessLevel = userText
+      setChatContext(newCtx)
+      pushAI('האם יש משהו מיוחד שחשוב לך השבוע? (גבעות? פארטלק? ריצה ארוכה?)')
+      setChatStep(4)
+    } else if (chatStep === 4) {
+      newCtx.specialFocus = userText
+      setChatContext(newCtx)
+      const summary = `${newCtx.daysPerWeek} ימי אימון בשבוע (${newCtx.trainingDays}). מטרה: ${newCtx.mainGoal}. כושר: ${newCtx.fitnessLevel}. פוקוס: ${newCtx.specialFocus}.`
+      pushAI(`אז הבנתי: ${summary} נכון?`)
+      setChatStep(5)
+    } else if (chatStep === 5) {
+      const confirmed = userText.includes('כן') || userText.includes('נכון') || userText.includes('בסדר') || userText.toLowerCase() === 'yes'
+      if (confirmed) {
+        setChatMessages([...newMessages, { role: 'ai', text: 'מעולה! יוצר תוכנית אימון...' }])
+        setChatStep(6)
+        await handleGeneratePlanFromChat(chatContext)
+      } else {
+        const updatedCtx = { ...chatContext, specialFocus: (chatContext.specialFocus || '') + '. ' + userText }
+        setChatContext(updatedCtx)
+        const summary = `${updatedCtx.daysPerWeek} ימי אימון (${updatedCtx.trainingDays}). מטרה: ${updatedCtx.mainGoal}. כושר: ${updatedCtx.fitnessLevel}. פוקוס: ${updatedCtx.specialFocus}.`
+        pushAI(`מובן! עדכנתי. אז: ${summary} נכון?`)
+      }
     }
   }
 
-  const handleGeneratePlan = async () => {
+  const handleGeneratePlanFromChat = async (ctx: ChatContext) => {
     if (!athlete) return
-    setGeneratingPlan(true)
-    setGeneratedPlan(null)
+    setChatLoading(true)
     try {
+      const trainingDayNums = parseTrainingDayNums(ctx.trainingDays || '')
+      const planStart = addDays(new Date(), 1)
+      planStart.setHours(0, 0, 0, 0)
+      const daySchedule = Array.from({ length: 14 }, (_, i) => {
+        const d = addDays(planStart, i)
+        const dayNum = d.getDay()
+        return `dayOffset ${i} → ${HEBREW_DAY_NAMES[dayNum]} ${format(d, 'd/M')} (${trainingDayNums.includes(dayNum) ? 'יום אימון' : 'מנוחה'})`
+      }).join('\n')
       const weeksToRace = journey?.goalRaceDate
         ? Math.ceil((new Date(journey.goalRaceDate).getTime() - new Date().getTime()) / (7 * 86400000))
         : null
       const userMessage = `ספורטאי: ${athlete.name}
-תיאור כושר: ${fitnessDescription}
 מירוץ יעד: ${journey?.goalRaceEvent || athlete.events?.[0] || 'לא הוגדר'}
 תאריך מירוץ: ${journey?.goalRaceDate || 'לא הוגדר'}
 שבועות למירוץ: ${weeksToRace ?? 'לא ידוע'}
-שלב עונה: ${journey?.stageName || 'לא ידוע'}
-שיאים אישיים: ${athlete.personalRecords?.map(p => `${p.event}: ${p.time}`).join(', ') || 'לא הוגדרו'}
-יעד ק"מ שבועי: ${athlete.weeklyKmRange ? `${athlete.weeklyKmRange.min}–${athlete.weeklyKmRange.max}` : 'לא הוגדר'}`
+שיאים אישיים: ${athlete.personalRecords?.map((p: any) => `${p.event}: ${p.time}`).join(', ') || 'לא הוגדרו'}
+יעד ק"מ שבועי: ${athlete.weeklyKmRange ? `${athlete.weeklyKmRange.min}–${athlete.weeklyKmRange.max}` : 'לא הוגדר'}
+
+מידע מהמאמן:
+- ימי אימון בשבוע: ${ctx.daysPerWeek}
+- ימים: ${ctx.trainingDays}
+- מטרה: ${ctx.mainGoal}
+- כושר נוכחי: ${ctx.fitnessLevel}
+- פוקוס מיוחד: ${ctx.specialFocus}
+
+לוח השבועיים הקרובים - שבץ אימונים רק בימי אימון, rest בשאר הימים:
+${daySchedule}
+
+כותרות אימון לדוגמה: "פארטלק קצר #1 - 2/1/2 דק'", "ריצה קלה עם 4 סטריידס", "גבעות כוח × 8", "סף T1 - 3×10 דק' קרוז"
+כל אימון חייב sets מפורטים עם reps, distance/duration, rest בתוך mainSet.`
       const res = await fetch('/api/generate-plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userMessage, coachFeedback }),
+        body: JSON.stringify({ userMessage }),
       })
       const data = await res.json()
       if (data.error) throw new Error(data.error)
       const plan = JSON.parse(data.text)
-      setGeneratedPlan(plan)
+      setGeneratedPlan({ ...plan, planStart: format(planStart, 'yyyy-MM-dd') })
+      setChatMessages(prev => [...prev, { role: 'ai', text: 'התוכנית מוכנה! עברו לאישור למטה 👇' }])
+      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
     } catch (err) {
       toast.error('שגיאה ביצירת תוכנית: ' + String(err))
+      setChatMessages(prev => [...prev, { role: 'ai', text: 'אירעה שגיאה. נסה שוב.' }])
+      setChatStep(5)
     } finally {
-      setGeneratingPlan(false)
+      setChatLoading(false)
     }
   }
 
@@ -528,14 +609,13 @@ export function AthletePlanner({ athleteId }: Props) {
     if (!generatedPlan || !user) return
     setApprovingPlan(true)
     try {
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
+      const planStart = generatedPlan.planStart
+        ? (() => { const d = new Date(generatedPlan.planStart + 'T00:00:00'); return d })()
+        : addDays(new Date(), 1)
       await Promise.all(generatedPlan.workouts.map(async (w: any) => {
-        const targetDate = new Date(today)
-        targetDate.setDate(today.getDate() + w.dayOffset)
-        const scheduledDate = format(targetDate, 'yyyy-MM-dd')
+        const scheduledDate = format(addDays(planStart, w.dayOffset), 'yyyy-MM-dd')
         const workout = {
-          id: `ai-${w.dayOffset}`,
+          id: `ai-${Date.now()}-${w.dayOffset}`,
           title: w.title,
           type: w.type,
           description: w.description || '',
@@ -545,31 +625,86 @@ export function AthletePlanner({ athleteId }: Props) {
           mainSet: w.mainSet || '',
           cooldown: w.cooldown || '',
           notes: w.notes || '',
+          sets: Array.isArray(w.sets) ? w.sets : [],
           createdBy: user.id,
           createdAt: new Date(),
           updatedAt: new Date(),
         }
         await addDoc(collection(db, 'assignedWorkouts'), {
-          workoutId: workout.id,
-          workout,
-          athleteId,
-          assignedBy: user.id || null,
-          scheduledDate,
-          status: 'approved',
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
+          workoutId: workout.id, workout, athleteId,
+          assignedBy: user.id || null, scheduledDate, status: 'approved',
+          createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
         })
       }))
       const snap = await getDocs(query(collection(db, 'assignedWorkouts'), where('athleteId', '==', athleteId)))
       setAssignedWorkouts(snap.docs.map(d => ({ ...(d.data() as AssignedWorkout), id: d.id })))
       toast.success('תוכנית אושרה ונשלחה לספורטאי!')
       setGeneratedPlan(null)
-      setAnalysisResult('')
-      setCoachFeedback('')
+      setChatMessages([])
+      setChatStep(0)
+      setChatContext({})
     } catch (err) {
       toast.error('שגיאה באישור: ' + String(err))
     } finally {
       setApprovingPlan(false)
+    }
+  }
+
+  const handleWeeklySummary = async () => {
+    if (!athlete) return
+    setWeeklySummaryLoading(true)
+    setWeeklySummary(null)
+    try {
+      const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
+      const weekEnd = format(endOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
+      const weekWorkouts = assignedWorkouts.filter(w => w.scheduledDate >= weekStart && w.scheduledDate <= weekEnd)
+      const res = await fetch('/api/weekly-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          athleteName: athlete.name, athleteId, weekStartDate: weekStart, weekEndDate: weekEnd,
+          weekWorkouts: weekWorkouts.map(w => ({
+            scheduledDate: w.scheduledDate,
+            workout: { title: w.workout?.title, distance: w.workout?.distance },
+            status: w.status,
+          })),
+        }),
+      })
+      const data = await res.json()
+      if (data.error) throw new Error(data.error)
+      setWeeklySummary(data.summary)
+      setWeeklyCoachNote(data.summary?.coachNote || '')
+      setShowWeeklySummary(true)
+    } catch (err) {
+      toast.error('שגיאה בסיכום: ' + String(err))
+    } finally {
+      setWeeklySummaryLoading(false)
+    }
+  }
+
+  const handleApproveWeeklySummary = async () => {
+    if (!weeklySummary) return
+    setSavingWeeklySummary(true)
+    try {
+      const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
+      const weekEnd = format(endOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
+      await addDoc(collection(db, 'weeklyNotes'), {
+        athleteId, weekStart, weekEnd,
+        summary: weeklySummary.weekSummary,
+        achievements: weeklySummary.achievements,
+        improvements: weeklySummary.improvements,
+        nextWeekFocus: weeklySummary.nextWeekFocus,
+        coachNote: weeklyCoachNote,
+        approved: true,
+        createdAt: serverTimestamp(),
+      })
+      toast.success('סיכום שבועי נשלח לספורטאי!')
+      setShowWeeklySummary(false)
+      setWeeklySummary(null)
+    } catch (err) {
+      toast.error('שגיאה בשמירה: ' + String(err))
+    } finally {
+      setSavingWeeklySummary(false)
     }
   }
 
@@ -616,7 +751,7 @@ export function AthletePlanner({ athleteId }: Props) {
             <AvatarImage src={athlete?.photoURL}/>
             <AvatarFallback className="bg-navy text-white">{athlete?.name?.charAt(0)}</AvatarFallback>
           </Avatar>
-          <div>
+          <div className="flex-1">
             <h1 className="font-bold text-navy text-xl">{athlete?.name}</h1>
             <div className="flex items-center gap-2 flex-wrap">
               {journey && <Badge className="bg-navy/10 text-navy border-navy/20 text-xs">{journey.stageName} · שבוע {journey.weekInStage}/{journey.totalWeeksInStage}</Badge>}
@@ -624,6 +759,11 @@ export function AthletePlanner({ athleteId }: Props) {
               {athlete?.weeklyKmRange && <span className="text-xs text-muted-foreground">יעד: {athlete.weeklyKmRange.min}–{athlete.weeklyKmRange.max} ק"מ/שבוע</span>}
             </div>
           </div>
+          <Button size="sm" variant="outline" className="h-8 text-xs border-gold/40 text-gold hover:bg-gold/10 ml-auto flex-shrink-0"
+            onClick={handleWeeklySummary} disabled={weeklySummaryLoading}>
+            {weeklySummaryLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1"/> : <BarChart2 className="h-3.5 w-3.5 mr-1"/>}
+            סיכום שבועי 📊
+          </Button>
         </div>
 
         {/* Copy banner */}
@@ -886,78 +1026,70 @@ export function AthletePlanner({ athleteId }: Props) {
           </Card>
         )}
 
-        {/* AI Coaching Flow */}
+        {/* AI Chat Coaching */}
         <Card>
           <CardHeader className="pb-2 pt-4 px-4">
-            <CardTitle className="text-sm">AI קואצ'ינג 🤖</CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 pb-4 space-y-3">
-            <div>
-              <Label className="text-xs font-medium">תיאור כושר נוכחי</Label>
-              <Textarea
-                value={fitnessDescription}
-                onChange={e => setFitnessDescription(e.target.value)}
-                placeholder='לדוגמה: רץ 8 ק״מ פעמיים בשבוע, מרגיש טוב, מטרה חצי מרתון באוקטובר'
-                className="text-xs mt-1 min-h-[80px]"
-                dir="rtl"
-              />
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm">AI קואצ'ינג 🤖</CardTitle>
+              {chatMessages.length === 0
+                ? <Button size="sm" className="h-7 text-xs bg-navy text-white hover:bg-navy/90" onClick={handleStartChat}>התחל שיחה</Button>
+                : <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={() => { setChatMessages([]); setChatStep(0); setChatContext({}); setGeneratedPlan(null) }}>נקה</Button>
+              }
             </div>
-
-            <Button
-              onClick={handleAnalyzeAthlete}
-              disabled={analyzing || !fitnessDescription.trim()}
-              className="w-full bg-navy hover:bg-navy/90 text-white"
-            >
-              {analyzing && <Loader2 className="h-4 w-4 animate-spin mr-2"/>}
-              נתח ספורטאי 🔍
-            </Button>
-
-            {analyzing && (
-              <div className="flex items-center justify-center py-4 gap-2">
-                <Loader2 className="h-5 w-5 animate-spin text-navy"/>
-                <p className="text-xs text-muted-foreground">מנתח נתוני ספורטאי...</p>
-              </div>
-            )}
-
-            {analysisResult && (
-              <div className="rounded-xl bg-navy p-4 space-y-2">
-                <p className="text-xs font-bold text-gold">ניתוח AI</p>
-                <p className="text-xs text-white leading-relaxed whitespace-pre-wrap text-right" dir="rtl">{analysisResult}</p>
-              </div>
-            )}
-
-            {analysisResult && (
-              <div className="space-y-3">
-                <div>
-                  <Label className="text-xs font-medium">משוב שלך</Label>
-                  <Textarea
-                    value={coachFeedback}
-                    onChange={e => setCoachFeedback(e.target.value)}
-                    placeholder='לדוגמה: הוא בסדר, תוסיף גבעות השבוע'
-                    className="text-xs mt-1"
-                    dir="rtl"
-                  />
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            {chatMessages.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-6">לחץ "התחל שיחה" לתכנון אימונים בשיחה עם AI</p>
+            ) : (
+              <div className="space-y-2">
+                {/* Chat window */}
+                <div className="h-72 overflow-y-auto space-y-2 bg-muted/20 rounded-xl p-3">
+                  {chatMessages.map((msg, i) => (
+                    <div key={i} className={cn('flex', msg.role === 'ai' ? 'justify-end' : 'justify-start')}>
+                      <div className={cn(
+                        'max-w-[82%] rounded-2xl px-3 py-2 text-xs leading-relaxed',
+                        msg.role === 'ai'
+                          ? 'bg-navy text-white rounded-tr-sm'
+                          : 'bg-white border border-border text-navy rounded-tl-sm'
+                      )} dir="rtl">
+                        {msg.text}
+                      </div>
+                    </div>
+                  ))}
+                  {chatLoading && (
+                    <div className="flex justify-end">
+                      <div className="bg-navy rounded-2xl rounded-tr-sm px-4 py-3 flex gap-1.5 items-center">
+                        <span className="w-1.5 h-1.5 bg-white/70 rounded-full animate-bounce" style={{animationDelay:'0ms'}}/>
+                        <span className="w-1.5 h-1.5 bg-white/70 rounded-full animate-bounce" style={{animationDelay:'150ms'}}/>
+                        <span className="w-1.5 h-1.5 bg-white/70 rounded-full animate-bounce" style={{animationDelay:'300ms'}}/>
+                      </div>
+                    </div>
+                  )}
+                  <div ref={chatEndRef}/>
                 </div>
-                <Button
-                  onClick={handleGeneratePlan}
-                  disabled={generatingPlan}
-                  className="w-full bg-gold hover:bg-gold/90 text-navy font-bold"
-                >
-                  {generatingPlan && <Loader2 className="h-4 w-4 animate-spin mr-2"/>}
-                  צור תוכנית אימון ✨
-                </Button>
+                {/* Input */}
+                {chatStep < 6 && (
+                  <div className="flex gap-2">
+                    <Input
+                      value={chatInput}
+                      onChange={e => setChatInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend() } }}
+                      placeholder="הקלד תשובה..."
+                      className="text-xs flex-1"
+                      dir="rtl"
+                      disabled={chatLoading}
+                    />
+                    <Button size="sm" onClick={handleChatSend} disabled={chatLoading || !chatInput.trim()} className="bg-navy text-white hover:bg-navy/90 px-3">
+                      <Send className="h-3.5 w-3.5"/>
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
 
-            {generatingPlan && (
-              <div className="flex items-center justify-center py-6 gap-2">
-                <Loader2 className="h-6 w-6 animate-spin text-gold"/>
-                <p className="text-xs text-muted-foreground">יוצר תוכנית אימון...</p>
-              </div>
-            )}
-
+            {/* Generated plan */}
             {generatedPlan && (
-              <div className="space-y-3">
+              <div className="mt-4 space-y-3">
                 <div className="rounded-xl bg-blue-50 border border-blue-100 p-3 space-y-1" dir="rtl">
                   <p className="text-xs font-bold text-blue-800">{generatedPlan.planSummary?.keyFocus}</p>
                   <p className="text-xs text-blue-700">{generatedPlan.planSummary?.rationale}</p>
@@ -966,14 +1098,14 @@ export function AthletePlanner({ athleteId }: Props) {
                     <span>שבוע 2: {generatedPlan.planSummary?.week2TotalKm} ק"מ</span>
                   </div>
                 </div>
-                <div className="space-y-1.5 max-h-72 overflow-y-auto">
+                <div className="space-y-1.5 max-h-64 overflow-y-auto">
                   {generatedPlan.workouts?.map((w: any) => (
                     <div key={w.dayOffset} className={cn('rounded-lg border p-2.5 text-xs', TYPE_COLORS[w.type] || TYPE_COLORS.easy)}>
                       <div className="flex items-center justify-between">
                         <span className="font-bold" dir="rtl">{w.title}</span>
                         <span className="text-[10px] opacity-60">יום {w.dayOffset + 1}</span>
                       </div>
-                      {w.description && <p className="text-[11px] opacity-80 mt-0.5 text-right" dir="rtl">{w.description}</p>}
+                      {w.description && <p className="text-[11px] opacity-75 mt-0.5 text-right" dir="rtl">{w.description}</p>}
                       <div className="flex gap-2 mt-1 opacity-70">
                         {w.distance && <span>{w.distance} ק"מ</span>}
                         {w.duration && <span>{w.duration} דק'</span>}
@@ -981,11 +1113,7 @@ export function AthletePlanner({ athleteId }: Props) {
                     </div>
                   ))}
                 </div>
-                <Button
-                  onClick={handleApprovePlan}
-                  disabled={approvingPlan}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
-                >
+                <Button onClick={handleApprovePlan} disabled={approvingPlan} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold">
                   {approvingPlan && <Loader2 className="h-4 w-4 animate-spin mr-2"/>}
                   אשר ושלח לספורטאי ✅
                 </Button>
@@ -994,6 +1122,51 @@ export function AthletePlanner({ athleteId }: Props) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Weekly Summary Dialog */}
+      <Dialog open={showWeeklySummary} onOpenChange={setShowWeeklySummary}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-right">סיכום שבועי 📊 — {athlete?.name}</DialogTitle>
+          </DialogHeader>
+          {weeklySummary && (
+            <div className="space-y-4">
+              <div className="rounded-xl bg-navy p-4 space-y-3">
+                <div>
+                  <p className="text-xs font-bold text-gold mb-1">סיכום השבוע</p>
+                  <p className="text-xs text-white leading-relaxed">{weeklySummary.weekSummary}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gold mb-1">הישגים</p>
+                  <p className="text-xs text-white leading-relaxed">{weeklySummary.achievements}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gold mb-1">נקודות לשיפור</p>
+                  <p className="text-xs text-white leading-relaxed">{weeklySummary.improvements}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gold mb-1">פוקוס שבוע הבא</p>
+                  <p className="text-xs text-white leading-relaxed">{weeklySummary.nextWeekFocus}</p>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">הערת מאמן אישית</Label>
+                <Textarea
+                  value={weeklyCoachNote}
+                  onChange={e => setWeeklyCoachNote(e.target.value)}
+                  className="text-xs min-h-[80px]"
+                  placeholder="הוסף הערה אישית לספורטאי..."
+                  dir="rtl"
+                />
+              </div>
+              <Button onClick={handleApproveWeeklySummary} disabled={savingWeeklySummary} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold">
+                {savingWeeklySummary && <Loader2 className="h-4 w-4 animate-spin mr-2"/>}
+                אשר ושלח לספורטאי ✅
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Right sidebar */}
       <div className="w-full lg:w-72 lg:flex-shrink-0 space-y-4">

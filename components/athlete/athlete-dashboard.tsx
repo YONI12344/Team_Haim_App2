@@ -123,6 +123,7 @@ export function AthleteDashboard() {
   const [logs, setLogs] = useState<WorkoutLog[]>([])
   const [loading, setLoading] = useState(true)
   const [unreadCount, setUnreadCount] = useState(0)
+  const [latestCoachNote, setLatestCoachNote] = useState<any>(null)
 
   useEffect(() => {
     if (!user?.id) return
@@ -188,6 +189,19 @@ export function AthleteDashboard() {
     }
 
     loadProfile()
+
+    // Load latest approved coach note
+    getDocs(query(
+      collection(db, 'weeklyNotes'),
+      where('athleteId', '==', user.id),
+      where('approved', '==', true),
+    )).then(snap => {
+      const notes = snap.docs.map(d => ({ id: d.id, ...d.data() })) as any[]
+      if (notes.length > 0) {
+        notes.sort((a, b) => (b.weekStart || '').localeCompare(a.weekStart || ''))
+        setLatestCoachNote(notes[0])
+      }
+    }).catch(() => {})
 
     // Real-time listener for assigned workouts
     unsubAssigned = onSnapshot(
@@ -396,6 +410,25 @@ export function AthleteDashboard() {
           </div>
         </Link>
       </div>
+
+      {/* Coach Note Card */}
+      {latestCoachNote && (
+        <Card className="border-gold/30 bg-gradient-to-br from-navy to-navy/90 text-white overflow-hidden">
+          <CardContent className="p-4" dir="rtl">
+            <p className="text-[10px] font-semibold text-gold/80 uppercase tracking-widest mb-2">הערת המאמן</p>
+            <p className="text-base font-medium leading-relaxed mb-3">{latestCoachNote.coachNote}</p>
+            {latestCoachNote.nextWeekFocus && (
+              <div className="bg-white/10 rounded-lg px-3 py-2">
+                <p className="text-[10px] text-gold font-semibold mb-0.5">פוקוס השבוע</p>
+                <p className="text-xs text-white/90">{latestCoachNote.nextWeekFocus}</p>
+              </div>
+            )}
+            {latestCoachNote.weekStart && (
+              <p className="text-[10px] text-white/40 mt-2">{latestCoachNote.weekStart} – {latestCoachNote.weekEnd}</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Quick Nav Buttons */}
       <div className="grid grid-cols-1 gap-3">
