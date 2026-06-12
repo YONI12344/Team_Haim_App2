@@ -27,7 +27,7 @@ import {
   collection, doc, getDoc, getDocs, query,
   where, addDoc, serverTimestamp, deleteDoc,
 } from 'firebase/firestore'
-import type { AthleteProfile, Workout, AssignedWorkout, TrainingDayType, WorkoutLog } from '@/lib/types'
+import type { AthleteProfile, Workout, AssignedWorkout, TrainingDayType, WorkoutLog, WorkoutType } from '@/lib/types'
 import { legacyEffortToNumber } from '@/lib/types'
 import { listJourneys, computeJourneyProgress } from '@/lib/journey'
 import { useAuth } from '@/contexts/auth-context'
