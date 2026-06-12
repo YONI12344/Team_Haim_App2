@@ -1,0 +1,510 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Search,
+  ChevronRight,
+  Trophy,
+  Calendar,
+  Activity,
+  Loader2,
+  Pencil,
+  Trash2,
+  Download,
+} from 'lucide-react'
+import Link from 'next/link'
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+} from 'firebase/firestore'
+import { db } from '@/lib/firebase'
+import type { AthleteProfile } from '@/lib/types'
+import { useAuth } from '@/contexts/auth-context'
+import { isCoachEmail } from '@/lib/constants'
+import { useLanguage } from '@/contexts/language-context'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { toast } from 'sonner'
+import { listJourneys } from '@/lib/journey'
+import {
+  buildAllAthletesWorkbook,
+  setWorkbookProperties,
+  downloadWorkbook,
+  allAthletesFilename,
+  type ExportAthleteData,
+} from '@/lib/export'
+import { exportAthleteToExcel } from '@/lib/export-athlete'
+
+export function AthleteRoster() {
+  const { t } = useLanguage()
+  const { user } = useAuth()
+  const isCoach = isCoachEmail(user?.email)
+
+  const [searchQuery, setSearchQuery] = useState('')
+  const [athletes, setAthletes] = useState<AthleteProfile[]>([])
+  const [loading, setLoading] = useState(true)
+  const [exporting, setExporting] = useState(false)
+  const [exportProgress, setExportProgress] = useState('')
+  const [exportingAthleteId, setExportingAthleteId] = useState<string | null>(null)
+
+  const [editing, setEditing] = useState<AthleteProfile | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editEmail, setEditEmail] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true)
+      try {
+        const snap = await getDocs(
+          query(collection(db, 'users'), where('role', '==', 'athlete')),
+        )
+        setAthletes(
+          snap.docs.map((d) => {
+            const data = d.data()
+            return {
+              id: d.id,
+              userId: data.userId || d.id,
+              name: data.name || data.email || 'Athlete',
+              email: data.email || '',
+              photoURL: data.photoURL,
+              dateOfBirth: data.dateOfBirth,
+              gender: data.gender,
+              height: data.height,
+              weight: data.weight,
+              events: Array.isArray(data.events) ? data.events : [],
+              personalRecords: Array.isArray(data.personalRecords) ? data.personalRecords : [],
+              seasonBests: Array.isArray(data.seasonBests) ? data.seasonBests : [],
+              trainingPaces: Array.isArray(data.trainingPaces) ? data.trainingPaces : [],
+              goals: Array.isArray(data.goals) ? data.goals : [],
+              coachId: data.coachId,
+              createdAt: data.createdAt?.toDate?.() || new Date(),
+              updatedAt: data.updatedAt?.toDate?.() || new Date(),
+            }
+          }),
+        )
+      } catch (err) {
+        console.error('Error loading athletes:', err)
+        setAthletes([])
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [])
+
+  const filteredAthletes = athletes.filter(
+    (athlete) =>
+      athlete.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      athlete.events.some((e) => e.toLowerCase().includes(searchQuery.toLowerCase())),
+  )
+
+  const getInitials = (name: string) =>
+    name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2) || '?'
+
+  const openEdit = (athlete: AthleteProfile) => {
+    setEditing(athlete)
+    setEditName(athlete.name)
+    setEditEmail(athlete.email)
+  }
+
+  const handleSave = async () => {
+    if (!editing) return
+    setSaving(true)
+    try {
+      await updateDoc(doc(db, 'users', editing.id), {
+        name: editName.trim() || editing.name,
+        email: editEmail.trim() || editing.email,
+        updatedAt: serverTimestamp(),
+      })
+      setAthletes((prev) =>
+        prev.map((a) =>
+          a.id === editing.id
+            ? { ...a, name: editName.trim() || a.name, email: editEmail.trim() || a.email }
+            : a,
+        ),
+      )
+      toast.success('Athlete updated')
+      setEditing(null)
+    } catch (err) {
+      console.error('Error updating athlete:', err)
+      toast.error('Failed to update athlete')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deleteId) return
+    setDeleting(true)
+    try {
+      await deleteDoc(doc(db, 'users', deleteId))
+      setAthletes((prev) => prev.filter((a) => a.id !== deleteId))
+      toast.success('Athlete removed from team')
+    } catch (err) {
+      console.error('Error deleting athlete:', err)
+      toast.error('Failed to remove athlete')
+    } finally {
+      setDeleting(false)
+      setDeleteId(null)
+    }
+  }
+
+  const handleExportAthlete = async (athleteId: string) => {
+    if (exportingAthleteId) return
+    setExportingAthleteId(athleteId)
+    try {
+      const filename = await exportAthleteToExcel(athleteId)
+      toast.success(`Exported ${filename}`)
+    } catch (err) {
+      console.error('Export athlete error:', err)
+      toast.error('Export failed. Please try again.')
+    } finally {
+      setExportingAthleteId(null)
+    }
+  }
+
+  const handleExportAll = async () => {
+    if (athletes.length === 0) {
+      toast.error('No athletes to export')
+      return
+    }
+    setExporting(true)
+    setExportProgress(`Loading 0/${athletes.length} athletes…`)
+    try {
+      let loaded = 0
+      const allData: ExportAthleteData[] = await Promise.all(
+        athletes.map(async (a) => {
+          // Fetch journey stages per athlete
+          let journeyStages: ExportAthleteData['journeyStages'] = []
+          try {
+            const journeys = await listJourneys(a.id)
+            journeyStages = journeys.flatMap((j) =>
+              j.stages.map((s) => ({
+                stageName: s.name,
+                type: s.type,
+                startDate: s.startDate,
+                endDate: s.endDate,
+                focus: s.focus,
+                weeklyVolumeKm: s.weeklyVolumeKm,
+                keyWorkouts: s.keyWorkouts?.join('; ') || '',
+                milestones: s.milestones?.join('; ') || '',
+              })),
+            )
+          } catch { /* ignore */ }
+
+          loaded++
+          if (loaded > 1) {
+            setExportProgress(`Loaded ${loaded}/${athletes.length} athletes…`)
+          }
+
+          return {
+            name: a.name,
+            email: a.email,
+            dateOfBirth: a.dateOfBirth,
+            gender: a.gender,
+            height: a.height,
+            weight: a.weight,
+            discipline: a.discipline,
+            events: a.events,
+            experienceLevel: a.experienceLevel,
+            weeklyMileage: a.weeklyMileage,
+            restingHR: a.restingHR,
+            maxHR: a.maxHR,
+            goalRaceEvent: a.goalRaceEvent,
+            goalRaceDate: a.goalRaceDate,
+            goalRaceTarget: a.goalRaceTarget,
+            personalRecords: a.personalRecords,
+            seasonBests: a.seasonBests,
+            trainingPaces: a.trainingPaces,
+            goals: a.goals,
+            journeyStages,
+          }
+        }),
+      )
+
+      const wb = buildAllAthletesWorkbook({ athletes: allData })
+      setWorkbookProperties(wb, 'All Athletes')
+      const filename = allAthletesFilename()
+      downloadWorkbook(wb, filename)
+      toast.success(`Exported ${filename}`)
+    } catch (err) {
+      console.error('Export all error:', err)
+      toast.error('Export failed. Please try again.')
+    } finally {
+      setExporting(false)
+      setExportProgress('')
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-serif font-bold text-navy">{t.athletesTitle}</h1>
+          <p className="text-muted-foreground">
+            {t.athletesSubtitle}
+          </p>
+        </div>
+        {isCoach && (
+          <Button
+            variant="outline"
+            onClick={handleExportAll}
+            disabled={exporting || loading}
+            className="border-gold/40 text-navy hover:border-gold self-start sm:self-center"
+          >
+            {exporting ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4 mr-2" />
+            )}
+            {exporting ? (exportProgress || t.generatingDots) : t.exportAllAthletes}
+          </Button>
+        )}
+      </div>
+
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder={t.searchAthletesEventsPh}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10"
+        />
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-gold" />
+        </div>
+      ) : (
+        <>
+          {/* Athletes Grid */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {filteredAthletes.map((athlete) => (
+              <Card key={athlete.id} className="hover:shadow-md transition-luxury h-full">
+                <CardContent className="pt-6">
+                  <div className="flex flex-col items-center text-center mb-4">
+                    <Avatar className="h-16 w-16 mb-3 border-2 border-gold/20">
+                      <AvatarImage src={athlete.photoURL} alt={athlete.name} />
+                      <AvatarFallback className="bg-gold/10 text-gold text-xl font-serif">
+                        {getInitials(athlete.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <h3 className="font-serif font-semibold text-navy text-lg">
+                      {athlete.name}
+                    </h3>
+                    {athlete.email && (
+                      <p className="text-xs text-muted-foreground">{athlete.email}</p>
+                    )}
+                    <div className="flex flex-wrap justify-center gap-1 mt-2">
+                      {athlete.events.map((event) => (
+                        <Badge key={event} variant="secondary" className="text-xs">
+                          {event}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 pt-4 border-t border-border">
+                    <div className="text-center">
+                      <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
+                        <Trophy className="h-3.5 w-3.5" />
+                      </div>
+                      <p className="text-lg font-bold text-navy">
+                        {athlete.personalRecords.length}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{t.tabPRs}</p>
+                    </div>
+                    <div className="text-center">
+                      <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
+                        <Activity className="h-3.5 w-3.5" />
+                      </div>
+                      <p className="text-lg font-bold text-navy">
+                        {athlete.goals.filter((g) => g.status === 'active').length}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{t.tabGoals}</p>
+                    </div>
+                    <div className="text-center">
+                      <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
+                        <Activity className="h-3.5 w-3.5" />
+                      </div>
+                      <p className="text-sm font-bold text-navy">
+                        {athlete.weeklyKmRange ? `${athlete.weeklyKmRange.min}–${athlete.weeklyKmRange.max}` : '—'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">ק"מ שבוע</p>
+                    </div>
+                  </div>
+
+                  <Link href={`/coach/athletes/${athlete.id}`} className="block">
+                    <Button variant="ghost" className="w-full mt-4 text-gold hover:text-gold/80">
+                      {t.viewProfileBtn}
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </Link>
+
+                  {isCoach && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleExportAthlete(athlete.id)}
+                        disabled={exportingAthleteId === athlete.id}
+                        aria-label={
+                          exportingAthleteId === athlete.id
+                            ? `${t.exportingAria} ${athlete.name}`
+                            : `${t.exportAria} ${athlete.name}`
+                        }
+                        className="w-full mt-2 border-gold/40 text-navy hover:border-gold"
+                      >
+                        {exportingAthleteId === athlete.id ? (
+                          <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                        ) : (
+                          <Download className="h-3.5 w-3.5 mr-1" />
+                        )}
+                        {exportingAthleteId === athlete.id ? t.exportingDots : t.exportToExcel}
+                      </Button>
+                      <div className="grid grid-cols-2 gap-2 mt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEdit(athlete)}
+                        >
+                          <Pencil className="h-3.5 w-3.5 mr-1" />
+                          {t.editBtn}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => setDeleteId(athlete.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 mr-1" />
+                          {t.removeBtn}
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {filteredAthletes.length === 0 && (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <p className="text-muted-foreground">
+                  {athletes.length === 0
+                    ? t.noAthletesSignedUp
+                    : t.noAthletesMatching}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
+
+      {/* Edit dialog */}
+      <Dialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t.editAthleteTitle}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">{t.nameLabel}</Label>
+              <Input
+                id="edit-name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-email">{t.emailLabel}</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditing(null)} disabled={saving}>
+              {t.cancel}
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={saving}
+              className="bg-gold hover:bg-gold/90 text-navy"
+            >
+              {saving ? t.savingDots : t.save}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirm */}
+      <AlertDialog
+        open={!!deleteId}
+        onOpenChange={(open) => !open && setDeleteId(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t.removeAthleteTitle}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t.removeAthleteDesc}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>{t.cancel}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? t.removingDots : t.removeBtn}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  )
+}

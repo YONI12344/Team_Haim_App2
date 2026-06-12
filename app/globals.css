@@ -1,0 +1,346 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+/* Team Haim Luxury Design System */
+/* Colors: Gold (#D4AF37), Navy Blue (#1a2744), White (#FFFFFF) */
+
+:root {
+  /* Core palette - slightly deeper, more saturated navy + warm white */
+  --background: oklch(0.98 0.005 90);
+  --foreground: oklch(0.2 0.05 255);
+
+  /* Card - subtle warm white */
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.2 0.05 255);
+
+  /* Popover */
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.2 0.05 255);
+
+  /* Primary - Gold (kept as the brand accent) */
+  --primary: oklch(0.75 0.12 85);
+  --primary-foreground: oklch(0.22 0.07 255);
+
+  /* Secondary - deeper Navy Blue */
+  --secondary: oklch(0.27 0.07 255);
+  --secondary-foreground: oklch(0.98 0.005 90);
+
+  /* Muted - cool light gray */
+  --muted: oklch(0.95 0.01 250);
+  --muted-foreground: oklch(0.48 0.03 255);
+
+  /* Accent - soft gold tint */
+  --accent: oklch(0.92 0.05 85);
+  --accent-foreground: oklch(0.22 0.07 255);
+
+  /* Destructive */
+  --destructive: oklch(0.55 0.2 25);
+  --destructive-foreground: oklch(0.98 0 0);
+
+  /* Borders and inputs */
+  --border: oklch(0.9 0.015 250);
+  --input: oklch(0.94 0.01 250);
+  --ring: oklch(0.75 0.12 85);
+
+  /* Charts - Navy, gold and coral variations */
+  --chart-1: oklch(0.75 0.12 85);
+  --chart-2: oklch(0.27 0.07 255);
+  --chart-3: oklch(0.78 0.13 35);
+  --chart-4: oklch(0.4 0.07 255);
+  --chart-5: oklch(0.85 0.08 85);
+
+  /* Friendlier corners by default */
+  --radius: 1rem;
+
+  /* Sidebar - Navy */
+  --sidebar: oklch(0.22 0.07 255);
+  --sidebar-foreground: oklch(0.95 0.01 90);
+  --sidebar-primary: oklch(0.75 0.12 85);
+  --sidebar-primary-foreground: oklch(0.22 0.07 255);
+  --sidebar-accent: oklch(0.32 0.06 255);
+  --sidebar-accent-foreground: oklch(0.95 0.01 90);
+  --sidebar-border: oklch(0.34 0.05 255);
+  --sidebar-ring: oklch(0.75 0.12 85);
+
+  /* Custom Team Haim tokens
+     - navy: primary brand navy (deeper, more saturated than before)
+     - navy-tint: very light navy for surfaces / hover states
+     - gold: secondary accent
+     - coral: fun accent used sparingly for badges, streaks, PRs */
+  --gold: oklch(0.75 0.12 85);
+  --gold-light: oklch(0.92 0.05 85);
+  --navy: oklch(0.22 0.07 255);
+  --navy-light: oklch(0.38 0.06 255);
+  --navy-tint: oklch(0.96 0.015 255);
+  --coral: oklch(0.78 0.13 35);
+  --coral-light: oklch(0.93 0.06 35);
+}
+
+.dark {
+  --background: oklch(0.16 0.04 255);
+  --foreground: oklch(0.95 0.01 90);
+
+  --card: oklch(0.2 0.05 255);
+  --card-foreground: oklch(0.95 0.01 90);
+
+  --popover: oklch(0.2 0.05 255);
+  --popover-foreground: oklch(0.95 0.01 90);
+
+  --primary: oklch(0.75 0.12 85);
+  --primary-foreground: oklch(0.16 0.04 255);
+
+  --secondary: oklch(0.28 0.06 255);
+  --secondary-foreground: oklch(0.95 0.01 90);
+
+  --muted: oklch(0.24 0.04 255);
+  --muted-foreground: oklch(0.68 0.02 90);
+
+  --accent: oklch(0.28 0.06 255);
+  --accent-foreground: oklch(0.95 0.01 90);
+
+  --destructive: oklch(0.45 0.18 25);
+  --destructive-foreground: oklch(0.95 0 0);
+
+  --border: oklch(0.3 0.04 255);
+  --input: oklch(0.27 0.04 255);
+  --ring: oklch(0.75 0.12 85);
+
+  --chart-1: oklch(0.75 0.12 85);
+  --chart-2: oklch(0.55 0.06 255);
+  --chart-3: oklch(0.78 0.13 35);
+  --chart-4: oklch(0.45 0.05 255);
+  --chart-5: oklch(0.85 0.08 85);
+
+  --sidebar: oklch(0.13 0.03 255);
+  --sidebar-foreground: oklch(0.95 0.01 90);
+  --sidebar-primary: oklch(0.75 0.12 85);
+  --sidebar-primary-foreground: oklch(0.13 0.03 255);
+  --sidebar-accent: oklch(0.22 0.04 255);
+  --sidebar-accent-foreground: oklch(0.95 0.01 90);
+  --sidebar-border: oklch(0.27 0.04 255);
+  --sidebar-ring: oklch(0.75 0.12 85);
+
+  --gold: oklch(0.75 0.12 85);
+  --gold-light: oklch(0.35 0.06 85);
+  --navy: oklch(0.13 0.03 255);
+  --navy-light: oklch(0.27 0.06 255);
+  --navy-tint: oklch(0.24 0.04 255);
+  --coral: oklch(0.78 0.13 35);
+  --coral-light: oklch(0.34 0.07 35);
+}
+
+@theme inline {
+  /* Body uses Heebo — bilingual (Latin + Hebrew), highly legible humanist
+     sans designed for screens. Display uses Rubik — a friendly bilingual
+     geometric face that gives the UI a sporty "running club" feel.
+     Playfair is kept around only for the brand wordmark / decorative
+     hero titles via the .font-display-serif utility. */
+  --font-sans: var(--font-heebo), 'Heebo', 'Inter', system-ui, sans-serif;
+  --font-serif: var(--font-rubik), 'Rubik', 'Heebo', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', 'Geist Mono Fallback', monospace;
+  --font-body: var(--font-heebo), 'Heebo', 'Inter', system-ui, sans-serif;
+  --font-display: var(--font-rubik), 'Rubik', 'Heebo', system-ui, sans-serif;
+  --font-display-serif: var(--font-playfair), 'Playfair Display', 'Georgia', serif;
+  
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  
+  /* Custom colors */
+  --color-gold: var(--gold);
+  --color-gold-light: var(--gold-light);
+  --color-navy: var(--navy);
+  --color-navy-light: var(--navy-light);
+  --color-navy-tint: var(--navy-tint);
+  --color-coral: var(--coral);
+  --color-coral-light: var(--coral-light);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-body);
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    line-height: 1.55;
+  }
+  /* Headings now use the sporty Rubik display face by default. Add the
+     `.font-display-serif` utility on the brand wordmark / hero titles
+     where the decorative Playfair face is wanted. */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    color: var(--navy);
+  }
+  h1 { letter-spacing: -0.02em; }
+
+  /* RTL polish: tighten letter-spacing a touch in Hebrew where the
+     default Latin tracking can feel airy. */
+  [dir='rtl'] h1, [dir='rtl'] h2, [dir='rtl'] h3,
+  [dir='rtl'] h4, [dir='rtl'] h5, [dir='rtl'] h6 {
+    letter-spacing: 0;
+  }
+}
+
+/* Custom luxury utilities */
+@layer utilities {
+  .text-gold {
+    color: var(--gold);
+  }
+  .bg-gold {
+    background-color: var(--gold);
+  }
+  .text-navy {
+    color: var(--navy);
+  }
+  .bg-navy {
+    background-color: var(--navy);
+  }
+  .text-coral {
+    color: var(--coral);
+  }
+  .bg-coral {
+    background-color: var(--coral);
+  }
+  .bg-coral-light {
+    background-color: var(--coral-light);
+  }
+  .bg-navy-tint {
+    background-color: var(--navy-tint);
+  }
+  .border-gold {
+    border-color: var(--gold);
+  }
+  .border-navy {
+    border-color: var(--navy);
+  }
+  .border-coral {
+    border-color: var(--coral);
+  }
+  .ring-gold {
+    --tw-ring-color: var(--gold);
+  }
+
+  /* Luxury text shadow for hero headings */
+  .text-shadow-luxury {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Gold gradient for special elements */
+  .bg-gold-gradient {
+    background: linear-gradient(135deg, oklch(0.75 0.12 85) 0%, oklch(0.85 0.08 85) 50%, oklch(0.75 0.12 85) 100%);
+  }
+
+  /* Soft hero backgrounds */
+  .bg-hero-navy {
+    background: linear-gradient(135deg, var(--navy-tint) 0%, transparent 70%);
+  }
+  .bg-hero-gold {
+    background: linear-gradient(135deg, var(--gold-light) 0%, transparent 70%);
+  }
+
+  /* More navy-forward backdrops — mostly white with subtle navy color play */
+  .bg-navy-radial {
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 0%, color-mix(in oklch, var(--navy) 10%, transparent) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 50% at 90% 100%, color-mix(in oklch, var(--navy) 6%, transparent) 0%, transparent 70%),
+      var(--background);
+  }
+  .bg-navy-gradient {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+  }
+  .bg-navy-soft {
+    background: linear-gradient(180deg, var(--navy-tint) 0%, var(--background) 100%);
+  }
+  .text-navy-light {
+    color: var(--navy-light);
+  }
+  .border-navy-soft {
+    border-color: color-mix(in oklch, var(--navy) 18%, transparent);
+  }
+  .ring-navy {
+    --tw-ring-color: var(--navy);
+  }
+
+  /* Decorative navy underline used under hero titles for a "team" / track
+     stripe feeling. Keeps the page mostly white while injecting navy. */
+  .navy-rule {
+    display: inline-block;
+    width: 4rem;
+    height: 4px;
+    border-radius: 9999px;
+    background: linear-gradient(90deg, var(--navy) 0%, var(--navy-light) 100%);
+  }
+
+  /* Display font helpers. Use `.font-display` for sporty Rubik headings
+     and `.font-display-serif` to keep the decorative Playfair wordmark
+     where wanted (brand lockup). */
+  .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.015em;
+  }
+  .font-display-serif {
+    font-family: var(--font-display-serif);
+  }
+
+  /* Friendlier card surface */
+  .card-friendly {
+    @apply rounded-2xl border border-border bg-card shadow-sm;
+  }
+
+  /* Smooth transitions */
+  .transition-luxury {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+/* Always render Hebrew user content RTL regardless of UI language */
+.user-content {
+  unicode-bidi: plaintext;
+}
+
+/* Hebrew text stays RTL even when UI is in English */
+h1, h2, h3, h4, p, span, textarea, input {
+  unicode-bidi: plaintext;
+}
