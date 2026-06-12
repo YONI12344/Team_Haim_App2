@@ -100,6 +100,15 @@ export function AthletePlanner({ athleteId }: Props) {
   const [copiedWorkout, setCopiedWorkout] = useState<AssignedWorkout | null>(null)
   const [librarySearch, setLibrarySearch] = useState('')
 
+  // AI coaching flow
+  const [fitnessDescription, setFitnessDescription] = useState('')
+  const [analyzing, setAnalyzing] = useState(false)
+  const [analysisResult, setAnalysisResult] = useState('')
+  const [coachFeedback, setCoachFeedback] = useState('')
+  const [generatingPlan, setGeneratingPlan] = useState(false)
+  const [generatedPlan, setGeneratedPlan] = useState<any>(null)
+  const [approvingPlan, setApprovingPlan] = useState(false)
+
   // ── Load athlete + journey + workout library ──────────────────────────────
   useEffect(() => {
     const load = async () => {
@@ -447,6 +456,123 @@ export function AthletePlanner({ athleteId }: Props) {
   const selectedAW = useMemo(() => assignedWorkouts.find(w => w.id === selectedAssignedId) || null, [assignedWorkouts, selectedAssignedId])
   const selectedLog = useMemo(() => selectedAW ? (logs.find(l => l.assignedWorkoutId === selectedAW.id) || logs.find(l => l.workoutId === selectedAW.workoutId && l.date === selectedAW.scheduledDate)) : null, [selectedAW, logs])
   const filteredLibrary = useMemo(() => workoutLibrary.filter(w => w.title?.toLowerCase().includes(librarySearch.toLowerCase())), [workoutLibrary, librarySearch])
+
+  const handleAnalyzeAthlete = async () => {
+    if (!athlete) return
+    setAnalyzing(true)
+    setAnalysisResult('')
+    try {
+      const recentWorkouts = [...assignedWorkouts]
+        .sort((a, b) => b.scheduledDate.localeCompare(a.scheduledDate))
+        .slice(0, 10)
+        .map(w => ({ date: w.scheduledDate, title: w.workout?.title, type: w.workout?.type, distance: w.workout?.distance, status: w.status }))
+      const recentLog = [...logs]
+        .filter(l => l.effort || l.comment)
+        .sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0]
+      const res = await fetch('/api/analyze-athlete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          athleteName: athlete.name,
+          fitnessDescription,
+          goalRace: journey?.goalRaceEvent || athlete.events?.[0] || 'לא הוגדר',
+          goalRaceDate: journey?.goalRaceDate || 'לא הוגדר',
+          lastWorkouts: recentWorkouts,
+          lastWorkoutFeel: recentLog?.effort ?? 7,
+          lastWorkoutComment: recentLog?.comment || '',
+        }),
+      })
+      const data = await res.json()
+      if (data.error) throw new Error(data.error)
+      setAnalysisResult(data.text)
+    } catch (err) {
+      toast.error('שגיאה בניתוח: ' + String(err))
+    } finally {
+      setAnalyzing(false)
+    }
+  }
+
+  const handleGeneratePlan = async () => {
+    if (!athlete) return
+    setGeneratingPlan(true)
+    setGeneratedPlan(null)
+    try {
+      const weeksToRace = journey?.goalRaceDate
+        ? Math.ceil((new Date(journey.goalRaceDate).getTime() - new Date().getTime()) / (7 * 86400000))
+        : null
+      const userMessage = `ספורטאי: ${athlete.name}
+תיאור כושר: ${fitnessDescription}
+מירוץ יעד: ${journey?.goalRaceEvent || athlete.events?.[0] || 'לא הוגדר'}
+תאריך מירוץ: ${journey?.goalRaceDate || 'לא הוגדר'}
+שבועות למירוץ: ${weeksToRace ?? 'לא ידוע'}
+שלב עונה: ${journey?.stageName || 'לא ידוע'}
+שיאים אישיים: ${athlete.personalRecords?.map(p => `${p.event}: ${p.time}`).join(', ') || 'לא הוגדרו'}
+יעד ק"מ שבועי: ${athlete.weeklyKmRange ? `${athlete.weeklyKmRange.min}–${athlete.weeklyKmRange.max}` : 'לא הוגדר'}`
+      const res = await fetch('/api/generate-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userMessage, coachFeedback }),
+      })
+      const data = await res.json()
+      if (data.error) throw new Error(data.error)
+      const plan = JSON.parse(data.text)
+      setGeneratedPlan(plan)
+    } catch (err) {
+      toast.error('שגיאה ביצירת תוכנית: ' + String(err))
+    } finally {
+      setGeneratingPlan(false)
+    }
+  }
+
+  const handleApprovePlan = async () => {
+    if (!generatedPlan || !user) return
+    setApprovingPlan(true)
+    try {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      await Promise.all(generatedPlan.workouts.map(async (w: any) => {
+        const targetDate = new Date(today)
+        targetDate.setDate(today.getDate() + w.dayOffset)
+        const scheduledDate = format(targetDate, 'yyyy-MM-dd')
+        const workout = {
+          id: `ai-${w.dayOffset}`,
+          title: w.title,
+          type: w.type,
+          description: w.description || '',
+          distance: w.distance || null,
+          duration: w.duration || null,
+          warmup: w.warmup || '',
+          mainSet: w.mainSet || '',
+          cooldown: w.cooldown || '',
+          notes: w.notes || '',
+          createdBy: user.id,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }
+        await addDoc(collection(db, 'assignedWorkouts'), {
+          workoutId: workout.id,
+          workout,
+          athleteId,
+          assignedBy: user.id || null,
+          scheduledDate,
+          status: 'approved',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        })
+      }))
+      const snap = await getDocs(query(collection(db, 'assignedWorkouts'), where('athleteId', '==', athleteId)))
+      setAssignedWorkouts(snap.docs.map(d => ({ ...(d.data() as AssignedWorkout), id: d.id })))
+      toast.success('תוכנית אושרה ונשלחה לספורטאי!')
+      setGeneratedPlan(null)
+      setAnalysisResult('')
+      setCoachFeedback('')
+    } catch (err) {
+      toast.error('שגיאה באישור: ' + String(err))
+    } finally {
+      setApprovingPlan(false)
+    }
+  }
+
   if (loading) return (
     <div className="flex items-center justify-center min-h-[400px]">
       <Loader2 className="h-8 w-8 animate-spin text-gold" />
@@ -759,6 +885,114 @@ export function AthletePlanner({ athleteId }: Props) {
             </CardContent>
           </Card>
         )}
+
+        {/* AI Coaching Flow */}
+        <Card>
+          <CardHeader className="pb-2 pt-4 px-4">
+            <CardTitle className="text-sm">AI קואצ'ינג 🤖</CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4 space-y-3">
+            <div>
+              <Label className="text-xs font-medium">תיאור כושר נוכחי</Label>
+              <Textarea
+                value={fitnessDescription}
+                onChange={e => setFitnessDescription(e.target.value)}
+                placeholder='לדוגמה: רץ 8 ק״מ פעמיים בשבוע, מרגיש טוב, מטרה חצי מרתון באוקטובר'
+                className="text-xs mt-1 min-h-[80px]"
+                dir="rtl"
+              />
+            </div>
+
+            <Button
+              onClick={handleAnalyzeAthlete}
+              disabled={analyzing || !fitnessDescription.trim()}
+              className="w-full bg-navy hover:bg-navy/90 text-white"
+            >
+              {analyzing && <Loader2 className="h-4 w-4 animate-spin mr-2"/>}
+              נתח ספורטאי 🔍
+            </Button>
+
+            {analyzing && (
+              <div className="flex items-center justify-center py-4 gap-2">
+                <Loader2 className="h-5 w-5 animate-spin text-navy"/>
+                <p className="text-xs text-muted-foreground">מנתח נתוני ספורטאי...</p>
+              </div>
+            )}
+
+            {analysisResult && (
+              <div className="rounded-xl bg-navy p-4 space-y-2">
+                <p className="text-xs font-bold text-gold">ניתוח AI</p>
+                <p className="text-xs text-white leading-relaxed whitespace-pre-wrap text-right" dir="rtl">{analysisResult}</p>
+              </div>
+            )}
+
+            {analysisResult && (
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-xs font-medium">משוב שלך</Label>
+                  <Textarea
+                    value={coachFeedback}
+                    onChange={e => setCoachFeedback(e.target.value)}
+                    placeholder='לדוגמה: הוא בסדר, תוסיף גבעות השבוע'
+                    className="text-xs mt-1"
+                    dir="rtl"
+                  />
+                </div>
+                <Button
+                  onClick={handleGeneratePlan}
+                  disabled={generatingPlan}
+                  className="w-full bg-gold hover:bg-gold/90 text-navy font-bold"
+                >
+                  {generatingPlan && <Loader2 className="h-4 w-4 animate-spin mr-2"/>}
+                  צור תוכנית אימון ✨
+                </Button>
+              </div>
+            )}
+
+            {generatingPlan && (
+              <div className="flex items-center justify-center py-6 gap-2">
+                <Loader2 className="h-6 w-6 animate-spin text-gold"/>
+                <p className="text-xs text-muted-foreground">יוצר תוכנית אימון...</p>
+              </div>
+            )}
+
+            {generatedPlan && (
+              <div className="space-y-3">
+                <div className="rounded-xl bg-blue-50 border border-blue-100 p-3 space-y-1" dir="rtl">
+                  <p className="text-xs font-bold text-blue-800">{generatedPlan.planSummary?.keyFocus}</p>
+                  <p className="text-xs text-blue-700">{generatedPlan.planSummary?.rationale}</p>
+                  <div className="flex gap-4 text-xs text-blue-600 mt-1">
+                    <span>שבוע 1: {generatedPlan.planSummary?.week1TotalKm} ק"מ</span>
+                    <span>שבוע 2: {generatedPlan.planSummary?.week2TotalKm} ק"מ</span>
+                  </div>
+                </div>
+                <div className="space-y-1.5 max-h-72 overflow-y-auto">
+                  {generatedPlan.workouts?.map((w: any) => (
+                    <div key={w.dayOffset} className={cn('rounded-lg border p-2.5 text-xs', TYPE_COLORS[w.type] || TYPE_COLORS.easy)}>
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold" dir="rtl">{w.title}</span>
+                        <span className="text-[10px] opacity-60">יום {w.dayOffset + 1}</span>
+                      </div>
+                      {w.description && <p className="text-[11px] opacity-80 mt-0.5 text-right" dir="rtl">{w.description}</p>}
+                      <div className="flex gap-2 mt-1 opacity-70">
+                        {w.distance && <span>{w.distance} ק"מ</span>}
+                        {w.duration && <span>{w.duration} דק'</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <Button
+                  onClick={handleApprovePlan}
+                  disabled={approvingPlan}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                >
+                  {approvingPlan && <Loader2 className="h-4 w-4 animate-spin mr-2"/>}
+                  אשר ושלח לספורטאי ✅
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Right sidebar */}
