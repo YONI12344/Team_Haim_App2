@@ -1091,7 +1091,7 @@ CRITICAL RULES:
             <div>
               <Label className="text-xs font-semibold mb-1.5 block">הערה לAI</Label>
               <Textarea value={aiNote} onChange={e => setAiNote(e.target.value)}
-                placeholder="לדוגמה: תוסיף גבעות השבוע, היה קשה לו בשבוע שעבר..."
+                placeholder="לדוגמה: תוסיף עליות השבוע, היה קשה לו בשבוע שעבר..."
                 className="text-xs min-h-[60px]" dir="rtl"/>
             </div>
 
