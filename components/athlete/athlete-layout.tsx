@@ -29,9 +29,9 @@ export function AthleteLayout({ children, hideNav }: { children: ReactNode; hide
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gray-50">
       {!hideNav && <AthleteNav />}
-      <main className={hideNav ? "min-h-screen bg-background" : "container px-4 py-6 md:py-8"}>
+      <main className={hideNav ? "min-h-screen bg-gray-50" : "container px-4 py-4 md:py-6"}>
         {children}
       </main>
     </div>

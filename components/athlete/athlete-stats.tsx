@@ -169,245 +169,161 @@ export function AthleteStats() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-gold" />
+      <div className="space-y-4 pb-24 animate-pulse" dir="rtl">
+        <div className="h-8 w-40 bg-gray-200 rounded-xl" />
+        <div className="grid grid-cols-2 gap-3">
+          {[1,2,3,4].map(i => <div key={i} className="bg-gray-100 rounded-2xl h-24" />)}
+        </div>
+        <div className="bg-gray-100 rounded-3xl h-64" />
+        <div className="bg-gray-100 rounded-3xl h-48" />
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 pb-24" dir="rtl">
       {/* Header */}
       <div>
-        <h1 className="text-2xl md:text-3xl font-serif font-bold text-navy">{t.statisticsTitle}</h1>
-        <p className="text-muted-foreground">
-          {t.statisticsSubtitle}
-        </p>
+        <h1 className="text-2xl md:text-3xl font-serif font-bold text-[#0a1628]">{t.statisticsTitle}</h1>
+        <p className="text-gray-500 text-sm">{t.statisticsSubtitle}</p>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-gold/10 flex items-center justify-center">
-                <Activity className="h-5 w-5 text-gold" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-navy">{totalDistance.toFixed(0)}</p>
-                <p className="text-xs text-muted-foreground">{t.totalKm}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Summary Cards 2×2 */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+          <div className="w-9 h-9 rounded-xl bg-[#0a1628]/5 flex items-center justify-center mb-3">
+            <Activity className="h-4 w-4 text-[#0a1628]" />
+          </div>
+          <p className="text-3xl font-black text-[#0a1628] leading-none">{totalDistance.toFixed(0)}</p>
+          <p className="text-xs text-gray-400 mt-1.5">{t.totalKm}</p>
+        </div>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-gold/10 flex items-center justify-center">
-                <Clock className="h-5 w-5 text-gold" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-navy">{totalHours.toFixed(0)}</p>
-                <p className="text-xs text-muted-foreground">{t.totalHours}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+          <div className="w-9 h-9 rounded-xl bg-[#0a1628]/5 flex items-center justify-center mb-3">
+            <Clock className="h-4 w-4 text-[#0a1628]" />
+          </div>
+          <p className="text-3xl font-black text-[#0a1628] leading-none">{totalHours.toFixed(0)}</p>
+          <p className="text-xs text-gray-400 mt-1.5">{t.totalHours}</p>
+        </div>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-gold/10 flex items-center justify-center">
-                <Flame className="h-5 w-5 text-gold" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-navy">{avgEffort.toFixed(1)}</p>
-                <p className="text-xs text-muted-foreground">{t.avgEffortStat}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+          <div className="w-9 h-9 rounded-xl bg-[#0a1628]/5 flex items-center justify-center mb-3">
+            <Flame className="h-4 w-4 text-[#0a1628]" />
+          </div>
+          <p className="text-3xl font-black text-[#0a1628] leading-none">{avgEffort.toFixed(1)}</p>
+          <p className="text-xs text-gray-400 mt-1.5">{t.avgEffortStat}</p>
+        </div>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-gold/10 flex items-center justify-center">
-                <Trophy className="h-5 w-5 text-gold" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-navy">{totalWorkouts}</p>
-                <p className="text-xs text-muted-foreground">{t.workoutsLoggedStat}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+          <div className="w-9 h-9 rounded-xl bg-[#0a1628]/5 flex items-center justify-center mb-3">
+            <Trophy className="h-4 w-4 text-[#c9a84c]" />
+          </div>
+          <p className="text-3xl font-black text-[#0a1628] leading-none">{totalWorkouts}</p>
+          <p className="text-xs text-gray-400 mt-1.5">{t.workoutsLoggedStat}</p>
+        </div>
       </div>
 
       {/* Charts */}
       {logs.length === 0 && prs.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">
-              {t.logToSeeCharts}
-            </p>
-          </CardContent>
-        </Card>
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-12 text-center">
+          <p className="text-gray-400">{t.logToSeeCharts}</p>
+        </div>
       ) : (
-        <Tabs defaultValue="weekly" className="space-y-6">
+        <Tabs defaultValue="weekly" className="space-y-4">
           <TabsList>
             <TabsTrigger value="weekly">{t.weeklyTab}</TabsTrigger>
             <TabsTrigger value="monthly">{t.monthlyTab}</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="weekly" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">{t.weeklyDistance}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={weeklyStats}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                      <XAxis dataKey="week" tick={{ fontSize: 12 }} className="fill-muted-foreground" />
-                      <YAxis tick={{ fontSize: 12 }} className="fill-muted-foreground" />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: 'var(--card)',
-                          border: '1px solid var(--border)',
-                          borderRadius: '8px',
-                        }}
-                      />
-                      <Bar dataKey="totalDistance" fill="oklch(0.75 0.12 85)" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
+          <TabsContent value="weekly" className="space-y-4">
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
+              <p className="text-sm font-bold text-[#0a1628] mb-4">{t.weeklyDistance}</p>
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={weeklyStats}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="week" tick={{ fontSize: 11, fill: '#9ca3af' }} />
+                    <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} />
+                    <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #f0f0f0', borderRadius: '12px' }} />
+                    <Bar dataKey="totalDistance" fill="#c9a84c" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">{t.averageEffortLevel}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[250px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={weeklyStats}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                      <XAxis dataKey="week" tick={{ fontSize: 12 }} className="fill-muted-foreground" />
-                      <YAxis domain={[0, 10]} tick={{ fontSize: 12 }} className="fill-muted-foreground" />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: 'var(--card)',
-                          border: '1px solid var(--border)',
-                          borderRadius: '8px',
-                        }}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="averageEffort"
-                        stroke="oklch(0.2 0.04 250)"
-                        strokeWidth={2}
-                        dot={{ fill: 'oklch(0.2 0.04 250)', r: 4 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
+              <p className="text-sm font-bold text-[#0a1628] mb-4">{t.averageEffortLevel}</p>
+              <div className="h-[250px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={weeklyStats}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="week" tick={{ fontSize: 11, fill: '#9ca3af' }} />
+                    <YAxis domain={[0, 10]} tick={{ fontSize: 11, fill: '#9ca3af' }} />
+                    <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #f0f0f0', borderRadius: '12px' }} />
+                    <Line type="monotone" dataKey="averageEffort" stroke="#0a1628" strokeWidth={2} dot={{ fill: '#0a1628', r: 4 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
           </TabsContent>
 
-          <TabsContent value="monthly" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">{t.monthlyDistance}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={monthlyStats}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                      <XAxis dataKey="month" tick={{ fontSize: 12 }} className="fill-muted-foreground" />
-                      <YAxis tick={{ fontSize: 12 }} className="fill-muted-foreground" />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: 'var(--card)',
-                          border: '1px solid var(--border)',
-                          borderRadius: '8px',
-                        }}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="totalDistance"
-                        stroke="oklch(0.75 0.12 85)"
-                        fill="oklch(0.75 0.12 85 / 0.2)"
-                        strokeWidth={2}
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
+          <TabsContent value="monthly" className="space-y-4">
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
+              <p className="text-sm font-bold text-[#0a1628] mb-4">{t.monthlyDistance}</p>
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={monthlyStats}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} />
+                    <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} />
+                    <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #f0f0f0', borderRadius: '12px' }} />
+                    <Area type="monotone" dataKey="totalDistance" stroke="#c9a84c" fill="#c9a84c33" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">{t.prsAchievedChart}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[250px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={monthlyStats}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                      <XAxis dataKey="month" tick={{ fontSize: 12 }} className="fill-muted-foreground" />
-                      <YAxis tick={{ fontSize: 12 }} className="fill-muted-foreground" />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: 'var(--card)',
-                          border: '1px solid var(--border)',
-                          borderRadius: '8px',
-                        }}
-                      />
-                      <Bar dataKey="prsAchieved" fill="oklch(0.2 0.04 250)" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
+              <p className="text-sm font-bold text-[#0a1628] mb-4">{t.prsAchievedChart}</p>
+              <div className="h-[250px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={monthlyStats}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} />
+                    <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} />
+                    <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #f0f0f0', borderRadius: '12px' }} />
+                    <Bar dataKey="prsAchieved" fill="#0a1628" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
       )}
 
       {/* PR Timeline */}
       {prs.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">{t.recentPersonalRecords}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {prs.slice(0, 4).map((pr, index) => (
-                <div
-                  key={pr.id}
-                  className="flex items-center gap-4 p-3 rounded-lg bg-muted/50"
-                >
-                  <div className="w-8 h-8 rounded-full bg-gold/10 flex items-center justify-center text-sm font-bold text-gold">
-                    {index + 1}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-navy">{pr.event}</span>
-                      <span className="font-mono font-bold text-navy">{pr.time}</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {pr.competition || pr.location} - {new Date(pr.date).toLocaleDateString()}
-                    </p>
-                  </div>
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
+          <p className="text-sm font-bold text-[#0a1628] mb-4">{t.recentPersonalRecords}</p>
+          <div className="space-y-3">
+            {prs.slice(0, 4).map((pr, index) => (
+              <div key={pr.id} className="flex items-center gap-4 py-3 border-b border-gray-50 last:border-0">
+                <div className="w-8 h-8 rounded-full bg-[#c9a84c]/10 flex items-center justify-center text-sm font-black text-[#c9a84c] flex-shrink-0">
+                  {index + 1}
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-[#0a1628] text-sm">{pr.event}</span>
+                    <span className="font-mono font-black text-[#0a1628]">{pr.time}</span>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-0.5 truncate">
+                    {pr.competition || pr.location} · {new Date(pr.date).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   )

@@ -316,31 +316,68 @@ export function AthleteDashboard() {
   const unreadCoachMessages = coachMessages.filter(m => !m.read)
 
   return (
-    <div className="space-y-4">
-      {/* Coach messages — TOP, unread only */}
-      {unreadCoachMessages.length > 0 && (
-        <div className="rounded-2xl bg-navy overflow-hidden" dir="rtl">
-          <div className="px-4 pt-3 pb-2 flex items-center justify-between">
-            <p className="text-xs font-semibold text-gold uppercase tracking-widest">
-              הודעות מהמאמן ({unreadCoachMessages.length})
-            </p>
-          </div>
-          <div className="px-4 pb-4 space-y-2">
-            {unreadCoachMessages.map(msg => (
-              <div key={msg.id} className="rounded-xl bg-white/10 border border-white/10 p-3 space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    {msg.workoutTitle && (
-                      <p className="text-[10px] font-semibold text-gold uppercase tracking-wide mb-1">{msg.workoutTitle}</p>
-                    )}
-                    <p className="text-sm text-white leading-relaxed line-clamp-2">{msg.message}</p>
-                  </div>
-                  {msg.createdAt?.seconds && (
-                    <p className="text-[10px] text-white/40 flex-shrink-0">{format(new Date(msg.createdAt.seconds * 1000), 'd/M')}</p>
-                  )}
+    <div className="space-y-4 pb-24" dir="rtl">
+
+      {/* Hero Section — navy gradient, greeting + today workout */}
+      <div className="bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 rounded-3xl p-6">
+        <div className="flex items-start justify-between mb-3">
+          <p className="text-xl font-bold text-white">שלום, {profileName.split(' ')[0]}</p>
+          <p className="text-xs text-white/40 pt-1">{format(new Date(), 'd MMM')}</p>
+        </div>
+
+        {todayWorkouts.length > 0 ? (
+          <>
+            {todayWorkouts.slice(0, 1).map((tw) => (
+              <div key={tw.id}>
+                <p className="text-2xl font-bold text-white leading-tight mt-2 mb-3">{tw.workout.title}</p>
+                <div className="flex items-center gap-2 flex-wrap mb-4">
+                  <span className="bg-[#c9a84c] text-[#0a1628] rounded-full px-3 py-1 text-xs font-bold">
+                    {workoutTypeLabels[tw.workout.type as WorkoutType] || tw.workout.type}
+                  </span>
+                  {tw.workout.distance && <span className="text-sm text-white/60">{tw.workout.distance} ק"מ</span>}
+                  {tw.workout.duration && <span className="text-sm text-white/60">{tw.workout.duration} דק'</span>}
                 </div>
+                <Link href={`/athlete/schedule?date=${tw.scheduledDate}&workoutId=${tw.id}`}>
+                  <button className={cn(
+                    'w-full h-12 rounded-2xl font-bold text-sm active:scale-95 transition-all',
+                    tw.status === 'completed'
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                      : 'bg-[#c9a84c] text-[#0a1628]'
+                  )}>
+                    {tw.status === 'completed' ? 'צפה בפרטים' : 'פתח אימון'}
+                  </button>
+                </Link>
+              </div>
+            ))}
+            {todayWorkouts.length > 1 && (
+              <p className="text-xs text-white/40 text-center mt-2">+{todayWorkouts.length - 1} אימונים נוספים</p>
+            )}
+          </>
+        ) : (
+          <div className="mt-2">
+            <p className="text-xl font-bold text-white">יום מנוחה</p>
+            <p className="text-sm text-white/50 mt-1">תתאושש ותתכונן למחר</p>
+          </div>
+        )}
+      </div>
+
+      {/* New athlete onboarding */}
+      {isNewAthlete && <NewAthleteRedirect />}
+
+      {/* Coach messages — gold left-border cards */}
+      {unreadCoachMessages.length > 0 && (
+        <div className="space-y-3">
+          {unreadCoachMessages.map(msg => (
+            <div key={msg.id} className="bg-white rounded-3xl shadow-sm border border-gray-100 border-l-4 border-l-[#c9a84c] p-5">
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-[#c9a84c] mb-2">הודעה מהמאמן</p>
+              {msg.workoutTitle && <p className="text-xs text-gray-400 mb-2">{msg.workoutTitle}</p>}
+              <p className="text-sm text-[#0a1628] leading-relaxed">{msg.message}</p>
+              <div className="flex items-center justify-between mt-3">
+                {msg.createdAt?.seconds && (
+                  <p className="text-xs text-gray-400">{format(new Date(msg.createdAt.seconds * 1000), 'd/M/yyyy')}</p>
+                )}
                 <button
-                  className="text-[11px] font-semibold text-gold hover:text-gold/80 transition-colors"
+                  className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
                   onClick={async () => {
                     try {
                       await updateDoc(doc(db, 'coachMessages', msg.id), { read: true })
@@ -348,180 +385,122 @@ export function AthleteDashboard() {
                     } catch {}
                   }}
                 >
-                  קרא וסמן כנקרא
+                  סמן כנקרא
                 </button>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
       )}
-
-      {/* Header */}
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl md:text-3xl font-serif font-bold text-navy">
-          {t.welcomeBack}, {profileName.split(' ')[0]}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {format(new Date(), 'd MMMM yyyy')}
-        </p>
-        <p className="text-sm text-muted-foreground font-medium tracking-wide">
-          רצים עם הלב, חוגגים{' '}
-          <span className="text-gold font-bold text-base">תחיים</span>
-        </p>
-      </div>
-
-      {/* New athlete onboarding — redirect to profile */}
-      {isNewAthlete && <NewAthleteRedirect />}
 
       {/* Pending Strava Feedback */}
       {pendingFeedbackLogs.length > 0 && (
         <Link href="/athlete/schedule">
-          <div className="rounded-2xl bg-white border border-border shadow-sm p-4 flex items-center justify-between gap-4 hover:shadow-md transition-all" dir="rtl">
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex items-center justify-between gap-4 active:scale-[0.98] transition-transform">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-[#FC4C02]/10 flex items-center justify-center flex-shrink-0">
+              <div className="h-11 w-11 rounded-2xl bg-[#FC4C02]/10 flex items-center justify-center flex-shrink-0">
                 <TrendingUp className="h-5 w-5 text-[#FC4C02]" />
               </div>
               <div>
-                <p className="text-sm font-bold text-navy">
-                  {pendingFeedbackLogs.length} אימונים מחכים למשוב
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">הוסף מאמץ והערה למאמן</p>
+                <p className="text-sm font-bold text-[#0a1628]">{pendingFeedbackLogs.length} אימונים מחכים למשוב</p>
+                <p className="text-xs text-gray-500 mt-0.5">הוסף מאמץ והערה למאמן</p>
               </div>
             </div>
-            <ArrowUpRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <ArrowUpRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
           </div>
         </Link>
       )}
 
-      {/* Today's Workouts — hero card */}
-      {todayWorkouts.length > 0 && (
-        <div className="rounded-3xl overflow-hidden shadow-md bg-gradient-to-br from-navy to-navy/90">
-          <div className="px-5 pt-5 pb-2 flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wider text-gold/80">
-              {t.todaysWorkoutTitle}
+      {/* Weekly Progress Card */}
+      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-4">השבוע שלך</p>
+        <div className="w-full bg-gray-100 rounded-full h-2 mb-3">
+          <div
+            className="bg-[#0a1628] rounded-full h-2 transition-all duration-500"
+            style={{ width: `${weeklyProgress}%` }}
+          />
+        </div>
+        <p className="text-sm text-gray-500 mb-4">{completedThisWeek} מתוך {totalThisWeek} אימונים הושלמו</p>
+        <div className="grid grid-cols-3 gap-4 border-t border-gray-50 pt-4">
+          <div className="text-center">
+            <p className="text-3xl font-black text-[#0a1628] leading-none">{totalDistance.toFixed(0)}</p>
+            <p className="text-xs text-gray-400 mt-1.5">ק"מ בוצע</p>
+          </div>
+          <div className="text-center border-x border-gray-100">
+            <p className="text-3xl font-black text-[#0a1628] leading-none">
+              {effortCount > 0 ? avgEffortNumeric.toFixed(1) : '—'}
             </p>
-            {todayWorkouts.length > 1 && (
-              <span className="text-xs text-white/60 font-medium">{todayWorkouts.length} אימונים</span>
-            )}
+            <p className="text-xs text-gray-400 mt-1.5">מאמץ ממוצע</p>
           </div>
-          <div className="px-5 pb-5 space-y-3">
-            {todayWorkouts.map((todayWorkout) => (
-              <Link
-                key={todayWorkout.id}
-                href={`/athlete/schedule?date=${todayWorkout.scheduledDate}&workoutId=${todayWorkout.id}`}
-                className="block"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-white text-lg leading-tight truncate">{todayWorkout.workout.title}</p>
-                    <div className="flex items-center gap-2 mt-1 flex-wrap">
-                      {todayWorkout.workout.duration && (
-                        <span className="text-xs text-white/60">{todayWorkout.workout.duration} {t.min}</span>
-                      )}
-                      {todayWorkout.workout.distance && (
-                        <span className="text-xs text-white/60">· {todayWorkout.workout.distance} {t.km}</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className={cn(
-                    'flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold',
-                    todayWorkout.status === 'completed'
-                      ? 'bg-emerald-400/20 text-emerald-300 border border-emerald-400/30'
-                      : 'bg-gold text-navy'
-                  )}>
-                    {todayWorkout.status === 'completed' ? t.doneBadge ?? 'הושלם' : t.pendingBadge ?? 'התחל'}
-                  </div>
-                </div>
-              </Link>
-            ))}
+          <div className="text-center">
+            <p className="text-3xl font-black text-[#0a1628] leading-none">{completedThisWeek}</p>
+            <p className="text-xs text-gray-400 mt-1.5">אימונים</p>
           </div>
+        </div>
+      </div>
+
+      {/* Coach Note */}
+      {latestCoachNote && (
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 border-l-4 border-l-[#0a1628] p-5">
+          {latestCoachNote.nextWeekFocus && (
+            <>
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-2">פוקוס שבוע הבא</p>
+              <p className="text-sm text-[#0a1628] leading-relaxed mb-4">{latestCoachNote.nextWeekFocus}</p>
+              <div className="border-t border-gray-100 mb-4" />
+            </>
+          )}
+          {latestCoachNote.coachNote && (
+            <>
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-2">הערת המאמן</p>
+              <p className="text-base text-[#0a1628] font-medium leading-relaxed italic">{latestCoachNote.coachNote}</p>
+            </>
+          )}
+          {latestCoachNote.weekStart && (
+            <p className="text-xs text-gray-400 mt-3">{latestCoachNote.weekStart} – {latestCoachNote.weekEnd}</p>
+          )}
         </div>
       )}
 
-      {/* Stats Row */}
+      {/* Quick Nav 2×2 Grid */}
       <div className="grid grid-cols-2 gap-3">
-        <Link href="/athlete/stats" className="flex items-center gap-4 p-5 rounded-2xl border border-border bg-card hover:border-gold/40 hover:shadow-md transition-all group shadow-sm">
-          <div className="h-11 w-11 rounded-2xl bg-orange-50 flex items-center justify-center flex-shrink-0">
-            <Flame className="h-5 w-5 text-orange-500" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-navy leading-none">{completedThisWeek}</p>
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mt-1">אימונים השבוע</p>
+        <Link href="/athlete/schedule" className="block">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col items-center gap-2.5 active:scale-95 transition-transform min-h-[90px] justify-center">
+            <div className="w-10 h-10 rounded-xl bg-[#0a1628]/5 flex items-center justify-center">
+              <Calendar className="h-5 w-5 text-[#0a1628]" />
+            </div>
+            <p className="text-xs font-semibold text-[#0a1628] text-center">לוח זמנים</p>
           </div>
         </Link>
-
-        <Link href="/athlete/schedule" className="flex items-center gap-4 p-5 rounded-2xl border border-border bg-card hover:border-gold/40 hover:shadow-md transition-all group shadow-sm">
-          <div className="h-11 w-11 rounded-2xl bg-gold/10 flex items-center justify-center flex-shrink-0">
-            <Activity className="h-5 w-5 text-gold" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-navy leading-none">{totalDistance.toFixed(1)}</p>
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mt-1">ק"מ השבוע</p>
+        <Link href="/athlete/profile" className="block">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col items-center gap-2.5 active:scale-95 transition-transform min-h-[90px] justify-center">
+            <div className="w-10 h-10 rounded-xl bg-[#0a1628]/5 flex items-center justify-center">
+              <UserPlus className="h-5 w-5 text-[#0a1628]" />
+            </div>
+            <p className="text-xs font-semibold text-[#0a1628] text-center">פרופיל</p>
           </div>
         </Link>
-      </div>
-
-      {/* Weekly Summary Card */}
-      {latestCoachNote && (
-        <Card className="border-gold/30 overflow-hidden rounded-2xl shadow-sm">
-          <CardContent className="p-5">
-            <div className="rounded-xl bg-navy p-4 space-y-3" dir="rtl">
-              {latestCoachNote.nextWeekFocus && (
-                <>
-                  <div>
-                    <p className="text-[10px] font-semibold text-gold uppercase tracking-widest mb-1">פוקוס שבוע הבא</p>
-                    <p className="text-sm text-white leading-relaxed">{latestCoachNote.nextWeekFocus}</p>
-                  </div>
-                  <div className="border-t border-white/10"/>
-                </>
-              )}
-              {latestCoachNote.coachNote && (
-                <div>
-                  <p className="text-[10px] font-semibold text-gold uppercase tracking-widest mb-1">הערת המאמן</p>
-                  <p className="text-base text-white leading-relaxed italic">{latestCoachNote.coachNote}</p>
-                </div>
-              )}
-              {latestCoachNote.weekStart && (
-                <p className="text-[10px] text-white/30 pt-1">{latestCoachNote.weekStart} – {latestCoachNote.weekEnd}</p>
-              )}
+        <Link href="/athlete/stats" className="block">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col items-center gap-2.5 active:scale-95 transition-transform min-h-[90px] justify-center">
+            <div className="w-10 h-10 rounded-xl bg-[#0a1628]/5 flex items-center justify-center">
+              <Activity className="h-5 w-5 text-[#0a1628]" />
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Quick Nav Buttons */}
-      <div className="grid grid-cols-1 gap-3">
-        <Link href="/athlete/schedule" className="flex items-center justify-between p-5 rounded-2xl border border-border bg-card hover:border-gold/40 hover:bg-gold/5 transition-all group shadow-sm">
-          <div className="flex items-center gap-4">
-            <div className="h-11 w-11 rounded-2xl bg-gold/10 flex items-center justify-center">
-              <Calendar className="h-5 w-5 text-gold" />
-            </div>
-            <div>
-              <p className="font-bold text-navy text-sm">{t.scheduleTitle ?? 'לוח זמנים'}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">תצוגה שבועית וחודשית</p>
-            </div>
+            <p className="text-xs font-semibold text-[#0a1628] text-center">סטטיסטיקות</p>
           </div>
-          <ArrowUpRight className="h-4 w-4 text-muted-foreground group-hover:text-gold transition-colors" />
         </Link>
-
-        <Link href="/athlete/chat" className="flex items-center justify-between p-5 rounded-2xl border border-border bg-card hover:border-gold/40 hover:bg-gold/5 transition-all group shadow-sm relative">
-          <div className="flex items-center gap-4">
-            <div className="h-11 w-11 rounded-2xl bg-gold/10 flex items-center justify-center relative">
-              <MessageCircle className="h-5 w-5 text-gold" />
+        <Link href="/athlete/chat" className="block">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col items-center gap-2.5 active:scale-95 transition-transform min-h-[90px] justify-center">
+            <div className="w-10 h-10 rounded-xl bg-[#0a1628]/5 flex items-center justify-center relative">
+              <MessageCircle className="h-5 w-5 text-[#0a1628]" />
               {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">{unreadCount > 9 ? '9+' : unreadCount}</span>
               )}
             </div>
-            <div>
-              <p className="font-bold text-navy text-sm">{t.chat ?? 'צ׳אט עם המאמן'}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">שאל שאלות, קבל משוב</p>
-            </div>
+            <p className="text-xs font-semibold text-[#0a1628] text-center">צ׳אט</p>
           </div>
-          <ArrowUpRight className="h-4 w-4 text-muted-foreground group-hover:text-gold transition-colors" />
         </Link>
       </div>
 
-        </div>
+    </div>
   )
 }
 

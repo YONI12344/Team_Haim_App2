@@ -606,11 +606,10 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
 
 
   return (
-    <div className="space-y-4 pb-8">
+    <div className="space-y-4 pb-24" dir="rtl">
 
       {/* Calendar */}
-      <Card>
-        <CardContent className="pt-4">
+      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-4">
           {/* Nav + Toggle */}
           <div className="flex items-center justify-between mb-4">
             <Button variant="ghost" size="icon" onClick={() => setCurrentDate(d => viewMode==='day' ? new Date(d.getTime()-86400000) : viewMode==='week' ? subWeeks(d,1) : subMonths(d,1))}>
@@ -684,19 +683,17 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                               </div>
                             </button>
                             {msg && (
-                              <div className="rounded-xl border-r-4 border-r-navy border border-navy/10 bg-navy/5 px-3 py-2.5 space-y-1" dir="rtl">
+                              <div className={cn(
+                                'rounded-xl border bg-white px-3 py-2.5 space-y-1',
+                                !msg.read ? 'border-t-2 border-t-[#c9a84c] border-gray-100' : 'border-gray-100'
+                              )} dir="rtl">
                                 <div className="flex items-center justify-between gap-2">
-                                  <div className="flex items-center gap-2">
-                                    <p className="text-[10px] font-semibold text-navy uppercase tracking-wide">הערת מאמן</p>
-                                    {!msg.read && (
-                                      <span className="text-[9px] font-bold bg-gold text-navy px-1.5 py-0.5 rounded-full">חדש</span>
-                                    )}
-                                  </div>
+                                  <p className="text-[10px] font-semibold text-[#c9a84c] uppercase tracking-wide">הערת מאמן</p>
                                   {msg.createdAt?.seconds && (
-                                    <p className="text-[9px] text-muted-foreground">{format(new Date(msg.createdAt.seconds * 1000), 'd/M/yyyy')}</p>
+                                    <p className="text-[9px] text-gray-400">{format(new Date(msg.createdAt.seconds * 1000), 'd/M/yyyy')}</p>
                                   )}
                                 </div>
-                                <p className="text-sm text-navy leading-relaxed">{msg.message}</p>
+                                <p className="text-sm text-[#0a1628] leading-relaxed">{msg.message}</p>
                                 {!msg.read && (
                                   <button
                                     onClick={async () => {
@@ -705,7 +702,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                                         setCoachMessages(prev => prev.map(m => m.id === msg.id ? { ...m, read: true } : m))
                                       } catch {}
                                     }}
-                                    className="text-[10px] text-navy/60 hover:text-navy underline underline-offset-2 transition-colors"
+                                    className="text-[10px] text-gray-400 hover:text-gray-600 underline underline-offset-2 transition-colors"
                                   >
                                     סמן כנקרא
                                   </button>
@@ -994,54 +991,49 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
               )}
             </div>
           )}
-        </CardContent>
-      </Card>
+      </div>
 
       {/* Bottom Info Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {/* שלב העונה */}
-        {journey && <Card className="border-navy/20">
-          <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">שלב העונה</p>
-            {journey ? (
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Badge className="bg-navy/10 text-navy border-navy/20">{journey.stageName}</Badge>
-                  <span className="text-sm font-semibold text-navy">שבוע {journey.weekInStage}/{journey.totalWeeksInStage}</span>
-                  <Badge variant="outline" className={cn('text-xs', journey.isOffWeek ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-emerald-100 text-emerald-700 border-emerald-200')}>
-                    {journey.isOffWeek ? 'שבוע מנוחה' : 'שבוע אימון'}
-                  </Badge>
-                </div>
-                {journey.goalRaceEvent && (
-                  <p className="text-xs text-muted-foreground">{journey.goalRaceEvent} · {format(parseISO(journey.goalRaceDate),'MMM d, yyyy')}</p>
-                )}
+        {journey && (
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-3">שלב העונה</p>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-bold bg-[#0a1628]/10 text-[#0a1628] px-3 py-1 rounded-full">{journey.stageName}</span>
+                <span className="text-sm font-semibold text-[#0a1628]">שבוע {journey.weekInStage}/{journey.totalWeeksInStage}</span>
+                <span className={cn('text-xs font-bold px-3 py-1 rounded-full', journey.isOffWeek ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700')}>
+                  {journey.isOffWeek ? 'שבוע מנוחה' : 'שבוע אימון'}
+                </span>
               </div>
-            ) : null}
-          </CardContent>
-        </Card>}
+              {journey.goalRaceEvent && (
+                <p className="text-xs text-gray-500">{journey.goalRaceEvent} · {format(parseISO(journey.goalRaceDate),'MMM d, yyyy')}</p>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ק"מ השבוע */}
-        <Card className="border-gold/30">
-          <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">ק"מ השבוע</p>
-            {athlete?.weeklyKmRange ? (
-              <div className="space-y-2">
-                <div className="flex items-end gap-2 flex-wrap">
-                  <span className="text-2xl font-bold text-navy">{thisWeekKmActual}</span>
-                  <span className="text-sm text-muted-foreground mb-0.5">/ {athlete.weeklyKmRange.min}–{athlete.weeklyKmRange.max} ק"מ</span>
-                </div>
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div className={cn('h-2 rounded-full transition-all', thisWeekKmActual >= athlete.weeklyKmRange.min ? 'bg-emerald-500' : 'bg-gold')}
-                    style={{width:`${Math.min(100,(thisWeekKmActual/athlete.weeklyKmRange.max)*100)}%`}}/>
-                </div>
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{thisWeekKmActual >= athlete.weeklyKmRange.min ? 'יעד השבוע הושג!' : `נותרו ${Math.max(0,athlete.weeklyKmRange.min-thisWeekKmActual)} ק"מ`}</span>
-                  <span className="text-navy/60">מתוכנן: {thisWeekKmPlanned} ק"מ</span>
-                </div>
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-3">ק"מ השבוע</p>
+          {athlete?.weeklyKmRange ? (
+            <div className="space-y-3">
+              <div className="flex items-end gap-2 flex-wrap">
+                <span className="text-3xl font-black text-[#0a1628]">{thisWeekKmActual}</span>
+                <span className="text-sm text-gray-400 mb-1">/ {athlete.weeklyKmRange.min}–{athlete.weeklyKmRange.max} ק"מ</span>
               </div>
-            ) : <p className="text-sm text-muted-foreground">לא הוגדר יעד ק"מ</p>}
-          </CardContent>
-        </Card>
+              <div className="w-full bg-gray-100 rounded-full h-2">
+                <div className={cn('h-2 rounded-full transition-all', thisWeekKmActual >= athlete.weeklyKmRange.min ? 'bg-emerald-500' : 'bg-[#c9a84c]')}
+                  style={{width:`${Math.min(100,(thisWeekKmActual/athlete.weeklyKmRange.max)*100)}%`}}/>
+              </div>
+              <div className="flex items-center justify-between text-xs text-gray-500">
+                <span>{thisWeekKmActual >= athlete.weeklyKmRange.min ? 'יעד השבוע הושג!' : `נותרו ${Math.max(0,athlete.weeklyKmRange.min-thisWeekKmActual)} ק"מ`}</span>
+                <span>מתוכנן: {thisWeekKmPlanned} ק"מ</span>
+              </div>
+            </div>
+          ) : <p className="text-sm text-gray-500">לא הוגדר יעד ק"מ</p>}
+        </div>
       </div>
     </div>
   )

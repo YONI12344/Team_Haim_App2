@@ -598,14 +598,14 @@ export function AthleteProfile() {
   const avatarUrl = photoURL || firebaseUser?.photoURL || undefined
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 pb-24" dir="rtl">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
         <div>
-          <h1 className="font-serif text-2xl md:text-3xl font-semibold text-navy">
+          <h1 className="font-serif text-2xl md:text-3xl font-semibold text-[#0a1628]">
             {t.myProfile}
           </h1>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-gray-500 text-sm">
             {t.yourAthleticProfile}
           </p>
         </div>
@@ -658,8 +658,8 @@ export function AthleteProfile() {
       )}
 
       {/* Profile Card */}
-      <Card className="rounded-2xl">
-        <CardContent className="pt-6">
+      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
+        <div>
           <div className="flex flex-col md:flex-row items-start gap-6">
             <div className="relative">
               {/*
@@ -1038,8 +1038,8 @@ export function AthleteProfile() {
               )}
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Training zones */}
       <TrainingZonesCard
@@ -1059,14 +1059,12 @@ export function AthleteProfile() {
 
         {/* Personal Records */}
         <TabsContent value="prs" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Trophy className="h-5 w-5 text-gold" />
-                {t.personalRecordsTitle}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
+            <div className="flex items-center gap-2 mb-5">
+              <Trophy className="h-5 w-5 text-[#c9a84c]" />
+              <p className="font-bold text-[#0a1628]">{t.personalRecordsTitle}</p>
+            </div>
+            <div className="space-y-5">
               <RecordEditor
                 kind="pr"
                 records={personalRecords}
@@ -1110,20 +1108,18 @@ export function AthleteProfile() {
                   ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </TabsContent>
 
         {/* Season Bests */}
         <TabsContent value="season" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Target className="h-5 w-5 text-gold" />
-                {new Date().getFullYear()} {t.seasonBestsTitle}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
+            <div className="flex items-center gap-2 mb-5">
+              <Target className="h-5 w-5 text-[#c9a84c]" />
+              <p className="font-bold text-[#0a1628]">{new Date().getFullYear()} {t.seasonBestsTitle}</p>
+            </div>
+            <div className="space-y-5">
               <RecordEditor
                 kind="sb"
                 records={seasonBests}
@@ -1154,24 +1150,22 @@ export function AthleteProfile() {
                   ))}
                 </div>
               ) : (
-                <p className="text-muted-foreground text-center py-8">
+                <p className="text-gray-400 text-center py-8">
                   {t.noSeasonBestsYet}
                 </p>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </TabsContent>
 
         {/* Training Paces */}
         <TabsContent value="paces" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-gold" />
-                {t.trainingPacesTitle}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
+            <div className="flex items-center gap-2 mb-5">
+              <Clock className="h-5 w-5 text-[#c9a84c]" />
+              <p className="font-bold text-[#0a1628]">{t.trainingPacesTitle}</p>
+            </div>
+            <div className="space-y-5">
               <PaceEditor
                 paces={trainingPaces}
                 onAdd={upsertPace}
@@ -1215,20 +1209,18 @@ export function AthleteProfile() {
                   ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </TabsContent>
 
         {/* Goals */}
         <TabsContent value="goals" id="goals" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Target className="h-5 w-5 text-gold" />
-                {t.goalsTitle}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
+            <div className="flex items-center gap-2 mb-5">
+              <Target className="h-5 w-5 text-[#c9a84c]" />
+              <p className="font-bold text-[#0a1628]">{t.goalsTitle}</p>
+            </div>
+            <div>
               {goals.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">{t.noGoalsYet}</p>
               ) : (
@@ -1278,8 +1270,8 @@ export function AthleteProfile() {
                   ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
