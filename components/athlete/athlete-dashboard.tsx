@@ -323,17 +323,19 @@ export function AthleteDashboard() {
       {/* Pending Strava Feedback */}
       {pendingFeedbackLogs.length > 0 && (
         <Link href="/athlete/schedule">
-          <div className="rounded-xl bg-amber-50 border border-amber-300 p-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-amber-100 transition-colors">
-            <div className="flex items-center gap-2.5">
-              <span className="text-xl">🚴</span>
+          <div className="rounded-2xl bg-amber-50 border border-amber-200 shadow-sm p-5 flex items-center justify-between gap-4 hover:shadow-md transition-all">
+            <div className="flex items-center gap-4">
+              <div className="h-11 w-11 rounded-2xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+                <TrendingUp className="h-5 w-5 text-amber-600" />
+              </div>
               <div>
-                <p className="text-sm font-bold text-amber-800">
+                <p className="text-sm font-bold text-amber-900">
                   {pendingFeedbackLogs.length} אימונים מחכים למשוב
                 </p>
-                <p className="text-xs text-amber-600">לחץ להוסיף מאמץ והערה</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-amber-600 mt-0.5">לחץ להוסיף מאמץ והערה</p>
               </div>
             </div>
-            <span className="text-amber-500 text-lg">←</span>
+            <ArrowUpRight className="h-5 w-5 text-amber-500 flex-shrink-0" />
           </div>
         </Link>
       )}

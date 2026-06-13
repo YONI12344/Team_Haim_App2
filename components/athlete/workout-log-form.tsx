@@ -61,7 +61,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
       )
       const snap = await getDocs(q)
       if (snap.empty) {
-        alert('No Strava activity found for this date. Sync Strava first from your profile.')
+        toast.error('לא נמצאה פעילות Strava לתאריך זה. סנכרן Strava תחילה מהפרופיל שלך.')
         return
       }
       const activities = snap.docs.map(d => d.data())
@@ -71,7 +71,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
       setStravaFilled(true)
     } catch (err) {
       console.error('Strava fill error:', err)
-      alert('Failed to fill from Strava')
+      toast.error('שגיאה בטעינת נתוני Strava')
     } finally {
       setStravaFilling(false)
     }
