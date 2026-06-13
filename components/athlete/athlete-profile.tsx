@@ -647,14 +647,10 @@ export function AthleteProfile() {
       </div>
 
       {!hasProfile && !editing && (
-        <Card className="rounded-2xl border-gold/30 bg-gold/5">
-          <CardContent className="pt-6">
-            <p className="text-navy font-medium">{t.completeYourProfile}</p>
-            <p className="text-muted-foreground text-sm mt-1">
-              {t.completeYourProfileDesc}
-            </p>
-          </CardContent>
-        </Card>
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 border-l-4 border-l-[#c9a84c] p-5">
+          <p className="text-[#0a1628] font-medium">{t.completeYourProfile}</p>
+          <p className="text-gray-500 text-sm mt-1">{t.completeYourProfileDesc}</p>
+        </div>
       )}
 
       {/* Profile Card */}
