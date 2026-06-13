@@ -671,55 +671,36 @@ CRITICAL RULES:
       const weekEnd = format(endOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
       const weekWorkouts = assignedWorkouts.filter(w => w.scheduledDate >= weekStart && w.scheduledDate <= weekEnd)
 
-      const completedWorkouts = weekWorkouts.filter(w => w.status === 'completed')
-      const skippedWorkouts = weekWorkouts.filter(w => w.status === 'skipped')
-      const totalPlannedKm = weekWorkouts.reduce((s, w) => s + (w.workout?.distance || 0), 0)
-      const totalActualKm = weekWorkouts.reduce((s, w) => {
+      const enrichedWorkouts = weekWorkouts.map(w => {
         const log = logs.find(l => l.assignedWorkoutId === w.id)
-        return s + (log?.actualDistance || w.workout?.distance || 0)
-      }, 0)
-      const avgEffort = completedWorkouts.length > 0
-        ? (completedWorkouts.reduce((s, w) => {
-            const log = logs.find(l => l.assignedWorkoutId === w.id)
-            return s + (log?.effort || 0)
-          }, 0) / completedWorkouts.length).toFixed(1)
-        : 'לא דווח'
-
-      const workoutDetails = weekWorkouts.map(w => {
-        const log = logs.find(l => l.assignedWorkoutId === w.id)
-        const status = w.status === 'completed' ? 'הושלם' : w.status === 'skipped' ? 'דולג' : 'מתוכנן'
-        return `- ${w.scheduledDate}: ${w.workout?.title || 'אימון'} (${status})${log ? ` | ${log.actualDistance || w.workout?.distance || 0} ק״מ | מאמץ: ${log.effort || 'לא דווח'}/10${log.comment ? ` | הערת ספורטאי: "${log.comment}"` : ''}` : ''}`
-      }).join('\n')
+        return {
+          scheduledDate: w.scheduledDate,
+          status: w.status,
+          title: w.workout?.title || 'אימון',
+          distance: w.workout?.distance || 0,
+          actualDistance: log?.actualDistance ?? null,
+          effort: log?.effort ?? null,
+          comment: log?.comment || null,
+        }
+      })
 
       const nextWeekWorkouts = assignedWorkouts
         .filter(w => w.scheduledDate > weekEnd && w.scheduledDate <= format(addDays(new Date(weekEnd), 7), 'yyyy-MM-dd'))
         .sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate))
-        .map(w => `- ${w.scheduledDate}: ${w.workout?.title || 'אימון'} (${w.workout?.distance || 0} ק״מ)`)
-        .join('\n')
-
-      const coachNotes = weeklyCoachNote
-      const userMessage = `ספורטאי: ${athlete.name}
-שבוע: ${weekStart} עד ${weekEnd}
-
-סיכום השבוע:
-- אימונים שהושלמו: ${completedWorkouts.length}/${weekWorkouts.length}
-- אימונים שדולגו: ${skippedWorkouts.length}
-- ק״מ מתוכנן: ${totalPlannedKm} ק״מ
-- ק״מ בפועל: ${totalActualKm} ק״מ
-- מאמץ ממוצע: ${avgEffort}/10
-
-פירוט אימונים השבוע:
-${workoutDetails || 'אין נתונים'}
-
-תוכנית שבוע הבא:
-${nextWeekWorkouts || 'אין תוכנית עדיין'}
-
-${coachNotes ? `הערות המאמן: ${coachNotes}` : ''}`
+        .map(w => ({ scheduledDate: w.scheduledDate, title: w.workout?.title || 'אימון', distance: w.workout?.distance || 0 }))
 
       const res = await fetch('/api/weekly-summary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userMessage }),
+        body: JSON.stringify({
+          athleteName: athlete.name,
+          athleteId,
+          weekStartDate: weekStart,
+          weekEndDate: weekEnd,
+          weekWorkouts: enrichedWorkouts,
+          nextWeekWorkouts,
+          coachNotes: weeklyCoachNote,
+        }),
       })
       const data = await res.json()
       if (data.error) throw new Error(data.error)
