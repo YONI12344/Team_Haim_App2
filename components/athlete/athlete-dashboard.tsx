@@ -411,21 +411,62 @@ export function AthleteDashboard() {
         </Link>
       </div>
 
-      {/* Coach Note Card */}
+      {/* Weekly Summary Card */}
       {latestCoachNote && (
-        <Card className="border-gold/30 bg-gradient-to-br from-navy to-navy/90 text-white overflow-hidden">
-          <CardContent className="p-4" dir="rtl">
-            <p className="text-[10px] font-semibold text-gold/80 uppercase tracking-widest mb-2">הערת המאמן</p>
-            <p className="text-base font-medium leading-relaxed mb-3">{latestCoachNote.coachNote}</p>
-            {latestCoachNote.nextWeekFocus && (
-              <div className="bg-white/10 rounded-lg px-3 py-2">
-                <p className="text-[10px] text-gold font-semibold mb-0.5">פוקוס השבוע</p>
-                <p className="text-xs text-white/90">{latestCoachNote.nextWeekFocus}</p>
-              </div>
-            )}
-            {latestCoachNote.weekStart && (
-              <p className="text-[10px] text-white/40 mt-2">{latestCoachNote.weekStart} – {latestCoachNote.weekEnd}</p>
-            )}
+        <Card className="border-gold/30 overflow-hidden">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <div className="flex items-center justify-between" dir="rtl">
+              <CardTitle className="text-sm font-bold text-navy">סיכום שבועי</CardTitle>
+              {latestCoachNote.weekStart && (
+                <span className="text-[11px] text-muted-foreground">{latestCoachNote.weekStart} – {latestCoachNote.weekEnd}</span>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            <div className="rounded-xl bg-navy p-4 space-y-3" dir="rtl">
+              {latestCoachNote.summary && (
+                <>
+                  <div>
+                    <p className="text-[10px] font-semibold text-gold uppercase tracking-widest mb-1">סיכום השבוע</p>
+                    <p className="text-xs text-white leading-relaxed">{latestCoachNote.summary}</p>
+                  </div>
+                  <div className="border-t border-white/10"/>
+                </>
+              )}
+              {latestCoachNote.achievements && (
+                <>
+                  <div>
+                    <p className="text-[10px] font-semibold text-gold uppercase tracking-widest mb-1">הישגים</p>
+                    <p className="text-xs text-white leading-relaxed">{latestCoachNote.achievements}</p>
+                  </div>
+                  <div className="border-t border-white/10"/>
+                </>
+              )}
+              {latestCoachNote.improvements && (
+                <>
+                  <div>
+                    <p className="text-[10px] font-semibold text-gold uppercase tracking-widest mb-1">נקודות לשיפור</p>
+                    <p className="text-xs text-white leading-relaxed">{latestCoachNote.improvements}</p>
+                  </div>
+                  <div className="border-t border-white/10"/>
+                </>
+              )}
+              {latestCoachNote.nextWeekFocus && (
+                <>
+                  <div>
+                    <p className="text-[10px] font-semibold text-gold uppercase tracking-widest mb-1">פוקוס שבוע הבא</p>
+                    <p className="text-xs text-white leading-relaxed">{latestCoachNote.nextWeekFocus}</p>
+                  </div>
+                  <div className="border-t border-white/10"/>
+                </>
+              )}
+              {latestCoachNote.coachNote && (
+                <div>
+                  <p className="text-[10px] font-semibold text-gold uppercase tracking-widest mb-1">הערת המאמן</p>
+                  <p className="text-sm text-white leading-relaxed italic">{latestCoachNote.coachNote}</p>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}
