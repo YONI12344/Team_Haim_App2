@@ -5,7 +5,8 @@ const config: CapacitorConfig = {
   appName: 'Team Haim',
   webDir: 'out',
   server: {
-    androidScheme: 'https',
+    url: 'https://team-haim-app2.vercel.app',
+    cleartext: false,
   },
 };
 
