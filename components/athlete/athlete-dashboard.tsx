@@ -338,83 +338,78 @@ export function AthleteDashboard() {
         </Link>
       )}
 
-      {/* Today's Workouts */}
+      {/* Today's Workouts — hero card */}
       {todayWorkouts.length > 0 && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-1 pt-3">
-            <CardTitle className="text-lg font-medium">{t.todaysWorkoutTitle}</CardTitle>
+        <div className="rounded-3xl overflow-hidden shadow-md bg-gradient-to-br from-navy to-navy/90">
+          <div className="px-5 pt-5 pb-2 flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-wider text-gold/80">
+              {t.todaysWorkoutTitle}
+            </p>
             {todayWorkouts.length > 1 && (
-              <span className="text-sm text-gold font-medium">({todayWorkouts.length})</span>
+              <span className="text-xs text-white/60 font-medium">{todayWorkouts.length} אימונים</span>
             )}
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {todayWorkouts.map((todayWorkout) => (
-                <Link
-                  key={todayWorkout.id}
-                  href={`/athlete/schedule?date=${todayWorkout.scheduledDate}&workoutId=${todayWorkout.id}`}
-                  className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-lg bg-gold/10 flex items-center justify-center flex-shrink-0">
-                      <Dumbbell className="h-4 w-4 text-gold" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-navy text-sm">{todayWorkout.workout.title}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        {todayWorkout.workout.duration && (
-                          <p className="text-xs text-muted-foreground">{todayWorkout.workout.duration} {t.min}</p>
-                        )}
-                        {todayWorkout.workout.distance && (
-                          <p className="text-xs text-muted-foreground">· {todayWorkout.workout.distance} {t.km}</p>
-                        )}
-                      </div>
+          </div>
+          <div className="px-5 pb-5 space-y-3">
+            {todayWorkouts.map((todayWorkout) => (
+              <Link
+                key={todayWorkout.id}
+                href={`/athlete/schedule?date=${todayWorkout.scheduledDate}&workoutId=${todayWorkout.id}`}
+                className="block"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-white text-lg leading-tight truncate">{todayWorkout.workout.title}</p>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      {todayWorkout.workout.duration && (
+                        <span className="text-xs text-white/60">{todayWorkout.workout.duration} {t.min}</span>
+                      )}
+                      {todayWorkout.workout.distance && (
+                        <span className="text-xs text-white/60">· {todayWorkout.workout.distance} {t.km}</span>
+                      )}
                     </div>
                   </div>
-                  <Badge
-                    variant="outline"
-                    className={
-                      todayWorkout.status === 'completed'
-                        ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
-                        : 'bg-amber-100 text-amber-700 border-amber-200'
-                    }
-                  >
-                    {todayWorkout.status === 'completed' ? t.doneBadge ?? 'Done' : t.pendingBadge ?? 'Pending'}
-                  </Badge>
-                </Link>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                  <div className={cn(
+                    'flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold',
+                    todayWorkout.status === 'completed'
+                      ? 'bg-emerald-400/20 text-emerald-300 border border-emerald-400/30'
+                      : 'bg-gold text-navy'
+                  )}>
+                    {todayWorkout.status === 'completed' ? t.doneBadge ?? 'הושלם' : t.pendingBadge ?? 'התחל'}
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Stats Row */}
       <div className="grid grid-cols-2 gap-3">
-        <Link href="/athlete/stats" className="flex items-center gap-3 p-4 rounded-xl border border-border bg-card hover:border-gold/40 hover:bg-gold/5 transition-all group">
-          <div className="h-10 w-10 rounded-lg bg-orange-50 flex items-center justify-center flex-shrink-0">
+        <Link href="/athlete/stats" className="flex items-center gap-4 p-5 rounded-2xl border border-border bg-card hover:border-gold/40 hover:shadow-md transition-all group shadow-sm">
+          <div className="h-11 w-11 rounded-2xl bg-orange-50 flex items-center justify-center flex-shrink-0">
             <Flame className="h-5 w-5 text-orange-500" />
           </div>
           <div>
-            <p className="text-xl font-bold text-navy">{completedThisWeek}</p>
-            <p className="text-xs text-muted-foreground">אימונים השבוע</p>
+            <p className="text-2xl font-bold text-navy leading-none">{completedThisWeek}</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mt-1">אימונים השבוע</p>
           </div>
         </Link>
 
-        <Link href="/athlete/schedule" className="flex items-center gap-3 p-4 rounded-xl border border-border bg-card hover:border-gold/40 hover:bg-gold/5 transition-all group">
-          <div className="h-10 w-10 rounded-lg bg-gold/10 flex items-center justify-center flex-shrink-0">
+        <Link href="/athlete/schedule" className="flex items-center gap-4 p-5 rounded-2xl border border-border bg-card hover:border-gold/40 hover:shadow-md transition-all group shadow-sm">
+          <div className="h-11 w-11 rounded-2xl bg-gold/10 flex items-center justify-center flex-shrink-0">
             <Activity className="h-5 w-5 text-gold" />
           </div>
           <div>
-            <p className="text-xl font-bold text-navy">{totalDistance.toFixed(1)}</p>
-            <p className="text-xs text-muted-foreground">ק"מ השבוע</p>
+            <p className="text-2xl font-bold text-navy leading-none">{totalDistance.toFixed(1)}</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mt-1">ק"מ השבוע</p>
           </div>
         </Link>
       </div>
 
       {/* Weekly Summary Card */}
       {latestCoachNote && (
-        <Card className="border-gold/30 overflow-hidden">
-          <CardContent className="p-4">
+        <Card className="border-gold/30 overflow-hidden rounded-2xl shadow-sm">
+          <CardContent className="p-5">
             <div className="rounded-xl bg-navy p-4 space-y-3" dir="rtl">
               {latestCoachNote.nextWeekFocus && (
                 <>
@@ -441,30 +436,30 @@ export function AthleteDashboard() {
 
       {/* Quick Nav Buttons */}
       <div className="grid grid-cols-1 gap-3">
-        <Link href="/athlete/schedule" className="flex items-center justify-between p-4 rounded-xl border border-border bg-card hover:border-gold/40 hover:bg-gold/5 transition-all group">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-gold/10 flex items-center justify-center">
+        <Link href="/athlete/schedule" className="flex items-center justify-between p-5 rounded-2xl border border-border bg-card hover:border-gold/40 hover:bg-gold/5 transition-all group shadow-sm">
+          <div className="flex items-center gap-4">
+            <div className="h-11 w-11 rounded-2xl bg-gold/10 flex items-center justify-center">
               <Calendar className="h-5 w-5 text-gold" />
             </div>
             <div>
-              <p className="font-semibold text-navy text-sm">{t.scheduleTitle ?? 'לוח זמנים'}</p>
-              <p className="text-xs text-muted-foreground">תצוגה שבועית וחודשית</p>
+              <p className="font-bold text-navy text-sm">{t.scheduleTitle ?? 'לוח זמנים'}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">תצוגה שבועית וחודשית</p>
             </div>
           </div>
           <ArrowUpRight className="h-4 w-4 text-muted-foreground group-hover:text-gold transition-colors" />
         </Link>
 
-        <Link href="/athlete/chat" className="flex items-center justify-between p-4 rounded-xl border border-border bg-card hover:border-gold/40 hover:bg-gold/5 transition-all group relative">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-gold/10 flex items-center justify-center relative">
+        <Link href="/athlete/chat" className="flex items-center justify-between p-5 rounded-2xl border border-border bg-card hover:border-gold/40 hover:bg-gold/5 transition-all group shadow-sm relative">
+          <div className="flex items-center gap-4">
+            <div className="h-11 w-11 rounded-2xl bg-gold/10 flex items-center justify-center relative">
               <MessageCircle className="h-5 w-5 text-gold" />
               {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">{unreadCount > 9 ? '9+' : unreadCount}</span>
               )}
             </div>
             <div>
-              <p className="font-semibold text-navy text-sm">{t.chat ?? 'צ׳אט עם המאמן'}</p>
-              <p className="text-xs text-muted-foreground">שאל שאלות, קבל משוב</p>
+              <p className="font-bold text-navy text-sm">{t.chat ?? 'צ׳אט עם המאמן'}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">שאל שאלות, קבל משוב</p>
             </div>
           </div>
           <ArrowUpRight className="h-4 w-4 text-muted-foreground group-hover:text-gold transition-colors" />
