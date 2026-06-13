@@ -438,80 +438,157 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
       </Dialog>
     )
 
+    // ── STATE 1: Pending feedback ──────────────────────────────────────
     if (isPending) return (
       <>
         <DetailsModal />
-        <div className="rounded-lg bg-amber-50 border border-amber-300 p-2.5 space-y-2" dir="rtl">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs bg-orange-500 text-white px-1.5 py-0.5 rounded font-bold">Strava</span>
-              <span className="text-xs text-amber-700 font-medium">⏳ ממתין למשוב</span>
+        <div className="rounded-2xl border border-border bg-white shadow-sm overflow-hidden" dir="rtl">
+          {/* Header */}
+          <div className="px-4 pt-4 pb-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="h-7 w-7 rounded-lg bg-[#FC4C02] flex items-center justify-center flex-shrink-0">
+                <span className="text-[10px] font-black text-white">S</span>
+              </div>
+              <span className="text-sm font-bold text-navy truncate">{log.stravaName || 'אימון Strava'}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <button onClick={() => setShowDetails(true)} className="text-xs text-amber-600 underline">פרטים מלאים</button>
-              <span className="text-xs font-bold text-amber-800">{log.stravaName || 'אימון Strava'}</span>
-              <button onClick={handleDelete} className="text-red-400 hover:text-red-600 text-xs font-bold leading-none">✕</button>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <span className="text-[11px] bg-amber-50 text-amber-700 border border-amber-200 font-semibold px-2.5 py-1 rounded-full whitespace-nowrap">ממתין למשוב</span>
+              <button onClick={handleDelete} className="h-6 w-6 rounded-full hover:bg-red-50 flex items-center justify-center text-muted-foreground/50 hover:text-red-400 transition-colors text-sm">✕</button>
             </div>
           </div>
-          <div className="flex gap-3 text-xs text-amber-800 font-medium flex-wrap">
-            {log.actualDistance && <span>{log.actualDistance} ק"מ</span>}
-            {log.actualPace && <span>{log.actualPace}</span>}
-            {log.averageHeartRate && <span>{log.averageHeartRate} bpm</span>}
-            {log.elevationGain && <span>↑{log.elevationGain}m</span>}
+
+          {/* Stats pills */}
+          <div className="px-4 pb-3 flex flex-wrap gap-2">
+            {log.actualDistance && <span className="text-xs font-medium bg-muted/60 px-3 py-1.5 rounded-full">{log.actualDistance} ק"מ</span>}
+            {log.actualPace && <span className="text-xs font-medium bg-muted/60 px-3 py-1.5 rounded-full" dir="ltr">{log.actualPace}</span>}
+            {log.averageHeartRate && <span className="text-xs font-medium bg-red-50 text-red-600 border border-red-100 px-3 py-1.5 rounded-full">{log.averageHeartRate} bpm</span>}
+            {log.elevationGain != null && log.elevationGain > 0 && <span className="text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-100 px-3 py-1.5 rounded-full">↑{log.elevationGain}m</span>}
           </div>
-          <div className="border-t border-amber-200 pt-2 space-y-2">
+
+          {/* Divider */}
+          <div className="border-t border-border/50 mx-4" />
+
+          {/* Effort + comment + submit */}
+          <div className="px-4 py-4 space-y-4">
             <div>
-              <p className="text-xs font-medium text-navy mb-1">מאמץ (חובה){pendingEffort ? ` · ${pendingEffort}/10` : ''}</p>
-              <div className="grid grid-cols-10 gap-0.5">
-                {Array.from({length:10},(_,i)=>i+1).map(n => (
-                  <button key={n} onClick={() => setPendingEffort(n)}
-                    className={cn('h-7 rounded text-xs font-bold border transition-colors',
-                      pendingEffort===n ? 'bg-amber-500 border-amber-600 text-white' : 'border-amber-200 bg-white text-muted-foreground hover:bg-amber-100'
-                    )}>{n}</button>
-                ))}
+              <p className="text-sm font-semibold text-navy mb-3">כמה היה קשה?</p>
+              <div className="flex items-center justify-center gap-6">
+                <button
+                  onClick={() => setPendingEffort(prev => prev != null ? Math.max(1, prev - 1) : 5)}
+                  className="w-12 h-12 rounded-full border-2 border-border bg-white hover:bg-muted/40 transition-all flex items-center justify-center text-xl font-bold text-navy shadow-sm select-none">
+                  −
+                </button>
+                <div className="flex flex-col items-center gap-1 min-w-[72px]">
+                  <span className={cn('text-5xl font-black leading-none transition-colors',
+                    pendingEffort == null ? 'text-muted-foreground/25' :
+                    pendingEffort <= 3 ? 'text-emerald-500' :
+                    pendingEffort <= 5 ? 'text-green-600' :
+                    pendingEffort <= 7 ? 'text-amber-500' :
+                    pendingEffort <= 9 ? 'text-orange-500' : 'text-red-500'
+                  )}>
+                    {pendingEffort ?? '—'}
+                  </span>
+                  <span className={cn('text-xs font-semibold transition-colors',
+                    pendingEffort == null ? 'text-muted-foreground' :
+                    pendingEffort <= 3 ? 'text-emerald-500' :
+                    pendingEffort <= 5 ? 'text-green-600' :
+                    pendingEffort <= 7 ? 'text-amber-500' :
+                    pendingEffort <= 9 ? 'text-orange-500' : 'text-red-500'
+                  )}>
+                    {pendingEffort == null ? 'בחר עצימות' :
+                     pendingEffort <= 3 ? 'קל מאוד' :
+                     pendingEffort <= 5 ? 'קל' :
+                     pendingEffort <= 7 ? 'בינוני' :
+                     pendingEffort <= 9 ? 'קשה' : 'מאוד קשה'}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setPendingEffort(prev => prev != null ? Math.min(10, prev + 1) : 5)}
+                  className="w-12 h-12 rounded-full border-2 border-border bg-white hover:bg-muted/40 transition-all flex items-center justify-center text-xl font-bold text-navy shadow-sm select-none">
+                  +
+                </button>
               </div>
             </div>
-            <textarea placeholder="הערה (אופציונלי)..." value={pendingComment} onChange={e => setPendingComment(e.target.value)}
-              className="w-full text-xs rounded border border-amber-200 bg-white px-2 py-1.5 resize-none h-12 focus:outline-none focus:ring-1 focus:ring-amber-400" />
-            <button onClick={handleSubmit} disabled={submitting || !pendingEffort}
-              className="w-full py-1.5 rounded bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white text-xs font-semibold">
-              {submitting ? 'שומר...' : '✓ שלח משוב'}
+
+            <textarea
+              placeholder="הערה אופציונלית..."
+              value={pendingComment}
+              onChange={e => setPendingComment(e.target.value)}
+              dir="rtl"
+              className="w-full rounded-xl border border-border/60 bg-muted/20 px-3 py-2.5 text-sm resize-none h-20 focus:outline-none focus:ring-2 focus:ring-navy/20 focus:border-navy/40 transition-all placeholder:text-muted-foreground/60"
+            />
+
+            <button
+              onClick={handleSubmit}
+              disabled={submitting || !pendingEffort}
+              className="w-full h-12 rounded-2xl bg-navy hover:bg-navy/90 disabled:opacity-40 text-white text-base font-bold transition-all">
+              {submitting ? 'שומר...' : 'שלח משוב למאמן ✓'}
             </button>
           </div>
         </div>
       </>
     )
 
+    // ── STATE 2: Completed Strava activity ─────────────────────────────
     return (
       <>
         <DetailsModal />
-        <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-2.5" dir="rtl">
-          <div className="flex items-center justify-between mb-1">
-            <div className="flex items-center gap-1">
-              <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-medium">Strava</span>
-              <span className="text-xs text-emerald-600">✓ הושלם</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button onClick={() => setShowDetails(true)} className="text-xs text-emerald-600 underline">פרטים מלאים</button>
-              <span className="text-xs font-bold text-emerald-700">{log.stravaName || 'אימון Strava'}</span>
-              <button onClick={handleDelete} className="text-red-400 hover:text-red-600 text-xs font-bold leading-none">✕</button>
+        <div className="rounded-2xl border border-emerald-200 border-l-4 border-l-emerald-500 bg-emerald-50/30 overflow-hidden shadow-sm" dir="rtl">
+          {/* Header */}
+          <div className="px-4 pt-4 pb-3 flex items-center justify-between gap-2">
+            <span className="text-sm font-bold text-navy truncate min-w-0">{log.stravaName || 'אימון Strava'}</span>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <span className="text-[11px] bg-emerald-100 text-emerald-700 font-bold px-2.5 py-1 rounded-full">✓ הושלם</span>
+              <span className="text-[11px] bg-[#FC4C02]/10 text-[#FC4C02] font-bold px-2 py-1 rounded-full">Strava</span>
+              <button onClick={handleDelete} className="h-6 w-6 rounded-full hover:bg-red-50 flex items-center justify-center text-muted-foreground/50 hover:text-red-400 transition-colors text-sm">✕</button>
             </div>
           </div>
-          <div className="flex gap-3 text-xs text-emerald-700 font-medium flex-wrap">
-            {log.actualDistance && <span>{log.actualDistance} ק"מ</span>}
-            {log.actualPace && <span>@ {log.actualPace}</span>}
-            {log.effort && <span>מאמץ {log.effort}/10</span>}
-            {log.averageHeartRate && <span>{log.averageHeartRate} bpm</span>}
+
+          {/* Stats pills */}
+          <div className="px-4 pb-3 flex flex-wrap gap-2">
+            {log.actualDistance && <span className="text-xs font-medium bg-white border border-border/40 px-3 py-1.5 rounded-full">{log.actualDistance} ק"מ</span>}
+            {log.actualPace && <span className="text-xs font-medium bg-white border border-border/40 px-3 py-1.5 rounded-full" dir="ltr">{log.actualPace}</span>}
+            {log.averageHeartRate && <span className="text-xs font-medium bg-red-50 text-red-600 border border-red-100 px-3 py-1.5 rounded-full">{log.averageHeartRate} bpm</span>}
+            {log.effort != null && (
+              <span className={cn('text-xs font-medium px-3 py-1.5 rounded-full border',
+                log.effort <= 3 ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                log.effort <= 5 ? 'bg-green-100 text-green-700 border-green-200' :
+                log.effort <= 7 ? 'bg-amber-100 text-amber-700 border-amber-200' :
+                log.effort <= 9 ? 'bg-orange-100 text-orange-700 border-orange-200' :
+                'bg-red-100 text-red-700 border-red-200'
+              )}>מאמץ {log.effort}/10</span>
+            )}
           </div>
-          {log.comment && !log.comment.startsWith('Synced from Strava:') && <p className="text-xs text-emerald-600 italic mt-1 line-clamp-1">"{log.comment}"</p>}
+
+          {/* Lap split chips */}
           {log.splitLogs && log.splitLogs.length > 0 && (
-            <div className="mt-1.5 text-xs text-emerald-700 font-mono flex flex-wrap gap-2">
-              {log.splitLogs.slice(0,5).map((s: any, i: number) => (
-                <span key={i} className="bg-emerald-100 px-1.5 py-0.5 rounded" dir="ltr">{i+1}: {s.pace}</span>
-              ))}
-              {log.splitLogs.length > 5 && <span className="text-emerald-500 text-xs">+{log.splitLogs.length-5} עוד</span>}
+            <div className="px-4 pb-3">
+              <p className="text-[10px] font-semibold text-muted-foreground mb-2" dir="rtl">פיצולים</p>
+              <div className="flex overflow-x-auto gap-2 pb-1" dir="ltr" style={{scrollbarWidth:'none'}}>
+                {log.splitLogs.map((s: any, i: number) => (
+                  <div key={i} className="flex-shrink-0 rounded-xl bg-white border border-border/50 shadow-sm px-3 py-2 text-center min-w-[68px]">
+                    <p className="text-[10px] text-muted-foreground mb-0.5">
+                      {s.lapIndex ? `Lap ${s.lapIndex}` : `km ${i + 1}`}
+                    </p>
+                    <p className="text-xs font-bold text-navy">{s.pace?.replace('/km','') || s.time}</p>
+                    {s.heartRate && <p className="text-[10px] text-red-500 mt-0.5">{s.heartRate}</p>}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
+
+          {/* Footer: comment + details button */}
+          <div className="px-4 pb-4 flex items-center justify-between gap-3">
+            {log.comment && !log.comment.startsWith('Synced from Strava:') ? (
+              <p className="text-xs text-muted-foreground italic line-clamp-1 flex-1">"{log.comment}"</p>
+            ) : <div className="flex-1" />}
+            <button
+              onClick={() => setShowDetails(true)}
+              className="flex-shrink-0 text-xs font-medium text-navy border border-navy/25 rounded-full px-3 py-1.5 hover:bg-navy/5 transition-colors">
+              פרטים מלאים
+            </button>
+          </div>
         </div>
       </>
     )
@@ -609,14 +686,12 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                         const log = weekLogs.find(l => l.assignedWorkoutId === w.id && !!l.actualDistance && l.source !== 'strava') || weekLogs.find(l => !l.assignedWorkoutId && l.date === w.scheduledDate && !!l.actualDistance && l.source !== 'strava')
                         if (!log) return null
                         return (
-                          <div key={w.id} className="rounded-lg bg-emerald-50 border border-emerald-200 p-2.5" dir="rtl">
-                            <div className="flex items-center justify-between mb-1">
-                              <div className="flex items-center gap-1">
-                                {log.source === 'strava' && <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">Strava</span>}
-                                <span className="text-xs text-emerald-600">✓ הושלם</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-emerald-700">{w.workout.title}</span>
+                          {/* STATE 3 — Non-Strava completed card */}
+                          <div key={w.id} className="rounded-2xl border border-emerald-200 border-l-4 border-l-emerald-500 bg-emerald-50/30 overflow-hidden shadow-sm" dir="rtl">
+                            <div className="px-4 pt-3.5 pb-2 flex items-center justify-between gap-2">
+                              <span className="text-sm font-bold text-navy truncate min-w-0">{w.workout.title}</span>
+                              <div className="flex items-center gap-1.5 flex-shrink-0">
+                                <span className="text-[11px] bg-emerald-100 text-emerald-700 font-bold px-2.5 py-1 rounded-full">✓ הושלם</span>
                                 <button
                                   onClick={async () => {
                                     if (!confirm('למחוק את תיעוד האימון?')) return
@@ -629,23 +704,23 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                                       toast.success('תיעוד נמחק')
                                     } catch(e) { console.error(e); toast.error('שגיאה במחיקה') }
                                   }}
-                                  className="text-red-400 hover:text-red-600 text-xs leading-none"
-                                >🗑️</button>
+                                  className="h-6 w-6 rounded-full hover:bg-red-50 flex items-center justify-center text-muted-foreground/50 hover:text-red-400 transition-colors text-sm">✕</button>
                               </div>
                             </div>
-                            <div className="flex gap-3 text-xs text-emerald-700 font-medium">
-                              {log.actualDistance && <span>{log.actualDistance} ק"מ</span>}
-                              {log.actualPace && <span>@ {log.actualPace}</span>}
-                              {log.effort && <span>מאמץ {log.effort}/10</span>}
+                            <div className="px-4 pb-3 flex flex-wrap gap-2">
+                              {log.actualDistance && <span className="text-xs font-medium bg-white border border-border/40 px-3 py-1.5 rounded-full">{log.actualDistance} ק"מ</span>}
+                              {log.actualPace && <span className="text-xs font-medium bg-white border border-border/40 px-3 py-1.5 rounded-full" dir="ltr">{log.actualPace}</span>}
+                              {log.effort != null && (
+                                <span className={cn('text-xs font-medium px-3 py-1.5 rounded-full border',
+                                  log.effort <= 3 ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                                  log.effort <= 5 ? 'bg-green-100 text-green-700 border-green-200' :
+                                  log.effort <= 7 ? 'bg-amber-100 text-amber-700 border-amber-200' :
+                                  log.effort <= 9 ? 'bg-orange-100 text-orange-700 border-orange-200' :
+                                  'bg-red-100 text-red-700 border-red-200'
+                                )}>מאמץ {log.effort}/10</span>
+                              )}
                             </div>
-                            {log.comment && <p className="text-xs text-emerald-600 italic mt-1 line-clamp-1">"{log.comment}"</p>}
-                            {log.splitLogs && log.splitLogs.length > 0 && (
-                              <div className="mt-1.5 text-xs text-emerald-700 font-mono flex flex-wrap gap-2">
-                                {log.splitLogs.slice(0,8).map((s: any, i: number) => (
-                                  <span key={i} className="bg-emerald-100 px-1.5 py-0.5 rounded" dir="ltr">{i+1}: {s.pace || s.time}</span>
-                                ))}
-                              </div>
-                            )}
+                            {log.comment && <p className="px-4 pb-3.5 text-xs text-muted-foreground italic line-clamp-1">"{log.comment}"</p>}
                           </div>
                         )
                       })}
