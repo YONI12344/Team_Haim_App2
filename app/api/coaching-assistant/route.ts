@@ -1,52 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const SYSTEM_PROMPT = `אתה עוזר מאמן ריצה מקצועי של קבוצת Team Haim.
+const SYSTEM_PROMPT = `אתה מאמן ריצה מקצועי בכיר של קבוצת Team Haim.
+תפקידך לנתח לעומק את נתוני הספורטאי ולכתוב דוח אימון מקיף ומקצועי בעברית.
 
-פילוסופיית אימון Team Haim:
-- עקביות > עצימות: עדיף 4 ריצות קלות מ-2 קשות
-- 80% מהריצות בקצב קל (יכול לנהל שיחה)
-- שבוע ירידה כל 3-4 שבועות: הפחת נפח 20-30%
+פילוסופיית Team Haim:
+- עקביות > עצימות
+- 80% ריצות קלות, 20% עצימות
+- שבוע ירידה כל 3-4 שבועות (הפחתת 20-30% נפח)
 - לא שני ימים קשים ברצף
-- ריצה ארוכה אחת בשבוע, בסוף השבוע
-- לפחות יום מנוחה מלא אחד בשבוע
-
-תפקידך: לנתח את מצב הספורטאי ולהמליץ על אימונים לימים הפנויים בלבד.
-המאמן הוא שמחליט ומשבץ את האימונים — אתה רק נותן המלצות.
+- ריצה ארוכה אחת בשבוע
 
 החזר JSON תקין בלבד, ללא טקסט נוסף:
 {
-  "weekType": "רגיל",
-  "weekTypeReason": "הסבר קצר",
-  "totalSuggestedKm": 45,
-  "analysis": "ניתוח קצר 2-3 משפטים של המצב הנוכחי",
-  "suggestions": [
-    {
-      "date": "2025-06-15",
-      "dayName": "ראשון",
-      "suggestedType": "easy",
-      "suggestedTitle": "ריצה קלה",
-      "suggestedDistance": 8,
-      "suggestedDuration": 50,
-      "reason": "הסבר קצר"
-    }
-  ],
-  "warnings": [],
-  "coachTips": "טיפ כללי למאמן לשבוע הזה"
-}
-
-weekType חייב להיות אחד מ: "רגיל" | "ירידה" | "עצימות" | "טייפר"
-suggestedType חייב להיות אחד מ: easy | long_run | tempo | intervals | recovery | rest`
+  "weekType": "down_week|build_week|normal_week|recovery_week",
+  "weekTypeReason": "הסבר קצר 1-2 משפטים",
+  "fitnessStatus": "תיאור מצב הכושר הנוכחי",
+  "week1Analysis": "ניתוח מפורט של השבוע הראשון (הישן ביותר מבין 3 השבועות)",
+  "week2Analysis": "ניתוח מפורט של השבוע השני",
+  "week3Analysis": "ניתוח מפורט של השבוע השלישי (האחרון)",
+  "struggles": "נקודות חולשה — מה קשה לספורטאי",
+  "strengths": "נקודות חוזקה — מה הספורטאי עושה טוב",
+  "loadAnalysis": "ניתוח עומס: מגמת העומס, האם יש עלייה/ירידה, ממוצעים",
+  "goalProgressAnalysis": "ניתוח התקדמות לקראת המטרה/מירוץ",
+  "keyObservations": ["תצפית 1", "תצפית 2", "תצפית 3"],
+  "coachRecommendations": "המלצות ספציפיות למאמן לשבוע הקרוב",
+  "riskFlags": ["דגל אדום 1 אם יש — רשימה ריקה אם אין"]
+}`
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const {
       athleteName,
-      last3WeeksWorkouts = [],
-      next14Days = [],
-      athleteWeeklyKmTarget,
-      currentGoal,
+      goalRace,
+      goalRaceDate,
       weeksToRace,
+      weeklyKmTarget,
+      personalRecords = [],
+      last3WeeksWorkouts = [],
+      week1Summary,
+      week2Summary,
+      week3Summary,
     } = body
 
     const apiKey = process.env.GROQ_API_KEY || ''
@@ -54,43 +48,44 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No GROQ_API_KEY set' }, { status: 500 })
     }
 
-    const completed = last3WeeksWorkouts.filter((w: any) => w.status === 'completed')
-    const totalKm = completed.reduce(
-      (s: number, w: any) => s + (w.actualDistance || w.distance || 0),
-      0,
-    )
-
     const workoutLines = last3WeeksWorkouts
       .map((w: any) => {
-        const st =
-          w.status === 'completed' ? 'הושלם' : w.status === 'skipped' ? 'דולג' : 'מתוכנן'
-        return `- ${w.date}: ${w.title} (${st}${w.distance ? `, ${w.distance}ק"מ` : ''}${w.effort ? `, מאמץ ${w.effort}/10` : ''})`
+        const st = w.status === 'completed' ? 'הושלם' : w.status === 'skipped' ? 'דולג' : 'מתוכנן'
+        let line = `- ${w.date}: ${w.title} (${w.type}, ${st}`
+        if (w.plannedKm) line += `, מתוכנן: ${w.plannedKm}ק"מ`
+        if (w.actualKm) line += `, בפועל: ${w.actualKm}ק"מ`
+        if (w.effort) line += `, מאמץ: ${w.effort}/10`
+        if (w.athleteComment) line += `, הערה: "${w.athleteComment}"`
+        if (w.wasSkipped) line += ` [דולג]`
+        line += ')'
+        return line
       })
       .join('\n')
 
-    const dayScheduleLines = next14Days
-      .map((d: any) => {
-        if (d.hasWorkout) {
-          return `- ${d.date} (${d.dayName}): משובץ — ${d.existingWorkouts.map((w: any) => w.title).join(', ')}`
-        }
-        return `- ${d.date} (${d.dayName}): פנוי`
-      })
-      .join('\n')
+    const formatSummary = (s: any, label: string) => {
+      if (!s) return `${label}: אין נתונים`
+      return `${label}: מתוכנן ${s.totalPlanned || 0}ק"מ, בפועל ${s.totalActual || 0}ק"מ, הושלמו ${s.completed || 0}/${(s.completed || 0) + (s.skipped || 0)} אימונים, ממוצע מאמץ ${s.avgEffort || 'לא ידוע'}`
+    }
 
-    const unassignedCount = next14Days.filter((d: any) => !d.hasWorkout).length
+    const prLines = personalRecords.length > 0
+      ? personalRecords.slice(0, 5).map((pr: any) => `- ${pr.distance}: ${pr.time}`).join('\n')
+      : 'לא ידועים'
 
     const userMessage = `ספורטאי: ${athleteName}
-מטרה: ${currentGoal || 'לא הוגדרה'}
-יעד ק"מ שבועי: ${athleteWeeklyKmTarget || 'לא הוגדר'}
+מטרה: ${goalRace || 'לא הוגדרה'}
+תאריך מירוץ: ${goalRaceDate || 'לא ידוע'}
 שבועות למירוץ: ${weeksToRace ?? 'לא ידוע'}
+יעד ק"מ שבועי: ${weeklyKmTarget || 'לא הוגדר'}
 
-3 שבועות אחרונים (${last3WeeksWorkouts.length} אימונים, ${totalKm.toFixed(1)} ק"מ הושלמו):
-${workoutLines || 'אין נתונים'}
+שיאים אישיים:
+${prLines}
 
-14 הימים הקרובים:
-${dayScheduleLines}
+${formatSummary(week1Summary, 'שבוע 1 (3 שבועות אחורה)')}
+${formatSummary(week2Summary, 'שבוע 2 (שבועיים אחורה)')}
+${formatSummary(week3Summary, 'שבוע 3 (שבוע שעבר)')}
 
-המלץ רק על ${unassignedCount} הימים הפנויים. אל תמליץ על ימים שכבר משובצים.`
+פירוט אימונים 21 הימים האחרונים (${last3WeeksWorkouts.length} אימונים):
+${workoutLines || 'אין נתונים'}`
 
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -105,7 +100,7 @@ ${dayScheduleLines}
           { role: 'user', content: userMessage },
         ],
         temperature: 0.3,
-        max_tokens: 2000,
+        max_tokens: 2500,
         response_format: { type: 'json_object' },
       }),
     })
@@ -117,7 +112,7 @@ ${dayScheduleLines}
     }
 
     const text = data.choices?.[0]?.message?.content || '{}'
-    return NextResponse.json(JSON.parse(text))
+    return NextResponse.json({ report: JSON.parse(text) })
   } catch (err) {
     console.error('Coaching assistant error:', err)
     return NextResponse.json({ error: String(err) }, { status: 500 })

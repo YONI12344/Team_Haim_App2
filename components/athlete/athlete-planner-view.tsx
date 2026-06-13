@@ -12,7 +12,7 @@ import {
 } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { db } from '@/lib/firebase'
-import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, query, where, updateDoc } from 'firebase/firestore'
 import type { AthleteProfile, AssignedWorkout, TrainingDayType } from '@/lib/types'
 import { listJourneys, computeJourneyProgress } from '@/lib/journey'
 import { useAuth } from '@/contexts/auth-context'
@@ -65,6 +65,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
   const [openLogForms, setOpenLogForms] = useState<Set<string>>(new Set())
   const [expandedToday, setExpandedToday] = useState(false)
   const [stravaSyncing, setStravaSyncing] = useState(false)
+  const [coachMessages, setCoachMessages] = useState<any[]>([])
 
   useEffect(() => {
     if (!athleteId) return
@@ -108,6 +109,15 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
       finally { setLoading(false) }
     }
     load()
+  }, [athleteId])
+
+  useEffect(() => {
+    if (!athleteId) return
+    getDocs(query(collection(db, 'coachMessages'), where('athleteId', '==', athleteId)))
+      .then(snap => {
+        setCoachMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+      })
+      .catch(() => {})
   }, [athleteId])
 
   useEffect(() => {
@@ -655,22 +665,56 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                   return (
                     <div className="space-y-1.5">
                       {/* All assigned workouts */}
-                      {dayWorkouts.map(w => (
-                        <button key={w.id}
-                          onClick={() => setSelectedWorkoutId(prev => prev === w.id ? null : w.id)}
-                          className={cn('w-full rounded-lg px-2.5 py-2 border transition-all hover:opacity-80',
-                            TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy,
-                            selectedWorkoutId === w.id ? 'ring-2 ring-navy' : ''
-                          )}>
-                          <div className="flex items-center justify-between gap-1 w-full" dir="rtl">
-                            <p className="font-semibold text-sm leading-snug">{w.workout.title}</p>
-                            <p className="text-xs opacity-70">
-                              {w.workout.distance && `${w.workout.distance}k`}
-                              {w.workout.duration && ` · ${w.workout.duration}'`}
-                            </p>
+                      {dayWorkouts.map(w => {
+                        const msg = coachMessages.find(m => m.assignedWorkoutId === w.id)
+                        return (
+                          <div key={w.id} className="space-y-1">
+                            <button
+                              onClick={() => setSelectedWorkoutId(prev => prev === w.id ? null : w.id)}
+                              className={cn('w-full rounded-lg px-2.5 py-2 border transition-all hover:opacity-80',
+                                TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy,
+                                selectedWorkoutId === w.id ? 'ring-2 ring-navy' : ''
+                              )}>
+                              <div className="flex items-center justify-between gap-1 w-full" dir="rtl">
+                                <p className="font-semibold text-sm leading-snug">{w.workout.title}</p>
+                                <p className="text-xs opacity-70">
+                                  {w.workout.distance && `${w.workout.distance}k`}
+                                  {w.workout.duration && ` · ${w.workout.duration}'`}
+                                </p>
+                              </div>
+                            </button>
+                            {msg && (
+                              <div className="rounded-xl border-r-4 border-r-navy border border-navy/10 bg-navy/5 px-3 py-2.5 space-y-1" dir="rtl">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-[10px] font-semibold text-navy uppercase tracking-wide">הערת מאמן</p>
+                                    {!msg.read && (
+                                      <span className="text-[9px] font-bold bg-gold text-navy px-1.5 py-0.5 rounded-full">חדש</span>
+                                    )}
+                                  </div>
+                                  {msg.createdAt?.seconds && (
+                                    <p className="text-[9px] text-muted-foreground">{format(new Date(msg.createdAt.seconds * 1000), 'd/M/yyyy')}</p>
+                                  )}
+                                </div>
+                                <p className="text-sm text-navy leading-relaxed">{msg.message}</p>
+                                {!msg.read && (
+                                  <button
+                                    onClick={async () => {
+                                      try {
+                                        await updateDoc(doc(db, 'coachMessages', msg.id), { read: true })
+                                        setCoachMessages(prev => prev.map(m => m.id === msg.id ? { ...m, read: true } : m))
+                                      } catch {}
+                                    }}
+                                    className="text-[10px] text-navy/60 hover:text-navy underline underline-offset-2 transition-colors"
+                                  >
+                                    סמן כנקרא
+                                  </button>
+                                )}
+                              </div>
+                            )}
                           </div>
-                        </button>
-                      ))}
+                        )
+                      })}
 
                       {/* Divider — only if any logs exist */}
                       {dayWorkouts.some(w => weekLogs.find(l => (l.assignedWorkoutId === w.id || (!l.assignedWorkoutId && l.date === w.scheduledDate)) && l.actualDistance && l.source !== 'strava')) && (

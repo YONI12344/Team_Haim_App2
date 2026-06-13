@@ -102,9 +102,9 @@ export function AthletePlanner({ athleteId }: Props) {
   const [copiedWorkout, setCopiedWorkout] = useState<AssignedWorkout | null>(null)
   const [librarySearch, setLibrarySearch] = useState('')
 
-  // AI coaching assistant
-  const [aiAssistant, setAiAssistant] = useState<any>(null)
-  const [aiAssistantLoading, setAiAssistantLoading] = useState(false)
+  // AI coaching report
+  const [aiReport, setAiReport] = useState<any>(null)
+  const [aiReportLoading, setAiReportLoading] = useState(false)
   // Coach messages
   const [coachMessageText, setCoachMessageText] = useState('')
   const [sendingCoachMessage, setSendingCoachMessage] = useState(false)
@@ -482,44 +482,48 @@ export function AthletePlanner({ athleteId }: Props) {
     return { recent, totalPlanned: totalPlanned.toFixed(1), totalDone: totalDone.toFixed(1), avgEffort }
   }, [assignedWorkouts, logs])
 
-  const handleGetAIRecommendations = async () => {
+  const handleGenerateReport = async () => {
     if (!athlete) return
-    setAiAssistantLoading(true)
-    setAiAssistant(null)
+    setAiReportLoading(true)
+    setAiReport(null)
     try {
       const cutoff = format(addDays(new Date(), -21), 'yyyy-MM-dd')
       const todayStr = format(new Date(), 'yyyy-MM-dd')
-      const last3WeeksWorkouts = assignedWorkouts
+
+      const sortedWorkouts = assignedWorkouts
         .filter(w => w.scheduledDate >= cutoff && w.scheduledDate <= todayStr)
         .sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate))
-        .map(w => {
-          const log = logs.find(l => l.assignedWorkoutId === w.id)
-          return {
-            date: w.scheduledDate,
-            title: w.workout?.title || 'אימון',
-            type: w.workout?.type || 'easy',
-            distance: w.workout?.distance || 0,
-            status: w.status,
-            effort: log?.effort ?? null,
-            actualDistance: (log as any)?.actualDistance ?? null,
-          }
-        })
 
-      const next14Days = Array.from({ length: 14 }, (_, i) => {
-        const d = addDays(new Date(), i + 1)
-        const dateStr = format(d, 'yyyy-MM-dd')
-        const existing = assignedWorkouts.filter(w => w.scheduledDate === dateStr)
+      const last3WeeksWorkouts = sortedWorkouts.map(w => {
+        const log = logs.find(l => l.assignedWorkoutId === w.id || (l.workoutId === w.workoutId && l.date === w.scheduledDate))
         return {
-          date: dateStr,
-          dayName: HEBREW_DAY_NAMES[d.getDay()],
-          hasWorkout: existing.length > 0,
-          existingWorkouts: existing.map(w => ({
-            title: w.workout?.title,
-            type: w.workout?.type,
-            distance: w.workout?.distance,
-          })),
+          date: w.scheduledDate,
+          title: w.workout?.title || 'אימון',
+          type: w.workout?.type || 'easy',
+          plannedKm: w.workout?.distance || 0,
+          status: w.status,
+          actualKm: (log as any)?.actualDistance ?? null,
+          effort: log?.effort ?? null,
+          athleteComment: log?.comment || null,
+          wasSkipped: w.status === 'skipped',
         }
       })
+
+      const buildWeekSummary = (weekOffset: number) => {
+        const wStart = format(addDays(new Date(), -7 * (weekOffset + 1)), 'yyyy-MM-dd')
+        const wEnd = format(addDays(new Date(), -7 * weekOffset), 'yyyy-MM-dd')
+        const wws = last3WeeksWorkouts.filter(w => w.date >= wStart && w.date <= wEnd)
+        const comp = wws.filter(w => w.status === 'completed')
+        const skip = wws.filter(w => w.status === 'skipped')
+        const efforts = comp.filter(w => w.effort != null).map(w => w.effort as number)
+        return {
+          totalPlanned: wws.reduce((s, w) => s + (w.plannedKm || 0), 0).toFixed(1),
+          totalActual: comp.reduce((s, w) => s + (w.actualKm || w.plannedKm || 0), 0).toFixed(1),
+          completed: comp.length,
+          skipped: skip.length,
+          avgEffort: efforts.length > 0 ? (efforts.reduce((a, b) => a + b, 0) / efforts.length).toFixed(1) : null,
+        }
+      }
 
       const weeksToRace = journey?.goalRaceDate
         ? Math.ceil((new Date(journey.goalRaceDate).getTime() - new Date().getTime()) / (7 * 86400000))
@@ -531,84 +535,24 @@ export function AthletePlanner({ athleteId }: Props) {
         body: JSON.stringify({
           athleteName: athlete.name,
           athleteId,
-          last3WeeksWorkouts,
-          next14Days,
-          athleteWeeklyKmTarget: athlete.weeklyKmRange
-            ? `${athlete.weeklyKmRange.min}-${athlete.weeklyKmRange.max}`
-            : null,
-          currentGoal: athlete.goals?.find((g: any) => g.status === 'active')?.title || null,
+          goalRace: journey?.goalRaceEvent || athlete.goals?.find((g: any) => g.status === 'active')?.title || null,
+          goalRaceDate: journey?.goalRaceDate || null,
           weeksToRace,
+          weeklyKmTarget: athlete.weeklyKmRange ? `${athlete.weeklyKmRange.min}-${athlete.weeklyKmRange.max}` : null,
+          personalRecords: athlete.personalRecords || [],
+          last3WeeksWorkouts,
+          week1Summary: buildWeekSummary(2),
+          week2Summary: buildWeekSummary(1),
+          week3Summary: buildWeekSummary(0),
         }),
       })
       const data = await res.json()
       if (data.error) throw new Error(data.error)
-      setAiAssistant(data)
+      setAiReport(data.report)
     } catch (err) {
-      toast.error('שגיאה בקבלת המלצות: ' + String(err))
+      toast.error('שגיאה ביצירת דוח: ' + String(err))
     } finally {
-      setAiAssistantLoading(false)
-    }
-  }
-
-  const handleAssignSuggestion = async (suggestion: any) => {
-    if (!user) return
-    try {
-      const workoutRef = await addDoc(collection(db, 'workouts'), {
-        title: suggestion.suggestedTitle,
-        type: suggestion.suggestedType,
-        distance: suggestion.suggestedDistance || null,
-        duration: suggestion.suggestedDuration || null,
-        description: suggestion.reason || '',
-        notes: '',
-        createdBy: user.id || null,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      })
-      const workout = {
-        id: workoutRef.id,
-        title: suggestion.suggestedTitle,
-        type: suggestion.suggestedType,
-        distance: suggestion.suggestedDistance || undefined,
-        duration: suggestion.suggestedDuration || undefined,
-        description: suggestion.reason || '',
-        notes: '',
-        createdBy: user.id || '',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }
-      const assignRef = await addDoc(collection(db, 'assignedWorkouts'), {
-        workoutId: workoutRef.id,
-        workout,
-        athleteId,
-        assignedBy: user.id || null,
-        scheduledDate: suggestion.date,
-        status: 'scheduled',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      })
-      setAssignedWorkouts(prev => [
-        ...prev,
-        {
-          id: assignRef.id,
-          workoutId: workoutRef.id,
-          workout,
-          athleteId,
-          assignedBy: user.id || '',
-          scheduledDate: suggestion.date,
-          status: 'scheduled',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        } as any,
-      ])
-      setWorkoutLibrary(prev => [workout as any, ...prev])
-      setAiAssistant((prev: any) =>
-        prev
-          ? { ...prev, suggestions: prev.suggestions.filter((s: any) => s.date !== suggestion.date) }
-          : prev,
-      )
-      toast.success('אימון שובץ!')
-    } catch {
-      toast.error('שגיאה בשיבוץ')
+      setAiReportLoading(false)
     }
   }
 
@@ -1102,96 +1046,133 @@ export function AthletePlanner({ athleteId }: Props) {
           </CardContent>
         </Card>
 
-        {/* AI Coaching Assistant */}
+        {/* AI Coaching Report */}
         <Card>
           <CardHeader className="pb-2 pt-4 px-4">
             <CardTitle className="text-sm flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-gold"/>
-              עוזר אימון AI
+              דוח ניתוח AI
             </CardTitle>
           </CardHeader>
           <CardContent className="px-4 pb-4 space-y-3">
             <Button
-              onClick={handleGetAIRecommendations}
-              disabled={aiAssistantLoading}
+              onClick={handleGenerateReport}
+              disabled={aiReportLoading}
               className="w-full bg-gold hover:bg-gold/90 text-navy font-bold h-10"
             >
-              {aiAssistantLoading
-                ? <><Loader2 className="h-4 w-4 animate-spin mr-2"/>מנתח נתונים...</>
-                : <><Sparkles className="h-4 w-4 mr-2"/>קבל המלצות AI</>}
+              {aiReportLoading
+                ? <><Loader2 className="h-4 w-4 animate-spin mr-2"/>מנתח 3 שבועות של נתונים...</>
+                : <><Sparkles className="h-4 w-4 mr-2"/>צור דוח ניתוח AI</>}
             </Button>
 
-            {aiAssistant && (
-              <div className="space-y-3" dir="rtl">
-                {/* Week type */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Badge className={cn('text-xs border',
-                    aiAssistant.weekType === 'ירידה' ? 'bg-amber-100 text-amber-800 border-amber-200' :
-                    aiAssistant.weekType === 'עצימות' ? 'bg-red-100 text-red-800 border-red-200' :
-                    aiAssistant.weekType === 'טייפר' ? 'bg-purple-100 text-purple-800 border-purple-200' :
+            {aiReport && (
+              <div className="space-y-4" dir="rtl">
+                {/* Week type + fitness status */}
+                <div className="flex items-start gap-2 flex-wrap">
+                  <Badge className={cn('text-xs border flex-shrink-0',
+                    aiReport.weekType === 'down_week' ? 'bg-amber-100 text-amber-800 border-amber-200' :
+                    aiReport.weekType === 'build_week' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                    aiReport.weekType === 'recovery_week' ? 'bg-purple-100 text-purple-800 border-purple-200' :
                     'bg-emerald-100 text-emerald-800 border-emerald-200'
-                  )}>{aiAssistant.weekType}</Badge>
-                  <p className="text-xs text-muted-foreground flex-1">{aiAssistant.weekTypeReason}</p>
-                  {aiAssistant.totalSuggestedKm > 0 && (
-                    <span className="text-xs font-bold text-navy">{aiAssistant.totalSuggestedKm} ק"מ</span>
-                  )}
+                  )}>
+                    {aiReport.weekType === 'down_week' ? 'שבוע ירידה' :
+                     aiReport.weekType === 'build_week' ? 'שבוע בנייה' :
+                     aiReport.weekType === 'recovery_week' ? 'שבוע התאוששות' : 'שבוע רגיל'}
+                  </Badge>
+                  <p className="text-xs text-muted-foreground flex-1 min-w-0">{aiReport.weekTypeReason}</p>
                 </div>
-
-                {/* Analysis */}
-                <div className="rounded-lg bg-navy/5 border border-navy/10 p-3">
-                  <p className="text-xs text-navy leading-relaxed">{aiAssistant.analysis}</p>
-                </div>
-
-                {/* Warnings */}
-                {aiAssistant.warnings?.length > 0 && (
-                  <div className="space-y-1">
-                    {aiAssistant.warnings.map((w: string, i: number) => (
-                      <div key={i} className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
-                        <p className="text-xs text-amber-800">{w}</p>
-                      </div>
-                    ))}
+                {aiReport.fitnessStatus && (
+                  <div className="rounded-lg bg-navy/5 border border-navy/10 p-3">
+                    <p className="text-[10px] font-bold text-navy mb-1">מצב כושר נוכחי</p>
+                    <p className="text-xs text-navy leading-relaxed">{aiReport.fitnessStatus}</p>
                   </div>
                 )}
 
-                {/* Coach tips */}
-                {aiAssistant.coachTips && (
-                  <div className="rounded-xl bg-navy p-3">
-                    <p className="text-[10px] font-bold text-gold uppercase tracking-wide mb-1">טיפ למאמן</p>
-                    <p className="text-xs text-white leading-relaxed">{aiAssistant.coachTips}</p>
-                  </div>
-                )}
-
-                {/* Suggestions for unassigned days */}
-                {aiAssistant.suggestions?.length > 0 && (
+                {/* 3-week analysis cards */}
+                {(aiReport.week1Analysis || aiReport.week2Analysis || aiReport.week3Analysis) && (
                   <div className="space-y-2">
-                    <p className="text-xs font-semibold text-navy border-b pb-1">המלצות לימים פנויים</p>
-                    {aiAssistant.suggestions.map((s: any, i: number) => (
-                      <div key={i} className={cn('rounded-xl border p-3 space-y-1.5', TYPE_COLORS[s.suggestedType] || TYPE_COLORS.easy)}>
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[11px] font-semibold text-muted-foreground">{s.dayName} · {s.date}</p>
-                            <p className="text-xs font-bold text-navy">{s.suggestedTitle}</p>
-                            <div className="flex gap-2 text-[11px] opacity-70 mt-0.5">
-                              {s.suggestedDistance > 0 && <span>{s.suggestedDistance} ק"מ</span>}
-                              {s.suggestedDuration > 0 && <span>{s.suggestedDuration} דק'</span>}
-                            </div>
-                          </div>
-                          <Button
-                            size="sm"
-                            className="h-7 text-xs bg-navy text-white hover:bg-navy/90 flex-shrink-0"
-                            onClick={() => handleAssignSuggestion(s)}
-                          >
-                            שבץ
-                          </Button>
+                    <p className="text-xs font-semibold text-navy border-b pb-1">ניתוח שלושת השבועות האחרונים</p>
+                    <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+                      {[
+                        { label: 'שבוע 1', text: aiReport.week1Analysis },
+                        { label: 'שבוע 2', text: aiReport.week2Analysis },
+                        { label: 'שבוע 3', text: aiReport.week3Analysis },
+                      ].map((wk, i) => wk.text ? (
+                        <div key={i} className="rounded-lg bg-muted/30 border border-border/40 p-2.5">
+                          <p className="text-[10px] font-bold text-navy mb-1">{wk.label}</p>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed">{wk.text}</p>
                         </div>
-                        {s.reason && <p className="text-[11px] text-muted-foreground leading-relaxed">{s.reason}</p>}
+                      ) : null)}
+                    </div>
+                  </div>
+                )}
+
+                {/* Strengths + Struggles */}
+                {(aiReport.strengths || aiReport.struggles) && (
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                    {aiReport.strengths && (
+                      <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3">
+                        <p className="text-[10px] font-bold text-emerald-700 mb-1">חוזקות</p>
+                        <p className="text-xs text-emerald-800 leading-relaxed">{aiReport.strengths}</p>
+                      </div>
+                    )}
+                    {aiReport.struggles && (
+                      <div className="rounded-lg bg-amber-50 border border-amber-200 p-3">
+                        <p className="text-[10px] font-bold text-amber-700 mb-1">נקודות לשיפור</p>
+                        <p className="text-xs text-amber-800 leading-relaxed">{aiReport.struggles}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Load + Goal analysis */}
+                {(aiReport.loadAnalysis || aiReport.goalProgressAnalysis) && (
+                  <div className="rounded-xl bg-navy p-3 space-y-2">
+                    {aiReport.loadAnalysis && (
+                      <div>
+                        <p className="text-[10px] font-bold text-gold mb-1">ניתוח עומס</p>
+                        <p className="text-xs text-white leading-relaxed">{aiReport.loadAnalysis}</p>
+                      </div>
+                    )}
+                    {aiReport.goalProgressAnalysis && (
+                      <div>
+                        <p className="text-[10px] font-bold text-gold mb-1">התקדמות לקראת המטרה</p>
+                        <p className="text-xs text-white leading-relaxed">{aiReport.goalProgressAnalysis}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Key observations */}
+                {aiReport.keyObservations?.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-navy border-b pb-1">תצפיות מרכזיות</p>
+                    {aiReport.keyObservations.map((obs: string, i: number) => (
+                      <div key={i} className="flex items-start gap-2 py-1">
+                        <span className="w-5 h-5 rounded-full bg-navy text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">{i+1}</span>
+                        <p className="text-xs text-navy leading-relaxed">{obs}</p>
                       </div>
                     ))}
                   </div>
                 )}
 
-                {aiAssistant.suggestions?.length === 0 && (
-                  <p className="text-xs text-center text-muted-foreground py-2">כל הימים הפנויים מכוסים</p>
+                {/* Coach recommendations */}
+                {aiReport.coachRecommendations && (
+                  <div className="rounded-xl border-2 border-gold/40 bg-gold/5 p-3">
+                    <p className="text-[10px] font-bold text-navy mb-1">המלצות למאמן לשבוע הקרוב</p>
+                    <p className="text-xs text-navy leading-relaxed">{aiReport.coachRecommendations}</p>
+                  </div>
+                )}
+
+                {/* Risk flags */}
+                {aiReport.riskFlags?.length > 0 && (
+                  <div className="space-y-1">
+                    {aiReport.riskFlags.map((flag: string, i: number) => (
+                      <div key={i} className="rounded-lg bg-red-50 border border-red-200 px-3 py-2">
+                        <p className="text-xs text-red-700 font-semibold">{flag}</p>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             )}

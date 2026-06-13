@@ -313,8 +313,49 @@ export function AthleteDashboard() {
   const goals = profile?.goals || []
   const isNewAthlete = !loading && profile !== null && !profile?.onboardingComplete
 
+  const unreadCoachMessages = coachMessages.filter(m => !m.read)
+
   return (
     <div className="space-y-4">
+      {/* Coach messages — TOP, unread only */}
+      {unreadCoachMessages.length > 0 && (
+        <div className="rounded-2xl bg-navy overflow-hidden" dir="rtl">
+          <div className="px-4 pt-3 pb-2 flex items-center justify-between">
+            <p className="text-xs font-semibold text-gold uppercase tracking-widest">
+              הודעות מהמאמן ({unreadCoachMessages.length})
+            </p>
+          </div>
+          <div className="px-4 pb-4 space-y-2">
+            {unreadCoachMessages.map(msg => (
+              <div key={msg.id} className="rounded-xl bg-white/10 border border-white/10 p-3 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    {msg.workoutTitle && (
+                      <p className="text-[10px] font-semibold text-gold uppercase tracking-wide mb-1">{msg.workoutTitle}</p>
+                    )}
+                    <p className="text-sm text-white leading-relaxed line-clamp-2">{msg.message}</p>
+                  </div>
+                  {msg.createdAt?.seconds && (
+                    <p className="text-[10px] text-white/40 flex-shrink-0">{format(new Date(msg.createdAt.seconds * 1000), 'd/M')}</p>
+                  )}
+                </div>
+                <button
+                  className="text-[11px] font-semibold text-gold hover:text-gold/80 transition-colors"
+                  onClick={async () => {
+                    try {
+                      await updateDoc(doc(db, 'coachMessages', msg.id), { read: true })
+                      setCoachMessages(prev => prev.filter(m => m.id !== msg.id))
+                    } catch {}
+                  }}
+                >
+                  קרא וסמן כנקרא
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl md:text-3xl font-serif font-bold text-navy">
@@ -446,55 +487,6 @@ export function AthleteDashboard() {
             </div>
           </CardContent>
         </Card>
-      )}
-
-      {/* Coach Messages */}
-      {coachMessages.filter(m => !m.read).length > 0 && (
-        <div className="space-y-2" dir="rtl">
-          <h2 className="text-sm font-bold text-navy px-1">הערות מהמאמן</h2>
-          <div className="space-y-2">
-            {coachMessages.slice(0, 5).map(msg => (
-              <div
-                key={msg.id}
-                className={cn(
-                  'rounded-2xl border p-4 space-y-2 transition-all',
-                  msg.read
-                    ? 'bg-muted/20 border-border opacity-40'
-                    : 'bg-white border-gold/30 shadow-sm',
-                )}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-semibold text-gold uppercase tracking-wide mb-1">
-                      {msg.workoutTitle}
-                    </p>
-                    <p className="text-sm text-navy leading-relaxed">{msg.message}</p>
-                  </div>
-                  {!msg.read && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 text-xs text-muted-foreground flex-shrink-0 hover:text-navy"
-                      onClick={async () => {
-                        await updateDoc(doc(db, 'coachMessages', msg.id), { read: true })
-                        setCoachMessages(prev =>
-                          prev.map(m => m.id === msg.id ? { ...m, read: true } : m),
-                        )
-                      }}
-                    >
-                      סמן כנקרא
-                    </Button>
-                  )}
-                </div>
-                {msg.createdAt?.seconds && (
-                  <p className="text-[10px] text-muted-foreground">
-                    {format(new Date(msg.createdAt.seconds * 1000), 'd/M/yyyy')}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
       )}
 
       {/* Quick Nav Buttons */}
