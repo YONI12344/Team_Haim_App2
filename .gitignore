@@ -29,3 +29,7 @@ functions/node_modules/
 .firebase/
 firebase-debug.logfunctions/.env
 functions/.env
+
+# Capacitor native platforms
+ios/
+android/
