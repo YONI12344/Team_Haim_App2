@@ -686,7 +686,6 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                         const log = weekLogs.find(l => l.assignedWorkoutId === w.id && !!l.actualDistance && l.source !== 'strava') || weekLogs.find(l => !l.assignedWorkoutId && l.date === w.scheduledDate && !!l.actualDistance && l.source !== 'strava')
                         if (!log) return null
                         return (
-                          {/* STATE 3 — Non-Strava completed card */}
                           <div key={w.id} className="rounded-2xl border border-emerald-200 border-l-4 border-l-emerald-500 bg-emerald-50/30 overflow-hidden shadow-sm" dir="rtl">
                             <div className="px-4 pt-3.5 pb-2 flex items-center justify-between gap-2">
                               <span className="text-sm font-bold text-navy truncate min-w-0">{w.workout.title}</span>
