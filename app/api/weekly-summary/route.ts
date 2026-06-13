@@ -1,39 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const SYSTEM_PROMPT = `אתה AI של מאמן חיים. אתה מייצר סיכום שבועי קצר ומעשי בעברית לספורטאי.
+const SYSTEM_PROMPT = `אתה עוזר של מאמן ריצה. אתה כותב סיכום שבועי מקצועי בעברית.
 
-בסס את הסיכום על האימונים שהושלמו בפועל, לא על מה שתוכנן.
-היה חם ומעודד, אבל ישיר ומקצועי.
-דבר ישירות לספורטאי בגוף שני.
+הסיכום צריך להיות כמו דוח שבועי אמיתי של מאמן לספורטאי.
+כתוב בגוף שני - ישירות לספורטאי.
+היה חם, מעודד, ומקצועי.
+בסס הכל על הנתונים האמיתיים שקיבלת.
 
-החזר JSON תקין בלבד, ללא טקסט אחר:
+החזר JSON תקין בלבד:
 {
-  "weekSummary": "סיכום קצר של מה שקרה השבוע - 2-3 משפטים",
-  "achievements": "הישגים והדגשים חיוביים מהשבוע",
-  "improvements": "נקודה אחת או שתיים לשיפור, בצורה בונה",
-  "nextWeekFocus": "פוקוס ומטרה לשבוע הבא - משפט אחד ברור",
-  "coachNote": "הערה אישית של המאמן - אם סופקה השתמש בה, אחרת צור הצעה חמה"
+  "weekSummary": "סיכום מה קרה השבוע - מה עשה, כמה ק״מ, איך הרגיש. 2-3 משפטים קונקרטיים על מה שקרה בפועל. ציין אימונים ספציפיים שהושלמו או דולגו.",
+  "achievements": "הישגים ספציפיים מהשבוע - ציין מספרים אמיתיים כמו ק״מ, מאמץ, עקביות. משפט אחד או שניים חיוביים.",
+  "improvements": "נקודה אחת לשיפור בצורה בונה ועידודית. לא ביקורת, אלא כיוון לצמיחה.",
+  "nextWeekFocus": "מה מחכה לו שבוע הבא - ציין את סוגי האימונים המתוכננים ומה המטרה שלהם.",
+  "coachNote": "הערה אישית חמה מהמאמן - התייחסות אישית לספורטאי הספציפי הזה בהתבסס על מה שעשה השבוע"
 }`
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { athleteName, weekWorkouts, weekStartDate, weekEndDate, coachNotes } = body
+    const { userMessage } = body
 
     const apiKey = process.env.GROQ_API_KEY || ''
     if (!apiKey) {
       return NextResponse.json({ error: 'No GROQ_API_KEY set' }, { status: 500 })
     }
 
-    const workoutLines = (weekWorkouts || []).map((w: any) =>
-      `- ${w.scheduledDate}: ${w.workout?.title || 'אימון'} (${w.status === 'completed' ? 'הושלם' : w.status === 'skipped' ? 'דולג' : 'מתוכנן'}${w.workout?.distance ? `, ${w.workout.distance} ק"מ` : ''})`
-    ).join('\n')
-
-    const userMessage = `ספורטאי: ${athleteName}
-שבוע: ${weekStartDate} עד ${weekEndDate}
-אימונים השבוע:
-${workoutLines || 'אין אימונים רשומים'}
-${coachNotes ? `\nהערות המאמן: ${coachNotes}` : ''}`
+    if (!userMessage) {
+      return NextResponse.json({ error: 'Missing userMessage' }, { status: 400 })
+    }
 
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -48,7 +43,7 @@ ${coachNotes ? `\nהערות המאמן: ${coachNotes}` : ''}`
           { role: 'user', content: userMessage },
         ],
         temperature: 0.4,
-        max_tokens: 1024,
+        max_tokens: 1200,
         response_format: { type: 'json_object' },
       }),
     })
