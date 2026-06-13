@@ -17,7 +17,7 @@ import {
   limit,
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { CheckCircle2, Loader2 } from 'lucide-react'
+import { CheckCircle2, Loader2, Activity, ChevronLeft } from 'lucide-react'
 import type { WorkoutLog, Workout, SplitLog } from '@/lib/types'
 import { legacyEffortToNumber } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -209,47 +209,57 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
   if (collapsed) {
     return (
       <div className="mt-4 pt-4 border-t border-border/40">
-        <div className="bg-emerald-50 rounded-2xl border border-emerald-200 shadow-sm p-4 flex items-start justify-between gap-3">
-          <div className="flex-1 space-y-2">
-            <div className="flex items-center gap-2 flex-wrap">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0" />
-              <span className="text-xs font-semibold uppercase tracking-wider text-emerald-700">הושלם</span>
+        <div className="rounded-2xl border border-border bg-white shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">נרשם</span>
             </div>
-            <div className="flex items-center gap-3 flex-wrap">
-              {effort != null && (
+            <Button size="sm" variant="ghost" className="h-7 px-3 text-xs text-muted-foreground rounded-lg" onClick={() => setCollapsed(false)}>
+              ערוך
+            </Button>
+          </div>
+          <div className="px-4 py-3 flex items-center gap-4 flex-wrap">
+            {effort != null && (
+              <div className="flex items-center gap-1.5">
                 <span className={cn(
-                  'px-2.5 py-1 rounded-full text-xs font-bold',
-                  effort <= 4 ? 'bg-emerald-100 text-emerald-700' :
-                  effort <= 6 ? 'bg-amber-100 text-amber-700' :
-                  effort <= 7 ? 'bg-orange-100 text-orange-700' :
-                  'bg-red-100 text-red-700'
-                )}>מאמץ {effort}/10</span>
-              )}
-              {actualDistance && <span className="text-sm font-semibold text-navy">{actualDistance} ק"מ</span>}
-              {actualPace && <span className="text-sm text-muted-foreground">{actualPace}/ק"מ</span>}
-            </div>
-            {comment && <p className="text-sm text-navy italic leading-relaxed">"{comment}"</p>}
-            {splitLogs && splitLogs.filter((s:any) => s.time && s.time.includes(':') && !String(s.distance||'').includes("ד'")).length > 0 && (
-              <div className="space-y-0.5 pt-1 border-t border-emerald-200/60">
-                {Array.from(new Set(splitLogs
-                  .filter((s:any) => s.time && s.time.includes(':') && !String(s.distance||'').includes("ד'"))
-                  .map((s:any) => s.setIndex)
-                )).map((si: any) => {
-                  const items = splitLogs.filter((s:any) => s.setIndex === si && s.time && s.time.includes(':') && !String(s.distance||'').includes("ד'"))
-                  if (!items.length) return null
-                  return (
-                    <p key={si} className="text-sm text-muted-foreground">
-                      <span className="font-semibold text-navy">סט {Number(si)+1}:</span>{' '}
-                      {items.map((s:any) => s.distance ? `${s.distance} ${s.time}` : s.time).join(' · ')}
-                    </p>
-                  )
-                })}
+                  'w-2.5 h-2.5 rounded-full flex-shrink-0',
+                  effort <= 4 ? 'bg-emerald-400' :
+                  effort <= 6 ? 'bg-amber-400' :
+                  effort <= 7 ? 'bg-orange-400' : 'bg-red-400'
+                )}/>
+                <span className="text-sm font-semibold text-navy">מאמץ {effort}/10</span>
               </div>
             )}
+            {actualDistance && (
+              <span className="text-sm text-muted-foreground">{actualDistance} ק"מ</span>
+            )}
+            {actualPace && (
+              <span className="text-sm text-muted-foreground">{actualPace}/ק"מ</span>
+            )}
           </div>
-          <Button size="sm" variant="outline" className="h-8 px-3 bg-white flex-shrink-0 text-sm rounded-xl border-emerald-200" onClick={() => setCollapsed(false)}>
-            ערוך
-          </Button>
+          {comment && (
+            <div className="px-4 pb-3">
+              <p className="text-sm text-muted-foreground italic">"{comment}"</p>
+            </div>
+          )}
+          {splitLogs && splitLogs.filter((s:any) => s.time && s.time.includes(':') && !String(s.distance||'').includes("ד'")).length > 0 && (
+            <div className="px-4 pb-3 space-y-0.5 border-t border-border/40 pt-3">
+              {Array.from(new Set(splitLogs
+                .filter((s:any) => s.time && s.time.includes(':') && !String(s.distance||'').includes("ד'"))
+                .map((s:any) => s.setIndex)
+              )).map((si: any) => {
+                const items = splitLogs.filter((s:any) => s.setIndex === si && s.time && s.time.includes(':') && !String(s.distance||'').includes("ד'"))
+                if (!items.length) return null
+                return (
+                  <p key={si} className="text-xs text-muted-foreground">
+                    <span className="font-semibold text-navy">סט {Number(si)+1}:</span>{' '}
+                    {items.map((s:any) => s.distance ? `${s.distance} ${s.time}` : s.time).join(' · ')}
+                  </p>
+                )
+              })}
+            </div>
+          )}
         </div>
       </div>
     )
@@ -346,12 +356,31 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
       )}
 
       {/* Strava auto-fill */}
-      <div className="flex justify-end">
-        <button type="button" onClick={handleFillFromStrava} disabled={stravaFilling}
-          className="text-xs px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold transition-colors disabled:opacity-50">
-          {stravaFilling ? 'Loading...' : stravaFilled ? 'Strava Filled!' : 'Fill from Strava'}
-        </button>
-      </div>
+      <button type="button" onClick={handleFillFromStrava} disabled={stravaFilling || stravaFilled}
+        className="w-full flex items-center justify-between gap-3 px-4 py-3.5 rounded-2xl border border-border bg-white hover:bg-muted/30 transition-all disabled:opacity-60 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className={cn(
+            'h-9 w-9 rounded-xl flex items-center justify-center flex-shrink-0',
+            stravaFilled ? 'bg-emerald-500' : 'bg-[#FC4C02]'
+          )}>
+            {stravaFilling
+              ? <Loader2 className="h-4 w-4 text-white animate-spin" />
+              : stravaFilled
+              ? <CheckCircle2 className="h-4 w-4 text-white" />
+              : <Activity className="h-4 w-4 text-white" />
+            }
+          </div>
+          <div dir="rtl">
+            <p className="text-sm font-semibold text-navy">
+              {stravaFilling ? 'מחפש פעילות...' : stravaFilled ? 'נתוני Strava מולאו' : 'מלא מ-Strava'}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {stravaFilled ? 'מרחק וטמפו עודכנו' : 'מלא אוטומטית מהאימון האחרון'}
+            </p>
+          </div>
+        </div>
+        {!stravaFilling && !stravaFilled && <ChevronLeft className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
+      </button>
 
       {/* Distance + pace */}
       <div className="grid grid-cols-2 gap-3">
@@ -377,34 +406,32 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
 
       {/* Effort */}
       <div className="space-y-3">
-        <div className="flex items-baseline justify-between">
-          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.effortRange}</Label>
-          {effort != null && (
-            <span className={cn(
-              'text-lg font-bold px-2.5 py-0.5 rounded-full',
-              effort <= 4 ? 'bg-emerald-100 text-emerald-700' :
-              effort <= 6 ? 'bg-amber-100 text-amber-700' :
-              effort <= 7 ? 'bg-orange-100 text-orange-700' :
-              'bg-red-100 text-red-700'
-            )}>{effort}/10</span>
-          )}
-        </div>
-        <div role="radiogroup" aria-label="Perceived effort from 1 to 10" className="grid grid-cols-10 gap-1">
-          {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => {
-            const active = effort === n
-            const activeTone = n <= 4 ? 'bg-emerald-100 text-emerald-700 border-emerald-300 shadow-sm' :
-              n <= 6 ? 'bg-amber-100 text-amber-700 border-amber-300 shadow-sm' :
-              n <= 7 ? 'bg-orange-100 text-orange-700 border-orange-300 shadow-sm' :
-              'bg-red-100 text-red-700 border-red-300 shadow-sm'
+        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.effortRange}</Label>
+        <div className="grid grid-cols-5 gap-2" role="radiogroup">
+          {([
+            { label: 'קל מאוד', value: 2, active: 'bg-emerald-500 text-white border-emerald-500', dot: 'bg-emerald-400' },
+            { label: 'קל',      value: 4, active: 'bg-emerald-400 text-white border-emerald-400', dot: 'bg-emerald-400' },
+            { label: 'בינוני',  value: 6, active: 'bg-amber-400 text-white border-amber-400',    dot: 'bg-amber-400'   },
+            { label: 'קשה',     value: 8, active: 'bg-orange-500 text-white border-orange-500',  dot: 'bg-orange-400'  },
+            { label: 'מאוד קשה',value: 10,active: 'bg-red-500 text-white border-red-500',        dot: 'bg-red-400'     },
+          ] as const).map(opt => {
+            const isSelected = effort === opt.value
             return (
-              <button key={n} type="button" role="radio" aria-checked={active} onClick={() => setEffort(n)}
-                className={cn('h-11 rounded-xl border text-sm font-bold transition-all', active ? activeTone : 'border-border bg-background text-muted-foreground hover:bg-muted/50')}>
-                {n}
+              <button key={opt.value} type="button" role="radio" aria-checked={isSelected}
+                onClick={() => setEffort(opt.value)}
+                className={cn(
+                  'flex flex-col items-center gap-1.5 py-3 px-1 rounded-2xl border-2 transition-all text-center',
+                  isSelected ? opt.active + ' shadow-sm' : 'border-border bg-white text-muted-foreground hover:border-border/80 hover:bg-muted/30'
+                )}>
+                <span className={cn('w-2 h-2 rounded-full', isSelected ? 'bg-white/80' : opt.dot)} />
+                <span className="text-[11px] font-semibold leading-tight">{opt.label}</span>
               </button>
             )
           })}
         </div>
-        <p className="text-xs text-muted-foreground">{t.effortHelper}</p>
+        {effort != null && (
+          <p className="text-xs text-center text-muted-foreground">{t.effortHelper}</p>
+        )}
       </div>
 
       {/* Comment */}
