@@ -407,31 +407,44 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
       {/* Effort */}
       <div className="space-y-3">
         <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.effortRange}</Label>
-        <div className="grid grid-cols-5 gap-2" role="radiogroup">
-          {([
-            { label: 'קל מאוד', value: 2, active: 'bg-emerald-500 text-white border-emerald-500', dot: 'bg-emerald-400' },
-            { label: 'קל',      value: 4, active: 'bg-emerald-400 text-white border-emerald-400', dot: 'bg-emerald-400' },
-            { label: 'בינוני',  value: 6, active: 'bg-amber-400 text-white border-amber-400',    dot: 'bg-amber-400'   },
-            { label: 'קשה',     value: 8, active: 'bg-orange-500 text-white border-orange-500',  dot: 'bg-orange-400'  },
-            { label: 'מאוד קשה',value: 10,active: 'bg-red-500 text-white border-red-500',        dot: 'bg-red-400'     },
-          ] as const).map(opt => {
-            const isSelected = effort === opt.value
-            return (
-              <button key={opt.value} type="button" role="radio" aria-checked={isSelected}
-                onClick={() => setEffort(opt.value)}
-                className={cn(
-                  'flex flex-col items-center gap-1.5 py-3 px-1 rounded-2xl border-2 transition-all text-center',
-                  isSelected ? opt.active + ' shadow-sm' : 'border-border bg-white text-muted-foreground hover:border-border/80 hover:bg-muted/30'
-                )}>
-                <span className={cn('w-2 h-2 rounded-full', isSelected ? 'bg-white/80' : opt.dot)} />
-                <span className="text-[11px] font-semibold leading-tight">{opt.label}</span>
-              </button>
-            )
-          })}
+        <div className="flex items-center justify-center gap-6 py-2" dir="rtl">
+          <button type="button"
+            onClick={() => setEffort(prev => prev != null ? Math.max(1, prev - 1) : 5)}
+            className="w-14 h-14 rounded-full border-2 border-border bg-white hover:bg-muted/40 transition-all flex items-center justify-center shadow-sm text-2xl font-bold text-navy select-none">
+            −
+          </button>
+          <div className="flex flex-col items-center gap-1 min-w-[72px]">
+            <span className={cn(
+              'text-6xl font-black leading-none transition-colors',
+              effort == null ? 'text-muted-foreground/30' :
+              effort <= 2 ? 'text-emerald-500' :
+              effort <= 4 ? 'text-emerald-400' :
+              effort <= 6 ? 'text-amber-500' :
+              effort <= 8 ? 'text-orange-500' : 'text-red-500'
+            )}>
+              {effort ?? '—'}
+            </span>
+            <span className={cn(
+              'text-sm font-semibold transition-colors',
+              effort == null ? 'text-muted-foreground' :
+              effort <= 2 ? 'text-emerald-500' :
+              effort <= 4 ? 'text-emerald-400' :
+              effort <= 6 ? 'text-amber-500' :
+              effort <= 8 ? 'text-orange-500' : 'text-red-500'
+            )}>
+              {effort == null ? 'בחר עצימות' :
+               effort <= 2 ? 'קל מאוד' :
+               effort <= 4 ? 'קל' :
+               effort <= 6 ? 'בינוני' :
+               effort <= 8 ? 'קשה' : 'מאוד קשה'}
+            </span>
+          </div>
+          <button type="button"
+            onClick={() => setEffort(prev => prev != null ? Math.min(10, prev + 1) : 5)}
+            className="w-14 h-14 rounded-full border-2 border-border bg-white hover:bg-muted/40 transition-all flex items-center justify-center shadow-sm text-2xl font-bold text-navy select-none">
+            +
+          </button>
         </div>
-        {effort != null && (
-          <p className="text-xs text-center text-muted-foreground">{t.effortHelper}</p>
-        )}
       </div>
 
       {/* Comment */}
@@ -443,7 +456,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
 
       <Button onClick={handleSave} disabled={saving || effort == null}
         className="w-full h-12 bg-navy hover:bg-navy/90 text-white font-semibold rounded-2xl text-base">
-        {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />{t.savingDots}</> : existingLog ? t.updateLog : t.saveLog}
+        {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />שומר...</> : existingLog ? 'עדכן משוב' : 'שלח משוב למאמן'}
       </Button>
     </div>
   )

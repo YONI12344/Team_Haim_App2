@@ -365,37 +365,41 @@ export function AthleteSchedule({ athleteId: propAthleteId, readOnly = false }: 
                                 {(() => {
                                   const log = getLogForWorkout(workout.id, workout.scheduledDate)
                                   if (!log) return null
-                                  const tone =
+                                  const effortPill =
                                     log.effort <= 3
                                       ? 'bg-emerald-100 text-emerald-700'
                                       : log.effort <= 6
-                                      ? 'bg-amber-100 text-amber-700'
+                                      ? 'bg-sky-100 text-sky-700'
                                       : log.effort <= 8
                                       ? 'bg-orange-100 text-orange-700'
                                       : 'bg-red-100 text-red-700'
                                   return (
                                     <div
-                                      className="mt-2 rounded-lg bg-emerald-50 border border-emerald-200 p-2 cursor-pointer hover:bg-emerald-100 transition-colors"
+                                      className="mt-2 rounded-xl bg-white border border-border shadow-sm p-2.5 cursor-pointer hover:bg-muted/30 transition-colors"
                                       onClick={(e) => { e.stopPropagation(); setSelectedWorkout(workout) }}
                                     >
-                                      <div className="flex items-center justify-between mb-1">
-                                        <div className="flex items-center gap-1">
-                                          <CheckCircle2 className="h-3 w-3 text-emerald-600" />
-                                          <span className="text-xs font-semibold text-emerald-700">Completed</span>
+                                      <div className="flex items-center justify-between mb-1.5">
+                                        <div className="flex items-center gap-1.5">
+                                          <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                                          <span className="text-xs font-semibold text-navy">הושלם</span>
                                           {(log as any).source === 'strava' && (
-                                            <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-medium ml-1">Strava</span>
+                                            <span className="text-[10px] bg-[#FC4C02]/10 text-[#FC4C02] px-1.5 py-0.5 rounded-full font-semibold">Strava</span>
                                           )}
                                         </div>
-                                        <span className={cn('text-xs px-1.5 py-0.5 rounded font-semibold', tone)}>
-                                          RPE {log.effort}/10
+                                        <span className={cn('text-[10px] px-2 py-0.5 rounded-full font-bold', effortPill)}>
+                                          מאמץ {log.effort}/10
                                         </span>
                                       </div>
-                                      <div className="flex flex-wrap gap-2 text-xs text-emerald-700 font-medium">
-                                        {log.actualDistance && <span>{log.actualDistance} km</span>}
-                                        {log.actualPace && <span>@ {log.actualPace}/km</span>}
+                                      <div className="flex flex-wrap gap-1.5">
+                                        {log.actualDistance && (
+                                          <span className="text-[11px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{log.actualDistance} ק"מ</span>
+                                        )}
+                                        {log.actualPace && (
+                                          <span className="text-[11px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{log.actualPace}/ק"מ</span>
+                                        )}
                                       </div>
                                       {log.comment && (
-                                        <p className="mt-1 text-xs text-emerald-600 italic line-clamp-1">&ldquo;{log.comment}&rdquo;</p>
+                                        <p className="mt-1.5 text-[11px] text-muted-foreground italic line-clamp-1">"{log.comment}"</p>
                                       )}
                                     </div>
                                   )
