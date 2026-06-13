@@ -506,7 +506,63 @@ export function AthletePlanner({ athleteId }: Props) {
       const planStart = addDays(new Date(), 1)
       planStart.setHours(0, 0, 0, 0)
 
-      // Build explicit per-day schedule so the model cannot make mistakes
+      // ── 2-week analysis ────────────────────────────────────────────────────
+      const todayStr  = format(new Date(), 'yyyy-MM-dd')
+      const week2From = format(addDays(new Date(), -7),  'yyyy-MM-dd')
+      const week1From = format(addDays(new Date(), -14), 'yyyy-MM-dd')
+
+      const getLog = (aw: AssignedWorkout) =>
+        logs.find(l => l.assignedWorkoutId === aw.id ||
+          (l.workoutId === aw.workoutId && l.date === aw.scheduledDate))
+
+      const analyzeWeek = (fromStr: string, toStr: string) => {
+        const wAWs = assignedWorkouts.filter(w =>
+          w.scheduledDate >= fromStr && w.scheduledDate <= toStr
+        )
+        const done    = wAWs.filter(w => w.status === 'completed')
+        const skipped = wAWs.filter(w => w.status === 'skipped')
+        const km = done.reduce((s, w) => s + (w.workout?.distance || 0), 0)
+        const efforts = wAWs.flatMap(w => { const l = getLog(w); return l?.effort ? [l.effort] : [] })
+        const avgEffort = efforts.length > 0
+          ? (efforts.reduce((s, e) => s + e, 0) / efforts.length).toFixed(1)
+          : 'אין'
+        const list = wAWs.map(w => {
+          const l = getLog(w)
+          const st = w.status === 'completed' ? 'הושלם' : w.status === 'skipped' ? 'דולג' : 'מתוכנן'
+          return `${w.scheduledDate}: ${w.workout?.title || 'אימון'} (${st}${w.workout?.distance ? `, ${w.workout.distance}ק"מ` : ''}${l?.effort ? `, מאמץ ${l.effort}/10` : ''})`
+        }).join('; ') || 'אין אימונים'
+        return { km: km.toFixed(1), done: done.length, skipped: skipped.length, avgEffort, list }
+      }
+
+      const w1 = analyzeWeek(week1From, format(addDays(new Date(), -8), 'yyyy-MM-dd'))
+      const w2 = analyzeWeek(week2From, todayStr)
+      const totalKm = (parseFloat(w1.km) + parseFloat(w2.km)).toFixed(1)
+      const weeklyKmTarget = athlete.weeklyKmRange
+        ? `${athlete.weeklyKmRange.min}–${athlete.weeklyKmRange.max}`
+        : 'לא הוגדר'
+      const offN = (athlete as any).offWeekInterval ?? 4
+      const nextWeekNum = journey ? journey.weekInStage + 1 : null
+      const isDownWeek = nextWeekNum !== null ? nextWeekNum % offN === 0 : false
+
+      const analysisSection = `ניתוח 2 השבועות האחרונים:
+
+שבוע 1 (לפני שבועיים):
+- ק"מ שהושלמו: ${w1.km} ק"מ
+- אימונים: ${w1.done} הושלמו, ${w1.skipped} דולגו
+- מאמץ ממוצע: ${w1.avgEffort}/10
+- אימונים: ${w1.list}
+
+שבוע 2 (השבוע שעבר):
+- ק"מ שהושלמו: ${w2.km} ק"מ
+- אימונים: ${w2.done} הושלמו, ${w2.skipped} דולגו
+- מאמץ ממוצע: ${w2.avgEffort}/10
+- אימונים: ${w2.list}
+
+סה"כ ק"מ ב-2 שבועות: ${totalKm} ק"מ
+יעד שבועי של הספורטאי: ${weeklyKmTarget} ק"מ
+האם שבוע הבא שבוע ירידה? ${isDownWeek ? 'כן - הפחת נפח 30%' : 'לא - המשך בנייה'}`
+
+      // ── Day schedule ───────────────────────────────────────────────────────
       const trainingOffsets: number[] = []
       const restOffsets: number[] = []
       const dayScheduleLines = Array.from({ length: 14 }, (_, i) => {
@@ -527,10 +583,12 @@ export function AthletePlanner({ athleteId }: Props) {
 תאריך מירוץ: ${journey?.goalRaceDate || 'לא הוגדר'}
 שבועות למירוץ: ${weeksToRace ?? 'לא ידוע'}
 שיאים: ${athlete.personalRecords?.map((p: any) => `${p.event}: ${p.time}`).join(', ') || 'לא הוגדרו'}
-יעד ק"מ שבועי: ${athlete.weeklyKmRange ? `${athlete.weeklyKmRange.min}–${athlete.weeklyKmRange.max}` : 'לא הוגדר'}
+יעד ק"מ שבועי: ${weeklyKmTarget}
 מטרה: ${mainGoal}
 עומס: ${loadMap[loadLevel]}
 הערת מאמן: ${aiNote || 'אין'}
+
+${analysisSection}
 
 לוח 14 הימים הקרובים:
 ${dayScheduleLines}
