@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { format, isToday, parseISO } from 'date-fns'
+import { format, isToday, parseISO, startOfWeek, endOfWeek, addDays } from 'date-fns'
 import { 
   Users, 
   Dumbbell, 
@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { collection, getDocs, query, where, orderBy, limit, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore'
+
 import { db, realtimeDb } from '@/lib/firebase'
 import { ref, onValue, query as rtQuery, orderByChild, limitToLast } from 'firebase/database'
 import { useAuth } from '@/contexts/auth-context'
@@ -56,6 +57,7 @@ export function CoachDashboard() {
   const [athletes, setAthletes] = useState<AthleteProfile[]>([])
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [assignedWorkouts, setAssignedWorkouts] = useState<AssignedWorkout[]>([])
+  const [unreadMessages, setUnreadMessages] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -141,6 +143,21 @@ export function CoachDashboard() {
         setAssignedWorkouts([])
       }
 
+      // Load unread coach messages
+      try {
+        const msgSnap = await getDocs(
+          query(collection(db, 'coachMessages'), where('read', '==', false))
+        )
+        const counts: Record<string, number> = {}
+        msgSnap.docs.forEach(d => {
+          const aid = d.data().athleteId as string
+          counts[aid] = (counts[aid] || 0) + 1
+        })
+        setUnreadMessages(counts)
+      } catch {
+        setUnreadMessages({})
+      }
+
       setLoading(false)
     }
 
@@ -155,6 +172,23 @@ export function CoachDashboard() {
   // Calculate stats
   const completedToday = todaysWorkouts.filter(w => w.status === 'completed').length
   const pendingToday = todaysWorkouts.filter(w => w.status === 'scheduled').length
+
+  // Weekly stats
+  const thisWeekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
+  const thisWeekEnd = format(endOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
+  const completedThisWeekAll = assignedWorkouts.filter(
+    w => w.status === 'completed' && w.scheduledDate >= thisWeekStart && w.scheduledDate <= thisWeekEnd
+  )
+  const totalKmThisWeek = completedThisWeekAll.reduce((s, w) => s + (w.workout?.distance || 0), 0)
+
+  // Athletes without next-week plan
+  const nextWeekStart = format(addDays(new Date(thisWeekEnd), 1), 'yyyy-MM-dd')
+  const nextWeekEnd = format(addDays(new Date(thisWeekEnd), 7), 'yyyy-MM-dd')
+  const athletesWithNextWeekPlan = new Set(
+    assignedWorkouts
+      .filter(w => w.scheduledDate >= nextWeekStart && w.scheduledDate <= nextWeekEnd)
+      .map(w => w.athleteId)
+  )
 
   const getInitials = (name: string | undefined | null) => {
     const safeName = name || '?'
@@ -186,25 +220,60 @@ export function CoachDashboard() {
         </p>
       </div>
 
-      {/* Control Dashboard shortcut */}
-      <Link href="/coach/workouts?tab=planning">
-        <Card className="border-navy/20 hover:border-navy/40 transition-colors cursor-pointer bg-navy/5">
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center justify-between">
+      {/* Quick nav */}
+      <div className="grid grid-cols-2 gap-3">
+        <Link href="/coach/workouts?tab=planning">
+          <Card className="border-navy/20 hover:border-navy/40 transition-colors cursor-pointer bg-navy/5 h-full">
+            <CardContent className="pt-4 pb-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-navy/10 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-navy/10 flex items-center justify-center flex-shrink-0">
                   <Activity className="h-5 w-5 text-navy" />
                 </div>
                 <div>
-                  <p className="font-semibold text-navy">לוח בקרה</p>
-                  <p className="text-xs text-muted-foreground">תכנון אימונים לכל הספורטאים</p>
+                  <p className="font-semibold text-navy text-sm">מרכז תכנון</p>
+                  <p className="text-xs text-muted-foreground">לוח בקרה לכלל הספורטאים</p>
                 </div>
               </div>
-              <ChevronRight className="h-5 w-5 text-muted-foreground" />
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/coach/workouts">
+          <Card className="border-gold/20 hover:border-gold/40 transition-colors cursor-pointer bg-gold/5 h-full">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gold/10 flex items-center justify-center flex-shrink-0">
+                  <Dumbbell className="h-5 w-5 text-gold" />
+                </div>
+                <div>
+                  <p className="font-semibold text-navy text-sm">ספריית אימונים</p>
+                  <p className="text-xs text-muted-foreground">כל האימונים הזמינים</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      </div>
+
+      {/* Weekly overview */}
+      <Card className="rounded-2xl border-navy/10">
+        <CardContent className="pt-4 pb-4">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">סקירה שבועית</p>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-navy">{athletes.length}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">ספורטאים</p>
             </div>
-          </CardContent>
-        </Card>
-      </Link>
+            <div className="text-center border-x border-border/40">
+              <p className="text-2xl font-bold text-emerald-600">{completedThisWeekAll.length}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">אימונים הושלמו</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-gold">{totalKmThisWeek.toFixed(0)}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">ק"מ השבוע</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Chat - top of dashboard */}
       <Link href="/coach/chat">
@@ -308,35 +377,60 @@ export function CoachDashboard() {
             </Link>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {athletes.slice(0, 4).map((athlete) => (
-                <Link
-                  key={athlete.id}
-                  href={`/coach/athletes/${athlete.id}`}
-                  className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-luxury"
-                >
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={athlete.photoURL} alt={athlete.name} />
-                      <AvatarFallback className="bg-gold/10 text-gold text-sm">
-                        {getInitials(athlete.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium text-navy">{athlete.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {athlete.events.slice(0, 2).join(', ')}
-                      </p>
+            <div className="space-y-2">
+              {athletes.slice(0, 5).map((athlete) => {
+                const hasUnread = unreadMessages[athlete.id] > 0
+                const hasPlan = athletesWithNextWeekPlan.has(athlete.id)
+                const weekDone = completedThisWeekAll.filter(w => w.athleteId === athlete.id).length
+                const weekTotal = assignedWorkouts.filter(
+                  w => w.athleteId === athlete.id && w.scheduledDate >= thisWeekStart && w.scheduledDate <= thisWeekEnd
+                ).length
+                return (
+                  <div key={athlete.id} className="relative flex items-center gap-3 p-3 rounded-2xl bg-muted/40 hover:bg-muted/70 transition-colors">
+                    {hasUnread && (
+                      <span className="absolute top-2.5 left-2.5 w-2 h-2 bg-orange-500 rounded-full" />
+                    )}
+                    <Link href={`/coach/athletes/${athlete.id}`} className="flex items-center gap-3 flex-1 min-w-0">
+                      <Avatar className="h-9 w-9 flex-shrink-0">
+                        <AvatarImage src={athlete.photoURL} alt={athlete.name} />
+                        <AvatarFallback className="bg-gold/10 text-gold text-xs">
+                          {getInitials(athlete.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="font-semibold text-navy text-sm truncate">{athlete.name}</p>
+                          {!hasPlan && (
+                            <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5 bg-red-50 text-red-600 border-red-200 flex-shrink-0">
+                              ללא תוכנית
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {weekTotal > 0 ? `${weekDone}/${weekTotal} השבוע` : 'אין אימונים השבוע'}
+                        </p>
+                      </div>
+                    </Link>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <Link href={`/coach/athletes/${athlete.id}`}>
+                        <Button variant="outline" size="sm" className="h-7 text-xs px-2 border-navy/20 hover:border-navy/50">
+                          פלנר
+                        </Button>
+                      </Link>
+                      <Link href="/coach/chat">
+                        <Button variant="outline" size="sm" className="h-7 text-xs px-2 relative border-gold/30 hover:border-gold/60">
+                          צ'אט
+                          {hasUnread && (
+                            <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-orange-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center">
+                              {unreadMessages[athlete.id]}
+                            </span>
+                          )}
+                        </Button>
+                      </Link>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs">
-                      {athlete.personalRecords.length} {t.tabPRs}
-                    </Badge>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                </Link>
-              ))}
+                )
+              })}
             </div>
           </CardContent>
         </Card>

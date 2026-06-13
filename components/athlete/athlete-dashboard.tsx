@@ -31,6 +31,7 @@ import {
   getDocs,
   onSnapshot,
   query,
+  updateDoc,
   where,
   type DocumentData,
   type QueryDocumentSnapshot,
@@ -124,6 +125,7 @@ export function AthleteDashboard() {
   const [loading, setLoading] = useState(true)
   const [unreadCount, setUnreadCount] = useState(0)
   const [latestCoachNote, setLatestCoachNote] = useState<any>(null)
+  const [coachMessages, setCoachMessages] = useState<any[]>([])
 
   useEffect(() => {
     if (!user?.id) return
@@ -201,6 +203,16 @@ export function AthleteDashboard() {
         notes.sort((a, b) => (b.weekStart || '').localeCompare(a.weekStart || ''))
         setLatestCoachNote(notes[0])
       }
+    }).catch(() => {})
+
+    // Load coach messages
+    getDocs(query(
+      collection(db, 'coachMessages'),
+      where('athleteId', '==', user.id),
+    )).then(snap => {
+      const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() })) as any[]
+      msgs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+      setCoachMessages(msgs)
     }).catch(() => {})
 
     // Real-time listener for assigned workouts
@@ -434,6 +446,55 @@ export function AthleteDashboard() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Coach Messages */}
+      {coachMessages.filter(m => !m.read).length > 0 && (
+        <div className="space-y-2" dir="rtl">
+          <h2 className="text-sm font-bold text-navy px-1">הערות מהמאמן</h2>
+          <div className="space-y-2">
+            {coachMessages.slice(0, 5).map(msg => (
+              <div
+                key={msg.id}
+                className={cn(
+                  'rounded-2xl border p-4 space-y-2 transition-all',
+                  msg.read
+                    ? 'bg-muted/20 border-border opacity-40'
+                    : 'bg-white border-gold/30 shadow-sm',
+                )}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-semibold text-gold uppercase tracking-wide mb-1">
+                      {msg.workoutTitle}
+                    </p>
+                    <p className="text-sm text-navy leading-relaxed">{msg.message}</p>
+                  </div>
+                  {!msg.read && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs text-muted-foreground flex-shrink-0 hover:text-navy"
+                      onClick={async () => {
+                        await updateDoc(doc(db, 'coachMessages', msg.id), { read: true })
+                        setCoachMessages(prev =>
+                          prev.map(m => m.id === msg.id ? { ...m, read: true } : m),
+                        )
+                      }}
+                    >
+                      סמן כנקרא
+                    </Button>
+                  )}
+                </div>
+                {msg.createdAt?.seconds && (
+                  <p className="text-[10px] text-muted-foreground">
+                    {format(new Date(msg.createdAt.seconds * 1000), 'd/M/yyyy')}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Quick Nav Buttons */}
