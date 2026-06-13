@@ -47,6 +47,12 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
   const [splitLogs, setSplitLogs] = useState<SplitLog[]>([])
   const [stravaFilling, setStravaFilling] = useState(false)
   const [stravaFilled, setStravaFilled] = useState(false)
+  const [stravaSource, setStravaSource] = useState<null | {
+    stravaName: string
+    averageHeartRate: number | null
+    elevationGain: number | null
+    splitLogs: any[]
+  }>(null)
 
   const handleFillFromStrava = async () => {
     setStravaFilling(true)
@@ -132,11 +138,25 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
           setActualPace(log.actualPace || '')
           setEffort(log.effort)
           setComment(log.comment)
-          if (log.splitLogs && log.splitLogs.length > 0) {
-            setSplitLogs(log.splitLogs)
+          if (logData.source === 'strava') {
+            setStravaSource({
+              stravaName: logData.stravaName || '',
+              averageHeartRate: logData.averageHeartRate || null,
+              elevationGain: logData.elevationGain || null,
+              splitLogs: Array.isArray(logData.splitLogs) ? logData.splitLogs : [],
+            })
+            // Only collapse if athlete already added effort feedback
+            if (log.effort) {
+              setSaved(true)
+              setCollapsed(true)
+            }
+          } else {
+            if (log.splitLogs && log.splitLogs.length > 0) {
+              setSplitLogs(log.splitLogs)
+            }
+            setSaved(true)
+            setCollapsed(true)
           }
-          setSaved(true)
-          setCollapsed(true)
         }
       } catch (error) {
         console.error('Error loading workout log:', error)
@@ -179,7 +199,9 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
         splitLogs: splitLogs.filter(s => s.time || s.pace || s.notes),
       }
       if (existingLog?.id) {
-        await updateDoc(doc(db, 'logs', existingLog.id), { ...baseData, updatedAt: serverTimestamp() })
+        const updatePayload: any = { ...baseData, updatedAt: serverTimestamp() }
+        if (stravaSource) updatePayload.feedbackStatus = 'completed'
+        await updateDoc(doc(db, 'logs', existingLog.id), updatePayload)
         setExistingLog({ ...existingLog, actualDistance: parsedDistance ?? undefined, actualPace: baseData.actualPace ?? undefined, effort, comment, splitLogs: baseData.splitLogs })
       } else {
         const docRef = await addDoc(collection(db, 'logs'), { ...baseData, createdAt: serverTimestamp() })
@@ -272,7 +294,9 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
   return (
     <div className="mt-5 pt-5 border-t border-border/40 space-y-6">
       <div className="flex items-center justify-between">
-        <h4 className="font-bold text-navy text-base">{t.workoutLogHeading}</h4>
+        <h4 className="font-bold text-navy text-base">
+          {stravaSource ? 'כיצד הרגשת?' : t.workoutLogHeading}
+        </h4>
         {saved && (
           <div className="flex items-center gap-1.5 text-emerald-600 text-sm font-semibold">
             <CheckCircle2 className="h-4 w-4" />
@@ -281,8 +305,56 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
         )}
       </div>
 
-      {/* Structured splits */}
-      {hasSets && (
+      {/* Strava activity card — shown when log came from Strava */}
+      {stravaSource && (
+        <div className="rounded-2xl border border-border overflow-hidden shadow-sm" dir="rtl">
+          <div className="px-4 py-3 flex items-center gap-3 bg-[#FC4C02]/5 border-b border-border/50">
+            <div className="h-9 w-9 rounded-xl bg-[#FC4C02] flex items-center justify-center flex-shrink-0">
+              <Activity className="h-4 w-4 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-navy truncate">
+                {stravaSource.stravaName || 'אימון Strava'}
+              </p>
+              <p className="text-[11px] text-muted-foreground">סונכרן מ-Strava</p>
+            </div>
+          </div>
+          <div className="px-4 py-3 flex flex-wrap gap-2">
+            {actualDistance && (
+              <span className="text-xs font-semibold bg-muted px-3 py-1.5 rounded-full">{actualDistance} ק"מ</span>
+            )}
+            {actualPace && (
+              <span className="text-xs font-semibold bg-muted px-3 py-1.5 rounded-full">{actualPace}</span>
+            )}
+            {stravaSource.averageHeartRate && (
+              <span className="text-xs font-semibold bg-red-50 text-red-600 border border-red-100 px-3 py-1.5 rounded-full">{stravaSource.averageHeartRate} bpm</span>
+            )}
+            {stravaSource.elevationGain != null && stravaSource.elevationGain > 0 && (
+              <span className="text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 px-3 py-1.5 rounded-full">+{stravaSource.elevationGain}m</span>
+            )}
+          </div>
+          {stravaSource.splitLogs && stravaSource.splitLogs.length > 0 && (
+            <div className="px-4 pb-3 overflow-x-auto" dir="ltr">
+              <div className="flex gap-2 w-max">
+                {stravaSource.splitLogs.slice(0, 20).map((split: any, i: number) => (
+                  <div key={i} className="flex-shrink-0 rounded-xl border border-border bg-muted/30 px-3 py-2 text-center min-w-[64px]">
+                    <p className="text-[10px] font-semibold text-muted-foreground mb-0.5">
+                      {split.lapIndex ? `Lap ${split.lapIndex}` : `km ${i + 1}`}
+                    </p>
+                    <p className="text-xs font-bold text-navy">{split.pace || split.time}</p>
+                    {split.heartRate && (
+                      <p className="text-[10px] text-red-500">{split.heartRate} bpm</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Structured splits — only for non-Strava logs */}
+      {hasSets && !stravaSource && (
         <div className="space-y-4">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">תיעוד לפי אינטרוול</p>
           {workout!.sets!.map((set, si) => {
@@ -355,8 +427,8 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
         </div>
       )}
 
-      {/* Strava auto-fill */}
-      <button type="button" onClick={handleFillFromStrava} disabled={stravaFilling || stravaFilled}
+      {/* Strava auto-fill — hidden when already a Strava log */}
+      {!stravaSource && <button type="button" onClick={handleFillFromStrava} disabled={stravaFilling || stravaFilled}
         className="w-full flex items-center justify-between gap-3 px-4 py-3.5 rounded-2xl border border-border bg-white hover:bg-muted/30 transition-all disabled:opacity-60 shadow-sm">
         <div className="flex items-center gap-3">
           <div className={cn(
@@ -380,29 +452,31 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
           </div>
         </div>
         {!stravaFilling && !stravaFilled && <ChevronLeft className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
-      </button>
+      </button>}
 
-      {/* Distance + pace */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="actualDistance" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            {hasSets ? 'סה"כ ק"מ' : t.actualDistanceKm}
-          </Label>
-          <Input id="actualDistance" type="number" step="0.1" min="0"
-            placeholder={hasSets ? '10' : t.examplePlaceholder10}
-            value={actualDistance} onChange={e => setActualDistance(e.target.value)}
-            className="h-11 text-base rounded-xl text-center font-semibold" />
+      {/* Distance + pace — hidden when Strava data already shown in card */}
+      {!stravaSource && (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="actualDistance" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {hasSets ? 'סה"כ ק"מ' : t.actualDistanceKm}
+            </Label>
+            <Input id="actualDistance" type="number" step="0.1" min="0"
+              placeholder={hasSets ? '10' : t.examplePlaceholder10}
+              value={actualDistance} onChange={e => setActualDistance(e.target.value)}
+              className="h-11 text-base rounded-xl text-center font-semibold" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="actualPace" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {hasSets ? 'טמפו ממוצע' : t.actualPaceKm}
+            </Label>
+            <Input id="actualPace" type="text"
+              placeholder={hasSets ? '4:30' : t.examplePlaceholder530}
+              value={actualPace} onChange={e => setActualPace(e.target.value)}
+              className="h-11 text-base rounded-xl text-center font-semibold" />
+          </div>
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="actualPace" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            {hasSets ? 'טמפו ממוצע' : t.actualPaceKm}
-          </Label>
-          <Input id="actualPace" type="text"
-            placeholder={hasSets ? '4:30' : t.examplePlaceholder530}
-            value={actualPace} onChange={e => setActualPace(e.target.value)}
-            className="h-11 text-base rounded-xl text-center font-semibold" />
-        </div>
-      </div>
+      )}
 
       {/* Effort */}
       <div className="space-y-3">

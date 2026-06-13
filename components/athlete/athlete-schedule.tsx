@@ -373,29 +373,40 @@ export function AthleteSchedule({ athleteId: propAthleteId, readOnly = false }: 
                                       : log.effort <= 8
                                       ? 'bg-orange-100 text-orange-700'
                                       : 'bg-red-100 text-red-700'
+                                  const isStrava = (log as any).source === 'strava'
                                   return (
                                     <div
-                                      className="mt-2 rounded-xl bg-white border border-border shadow-sm p-2.5 cursor-pointer hover:bg-muted/30 transition-colors"
+                                      className={cn(
+                                        'mt-2 rounded-xl border p-2.5 cursor-pointer transition-colors',
+                                        isStrava
+                                          ? 'bg-orange-50/60 border-orange-200 hover:bg-orange-50'
+                                          : 'bg-emerald-50/60 border-emerald-200 hover:bg-emerald-50'
+                                      )}
                                       onClick={(e) => { e.stopPropagation(); setSelectedWorkout(workout) }}
                                     >
                                       <div className="flex items-center justify-between mb-1.5">
                                         <div className="flex items-center gap-1.5">
-                                          <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                                          <CheckCircle2 className={cn('h-3 w-3', isStrava ? 'text-[#FC4C02]' : 'text-emerald-500')} />
                                           <span className="text-xs font-semibold text-navy">הושלם</span>
-                                          {(log as any).source === 'strava' && (
-                                            <span className="text-[10px] bg-[#FC4C02]/10 text-[#FC4C02] px-1.5 py-0.5 rounded-full font-semibold">Strava</span>
+                                          {isStrava && (
+                                            <span className="text-[10px] bg-[#FC4C02]/15 text-[#FC4C02] px-1.5 py-0.5 rounded-full font-bold">Strava</span>
                                           )}
                                         </div>
-                                        <span className={cn('text-[10px] px-2 py-0.5 rounded-full font-bold', effortPill)}>
-                                          מאמץ {log.effort}/10
-                                        </span>
+                                        {log.effort != null && (
+                                          <span className={cn('text-[10px] px-2 py-0.5 rounded-full font-bold', effortPill)}>
+                                            מאמץ {log.effort}/10
+                                          </span>
+                                        )}
                                       </div>
                                       <div className="flex flex-wrap gap-1.5">
                                         {log.actualDistance && (
-                                          <span className="text-[11px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{log.actualDistance} ק"מ</span>
+                                          <span className="text-[11px] font-medium text-muted-foreground bg-white/70 px-2 py-0.5 rounded-full border border-black/5">{log.actualDistance} ק"מ</span>
                                         )}
                                         {log.actualPace && (
-                                          <span className="text-[11px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{log.actualPace}/ק"מ</span>
+                                          <span className="text-[11px] font-medium text-muted-foreground bg-white/70 px-2 py-0.5 rounded-full border border-black/5">{log.actualPace}/ק"מ</span>
+                                        )}
+                                        {!log.effort && (
+                                          <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">הוסף מאמץ</span>
                                         )}
                                       </div>
                                       {log.comment && (
