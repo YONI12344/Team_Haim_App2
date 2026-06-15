@@ -1,74 +1,50 @@
 import { NextResponse } from 'next/server'
-
-function getAdminApp() {
-  const { initializeApp, getApps, cert } = require('firebase-admin/app')
-  if (getApps().length > 0) return getApps()[0]
-  return initializeApp({
-    credential: cert({
-      projectId: 'team-haim',
-      clientEmail: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      privateKey: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    }),
-  })
-}
+import { getGoogleAccessToken, fsQuery, fsGetDoc, sendFCM } from '@/lib/google-auth'
 
 export async function GET() {
   try {
-    getAdminApp()
-    const { getFirestore } = require('firebase-admin/firestore')
-    const { getMessaging } = require('firebase-admin/messaging')
-
-    const db = getFirestore()
     const today = new Date().toISOString().slice(0, 10)
+    const accessToken = await getGoogleAccessToken()
 
-    // Athletes with a non-completed workout today
-    const workoutsSnap = await db
-      .collection('assignedWorkouts')
-      .where('scheduledDate', '==', today)
-      .get()
+    const workouts = await fsQuery(
+      'assignedWorkouts',
+      [{ field: 'scheduledDate', op: 'EQUAL', value: today }],
+      accessToken,
+    )
 
-    const athleteIds = new Set<string>()
-    workoutsSnap.forEach((doc: any) => {
-      const d = doc.data()
-      if (d.athleteId && d.status !== 'completed' && d.status !== 'skipped') {
-        athleteIds.add(d.athleteId)
-      }
-    })
+    const athleteIds = new Set(
+      workouts
+        .filter((w) => w.data.status !== 'completed' && w.data.status !== 'skipped')
+        .map((w) => w.data.athleteId as string)
+        .filter(Boolean),
+    )
 
-    // Athletes who already submitted a manual log today
-    const logsSnap = await db.collection('logs').where('date', '==', today).get()
-    const loggedAthletes = new Set<string>()
-    logsSnap.forEach((doc: any) => {
-      const d = doc.data()
-      if (d.source !== 'strava') loggedAthletes.add(d.athleteId)
-    })
+    const logs = await fsQuery(
+      'logs',
+      [{ field: 'date', op: 'EQUAL', value: today }],
+      accessToken,
+    )
+    const loggedAthletes = new Set(
+      logs
+        .filter((l) => l.data.source !== 'strava')
+        .map((l) => l.data.athleteId as string)
+        .filter(Boolean),
+    )
 
-    const messaging = getMessaging()
     const results: string[] = []
-
     for (const athleteId of athleteIds) {
       if (loggedAthletes.has(athleteId)) continue
 
-      const tokenDoc = await db.collection('fcmTokens').doc(athleteId).get()
-      if (!tokenDoc.exists) continue
-
-      const { token } = tokenDoc.data()
+      const tokenDoc = await fsGetDoc('fcmTokens', athleteId, accessToken)
+      if (!tokenDoc?.token) continue
 
       try {
-        await messaging.send({
-          token,
-          notification: {
-            title: 'שכחת לדווח על האימון?',
-            body: 'לחץ כאן לדיווח על האימון של היום',
-          },
-          data: { url: '/athlete/schedule', type: 'evening_reminder' },
-          android: {
-            notification: { channelId: 'team-haim-default', priority: 'high' as const, defaultSound: true },
-          },
-          apns: {
-            payload: { aps: { sound: 'default', badge: 1, contentAvailable: true } },
-          },
-        })
+        await sendFCM(
+          tokenDoc.token,
+          { title: 'שכחת לדווח על האימון?', body: 'לחץ כאן לדיווח על האימון של היום' },
+          { url: '/athlete/schedule', type: 'evening_reminder' },
+          accessToken,
+        )
         results.push(athleteId)
       } catch (err) {
         console.error(`Evening reminder failed for ${athleteId}:`, err)
