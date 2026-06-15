@@ -75,6 +75,21 @@ const TYPE_BORDER_COLORS: Record<string, string> = {
   cross_training: 'border-l-teal-500',
 }
 
+const TYPE_DOT_COLORS: Record<string, string> = {
+  easy: 'bg-emerald-500',
+  long_run: 'bg-orange-500',
+  tempo: 'bg-purple-500',
+  intervals: 'bg-blue-500',
+  hill_repeats: 'bg-amber-500',
+  fartlek: 'bg-cyan-500',
+  recovery: 'bg-gray-400',
+  rest: 'bg-gray-300',
+  race: 'bg-red-500',
+  time_trial: 'bg-indigo-500',
+  strength: 'bg-rose-500',
+  cross_training: 'bg-teal-500',
+}
+
 interface JourneySummary {
   stageName: string; weekInStage: number; totalWeeksInStage: number
   isOffWeek: boolean; goalRaceDate: string; goalRaceEvent: string
@@ -96,6 +111,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
   const [expandedToday, setExpandedToday] = useState(false)
   const [stravaSyncing, setStravaSyncing] = useState(false)
   const [coachMessages, setCoachMessages] = useState<any[]>([])
+  const [selectedWeekDay, setSelectedWeekDay] = useState<Date>(() => new Date())
 
   useEffect(() => {
     if (!athleteId) return
@@ -140,6 +156,16 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
     }
     load()
   }, [athleteId])
+
+  useEffect(() => {
+    if (viewMode !== 'week') return
+    const ws = startOfWeek(currentDate, { weekStartsOn: 0 })
+    const we = endOfWeek(currentDate, { weekStartsOn: 0 })
+    if (selectedWeekDay < ws || selectedWeekDay > we) {
+      const today = new Date()
+      setSelectedWeekDay(today >= ws && today <= we ? today : ws)
+    }
+  }, [currentDate, viewMode])
 
   useEffect(() => {
     if (!athleteId) return
@@ -224,7 +250,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
   )
 
   const renderWorkoutDetail = (w: AssignedWorkout) => (
-    <div className="border border-border rounded-xl overflow-hidden bg-white">
+    <div className="rounded-2xl overflow-hidden border border-gray-100 bg-white">
       {/* Warmup */}
       {w.workout.warmup && (
         <div className="px-4 py-3 border-b border-border">
@@ -310,7 +336,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
         ) : (
           <button
             onClick={() => setOpenLogForms(prev => new Set([...prev, w.id]))}
-            className="w-full px-4 py-3 text-sm font-medium text-navy hover:bg-muted/30 transition-colors text-right">
+            className="w-full px-5 py-4 text-sm font-bold text-[#0a1628] bg-[#c9a84c] hover:bg-[#c9a84c]/90 active:scale-[0.98] transition-all text-center">
             + תעד אימון
           </button>
         )}
@@ -668,445 +694,365 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
   }
 
 
+  // ── Shared premium workout card renderer ────────────────────────────────────
+  const renderWorkoutCard = (w: AssignedWorkout) => {
+    const effStatus = getEffectiveStatus(w)
+    const msg = coachMessages.find(m => m.assignedWorkoutId === w.id)
+    const isSelected = selectedWorkoutId === w.id
+    const log = weekLogs.find(l => l.assignedWorkoutId === w.id && !!l.actualDistance && l.source !== 'strava')
+      || weekLogs.find(l => !l.assignedWorkoutId && l.date === w.scheduledDate && !!l.actualDistance && l.source !== 'strava')
+    return (
+      <div key={w.id} className="space-y-2">
+        {/* Main card */}
+        <div className={cn(
+          'bg-white rounded-3xl shadow-sm border border-l-4 overflow-hidden transition-all',
+          effStatus === 'completed' ? 'border-emerald-100 border-l-emerald-500'
+            : effStatus === 'skipped' ? 'border-red-100 border-l-red-400'
+            : `border-gray-100 ${TYPE_BORDER_COLORS[w.workout?.type] || 'border-l-[#0a1628]'}`
+        )}>
+          <button
+            onClick={() => setSelectedWorkoutId(prev => prev === w.id ? null : w.id)}
+            className="w-full p-5 text-right active:bg-gray-50/60 transition-colors">
+            <div className="flex items-start justify-between gap-3" dir="rtl">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                  <span className={cn('text-[10px] font-bold px-2.5 py-1 rounded-full border', TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy)}>
+                    {TYPE_LABELS_HE[w.workout?.type] || w.workout?.type}
+                  </span>
+                  {effStatus === 'completed' && <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-full">✓ הושלם</span>}
+                  {effStatus === 'skipped' && <span className="text-[10px] font-bold text-red-500 bg-red-50 border border-red-100 px-2.5 py-1 rounded-full">דולג</span>}
+                </div>
+                <p className={cn('font-bold text-lg leading-tight mb-1', effStatus === 'completed' ? 'text-emerald-800' : 'text-[#0a1628]')}>
+                  {w.workout.title}
+                </p>
+                {(w.workout.distance || w.workout.duration) && (
+                  <p className="text-sm text-gray-400">
+                    {w.workout.distance && `${w.workout.distance} ק"מ`}
+                    {w.workout.distance && w.workout.duration && '  ·  '}
+                    {w.workout.duration && `${w.workout.duration} דק'`}
+                  </p>
+                )}
+              </div>
+              <ChevronDown className={cn('h-5 w-5 text-gray-300 flex-shrink-0 mt-1 transition-transform duration-200', isSelected ? 'rotate-180' : '')} />
+            </div>
+          </button>
+          {isSelected && (
+            <div className="border-t border-gray-100 px-5 pb-5 pt-4">
+              {renderWorkoutDetail(w)}
+            </div>
+          )}
+        </div>
+
+        {/* Coach message */}
+        {msg && (
+          <div className={cn('bg-white rounded-2xl border p-4 shadow-sm', !msg.read ? 'border-l-4 border-l-[#c9a84c] border-gray-100' : 'border-gray-100')} dir="rtl">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[#c9a84c]">הודעה מהמאמן</p>
+              {msg.createdAt?.seconds && <p className="text-[9px] text-gray-400">{format(new Date(msg.createdAt.seconds * 1000), 'd/M/yyyy')}</p>}
+            </div>
+            <p className="text-sm text-[#0a1628] leading-relaxed">{msg.message}</p>
+            {!msg.read && (
+              <button onClick={async () => { try { await updateDoc(doc(db, 'coachMessages', msg.id), { read: true }); setCoachMessages(prev => prev.map(m => m.id === msg.id ? { ...m, read: true } : m)) } catch {} }}
+                className="mt-2 text-[10px] text-gray-400 hover:text-gray-600 underline underline-offset-2">סמן כנקרא</button>
+            )}
+          </div>
+        )}
+
+        {/* Manual log result */}
+        {log && (
+          <div className="bg-white rounded-3xl shadow-sm border border-emerald-100 border-l-4 border-l-emerald-500 overflow-hidden" dir="rtl">
+            <div className="p-5 flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-600 mb-2">ביצוע בפועל</p>
+                <div className="flex flex-wrap gap-2">
+                  {log.actualDistance && <span className="text-xs font-medium bg-gray-50 border border-gray-100 px-3 py-1.5 rounded-full">{log.actualDistance} ק"מ</span>}
+                  {log.actualPace && <span className="text-xs font-medium bg-gray-50 border border-gray-100 px-3 py-1.5 rounded-full" dir="ltr">{log.actualPace}</span>}
+                  {log.effort != null && (
+                    <span className={cn('text-xs font-medium px-3 py-1.5 rounded-full border',
+                      log.effort <= 3 ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                      log.effort <= 5 ? 'bg-green-100 text-green-700 border-green-200' :
+                      log.effort <= 7 ? 'bg-amber-100 text-amber-700 border-amber-200' :
+                      log.effort <= 9 ? 'bg-orange-100 text-orange-700 border-orange-200' :
+                      'bg-red-100 text-red-700 border-red-200'
+                    )}>מאמץ {log.effort}/10</span>
+                  )}
+                </div>
+                {log.comment && <p className="text-xs text-gray-400 italic mt-2">"{log.comment}"</p>}
+              </div>
+              <button
+                onClick={async () => {
+                  if (!confirm('למחוק את תיעוד האימון?')) return
+                  try {
+                    const { doc, deleteDoc, updateDoc } = await import('firebase/firestore')
+                    const { db } = await import('@/lib/firebase')
+                    if (log.id) await deleteDoc(doc(db, 'logs', log.id))
+                    await updateDoc(doc(db, 'assignedWorkouts', w.id), { status: 'scheduled', completedAt: null })
+                    setWeekLogs(prev => prev.filter(l => l.id !== log.id))
+                    toast.success('תיעוד נמחק')
+                  } catch(e) { console.error(e); toast.error('שגיאה במחיקה') }
+                }}
+                className="h-7 w-7 rounded-full hover:bg-red-50 flex items-center justify-center text-gray-300 hover:text-red-400 transition-colors flex-shrink-0">✕</button>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4 pb-24" dir="rtl">
 
-      {/* Calendar */}
-      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-4">
-          {/* Nav + Toggle */}
-          <div className="flex items-center justify-between mb-4">
-            <Button variant="ghost" size="icon" onClick={() => setCurrentDate(d => viewMode==='day' ? new Date(d.getTime()-86400000) : viewMode==='week' ? subWeeks(d,1) : subMonths(d,1))}>
-              <ChevronRight className="h-4 w-4"/>
-            </Button>
-            <div className="flex flex-col items-center gap-1.5">
-              <p className="font-semibold text-navy text-base">
-                {viewMode==='day'
-                  ? format(currentDate,'EEEE, d MMM yyyy')
-                  : viewMode==='week'
-                  ? `${format(weekStart,'d MMM')} – ${format(weekEnd,'d MMM yyyy')}`
-                  : format(currentDate,'MMMM yyyy')}
-              </p>
-              <div className="flex gap-1 bg-muted rounded-full p-0.5">
-                <button onClick={() => setViewMode('day')} className={cn('text-[11px] px-3 py-0.5 rounded-full transition-all', viewMode==='day' ? 'bg-white text-navy font-semibold shadow-sm' : 'text-muted-foreground')}>{t.dayView}</button>
-                <button onClick={() => setViewMode('week')} className={cn('text-[11px] px-3 py-0.5 rounded-full transition-all', viewMode==='week' ? 'bg-white text-navy font-semibold shadow-sm' : 'text-muted-foreground')}>{t.weekView}</button>
-                <button onClick={() => setViewMode('month')} className={cn('text-[11px] px-3 py-0.5 rounded-full transition-all', viewMode==='month' ? 'bg-white text-navy font-semibold shadow-sm' : 'text-muted-foreground')}>{t.monthView}</button>
-              </div>
-            </div>
-            <Button variant="ghost" size="icon" onClick={() => setCurrentDate(d => viewMode==='day' ? new Date(d.getTime()+86400000) : viewMode==='week' ? addWeeks(d,1) : addMonths(d,1))}>
-              <ChevronLeft className="h-4 w-4"/>
-            </Button>
+      {/* ── Hero: nav + period title + view toggle + strava ──────────────── */}
+      <div className="bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 rounded-3xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <button
+            onClick={() => setCurrentDate(d => viewMode==='day' ? new Date(d.getTime()-86400000) : viewMode==='week' ? subWeeks(d,1) : subMonths(d,1))}
+            className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center active:scale-95 transition-all">
+            <ChevronRight className="h-4 w-4 text-white" />
+          </button>
+          <div className="text-center">
+            <p className="font-bold text-white text-base">
+              {viewMode==='day'
+                ? format(currentDate, 'd MMMM yyyy')
+                : viewMode==='week'
+                ? `${format(weekStart,'d MMM')} – ${format(weekEnd,'d MMM yyyy')}`
+                : format(currentDate,'MMMM yyyy')}
+            </p>
+            {viewMode==='day' && isToday(currentDate) && (
+              <p className="text-[#c9a84c] text-xs font-bold mt-0.5 tracking-wide">היום</p>
+            )}
           </div>
+          <button
+            onClick={() => setCurrentDate(d => viewMode==='day' ? new Date(d.getTime()+86400000) : viewMode==='week' ? addWeeks(d,1) : addMonths(d,1))}
+            className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center active:scale-95 transition-all">
+            <ChevronLeft className="h-4 w-4 text-white" />
+          </button>
+        </div>
 
-          {/* Strava Sync Button */}
-          <div className="flex justify-end mb-2">
-            <button
-              onClick={handleStravaSync}
-              disabled={stravaSyncing}
-              className="text-xs px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-medium transition-colors flex items-center gap-1.5"
-            >
-              {stravaSyncing ? '⏳ מסנכרן...' : '🚴 סנכרן Strava'}
+        {/* View toggle */}
+        <div className="flex gap-1 bg-white/10 rounded-2xl p-1 mb-3">
+          {(['day','week','month'] as const).map(mode => (
+            <button key={mode} onClick={() => setViewMode(mode)}
+              className={cn('flex-1 py-2 rounded-xl text-xs font-bold transition-all active:scale-95',
+                viewMode === mode ? 'bg-white text-[#0a1628] shadow-sm' : 'text-white/50 hover:text-white/75')}>
+              {mode === 'day' ? t.dayView : mode === 'week' ? t.weekView : t.monthView}
             </button>
-          </div>
+          ))}
+        </div>
 
-          {/* Day View - same as week view single column */}
-          {viewMode === 'day' && (
-            <div className="space-y-3">
-              <div className={cn('rounded-2xl border p-4',
-                isToday(currentDate) ? 'border-[#c9a84c]/40 bg-[#c9a84c]/5' : 'border-gray-100'
-              )}>
-                <div className="flex items-center justify-between mb-3">
-                  <p className={cn('text-sm font-bold', isToday(currentDate) ? 'text-[#c9a84c]' : 'text-[#0a1628]')}>
-                    {format(currentDate,'EEEE, d MMMM')}
-                  </p>
-                  {isToday(currentDate) && <span className="text-[10px] font-black bg-[#0a1628] text-[#c9a84c] px-2.5 py-1 rounded-full tracking-wide">היום</span>}
-                </div>
-                {(() => {
-                  const dayWorkouts = getWorkoutsForDay(currentDate)
-                  const dateStrCheck = format(currentDate, 'yyyy-MM-dd')
-                  const stravaLogsCheck = weekLogs.filter(l => l.date === dateStrCheck && l.source === 'strava')
-                  if (dayWorkouts.length === 0 && stravaLogsCheck.length === 0) return (
-                    <p className="text-sm text-muted-foreground text-center py-4">אין אימון מתוכנן</p>
-                  )
-                  return (
-                    <div className="space-y-1.5">
-                      {/* All assigned workouts */}
-                      {dayWorkouts.map(w => {
-                        const msg = coachMessages.find(m => m.assignedWorkoutId === w.id)
-                        const effStatus = getEffectiveStatus(w)
-                        return (
-                          <div key={w.id} className="space-y-2">
-                            <button
-                              onClick={() => setSelectedWorkoutId(prev => prev === w.id ? null : w.id)}
-                              className={cn(
-                                'w-full text-right rounded-2xl border-l-4 border p-4 transition-all active:scale-[0.99] shadow-sm',
-                                effStatus === 'completed'
-                                  ? 'bg-emerald-50 border-emerald-100 border-l-emerald-500'
-                                  : effStatus === 'skipped'
-                                  ? 'bg-red-50 border-red-100 border-l-red-400'
-                                  : `bg-white border-gray-100 ${TYPE_BORDER_COLORS[w.workout?.type] || 'border-l-[#0a1628]'}`,
-                                selectedWorkoutId === w.id ? 'ring-2 ring-[#0a1628]/15' : ''
-                              )}>
-                              <div className="flex items-start justify-between gap-3" dir="rtl">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
-                                    <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full border', TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy)}>
-                                      {TYPE_LABELS_HE[w.workout?.type] || w.workout?.type}
-                                    </span>
-                                    {effStatus === 'completed' && (
-                                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">✓ הושלם</span>
-                                    )}
-                                    {effStatus === 'skipped' && (
-                                      <span className="text-[10px] font-bold text-red-500 bg-red-100 px-2 py-0.5 rounded-full">דולג</span>
-                                    )}
-                                  </div>
-                                  <p className={cn('font-bold text-base leading-tight', effStatus === 'completed' ? 'text-emerald-800' : 'text-[#0a1628]')}>
-                                    {w.workout.title}
-                                  </p>
-                                  {(w.workout.distance || w.workout.duration) && (
-                                    <p className="text-sm text-gray-500 mt-1">
-                                      {w.workout.distance && `${w.workout.distance} ק"מ`}
-                                      {w.workout.distance && w.workout.duration && ' · '}
-                                      {w.workout.duration && `${w.workout.duration} דק'`}
-                                    </p>
-                                  )}
-                                </div>
-                                <ChevronDown className={cn('h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5 transition-transform', selectedWorkoutId === w.id ? 'rotate-180' : '')} />
-                              </div>
-                            </button>
-                            {msg && (
-                              <div className={cn(
-                                'rounded-xl border bg-white px-3 py-2.5 space-y-1',
-                                !msg.read ? 'border-t-2 border-t-[#c9a84c] border-gray-100' : 'border-gray-100'
-                              )} dir="rtl">
-                                <div className="flex items-center justify-between gap-2">
-                                  <p className="text-[10px] font-semibold text-[#c9a84c] uppercase tracking-wide">הערת מאמן</p>
-                                  {msg.createdAt?.seconds && (
-                                    <p className="text-[9px] text-gray-400">{format(new Date(msg.createdAt.seconds * 1000), 'd/M/yyyy')}</p>
-                                  )}
-                                </div>
-                                <p className="text-sm text-[#0a1628] leading-relaxed">{msg.message}</p>
-                                {!msg.read && (
-                                  <button
-                                    onClick={async () => {
-                                      try {
-                                        await updateDoc(doc(db, 'coachMessages', msg.id), { read: true })
-                                        setCoachMessages(prev => prev.map(m => m.id === msg.id ? { ...m, read: true } : m))
-                                      } catch {}
-                                    }}
-                                    className="text-[10px] text-gray-400 hover:text-gray-600 underline underline-offset-2 transition-colors"
-                                  >
-                                    סמן כנקרא
-                                  </button>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
-
-                      {/* Divider — only if any logs exist */}
-                      {dayWorkouts.some(w => weekLogs.find(l => (l.assignedWorkoutId === w.id || (!l.assignedWorkoutId && l.date === w.scheduledDate)) && l.actualDistance && l.source !== 'strava')) && (
-                        <div className="flex items-center gap-2 my-1">
-                          <div className="flex-1 border-t border-emerald-200" />
-                          <span className="text-xs text-emerald-600 font-medium">ביצוע</span>
-                          <div className="flex-1 border-t border-emerald-200" />
-                        </div>
-                      )}
-
-                      {/* All completed logs */}
-                      {dayWorkouts.map(w => {
-                        const log = weekLogs.find(l => l.assignedWorkoutId === w.id && !!l.actualDistance && l.source !== 'strava') || weekLogs.find(l => !l.assignedWorkoutId && l.date === w.scheduledDate && !!l.actualDistance && l.source !== 'strava')
-                        if (!log) return null
-                        return (
-                          <div key={w.id} className="rounded-2xl border border-emerald-200 border-l-4 border-l-emerald-500 bg-emerald-50/30 overflow-hidden shadow-sm" dir="rtl">
-                            <div className="px-4 pt-3.5 pb-2 flex items-center justify-between gap-2">
-                              <span className="text-sm font-bold text-navy truncate min-w-0">{w.workout.title}</span>
-                              <div className="flex items-center gap-1.5 flex-shrink-0">
-                                <span className="text-[11px] bg-emerald-100 text-emerald-700 font-bold px-2.5 py-1 rounded-full">✓ הושלם</span>
-                                <button
-                                  onClick={async () => {
-                                    if (!confirm('למחוק את תיעוד האימון?')) return
-                                    try {
-                                      const { doc, deleteDoc, updateDoc } = await import('firebase/firestore')
-                                      const { db } = await import('@/lib/firebase')
-                                      if (log.id) await deleteDoc(doc(db, 'logs', log.id))
-                                      await updateDoc(doc(db, 'assignedWorkouts', w.id), { status: 'scheduled', completedAt: null })
-                                      setWeekLogs(prev => prev.filter(l => l.id !== log.id))
-                                      toast.success('תיעוד נמחק')
-                                    } catch(e) { console.error(e); toast.error('שגיאה במחיקה') }
-                                  }}
-                                  className="h-6 w-6 rounded-full hover:bg-red-50 flex items-center justify-center text-muted-foreground/50 hover:text-red-400 transition-colors text-sm">✕</button>
-                              </div>
-                            </div>
-                            <div className="px-4 pb-3 flex flex-wrap gap-2">
-                              {log.actualDistance && <span className="text-xs font-medium bg-white border border-border/40 px-3 py-1.5 rounded-full">{log.actualDistance} ק"מ</span>}
-                              {log.actualPace && <span className="text-xs font-medium bg-white border border-border/40 px-3 py-1.5 rounded-full" dir="ltr">{log.actualPace}</span>}
-                              {log.effort != null && (
-                                <span className={cn('text-xs font-medium px-3 py-1.5 rounded-full border',
-                                  log.effort <= 3 ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
-                                  log.effort <= 5 ? 'bg-green-100 text-green-700 border-green-200' :
-                                  log.effort <= 7 ? 'bg-amber-100 text-amber-700 border-amber-200' :
-                                  log.effort <= 9 ? 'bg-orange-100 text-orange-700 border-orange-200' :
-                                  'bg-red-100 text-red-700 border-red-200'
-                                )}>מאמץ {log.effort}/10</span>
-                              )}
-                            </div>
-                            {log.comment && <p className="px-4 pb-3.5 text-xs text-muted-foreground italic line-clamp-1">"{log.comment}"</p>}
-                          </div>
-                        )
-                      })}
-                      {/* Strava standalone logs for this day - shown after sync */}
-                      {(() => {
-                        const dateStr = format(currentDate, 'yyyy-MM-dd')
-                        const stravaLogs = weekLogs.filter(l =>
-                          l.date === dateStr &&
-                          l.source === 'strava'
-                        )
-                        if (!stravaLogs.length) return null
-                        return (
-                          <div className="space-y-1.5 mt-1">
-                            <div className="flex items-center gap-2 my-1">
-                              <div className="flex-1 border-t border-orange-200" />
-                              <span className="text-xs text-orange-600 font-medium">Strava</span>
-                              <div className="flex-1 border-t border-orange-200" />
-                            </div>
-                            {stravaLogs.map(log => <StravaCard key={log.id} log={log} />)}
-                          </div>
-                        )
-                      })()}
-                    </div>
-                  )
-                })()}
-              </div>
-              {selectedWorkoutId && (() => {
-                const w = getWorkoutsForDay(currentDate).find(x => x.id === selectedWorkoutId)
-                if (!w) return null
-                const s = getEffectiveStatus(w)
-                return (
-                  <div className="rounded-2xl border border-[#c9a84c]/30 bg-[#c9a84c]/5 p-4">
-                    <div className="flex items-start justify-between gap-2 mb-3" dir="rtl">
-                      <div>
-                        <p className="font-bold text-[#0a1628] text-base">{w.workout.title}</p>
-                        <div className="flex gap-3 text-sm text-gray-500 mt-0.5">
-                          {w.workout.distance && <span>{w.workout.distance} ק"מ</span>}
-                          {w.workout.duration && <span>{w.workout.duration} דק'</span>}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <span className={cn('w-2 h-2 rounded-full', s==='completed' ? 'bg-emerald-500' : s==='skipped' ? 'bg-red-400' : 'bg-amber-400')} />
-                        <span className="text-xs text-gray-500">{s==='completed'?t.completedBadge:s==='skipped'?t.skippedBadge:t.scheduledBadge}</span>
-                      </div>
-                    </div>
-                    {renderWorkoutDetail(w)}
-                  </div>
-                )
-              })()}
-            </div>
-          )}
-
-          {/* Week View */}
-          {viewMode === 'week' && (
-            <div>
-              {/* Week grid - always horizontal, scrollable on mobile */}
-              <div className="overflow-x-auto pb-2">
-                <div style={{minWidth:'600px'}}>
-                  <div className="grid grid-cols-8 gap-1.5 mb-1.5">
-                    {weekDays.map((_,i) => (
-                      <div key={i} className="text-center text-xs font-bold text-navy py-1">
-                        {language === 'he' ? DAY_HE_LABELS[i] : DAY_EN[i]}
-                      </div>
-                    ))}
-                    <div className="text-center text-xs font-bold text-navy py-1">ק"מ</div>
-                  </div>
-                  <div className="grid grid-cols-8 gap-1.5">
-                    {weekDays.map((day, di) => {
-                      const dayWorkouts = getWorkoutsForDay(day)
-                      const todayFlag = isToday(day)
-                      const hasCompleted = dayWorkouts.some(w => getEffectiveStatus(w) === 'completed')
-                      return (
-                        <div key={di} className={cn('min-h-[150px] rounded-xl border transition-all',
-                          todayFlag ? 'border-gold bg-gold/5' : 'border-border',
-                        )}>
-                          <div className="p-1.5 border-b border-border/40 text-center">
-                            <p className={cn('text-xs font-bold', todayFlag ? 'text-gold' : 'text-navy/70')}>{format(day,'d')}</p>
-                            {hasCompleted && <span className="text-[9px] text-emerald-500">✓</span>}
-                          </div>
-                          <div className="p-1.5 space-y-1">
-                            {dayWorkouts.map(w => {
-                              const effStatus = getEffectiveStatus(w)
-                              const hasMsg = coachMessages.some(m => m.assignedWorkoutId === w.id && !m.read)
-                              return (
-                                <button key={w.id}
-                                  onClick={() => setSelectedWorkoutId(prev => prev === w.id ? null : w.id)}
-                                  className={cn('w-full text-left text-[11px] rounded-lg px-2 py-2 border leading-snug transition-all hover:opacity-80',
-                                    TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy,
-                                    effStatus === 'completed' ? 'opacity-60' : '',
-                                    selectedWorkoutId === w.id ? 'ring-2 ring-navy' : ''
-                                  )}>
-                                  <p className="font-semibold leading-snug text-xs break-words">{w.workout?.title}</p>
-                                  {w.workout?.distance && <p className="opacity-70 text-[10px] mt-0.5">{w.workout.distance}k</p>}
-                                  {w.workout?.duration && !w.workout?.distance && <p className="opacity-70">{w.workout.duration}'</p>}
-                                  {effStatus === 'completed' && <p className="text-emerald-700 text-[9px] font-bold mt-0.5">הושלם</p>}
-                                  {hasMsg && <span className="inline-block w-1.5 h-1.5 bg-[#c9a84c] rounded-full mt-0.5"/>}
-                                </button>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      )
-                    })}
-                    {/* KM column */}
-                    <div className="flex flex-col items-center justify-center rounded-xl bg-muted/30 border border-border/30 min-h-[130px] gap-1">
-                      <div className="text-center">
-                        <p className="text-lg font-bold text-navy">{getWeekKm(weekDays)}</p>
-                        <p className="text-[10px] text-muted-foreground">מתוכנן</p>
-                      </div>
-                      {thisWeekKmActual > 0 && <>
-                        <div className="w-8 h-px bg-border"/>
-                        <div className="text-center">
-                          <p className="text-base font-bold text-emerald-600">{thisWeekKmActual}</p>
-                          <p className="text-[10px] text-emerald-600">בוצע</p>
-                        </div>
-                      </>}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Selected workout detail */}
-              {selectedWorkout && (
-                <div className="mt-4 rounded-2xl border border-[#c9a84c]/30 bg-[#c9a84c]/5 p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="font-bold text-navy text-base">{selectedWorkout.workout.title}</p>
-                      <p className="text-xs text-muted-foreground">{format(parseISO(selectedWorkout.scheduledDate),'EEEE, d MMMM')}</p>
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      {(() => {
-                        const s = getEffectiveStatus(selectedWorkout)
-                        return <>
-                          <span className={cn('w-2.5 h-2.5 rounded-full', s==='completed' ? 'bg-emerald-500' : s==='skipped' ? 'bg-red-400' : 'bg-amber-400')}/>
-                          <span className="text-xs text-muted-foreground">{s==='completed'?t.completedBadge:s==='skipped'?t.skippedBadge:t.scheduledBadge}</span>
-                        </>
-                      })()}
-                    </div>
-                  </div>
-                  {renderWorkoutDetail(selectedWorkout)}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Month View */}
-          {viewMode === 'month' && (
-            <div>
-              <div className="overflow-x-auto pb-2">
-                <div style={{minWidth:'360px'}}>
-                  <div className="grid grid-cols-8 gap-1 mb-1">
-                    {(language === 'he' ? DAY_HE_LABELS : DAY_EN).map((d,i) => (
-                      <div key={i} className="text-center text-[10px] font-medium text-muted-foreground py-1">{d}</div>
-                    ))}
-                    <div className="text-center text-[10px] font-medium text-muted-foreground py-1">ק"מ</div>
-                  </div>
-                  <div className="space-y-1">
-                    {monthWeeks.map((weekStartDay, wi) => {
-                      const days = eachDayOfInterval({ start: weekStartDay, end: endOfWeek(weekStartDay,{weekStartsOn:0}) })
-                      const wKm = getWeekKm(days)
-                      return (
-                        <div key={wi} className="grid grid-cols-8 gap-1">
-                          {days.map((day, di) => {
-                            const inMonth = isSameMonth(day, currentDate)
-                            const dayWorkouts = getWorkoutsForDay(day)
-                            const todayFlag = isToday(day)
-                            const hasCompleted = dayWorkouts.some(w => getEffectiveStatus(w) === 'completed')
-                            const selectedInDay = dayWorkouts.some(w => w.id === selectedWorkoutId)
-                            const hasUnreadMsg = dayWorkouts.some(w => coachMessages.some(m => m.assignedWorkoutId === w.id && !m.read))
-                            return (
-                              <div key={di}
-                                className={cn('min-h-[80px] rounded-lg p-1 text-left border transition-all',
-                                  !inMonth ? 'opacity-20 border-transparent pointer-events-none' : 'border-border',
-                                  todayFlag ? 'border-gold/60 bg-gold/5' : '',
-                                  selectedInDay ? 'ring-2 ring-gold border-gold' : '',
-                                )}>
-                                <div className="flex items-center justify-between mb-1">
-                                  <span className={cn('text-[10px] font-semibold', todayFlag ? 'text-gold' : 'text-navy')}>{format(day,'d')}</span>
-                                  <div className="flex items-center gap-0.5">
-                                    {hasCompleted && <span className="text-emerald-500 text-[9px]">✓</span>}
-                                    {hasUnreadMsg && <span className="w-1.5 h-1.5 bg-[#c9a84c] rounded-full inline-block"/>}
-                                  </div>
-                                </div>
-                                <div className="space-y-0.5">
-                                  {dayWorkouts.slice(0,2).map(w => (
-                                    <button key={w.id}
-                                      onClick={() => inMonth && setSelectedWorkoutId(prev => prev === w.id ? null : w.id)}
-                                      className={cn('w-full text-left text-[8px] rounded px-0.5 py-1 truncate border transition-all hover:opacity-75',
-                                        TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy,
-                                        getEffectiveStatus(w) === 'completed' ? 'opacity-60' : '',
-                                        selectedWorkoutId === w.id ? 'ring-1 ring-navy font-bold' : ''
-                                      )}>
-                                      {getEffectiveStatus(w) === 'completed' ? '✓ ' : ''}{w.workout?.title}
-                                    </button>
-                                  ))}
-                                  {dayWorkouts.length > 2 && <p className="text-[8px] text-muted-foreground">+{dayWorkouts.length-2}</p>}
-                                </div>
-                              </div>
-                            )
-                          })}
-                          {(() => {
-                            const wDone = Math.round(days.reduce((s,d) => {
-                              const dStr = format(d,'yyyy-MM-dd')
-                              return s + weekLogs.filter(l=>l.date===dStr).reduce((a,l)=>a+(l.actualDistance||0),0)
-                            },0))
-                            return (
-                              <div className="flex flex-col items-center justify-center rounded-lg bg-muted/30 p-1 gap-0.5">
-                                {wKm > 0 ? (
-                                  <div className="text-center">
-                                    <p className="text-[10px] font-bold text-navy">{wKm}</p>
-                                    <p className="text-[8px] text-muted-foreground">plan</p>
-                                  </div>
-                                ) : <p className="text-[9px] text-muted-foreground">—</p>}
-                                {wDone > 0 && (
-                                  <div className="text-center border-t border-border/40 pt-0.5 w-full">
-                                    <p className="text-[10px] font-bold text-emerald-600">{wDone}</p>
-                                    <p className="text-[8px] text-emerald-600">done</p>
-                                  </div>
-                                )}
-                              </div>
-                            )
-                          })()}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              {/* Selected workout detail */}
-              {selectedWorkout && (
-                <div className="mt-4 rounded-2xl border border-[#c9a84c]/30 bg-[#c9a84c]/5 p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="font-bold text-navy text-base">{selectedWorkout.workout.title}</p>
-                      <p className="text-xs text-muted-foreground">{format(parseISO(selectedWorkout.scheduledDate),'EEEE, d MMMM')}</p>
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      {(() => {
-                        const s = getEffectiveStatus(selectedWorkout)
-                        return <>
-                          <span className={cn('w-2.5 h-2.5 rounded-full', s==='completed' ? 'bg-emerald-500' : s==='skipped' ? 'bg-red-400' : 'bg-amber-400')}/>
-                          <span className="text-xs text-muted-foreground">{s==='completed'?t.completedBadge:s==='skipped'?t.skippedBadge:t.scheduledBadge}</span>
-                        </>
-                      })()}
-                    </div>
-                  </div>
-                  {renderWorkoutDetail(selectedWorkout)}
-                </div>
-              )}
-            </div>
-          )}
+        {/* Strava sync */}
+        <button onClick={handleStravaSync} disabled={stravaSyncing}
+          className="w-full h-9 rounded-xl bg-white/10 hover:bg-white/15 disabled:opacity-50 text-white/70 text-xs font-semibold flex items-center justify-center gap-2 active:scale-95 transition-all">
+          {stravaSyncing ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> מסנכרן...</> : '🚴 סנכרן Strava'}
+        </button>
       </div>
 
-      {/* Bottom Info Cards */}
+      {/* ── Day View ──────────────────────────────────────────────────────── */}
+      {viewMode === 'day' && (() => {
+        const dayWs = getWorkoutsForDay(currentDate)
+        const dateStr = format(currentDate, 'yyyy-MM-dd')
+        const stravaToday = weekLogs.filter(l => l.date === dateStr && l.source === 'strava')
+
+        if (dayWs.length === 0 && stravaToday.length === 0) return (
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-10 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-gray-50 flex items-center justify-center mx-auto mb-4 text-2xl">🌿</div>
+            <p className="font-bold text-[#0a1628] mb-1">יום מנוחה</p>
+            <p className="text-sm text-gray-400">אין אימון מתוכנן להיום</p>
+          </div>
+        )
+
+        return (
+          <div className="space-y-3">
+            {dayWs.map(w => renderWorkoutCard(w))}
+            {stravaToday.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 border-t border-gray-100" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Strava</span>
+                  <div className="flex-1 border-t border-gray-100" />
+                </div>
+                {stravaToday.map(log => <StravaCard key={log.id} log={log} />)}
+              </div>
+            )}
+          </div>
+        )
+      })()}
+
+      {/* ── Week View ─────────────────────────────────────────────────────── */}
+      {viewMode === 'week' && (
+        <div className="space-y-3">
+          {/* 7-day pill strip */}
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-4">
+            <div className="grid grid-cols-7 gap-1 mb-3">
+              {weekDays.map((day, di) => {
+                const dayWs = getWorkoutsForDay(day)
+                const hasCompleted = dayWs.some(w => getEffectiveStatus(w) === 'completed')
+                const hasPending = dayWs.some(w => getEffectiveStatus(w) === 'scheduled')
+                const isSelDay = isSameDay(day, selectedWeekDay)
+                const todayFlag = isToday(day)
+                return (
+                  <button key={di}
+                    onClick={() => { setSelectedWeekDay(day); setSelectedWorkoutId(null) }}
+                    className={cn('flex flex-col items-center py-2.5 px-1 rounded-2xl transition-all active:scale-95',
+                      isSelDay ? 'bg-[#0a1628]' : todayFlag ? 'bg-[#0a1628]/5' : 'hover:bg-gray-50')}>
+                    <span className={cn('text-[10px] font-semibold mb-0.5', isSelDay ? 'text-white/50' : todayFlag ? 'text-[#c9a84c]' : 'text-gray-400')}>
+                      {DAY_HE_SHORT[di]}
+                    </span>
+                    <span className={cn('text-base font-black', isSelDay ? 'text-white' : todayFlag ? 'text-[#0a1628]' : 'text-[#0a1628]/60')}>
+                      {format(day,'d')}
+                    </span>
+                    <span className={cn('w-1.5 h-1.5 rounded-full mt-1.5',
+                      dayWs.length === 0 ? 'opacity-0' :
+                      hasCompleted ? 'bg-emerald-500' :
+                      hasPending ? (isSelDay ? 'bg-[#c9a84c]' : 'bg-[#c9a84c]/70') : 'bg-gray-200'
+                    )} />
+                  </button>
+                )
+              })}
+            </div>
+            <div className="flex items-center justify-between text-xs border-t border-gray-50 pt-3">
+              <span className="text-gray-400">מתוכנן: {getWeekKm(weekDays)} ק"מ</span>
+              {thisWeekKmActual > 0 && <span className="text-emerald-600 font-semibold">בוצע: {thisWeekKmActual} ק"מ</span>}
+            </div>
+          </div>
+
+          {/* Selected day's workouts */}
+          {(() => {
+            const dayWs = getWorkoutsForDay(selectedWeekDay)
+            const dayStr = format(selectedWeekDay, 'yyyy-MM-dd')
+            const stravaDay = weekLogs.filter(l => l.date === dayStr && l.source === 'strava')
+            if (dayWs.length === 0 && stravaDay.length === 0) return (
+              <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 text-center">
+                <p className="font-semibold text-[#0a1628] mb-1">יום מנוחה</p>
+                <p className="text-sm text-gray-400">{format(selectedWeekDay,'EEEE, d MMMM')}</p>
+              </div>
+            )
+            return (
+              <div className="space-y-3">
+                {dayWs.map(w => renderWorkoutCard(w))}
+                {stravaDay.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 border-t border-gray-100" />
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Strava</span>
+                      <div className="flex-1 border-t border-gray-100" />
+                    </div>
+                    {stravaDay.map(log => <StravaCard key={log.id} log={log} />)}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
+        </div>
+      )}
+
+      {/* ── Month View ────────────────────────────────────────────────────── */}
+      {viewMode === 'month' && (
+        <div className="space-y-3">
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-4">
+            {/* Day headers */}
+            <div className="grid grid-cols-8 gap-1 mb-2">
+              {(language === 'he' ? DAY_HE_LABELS : DAY_EN).map((d,i) => (
+                <div key={i} className="text-center text-[9px] font-bold text-gray-400 py-1 uppercase tracking-wider">{d}</div>
+              ))}
+              <div className="text-center text-[9px] font-bold text-gray-400 py-1 uppercase tracking-wider">ק"מ</div>
+            </div>
+
+            <div className="space-y-1">
+              {monthWeeks.map((weekStartDay, wi) => {
+                const days = eachDayOfInterval({ start: weekStartDay, end: endOfWeek(weekStartDay,{weekStartsOn:0}) })
+                const wKm = getWeekKm(days)
+                const wDone = Math.round(days.reduce((s,d) => {
+                  const dStr = format(d,'yyyy-MM-dd')
+                  return s + weekLogs.filter(l=>l.date===dStr).reduce((a,l)=>a+(l.actualDistance||0),0)
+                },0))
+                return (
+                  <div key={wi} className="grid grid-cols-8 gap-1">
+                    {days.map((day, di) => {
+                      const inMonth = isSameMonth(day, currentDate)
+                      const dayWs = getWorkoutsForDay(day)
+                      const todayFlag = isToday(day)
+                      const hasCompleted = dayWs.some(w => getEffectiveStatus(w) === 'completed')
+                      const selectedInDay = dayWs.some(w => w.id === selectedWorkoutId)
+                      const hasUnreadMsg = dayWs.some(w => coachMessages.some(m => m.assignedWorkoutId === w.id && !m.read))
+                      return (
+                        <div key={di}
+                          onClick={() => {
+                            if (!inMonth || dayWs.length === 0) return
+                            const first = dayWs[0]
+                            setSelectedWorkoutId(prev => prev === first.id ? null : first.id)
+                          }}
+                          className={cn(
+                            'min-h-[52px] rounded-xl p-1.5 flex flex-col items-center gap-1 transition-all',
+                            !inMonth ? 'opacity-15 pointer-events-none' : '',
+                            todayFlag ? 'bg-[#0a1628]/5' : '',
+                            selectedInDay ? 'bg-[#c9a84c]/10 ring-1 ring-[#c9a84c]/30' : '',
+                            dayWs.length > 0 && inMonth ? 'cursor-pointer hover:bg-gray-50' : ''
+                          )}>
+                          {todayFlag ? (
+                            <span className="w-5 h-5 rounded-full bg-[#c9a84c] flex items-center justify-center text-[9px] font-black text-[#0a1628]">{format(day,'d')}</span>
+                          ) : (
+                            <span className={cn('text-[11px] font-semibold', inMonth ? 'text-[#0a1628]/70' : 'text-gray-300')}>{format(day,'d')}</span>
+                          )}
+                          {dayWs.length > 0 && (
+                            <div className="flex gap-0.5 flex-wrap justify-center">
+                              {dayWs.slice(0,3).map((w,i) => (
+                                <span key={i} className={cn('w-1.5 h-1.5 rounded-full',
+                                  getEffectiveStatus(w) === 'completed' ? 'bg-emerald-500' : TYPE_DOT_COLORS[w.workout?.type] || 'bg-[#0a1628]'
+                                )} />
+                              ))}
+                            </div>
+                          )}
+                          {hasUnreadMsg && <span className="w-1 h-1 rounded-full bg-[#c9a84c]" />}
+                        </div>
+                      )
+                    })}
+                    {/* Week KM cell */}
+                    <div className="flex flex-col items-center justify-center rounded-xl p-1 gap-0.5">
+                      {wKm > 0 ? <p className="text-[10px] font-bold text-[#0a1628]/50">{wKm}</p> : <p className="text-[10px] text-gray-200">—</p>}
+                      {wDone > 0 && <p className="text-[10px] font-bold text-emerald-600">{wDone}</p>}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Selected workout detail */}
+          {selectedWorkout && (
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 border-l-4 border-l-[#c9a84c] overflow-hidden">
+              <div className="p-5">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#c9a84c] mb-2">
+                  {format(parseISO(selectedWorkout.scheduledDate),'EEEE, d MMMM')}
+                </p>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-bold text-[#0a1628] text-lg leading-tight">{selectedWorkout.workout.title}</p>
+                    <div className="flex gap-3 text-sm text-gray-400 mt-1">
+                      {selectedWorkout.workout.distance && <span>{selectedWorkout.workout.distance} ק"מ</span>}
+                      {selectedWorkout.workout.duration && <span>{selectedWorkout.workout.duration} דק'</span>}
+                    </div>
+                  </div>
+                  {(() => {
+                    const s = getEffectiveStatus(selectedWorkout)
+                    return (
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <span className={cn('w-2 h-2 rounded-full', s==='completed' ? 'bg-emerald-500' : s==='skipped' ? 'bg-red-400' : 'bg-amber-400')} />
+                        <span className="text-xs text-gray-400">{s==='completed'?t.completedBadge:s==='skipped'?t.skippedBadge:t.scheduledBadge}</span>
+                      </div>
+                    )
+                  })()}
+                </div>
+              </div>
+              <div className="border-t border-gray-100 px-5 pb-5">
+                {renderWorkoutDetail(selectedWorkout)}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Bottom Info Cards ─────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {/* שלב העונה */}
         {journey && (
@@ -1148,6 +1094,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
           ) : <p className="text-sm text-gray-500">לא הוגדר יעד ק"מ</p>}
         </div>
       </div>
+
     </div>
   )
 }
