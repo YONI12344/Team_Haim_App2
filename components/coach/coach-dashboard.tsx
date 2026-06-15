@@ -68,6 +68,7 @@ export function CoachDashboard() {
   const [composerWorkoutId, setComposerWorkoutId] = useState<Record<string, string>>({})
   const [sendingMessage, setSendingMessage] = useState(false)
   const [messageSent, setMessageSent] = useState<string | null>(null)
+  const [expandedLog, setExpandedLog] = useState<string | null>(null)
 
   // Realtime chat unread counts
   useEffect(() => {
@@ -140,6 +141,7 @@ export function CoachDashboard() {
   }
 
   const todayStr = format(new Date(), 'yyyy-MM-dd')
+  const yesterdayStr = format(addDays(new Date(), -1), 'yyyy-MM-dd')
   const thisWeekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
   const thisWeekEnd = format(endOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
   const nextWeekStart = format(addDays(new Date(thisWeekEnd), 1), 'yyyy-MM-dd')
@@ -187,13 +189,31 @@ export function CoachDashboard() {
     )
   }
 
+  // Today overview counts across all athletes
+  const todayAllWorkouts = assignedWorkouts.filter(w => w.scheduledDate === todayStr)
+  const todayCompletedCount = todayAllWorkouts.filter(w => w.status === 'completed').length
+  const todayPendingCount = todayAllWorkouts.filter(w => w.status !== 'completed').length
+
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="space-y-4 pb-24" dir="rtl">
       {/* Header */}
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl md:text-3xl font-serif font-bold text-navy">לוח בקרה</h1>
         <p className="text-sm text-muted-foreground">{format(new Date(), 'EEEE, d MMMM yyyy')}</p>
       </div>
+
+      {/* Today's Overview Bar */}
+      {todayAllWorkouts.length > 0 && (
+        <div className="rounded-2xl bg-[#0a1628] px-5 py-4">
+          <p className="text-[10px] font-semibold text-white/40 uppercase tracking-widest mb-1.5">סיכום היום</p>
+          <p className="text-sm text-white/90">
+            <span className="text-white font-bold text-base">{todayAllWorkouts.length}</span>
+            {' '}אימונים מתוכננים{' · '}
+            <span className="text-emerald-400 font-bold">{todayCompletedCount}</span>{' '}הושלמו{' · '}
+            <span className="text-amber-400 font-bold">{todayPendingCount}</span>{' '}ממתינים
+          </p>
+        </div>
+      )}
 
       {/* Athletes grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -232,8 +252,20 @@ export function CoachDashboard() {
             w => w.athleteId === athlete.id && w.scheduledDate === todayStr
           )
 
+          // Find the log for today's workout (check by assignedWorkoutId first, then date)
+          const todayLog = todayWorkout
+            ? athleteLogs.find((l: any) => l.assignedWorkoutId === todayWorkout.id) ||
+              athleteLogs.find((l: any) => l.date === todayStr && l.source !== 'strava' && l.actualDistance)
+            : null
+
+          // Latest comment from today or yesterday
+          const recentCommentLog = [...athleteLogs]
+            .filter((l: any) => l.comment && (l.date === todayStr || l.date === yesterdayStr))
+            .sort((a: any, b: any) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))[0] || null
+
           const athleteAssignedWorkouts = assignedWorkouts.filter(w => w.athleteId === athlete.id)
           const isComposerOpen = openComposer === athlete.id
+          const isLogExpanded = expandedLog === athlete.id
           const sent = messageSent === athlete.id
 
           return (
@@ -309,32 +341,68 @@ export function CoachDashboard() {
                 </Button>
               </div>
 
-              {/* Row 5: Today's workout */}
+              {/* TODAY'S WORKOUT BLOCK */}
               {todayWorkout ? (
-                <div className={`rounded-xl px-3 py-2 flex items-center justify-between gap-2 ${
-                  todayWorkout.status === 'completed'
-                    ? 'bg-emerald-50 border border-emerald-200'
-                    : 'bg-muted/30 border border-border/40'
-                }`}>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-navy truncate">{todayWorkout.workout?.title}</p>
-                    <p className="text-[10px] text-muted-foreground">
-                      {workoutTypeLabels[todayWorkout.workout?.type] || todayWorkout.workout?.type}
-                      {todayWorkout.workout?.distance ? ` · ${todayWorkout.workout.distance}ק"מ` : ''}
-                    </p>
+                todayWorkout.status === 'completed' ? (
+                  <div className="rounded-xl border border-l-4 border-l-emerald-500 border-emerald-200 bg-emerald-50/60 p-3 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-bold text-navy truncate flex-1">{todayWorkout.workout?.title}</p>
+                      <span className="text-[10px] font-bold text-emerald-600 flex-shrink-0 flex items-center gap-1 bg-white border border-emerald-200 px-2 py-0.5 rounded-full">
+                        <Check className="h-3 w-3" />הושלם
+                      </span>
+                    </div>
+                    {todayLog && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {(todayLog as any).actualDistance && (
+                          <span className="text-[10px] font-semibold bg-white border border-emerald-200 px-2 py-0.5 rounded-full">{(todayLog as any).actualDistance} ק"מ</span>
+                        )}
+                        {(todayLog as any).effort != null && (
+                          <span className="text-[10px] font-semibold bg-white border border-emerald-200 px-2 py-0.5 rounded-full">מאמץ {(todayLog as any).effort}/10</span>
+                        )}
+                        {todayWorkout.workout?.distance && (
+                          <span className="text-[10px] text-muted-foreground">תוכנן: {todayWorkout.workout.distance}ק"מ</span>
+                        )}
+                      </div>
+                    )}
+                    {(todayLog as any)?.comment && (
+                      <p className="text-[10px] text-gray-500 italic line-clamp-1">"{(todayLog as any).comment}"</p>
+                    )}
                   </div>
-                  {todayWorkout.status === 'completed' ? (
-                    <span className="text-[10px] font-bold text-emerald-600 flex-shrink-0 flex items-center gap-1">
-                      <Check className="h-3 w-3" />
-                      הושלם
-                    </span>
-                  ) : (
-                    <span className="text-[10px] text-muted-foreground flex-shrink-0">טרם דווח</span>
-                  )}
-                </div>
+                ) : (
+                  <div className="rounded-xl border border-l-4 border-l-amber-400 border-amber-200 bg-amber-50/50 p-3 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold text-navy truncate">{todayWorkout.workout?.title}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {todayWorkout.workout?.distance ? `${todayWorkout.workout.distance}ק"מ מתוכנן` : 'טרם בוצע'}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setOpenComposer(prev => prev === athlete.id ? null : athlete.id)
+                          setComposerWorkoutId(prev => ({ ...prev, [athlete.id]: todayWorkout.id }))
+                        }}
+                        className="text-[10px] font-semibold text-amber-700 bg-white hover:bg-amber-50 border border-amber-300 px-2.5 py-1 rounded-full transition-colors flex-shrink-0"
+                      >
+                        שלח תזכורת
+                      </button>
+                    </div>
+                  </div>
+                )
               ) : (
                 <div className="rounded-xl px-3 py-2 bg-muted/20 border border-border/30">
                   <p className="text-[10px] text-muted-foreground text-center">מנוחה היום</p>
+                </div>
+              )}
+
+              {/* Latest athlete comment (today or yesterday) */}
+              {recentCommentLog && (recentCommentLog as any).comment && (
+                <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 space-y-0.5" dir="rtl">
+                  <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider">הערת ספורטאי</p>
+                  <p className="text-xs text-navy italic line-clamp-2">"{(recentCommentLog as any).comment}"</p>
+                  <p className="text-[9px] text-gray-400">
+                    {(recentCommentLog as any).date === todayStr ? 'היום' : 'אתמול'}
+                  </p>
                 </div>
               )}
 

@@ -776,18 +776,26 @@ export function AthletePlanner({ athleteId }: Props) {
                             <p className={cn('text-xs font-bold', todayFlag ? 'text-gold' : 'text-navy/70')}>{format(day,'d')}</p>
                           </div>
                           <div className="p-1.5 space-y-1">
-                            {dayWorkouts.map(w => (
-                              <button key={w.id}
-                                onClick={e => { e.stopPropagation(); setSelectedAssignedId(prev => prev === w.id ? null : w.id) }}
-                                className={cn('w-full text-left text-[10px] rounded-lg px-1.5 py-1.5 border transition-all hover:opacity-80',
-                                  TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy,
-                                  w.status==='completed' ? 'opacity-60' : '',
-                                  selectedAssignedId === w.id ? 'ring-2 ring-navy' : ''
-                                )}>
-                                <p className="font-semibold truncate">{w.workout?.title}</p>
-                                {w.workout?.distance && <p className="opacity-70">{w.workout.distance}k</p>}
-                              </button>
-                            ))}
+                            {dayWorkouts.map(w => {
+                              const matchLog = logs.find((l: any) => l.assignedWorkoutId === w.id || (l.workoutId === w.workoutId && l.date === dateStr))
+                              const isCompleted = w.status === 'completed' || !!matchLog?.actualDistance
+                              return (
+                                <button key={w.id}
+                                  onClick={e => { e.stopPropagation(); setSelectedAssignedId(prev => prev === w.id ? null : w.id) }}
+                                  className={cn('w-full text-left text-[10px] rounded-lg px-1.5 py-1.5 border transition-all hover:opacity-80',
+                                    TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy,
+                                    isCompleted ? 'opacity-70' : '',
+                                    selectedAssignedId === w.id ? 'ring-2 ring-navy' : ''
+                                  )}>
+                                  <p className="font-semibold truncate">{w.workout?.title}</p>
+                                  {w.workout?.distance && <p className="opacity-70">{w.workout.distance}k</p>}
+                                  {matchLog?.actualDistance && (
+                                    <p className="text-emerald-700 font-bold text-[9px]">{matchLog.actualDistance}k בוצע</p>
+                                  )}
+                                  {isCompleted && !matchLog?.actualDistance && <p className="text-emerald-600 text-[9px]">הושלם</p>}
+                                </button>
+                              )
+                            })}
                             {copiedWorkout && dayWorkouts.length === 0 && (
                               <div className="h-8 rounded border-2 border-dashed border-gold/40 flex items-center justify-center">
                                 <Plus className="h-3 w-3 text-gold/50"/>
@@ -838,16 +846,21 @@ export function AthletePlanner({ athleteId }: Props) {
                                 )}>
                                 <p className={cn('text-[10px] font-semibold mb-1', todayFlag ? 'text-gold' : 'text-navy')}>{format(day,'d')}</p>
                                 <div className="space-y-0.5">
-                                  {dayWorkouts.slice(0,3).map(w => (
-                                    <button key={w.id}
-                                      onClick={e => { e.stopPropagation(); setSelectedAssignedId(prev => prev === w.id ? null : w.id) }}
-                                      className={cn('w-full text-left text-[8px] rounded px-0.5 py-0.5 border truncate hover:opacity-75',
-                                        TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy,
-                                        selectedAssignedId === w.id ? 'ring-1 ring-navy font-bold' : ''
-                                      )}>
-                                      {w.workout?.title}
-                                    </button>
-                                  ))}
+                                  {dayWorkouts.slice(0,3).map(w => {
+                                    const mLog = logs.find((l: any) => l.assignedWorkoutId === w.id || (l.workoutId === w.workoutId && l.date === dateStr))
+                                    const isDone = w.status === 'completed' || !!mLog?.actualDistance
+                                    return (
+                                      <button key={w.id}
+                                        onClick={e => { e.stopPropagation(); setSelectedAssignedId(prev => prev === w.id ? null : w.id) }}
+                                        className={cn('w-full text-left text-[8px] rounded px-0.5 py-0.5 border truncate hover:opacity-75',
+                                          TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy,
+                                          isDone ? 'opacity-60' : '',
+                                          selectedAssignedId === w.id ? 'ring-1 ring-navy font-bold' : ''
+                                        )}>
+                                        {isDone ? '✓ ' : ''}{w.workout?.title}
+                                      </button>
+                                    )
+                                  })}
                                   {dayWorkouts.length > 3 && <p className="text-[8px] text-muted-foreground">+{dayWorkouts.length-3}</p>}
                                 </div>
                               </div>

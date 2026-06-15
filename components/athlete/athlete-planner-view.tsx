@@ -158,6 +158,19 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
     days.reduce((sum, day) => sum + getWorkoutsForDay(day).reduce((s,w) => s+(w.workout?.distance??0),0), 0)
   , [getWorkoutsForDay])
 
+  // BUG FIX: derive completion status from logs array, not just Firestore status field.
+  // When athlete logs a workout the local assignedWorkouts status may lag behind.
+  const getEffectiveStatus = useCallback((w: AssignedWorkout): string => {
+    if (w.status === 'completed') return 'completed'
+    const hasLog = weekLogs.some(l =>
+      (l.assignedWorkoutId === w.id || (!l.assignedWorkoutId && l.date === w.scheduledDate)) &&
+      !!l.actualDistance && l.source !== 'strava'
+    )
+    if (hasLog) return 'completed'
+    if (w.status === 'skipped') return 'skipped'
+    return 'scheduled'
+  }, [weekLogs])
+
   const todayWorkouts = useMemo(() => getWorkoutsForDay(new Date()), [getWorkoutsForDay])
 
   const weekStartStr = format(startOfWeek(new Date(), {weekStartsOn: 1}), 'yyyy-MM-dd')
@@ -822,7 +835,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                     {weekDays.map((day, di) => {
                       const dayWorkouts = getWorkoutsForDay(day)
                       const todayFlag = isToday(day)
-                      const hasCompleted = dayWorkouts.some(w => w.status==='completed')
+                      const hasCompleted = dayWorkouts.some(w => getEffectiveStatus(w) === 'completed')
                       return (
                         <div key={di} className={cn('min-h-[150px] rounded-xl border transition-all',
                           todayFlag ? 'border-gold bg-gold/5' : 'border-border',
@@ -832,19 +845,25 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                             {hasCompleted && <span className="text-[9px] text-emerald-500">✓</span>}
                           </div>
                           <div className="p-1.5 space-y-1">
-                            {dayWorkouts.map(w => (
-                              <button key={w.id}
-                                onClick={() => setSelectedWorkoutId(prev => prev === w.id ? null : w.id)}
-                                className={cn('w-full text-left text-[11px] rounded-lg px-2 py-2 border leading-snug transition-all hover:opacity-80',
-                                  TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy,
-                                  w.status==='completed' ? 'opacity-60' : '',
-                                  selectedWorkoutId === w.id ? 'ring-2 ring-navy' : ''
-                                )}>
-                                <p className="font-semibold leading-snug text-xs break-words">{w.workout?.title}</p>
-                                {w.workout?.distance && <p className="opacity-70 text-[10px] mt-0.5">{w.workout.distance}k</p>}
-                                {w.workout?.duration && !w.workout?.distance && <p className="opacity-70">{w.workout.duration}'</p>}
-                              </button>
-                            ))}
+                            {dayWorkouts.map(w => {
+                              const effStatus = getEffectiveStatus(w)
+                              const hasMsg = coachMessages.some(m => m.assignedWorkoutId === w.id && !m.read)
+                              return (
+                                <button key={w.id}
+                                  onClick={() => setSelectedWorkoutId(prev => prev === w.id ? null : w.id)}
+                                  className={cn('w-full text-left text-[11px] rounded-lg px-2 py-2 border leading-snug transition-all hover:opacity-80',
+                                    TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy,
+                                    effStatus === 'completed' ? 'opacity-60' : '',
+                                    selectedWorkoutId === w.id ? 'ring-2 ring-navy' : ''
+                                  )}>
+                                  <p className="font-semibold leading-snug text-xs break-words">{w.workout?.title}</p>
+                                  {w.workout?.distance && <p className="opacity-70 text-[10px] mt-0.5">{w.workout.distance}k</p>}
+                                  {w.workout?.duration && !w.workout?.distance && <p className="opacity-70">{w.workout.duration}'</p>}
+                                  {effStatus === 'completed' && <p className="text-emerald-700 text-[9px] font-bold mt-0.5">הושלם</p>}
+                                  {hasMsg && <span className="inline-block w-1.5 h-1.5 bg-[#c9a84c] rounded-full mt-0.5"/>}
+                                </button>
+                              )
+                            })}
                           </div>
                         </div>
                       )
@@ -876,12 +895,13 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                       <p className="text-xs text-muted-foreground">{format(parseISO(selectedWorkout.scheduledDate),'EEEE, d MMMM')}</p>
                     </div>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <span className={cn('w-2.5 h-2.5 rounded-full',
-                        selectedWorkout.status==='completed' ? 'bg-emerald-500' : selectedWorkout.status==='skipped' ? 'bg-red-400' : 'bg-amber-400'
-                      )}/>
-                      <span className="text-xs text-muted-foreground">
-                        {selectedWorkout.status==='completed'?t.completedBadge:selectedWorkout.status==='skipped'?t.skippedBadge:t.scheduledBadge}
-                      </span>
+                      {(() => {
+                        const s = getEffectiveStatus(selectedWorkout)
+                        return <>
+                          <span className={cn('w-2.5 h-2.5 rounded-full', s==='completed' ? 'bg-emerald-500' : s==='skipped' ? 'bg-red-400' : 'bg-amber-400')}/>
+                          <span className="text-xs text-muted-foreground">{s==='completed'?t.completedBadge:s==='skipped'?t.skippedBadge:t.scheduledBadge}</span>
+                        </>
+                      })()}
                     </div>
                   </div>
                   {renderWorkoutDetail(selectedWorkout)}
@@ -911,8 +931,9 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                             const inMonth = isSameMonth(day, currentDate)
                             const dayWorkouts = getWorkoutsForDay(day)
                             const todayFlag = isToday(day)
-                            const hasCompleted = dayWorkouts.some(w => w.status==='completed')
+                            const hasCompleted = dayWorkouts.some(w => getEffectiveStatus(w) === 'completed')
                             const selectedInDay = dayWorkouts.some(w => w.id === selectedWorkoutId)
+                            const hasUnreadMsg = dayWorkouts.some(w => coachMessages.some(m => m.assignedWorkoutId === w.id && !m.read))
                             return (
                               <div key={di}
                                 className={cn('min-h-[80px] rounded-lg p-1 text-left border transition-all',
@@ -922,7 +943,10 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                                 )}>
                                 <div className="flex items-center justify-between mb-1">
                                   <span className={cn('text-[10px] font-semibold', todayFlag ? 'text-gold' : 'text-navy')}>{format(day,'d')}</span>
-                                  {hasCompleted && <span className="text-emerald-500 text-[9px]">✓</span>}
+                                  <div className="flex items-center gap-0.5">
+                                    {hasCompleted && <span className="text-emerald-500 text-[9px]">✓</span>}
+                                    {hasUnreadMsg && <span className="w-1.5 h-1.5 bg-[#c9a84c] rounded-full inline-block"/>}
+                                  </div>
                                 </div>
                                 <div className="space-y-0.5">
                                   {dayWorkouts.slice(0,2).map(w => (
@@ -930,9 +954,10 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                                       onClick={() => inMonth && setSelectedWorkoutId(prev => prev === w.id ? null : w.id)}
                                       className={cn('w-full text-left text-[8px] rounded px-0.5 py-1 truncate border transition-all hover:opacity-75',
                                         TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy,
+                                        getEffectiveStatus(w) === 'completed' ? 'opacity-60' : '',
                                         selectedWorkoutId === w.id ? 'ring-1 ring-navy font-bold' : ''
                                       )}>
-                                      {w.workout?.title}
+                                      {getEffectiveStatus(w) === 'completed' ? '✓ ' : ''}{w.workout?.title}
                                     </button>
                                   ))}
                                   {dayWorkouts.length > 2 && <p className="text-[8px] text-muted-foreground">+{dayWorkouts.length-2}</p>}
@@ -978,12 +1003,13 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                       <p className="text-xs text-muted-foreground">{format(parseISO(selectedWorkout.scheduledDate),'EEEE, d MMMM')}</p>
                     </div>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <span className={cn('w-2.5 h-2.5 rounded-full',
-                        selectedWorkout.status==='completed' ? 'bg-emerald-500' : selectedWorkout.status==='skipped' ? 'bg-red-400' : 'bg-amber-400'
-                      )}/>
-                      <span className="text-xs text-muted-foreground">
-                        {selectedWorkout.status==='completed'?t.completedBadge:selectedWorkout.status==='skipped'?t.skippedBadge:t.scheduledBadge}
-                      </span>
+                      {(() => {
+                        const s = getEffectiveStatus(selectedWorkout)
+                        return <>
+                          <span className={cn('w-2.5 h-2.5 rounded-full', s==='completed' ? 'bg-emerald-500' : s==='skipped' ? 'bg-red-400' : 'bg-amber-400')}/>
+                          <span className="text-xs text-muted-foreground">{s==='completed'?t.completedBadge:s==='skipped'?t.skippedBadge:t.scheduledBadge}</span>
+                        </>
+                      })()}
                     </div>
                   </div>
                   {renderWorkoutDetail(selectedWorkout)}
