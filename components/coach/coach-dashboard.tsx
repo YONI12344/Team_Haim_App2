@@ -170,6 +170,18 @@ export function CoachDashboard() {
         createdAt: serverTimestamp(),
         read: false,
       })
+      // Send FCM push notification to athlete (fire-and-forget)
+      fetch('/api/send-notification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: athleteId,
+          title: 'הודעה מהמאמן',
+          body: text.slice(0, 100),
+          data: { type: 'coach_message' },
+          url: '/athlete/schedule',
+        }),
+      }).catch(() => {})
       setComposerText(prev => ({ ...prev, [athleteId]: '' }))
       setComposerWorkoutId(prev => ({ ...prev, [athleteId]: '' }))
       setMessageSent(athleteId)

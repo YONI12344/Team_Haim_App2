@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 
 import { useEffect, useState, useRef } from 'react'
+import { useNotifications } from '@/hooks/useNotifications'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -21,6 +22,8 @@ import {
   Loader2,
   UserPlus,
   MessageCircle,
+  Bell,
+  X,
 } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
@@ -84,6 +87,14 @@ function NewAthleteRedirect() {
 
 export function AthleteDashboard() {
   const router = useRouter()
+  const { permission, enableNotifications } = useNotifications()
+  const [notifBannerDismissed, setNotifBannerDismissed] = useState(false)
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setNotifBannerDismissed(localStorage.getItem('notifBannerDismissed') === '1')
+    }
+  }, [])
 
   // Save Strava connection from URL params
   useEffect(() => {
@@ -317,6 +328,35 @@ export function AthleteDashboard() {
 
   return (
     <div className="space-y-4 pb-24" dir="rtl">
+
+      {/* Notification permission banner — only when not yet asked and not dismissed */}
+      {permission === 'default' && !notifBannerDismissed && (
+        <div className="bg-white rounded-2xl border border-[#c9a84c]/30 shadow-sm p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[#c9a84c]/10 flex items-center justify-center flex-shrink-0">
+            <Bell className="h-5 w-5 text-[#c9a84c]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-[#0a1628] leading-tight">הפעל התראות</p>
+            <p className="text-xs text-gray-500 mt-0.5">קבל תזכורות לאימונים והודעות מהמאמן</p>
+          </div>
+          <button
+            onClick={enableNotifications}
+            className="bg-[#0a1628] text-white rounded-xl px-4 h-9 text-sm font-semibold flex-shrink-0 active:scale-95 transition-transform"
+          >
+            הפעל
+          </button>
+          <button
+            onClick={() => {
+              localStorage.setItem('notifBannerDismissed', '1')
+              setNotifBannerDismissed(true)
+            }}
+            className="text-gray-400 hover:text-gray-600 flex-shrink-0"
+            aria-label="סגור"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       {/* Hero Section — navy gradient, greeting + today workout */}
       <div className="bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 rounded-3xl p-6">

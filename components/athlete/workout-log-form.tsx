@@ -220,6 +220,32 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
       setSaved(true)
       setCollapsed(true)
       toast.success(t.toastWorkoutLogged)
+
+      // Notify coach (fire-and-forget)
+      ;(async () => {
+        try {
+          const { getDoc, doc: firestoreDoc } = await import('firebase/firestore')
+          const { db: firestoreDb } = await import('@/lib/firebase')
+          const athleteSnap = await getDoc(firestoreDoc(firestoreDb, 'users', athleteId))
+          const coachId = athleteSnap.data()?.coachId
+          const athleteName = athleteSnap.data()?.name || 'ספורטאי'
+          if (!coachId) return
+          const workoutTitle = workout?.title || 'אימון'
+          const kmStr = parsedDistance ? `${parsedDistance} ק״מ` : ''
+          const effortStr = effort != null ? ` · מאמץ ${effort}/10` : ''
+          fetch('/api/send-notification', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: coachId,
+              title: `${athleteName} סיים אימון`,
+              body: [workoutTitle, kmStr, effortStr].filter(Boolean).join(' · '),
+              data: { type: 'workout_complete' },
+              url: `/coach/athletes/${athleteId}/planner`,
+            }),
+          }).catch(() => {})
+        } catch {}
+      })()
     } catch (error) {
       console.error('Error saving workout log:', error)
       toast.error(t.toastSaveLogFailed)
