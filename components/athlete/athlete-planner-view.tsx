@@ -45,6 +45,36 @@ const STATUS_STYLES: Record<string, string> = {
   scheduled: 'bg-amber-100 text-amber-700 border-amber-200',
 }
 
+const TYPE_LABELS_HE: Record<string, string> = {
+  easy: 'קל',
+  long_run: 'ארוך',
+  tempo: 'טמפו',
+  intervals: 'אינטרוולים',
+  hill_repeats: 'גבעות',
+  fartlek: 'פרטלק',
+  recovery: 'התאוששות',
+  rest: 'מנוחה',
+  race: 'תחרות',
+  time_trial: 'מבחן',
+  strength: 'כוח',
+  cross_training: 'כושר',
+}
+
+const TYPE_BORDER_COLORS: Record<string, string> = {
+  easy: 'border-l-emerald-500',
+  long_run: 'border-l-orange-500',
+  tempo: 'border-l-purple-500',
+  intervals: 'border-l-blue-500',
+  hill_repeats: 'border-l-amber-500',
+  fartlek: 'border-l-cyan-500',
+  recovery: 'border-l-gray-400',
+  rest: 'border-l-gray-300',
+  race: 'border-l-red-500',
+  time_trial: 'border-l-indigo-500',
+  strength: 'border-l-rose-500',
+  cross_training: 'border-l-teal-500',
+}
+
 interface JourneySummary {
   stageName: string; weekInStage: number; totalWeeksInStage: number
   isOffWeek: boolean; goalRaceDate: string; goalRaceEvent: string
@@ -293,7 +323,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
     if (!athleteId) return
     setStravaSyncing(true)
     try {
-      const { doc, getDoc, collection, addDoc, serverTimestamp, query, where, getDocs } = await import('firebase/firestore')
+      const { doc, getDoc, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc } = await import('firebase/firestore')
       const { db } = await import('@/lib/firebase')
       // Get athlete's own stravaId from their user profile
       const userSnap = await getDoc(doc(db, 'users', athleteId))
@@ -332,6 +362,26 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
             createdAt: serverTimestamp(),
           })
           saved++
+          // Auto-complete the assigned workout for this Strava activity date
+          try {
+            const awSnap = await getDocs(query(
+              collection(db, 'assignedWorkouts'),
+              where('athleteId', '==', athleteId),
+              where('scheduledDate', '==', activity.date)
+            ))
+            if (!awSnap.empty) {
+              const aw = awSnap.docs[0]
+              if (aw.data().status !== 'completed') {
+                await updateDoc(doc(db, 'assignedWorkouts', aw.id), {
+                  status: 'completed',
+                  completedAt: serverTimestamp(),
+                })
+                setAssignedWorkouts(prev =>
+                  prev.map(w => w.id === aw.id ? { ...w, status: 'completed' } : w)
+                )
+              }
+            }
+          } catch (e) { console.error('Auto-complete assigned workout failed:', e) }
         }
         toast.success(`סונכרנו ${saved} אימונים חדשים מ-Strava!`)
         // Reload logs
@@ -661,12 +711,15 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
           {/* Day View - same as week view single column */}
           {viewMode === 'day' && (
             <div className="space-y-3">
-              <div className={cn('rounded-xl border-2 min-h-[100px] p-3',
-                isToday(currentDate) ? 'border-gold bg-gold/5' : 'border-border'
+              <div className={cn('rounded-2xl border p-4',
+                isToday(currentDate) ? 'border-[#c9a84c]/40 bg-[#c9a84c]/5' : 'border-gray-100'
               )}>
-                <p className={cn('text-xs font-bold mb-2 text-right', isToday(currentDate) ? 'text-gold' : 'text-muted-foreground')}>
-                  {format(currentDate,'EEEE, d MMMM')}
-                </p>
+                <div className="flex items-center justify-between mb-3">
+                  <p className={cn('text-sm font-bold', isToday(currentDate) ? 'text-[#c9a84c]' : 'text-[#0a1628]')}>
+                    {format(currentDate,'EEEE, d MMMM')}
+                  </p>
+                  {isToday(currentDate) && <span className="text-[10px] font-black bg-[#0a1628] text-[#c9a84c] px-2.5 py-1 rounded-full tracking-wide">היום</span>}
+                </div>
                 {(() => {
                   const dayWorkouts = getWorkoutsForDay(currentDate)
                   const dateStrCheck = format(currentDate, 'yyyy-MM-dd')
@@ -679,20 +732,45 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                       {/* All assigned workouts */}
                       {dayWorkouts.map(w => {
                         const msg = coachMessages.find(m => m.assignedWorkoutId === w.id)
+                        const effStatus = getEffectiveStatus(w)
                         return (
-                          <div key={w.id} className="space-y-1">
+                          <div key={w.id} className="space-y-2">
                             <button
                               onClick={() => setSelectedWorkoutId(prev => prev === w.id ? null : w.id)}
-                              className={cn('w-full rounded-lg px-2.5 py-2 border transition-all hover:opacity-80',
-                                TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy,
-                                selectedWorkoutId === w.id ? 'ring-2 ring-navy' : ''
+                              className={cn(
+                                'w-full text-right rounded-2xl border-l-4 border p-4 transition-all active:scale-[0.99] shadow-sm',
+                                effStatus === 'completed'
+                                  ? 'bg-emerald-50 border-emerald-100 border-l-emerald-500'
+                                  : effStatus === 'skipped'
+                                  ? 'bg-red-50 border-red-100 border-l-red-400'
+                                  : `bg-white border-gray-100 ${TYPE_BORDER_COLORS[w.workout?.type] || 'border-l-[#0a1628]'}`,
+                                selectedWorkoutId === w.id ? 'ring-2 ring-[#0a1628]/15' : ''
                               )}>
-                              <div className="flex items-center justify-between gap-1 w-full" dir="rtl">
-                                <p className="font-semibold text-sm leading-snug">{w.workout.title}</p>
-                                <p className="text-xs opacity-70">
-                                  {w.workout.distance && `${w.workout.distance}k`}
-                                  {w.workout.duration && ` · ${w.workout.duration}'`}
-                                </p>
+                              <div className="flex items-start justify-between gap-3" dir="rtl">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                                    <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full border', TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy)}>
+                                      {TYPE_LABELS_HE[w.workout?.type] || w.workout?.type}
+                                    </span>
+                                    {effStatus === 'completed' && (
+                                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">✓ הושלם</span>
+                                    )}
+                                    {effStatus === 'skipped' && (
+                                      <span className="text-[10px] font-bold text-red-500 bg-red-100 px-2 py-0.5 rounded-full">דולג</span>
+                                    )}
+                                  </div>
+                                  <p className={cn('font-bold text-base leading-tight', effStatus === 'completed' ? 'text-emerald-800' : 'text-[#0a1628]')}>
+                                    {w.workout.title}
+                                  </p>
+                                  {(w.workout.distance || w.workout.duration) && (
+                                    <p className="text-sm text-gray-500 mt-1">
+                                      {w.workout.distance && `${w.workout.distance} ק"מ`}
+                                      {w.workout.distance && w.workout.duration && ' · '}
+                                      {w.workout.duration && `${w.workout.duration} דק'`}
+                                    </p>
+                                  )}
+                                </div>
+                                <ChevronDown className={cn('h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5 transition-transform', selectedWorkoutId === w.id ? 'rotate-180' : '')} />
                               </div>
                             </button>
                             {msg && (
@@ -803,12 +881,21 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
               {selectedWorkoutId && (() => {
                 const w = getWorkoutsForDay(currentDate).find(x => x.id === selectedWorkoutId)
                 if (!w) return null
+                const s = getEffectiveStatus(w)
                 return (
-                  <div>
-                    <p className="font-bold text-navy text-base px-1 mb-1 text-right">{w.workout.title}</p>
-                    <div className="flex gap-3 text-sm text-muted-foreground px-1 mb-2 justify-end">
-                      {w.workout.distance && <span>{w.workout.distance} ק"מ</span>}
-                      {w.workout.duration && <span>{w.workout.duration} דק'</span>}
+                  <div className="rounded-2xl border border-[#c9a84c]/30 bg-[#c9a84c]/5 p-4">
+                    <div className="flex items-start justify-between gap-2 mb-3" dir="rtl">
+                      <div>
+                        <p className="font-bold text-[#0a1628] text-base">{w.workout.title}</p>
+                        <div className="flex gap-3 text-sm text-gray-500 mt-0.5">
+                          {w.workout.distance && <span>{w.workout.distance} ק"מ</span>}
+                          {w.workout.duration && <span>{w.workout.duration} דק'</span>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <span className={cn('w-2 h-2 rounded-full', s==='completed' ? 'bg-emerald-500' : s==='skipped' ? 'bg-red-400' : 'bg-amber-400')} />
+                        <span className="text-xs text-gray-500">{s==='completed'?t.completedBadge:s==='skipped'?t.skippedBadge:t.scheduledBadge}</span>
+                      </div>
                     </div>
                     {renderWorkoutDetail(w)}
                   </div>
@@ -888,7 +975,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
 
               {/* Selected workout detail */}
               {selectedWorkout && (
-                <div className="mt-4 rounded-xl border border-gold/30 bg-gold/5 p-4">
+                <div className="mt-4 rounded-2xl border border-[#c9a84c]/30 bg-[#c9a84c]/5 p-4">
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="font-bold text-navy text-base">{selectedWorkout.workout.title}</p>
@@ -996,7 +1083,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
 
               {/* Selected workout detail */}
               {selectedWorkout && (
-                <div className="mt-4 rounded-xl border border-gold/30 bg-gold/5 p-4">
+                <div className="mt-4 rounded-2xl border border-[#c9a84c]/30 bg-[#c9a84c]/5 p-4">
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="font-bold text-navy text-base">{selectedWorkout.workout.title}</p>
