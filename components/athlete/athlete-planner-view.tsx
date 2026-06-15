@@ -800,50 +800,51 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
   }
 
   return (
-    <div className="space-y-4 pb-24" dir="rtl">
+    <div className="space-y-3 pb-24" dir="rtl">
 
-      {/* ── Hero: nav + period title + view toggle + strava ──────────────── */}
-      <div className="bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 rounded-3xl p-5">
-        <div className="flex items-center justify-between mb-4">
-          <button
-            onClick={() => setCurrentDate(d => viewMode==='day' ? new Date(d.getTime()-86400000) : viewMode==='week' ? subWeeks(d,1) : subMonths(d,1))}
-            className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center active:scale-95 transition-all">
-            <ChevronRight className="h-4 w-4 text-white" />
-          </button>
-          <div className="text-center">
-            <p className="font-bold text-white text-base">
-              {viewMode==='day'
-                ? format(currentDate, 'd MMMM yyyy')
-                : viewMode==='week'
-                ? `${format(weekStart,'d MMM')} – ${format(weekEnd,'d MMM yyyy')}`
-                : format(currentDate,'MMMM yyyy')}
-            </p>
-            {viewMode==='day' && isToday(currentDate) && (
-              <p className="text-[#c9a84c] text-xs font-bold mt-0.5 tracking-wide">היום</p>
-            )}
-          </div>
-          <button
-            onClick={() => setCurrentDate(d => viewMode==='day' ? new Date(d.getTime()+86400000) : viewMode==='week' ? addWeeks(d,1) : addMonths(d,1))}
-            className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center active:scale-95 transition-all">
-            <ChevronLeft className="h-4 w-4 text-white" />
-          </button>
-        </div>
+      {/* ── Compact nav bar ────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-1.5">
+        {/* Prev */}
+        <button
+          onClick={() => setCurrentDate(d => viewMode==='day' ? new Date(d.getTime()-86400000) : viewMode==='week' ? subWeeks(d,1) : subMonths(d,1))}
+          className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center active:scale-95 transition-all flex-shrink-0">
+          <ChevronRight className="h-4 w-4 text-[#0a1628]" />
+        </button>
 
-        {/* View toggle */}
-        <div className="flex gap-1 bg-white/10 rounded-2xl p-1 mb-3">
+        {/* Period label */}
+        <p className="flex-1 text-center text-sm font-bold text-[#0a1628] truncate">
+          {viewMode==='day'
+            ? (isToday(currentDate) ? 'היום · ' : '') + format(currentDate,'d MMMM')
+            : viewMode==='week'
+            ? `${format(weekStart,'d')}–${format(weekEnd,'d MMM')}`
+            : format(currentDate,'MMMM yyyy')}
+        </p>
+
+        {/* Next */}
+        <button
+          onClick={() => setCurrentDate(d => viewMode==='day' ? new Date(d.getTime()+86400000) : viewMode==='week' ? addWeeks(d,1) : addMonths(d,1))}
+          className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center active:scale-95 transition-all flex-shrink-0">
+          <ChevronLeft className="h-4 w-4 text-[#0a1628]" />
+        </button>
+
+        {/* View toggle pills */}
+        <div className="flex gap-0.5 bg-gray-100 rounded-full p-0.5 flex-shrink-0">
           {(['day','week','month'] as const).map(mode => (
             <button key={mode} onClick={() => setViewMode(mode)}
-              className={cn('flex-1 py-2 rounded-xl text-xs font-bold transition-all active:scale-95',
-                viewMode === mode ? 'bg-white text-[#0a1628] shadow-sm' : 'text-white/50 hover:text-white/75')}>
-              {mode === 'day' ? t.dayView : mode === 'week' ? t.weekView : t.monthView}
+              className={cn('px-2.5 py-1.5 rounded-full text-[11px] font-bold transition-all active:scale-95',
+                viewMode === mode ? 'bg-white text-[#0a1628] shadow-sm' : 'text-gray-400')}>
+              {mode==='day' ? t.dayView : mode==='week' ? t.weekView : t.monthView}
             </button>
           ))}
         </div>
 
-        {/* Strava sync */}
+        {/* Strava icon */}
         <button onClick={handleStravaSync} disabled={stravaSyncing}
-          className="w-full h-9 rounded-xl bg-white/10 hover:bg-white/15 disabled:opacity-50 text-white/70 text-xs font-semibold flex items-center justify-center gap-2 active:scale-95 transition-all">
-          {stravaSyncing ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> מסנכרן...</> : '🚴 סנכרן Strava'}
+          className="w-9 h-9 rounded-xl bg-[#FC4C02]/10 flex items-center justify-center active:scale-95 transition-all flex-shrink-0 disabled:opacity-50"
+          title="סנכרן Strava">
+          {stravaSyncing
+            ? <Loader2 className="h-3.5 w-3.5 animate-spin text-[#FC4C02]" />
+            : <span className="text-[12px] font-black text-[#FC4C02]">S</span>}
         </button>
       </div>
 
@@ -852,25 +853,183 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
         const dayWs = getWorkoutsForDay(currentDate)
         const dateStr = format(currentDate, 'yyyy-MM-dd')
         const stravaToday = weekLogs.filter(l => l.date === dateStr && l.source === 'strava')
+        const mainW = dayWs[0] || null
+        const effStatus = mainW ? getEffectiveStatus(mainW) : null
+        const mainLog = mainW
+          ? weekLogs.find(l => l.assignedWorkoutId === mainW.id && !!l.actualDistance && l.source !== 'strava')
+            || weekLogs.find(l => !l.assignedWorkoutId && l.date === dateStr && !!l.actualDistance && l.source !== 'strava')
+          : null
+        const mainMsg = mainW ? coachMessages.find(m => m.assignedWorkoutId === mainW.id) : null
 
-        if (dayWs.length === 0 && stravaToday.length === 0) return (
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-10 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-gray-50 flex items-center justify-center mx-auto mb-4 text-2xl">🌿</div>
-            <p className="font-bold text-[#0a1628] mb-1">יום מנוחה</p>
-            <p className="text-sm text-gray-400">אין אימון מתוכנן להיום</p>
+        // ── Rest day hero ──
+        if (!mainW && stravaToday.length === 0) return (
+          <div className="bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 rounded-3xl p-8 text-center">
+            <div className="text-5xl mb-4">🌿</div>
+            <p className="text-2xl font-bold text-white mb-2">יום מנוחה</p>
+            <p className="text-sm text-white/40">תתאושש ותתכונן לאימון הבא</p>
           </div>
         )
 
         return (
           <div className="space-y-3">
-            {dayWs.map(w => renderWorkoutCard(w))}
+            {/* ── WORKOUT HERO CARD ── */}
+            {mainW && (
+              <>
+                <div className={cn(
+                  'rounded-3xl p-6 transition-all',
+                  effStatus === 'completed'
+                    ? 'bg-gradient-to-br from-emerald-700 to-emerald-800'
+                    : 'bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85'
+                )}>
+                  {/* Top row: type badge + status */}
+                  <div className="flex items-center justify-between mb-4" dir="rtl">
+                    <span className="bg-white/15 text-white/90 text-[11px] font-bold px-3 py-1.5 rounded-full">
+                      {TYPE_LABELS_HE[mainW.workout?.type] || mainW.workout?.type || 'ריצה'}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {effStatus === 'completed' && (
+                        <span className="text-[11px] font-bold text-emerald-200 bg-white/15 px-3 py-1 rounded-full">✓ הושלם</span>
+                      )}
+                      {effStatus === 'skipped' && (
+                        <span className="text-[11px] font-bold text-red-300 bg-white/15 px-3 py-1 rounded-full">דולג</span>
+                      )}
+                      {isToday(currentDate) && effStatus === 'scheduled' && (
+                        <span className="text-[#c9a84c] text-xs font-black tracking-widest">היום</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Title — the real hero */}
+                  <p className="text-[28px] font-black text-white leading-tight mb-4" dir="rtl">
+                    {mainW.workout.title}
+                  </p>
+
+                  {/* Stat badges */}
+                  <div className="flex items-center gap-2 mb-5 flex-wrap" dir="rtl">
+                    {mainW.workout.distance && (
+                      <span className={cn(
+                        'text-sm font-bold px-3.5 py-1.5 rounded-full',
+                        effStatus === 'completed' ? 'bg-white/20 text-white' : 'bg-[#c9a84c] text-[#0a1628]'
+                      )}>
+                        {mainLog?.actualDistance ?? mainW.workout.distance} ק"מ
+                      </span>
+                    )}
+                    {mainW.workout.duration && !mainLog && (
+                      <span className="text-sm font-medium bg-white/15 text-white px-3.5 py-1.5 rounded-full">
+                        {mainW.workout.duration} דק'
+                      </span>
+                    )}
+                    {mainLog?.actualPace && (
+                      <span className="text-sm font-medium bg-white/15 text-white px-3.5 py-1.5 rounded-full" dir="ltr">
+                        {mainLog.actualPace}
+                      </span>
+                    )}
+                    {mainLog?.effort != null && (
+                      <span className="text-sm font-medium bg-white/15 text-white px-3.5 py-1.5 rounded-full">
+                        מאמץ {mainLog.effort}/10
+                      </span>
+                    )}
+                  </div>
+
+                  {/* CTA */}
+                  <button
+                    onClick={() => {
+                      if (effStatus !== 'completed') {
+                        setOpenLogForms(prev => new Set([...prev, mainW.id]))
+                      }
+                      setSelectedWorkoutId(prev => prev === mainW.id ? null : mainW.id)
+                    }}
+                    className={cn(
+                      'w-full h-12 rounded-2xl font-bold text-base active:scale-95 transition-all',
+                      selectedWorkoutId === mainW.id
+                        ? 'bg-white/20 text-white'
+                        : effStatus === 'completed'
+                        ? 'bg-white/20 text-white hover:bg-white/25'
+                        : 'bg-[#c9a84c] text-[#0a1628] hover:bg-[#c9a84c]/90'
+                    )}>
+                    {selectedWorkoutId === mainW.id
+                      ? 'סגור ✕'
+                      : effStatus === 'completed'
+                      ? 'צפה בפרטים ›'
+                      : 'תעד אימון ›'}
+                  </button>
+                </div>
+
+                {/* Expanded detail — white card below hero */}
+                {selectedWorkoutId === mainW.id && (
+                  <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+                    {renderWorkoutDetail(mainW)}
+                  </div>
+                )}
+
+                {/* Coach message */}
+                {mainMsg && (
+                  <div className={cn('bg-white rounded-2xl border p-4 shadow-sm', !mainMsg.read ? 'border-l-4 border-l-[#c9a84c] border-gray-100' : 'border-gray-100')} dir="rtl">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-[#c9a84c]">הודעה מהמאמן</p>
+                      {mainMsg.createdAt?.seconds && <p className="text-[9px] text-gray-400">{format(new Date(mainMsg.createdAt.seconds * 1000), 'd/M/yyyy')}</p>}
+                    </div>
+                    <p className="text-sm text-[#0a1628] leading-relaxed">{mainMsg.message}</p>
+                    {!mainMsg.read && (
+                      <button onClick={async () => { try { await updateDoc(doc(db, 'coachMessages', mainMsg.id), { read: true }); setCoachMessages(prev => prev.map(m => m.id === mainMsg.id ? { ...m, read: true } : m)) } catch {} }}
+                        className="mt-2 text-[10px] text-gray-400 hover:text-gray-600 underline underline-offset-2">סמן כנקרא</button>
+                    )}
+                  </div>
+                )}
+
+                {/* Log result card */}
+                {mainLog && (
+                  <div className="bg-white rounded-3xl shadow-sm border border-emerald-100 border-l-4 border-l-emerald-500 overflow-hidden" dir="rtl">
+                    <div className="p-5 flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-600 mb-2">ביצוע בפועל</p>
+                        <div className="flex flex-wrap gap-2">
+                          {mainLog.actualDistance && <span className="text-xs font-medium bg-gray-50 border border-gray-100 px-3 py-1.5 rounded-full">{mainLog.actualDistance} ק"מ</span>}
+                          {mainLog.actualPace && <span className="text-xs font-medium bg-gray-50 border border-gray-100 px-3 py-1.5 rounded-full" dir="ltr">{mainLog.actualPace}</span>}
+                          {mainLog.effort != null && (
+                            <span className={cn('text-xs font-medium px-3 py-1.5 rounded-full border',
+                              mainLog.effort <= 3 ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                              mainLog.effort <= 5 ? 'bg-green-100 text-green-700 border-green-200' :
+                              mainLog.effort <= 7 ? 'bg-amber-100 text-amber-700 border-amber-200' :
+                              mainLog.effort <= 9 ? 'bg-orange-100 text-orange-700 border-orange-200' :
+                              'bg-red-100 text-red-700 border-red-200'
+                            )}>מאמץ {mainLog.effort}/10</span>
+                          )}
+                        </div>
+                        {mainLog.comment && <p className="text-xs text-gray-400 italic mt-2">"{mainLog.comment}"</p>}
+                      </div>
+                      <button
+                        onClick={async () => {
+                          if (!confirm('למחוק את תיעוד האימון?')) return
+                          try {
+                            const { doc, deleteDoc, updateDoc } = await import('firebase/firestore')
+                            const { db } = await import('@/lib/firebase')
+                            if (mainLog.id) await deleteDoc(doc(db, 'logs', mainLog.id))
+                            await updateDoc(doc(db, 'assignedWorkouts', mainW.id), { status: 'scheduled', completedAt: null })
+                            setWeekLogs(prev => prev.filter(l => l.id !== mainLog.id))
+                            toast.success('תיעוד נמחק')
+                          } catch(e) { console.error(e); toast.error('שגיאה במחיקה') }
+                        }}
+                        className="h-7 w-7 rounded-full hover:bg-red-50 flex items-center justify-center text-gray-300 hover:text-red-400 transition-colors flex-shrink-0">✕</button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Additional workouts (2nd, 3rd…) */}
+            {dayWs.slice(1).map(w => renderWorkoutCard(w))}
+
+            {/* Strava logs */}
             {stravaToday.length > 0 && (
               <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 border-t border-gray-100" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Strava</span>
-                  <div className="flex-1 border-t border-gray-100" />
-                </div>
+                {dayWs.length > 0 && (
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 border-t border-gray-100" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Strava</span>
+                    <div className="flex-1 border-t border-gray-100" />
+                  </div>
+                )}
                 {stravaToday.map(log => <StravaCard key={log.id} log={log} />)}
               </div>
             )}
