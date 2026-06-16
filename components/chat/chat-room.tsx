@@ -126,23 +126,23 @@ export function ChatRoom({
   })
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex flex-col h-screen bg-gray-50">
       {/* Header */}
-      <div className="flex items-center gap-4 p-4 border-b border-border bg-card">
+      <div className="flex items-center gap-4 p-4 border-b border-[#0a1628]/10 bg-white">
         <Link href={backLink}>
-          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+          <Button variant="ghost" size="icon" className="text-[#0a1628]/60 hover:text-[#0a1628] hover:bg-[#0a1628]/5 rounded-xl">
             <ArrowLeft className="h-5 w-5" />
           </Button>
         </Link>
-        <Avatar className="h-10 w-10 ring-2 ring-primary/20">
+        <Avatar className="h-10 w-10 ring-2 ring-[#c9a84c]/30">
           <AvatarImage src={otherUserAvatar} />
-          <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+          <AvatarFallback className="bg-[#0a1628]/10 text-[#0a1628] font-semibold">
             {otherUserName.split(" ").map(n => n[0]).join("")}
           </AvatarFallback>
         </Avatar>
         <div>
-          <h2 className="font-semibold text-foreground">{otherUserName}</h2>
-          <p className="text-xs text-muted-foreground">{t.directMessage}</p>
+          <h2 className="font-semibold text-[#0a1628]">{otherUserName}</h2>
+          <p className="text-xs text-gray-400">{t.directMessage}</p>
         </div>
       </div>
 
@@ -150,15 +150,15 @@ export function ChatRoom({
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
-            <div className="animate-pulse text-muted-foreground">{t.loadingMessages}</div>
+            <div className="animate-pulse text-gray-400">{t.loadingMessages}</div>
           </div>
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-              <Send className="h-8 w-8 text-primary" />
+            <div className="w-16 h-16 rounded-full bg-[#0a1628]/10 flex items-center justify-center mb-4">
+              <Send className="h-8 w-8 text-[#0a1628]" />
             </div>
-            <h3 className="font-semibold text-foreground mb-1">{t.startConversation}</h3>
-            <p className="text-sm text-muted-foreground">
+            <h3 className="font-semibold text-[#0a1628] mb-1">{t.startConversation}</h3>
+            <p className="text-sm text-gray-400">
               {t.sendMessageTo} {otherUserName}
             </p>
           </div>
@@ -166,7 +166,7 @@ export function ChatRoom({
           groupedMessages.map((group, groupIndex) => (
             <div key={groupIndex}>
               <div className="flex items-center justify-center mb-4">
-                <span className="px-3 py-1 text-xs font-medium text-muted-foreground bg-muted rounded-full">
+                <span className="px-3 py-1 text-xs font-medium text-gray-400 bg-white border border-gray-100 rounded-full shadow-sm">
                   {group.date}
                 </span>
               </div>
@@ -184,24 +184,24 @@ export function ChatRoom({
                       {!isOwn && (
                         <Avatar className="h-8 w-8">
                           <AvatarImage src={message.senderAvatar} />
-                          <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                          <AvatarFallback className="bg-[#c9a84c]/20 text-[#0a1628] text-xs font-semibold">
                             {message.senderName.split(" ").map(n => n[0]).join("")}
                           </AvatarFallback>
                         </Avatar>
                       )}
                       <div
                         className={cn(
-                          "max-w-[70%] px-4 py-2.5 rounded-2xl",
+                          "max-w-[75%] px-4 py-2.5 rounded-2xl",
                           isOwn
-                            ? "bg-primary text-primary-foreground rounded-br-md"
-                            : "bg-card border border-border text-foreground rounded-bl-md"
+                            ? "bg-[#0a1628] text-white rounded-br-md"
+                            : "bg-white border border-gray-100 text-[#0a1628] rounded-bl-md shadow-sm"
                         )}
                       >
                         <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
                         <p
                           className={cn(
                             "text-[10px] mt-1",
-                            isOwn ? "text-primary-foreground/70" : "text-muted-foreground"
+                            isOwn ? "text-white/60" : "text-gray-400"
                           )}
                         >
                           {formatTime(message.timestamp)}
@@ -210,7 +210,7 @@ export function ChatRoom({
                       {isOwn && (
                         <Avatar className="h-8 w-8">
                           <AvatarImage src={currentUserAvatar} />
-                          <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                          <AvatarFallback className="bg-[#0a1628] text-white text-xs">
                             {currentUserName.split(" ").map(n => n[0]).join("")}
                           </AvatarFallback>
                         </Avatar>
@@ -226,20 +226,19 @@ export function ChatRoom({
       </div>
 
       {/* Input */}
-      <div className="p-4 border-t border-border bg-card">
+      <div className="p-4 border-t border-gray-100 bg-white">
         <div className="flex items-center gap-3">
           <Input
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder={t.typeMessage}
-            className="flex-1 bg-background border-border focus:ring-primary"
+            className="flex-1 h-12 bg-gray-50 border-gray-200 rounded-2xl focus:border-[#0a1628]/30 focus:ring-[#0a1628]/10"
           />
           <Button
             onClick={sendMessage}
             disabled={!newMessage.trim()}
-            size="icon"
-            className="bg-primary hover:bg-primary/90 text-primary-foreground"
+            className="h-12 w-12 bg-[#0a1628] hover:bg-[#0a1628]/90 text-white rounded-2xl flex-shrink-0 disabled:opacity-40 p-0"
           >
             <Send className="h-4 w-4" />
           </Button>

@@ -633,13 +633,13 @@ export function AthleteProfile() {
             <Button
               onClick={handleStravaConnect}
               disabled={stravaConnecting}
-              className="bg-orange-500 hover:bg-orange-600 text-white"
+              className="bg-[#0a1628] hover:bg-[#0a1628]/90 text-white"
             >
-              {stravaConnecting ? "Connecting..." : stravaConnected ? "Reconnect Strava" : "Connect Strava"}
+              {stravaConnecting ? "מתחבר..." : stravaConnected ? "חיבור מחדש ל-Strava" : "חיבור Strava"}
             </Button>
             {stravaConnected && (
-              <Button onClick={handleStravaSync} disabled={stravaSyncing} className="bg-green-600 hover:bg-green-700 text-white">
-                {stravaSyncing ? "Syncing..." : "Sync Workouts"}
+              <Button onClick={handleStravaSync} disabled={stravaSyncing} className="bg-[#c9a84c] hover:bg-[#c9a84c]/90 text-[#0a1628] font-semibold">
+                {stravaSyncing ? "מסנכרן..." : "סנכרון אימונים"}
               </Button>
             )}
           </div>
@@ -1046,11 +1046,11 @@ export function AthleteProfile() {
 
       {/* Tabs */}
       <Tabs defaultValue="prs" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
-          <TabsTrigger value="prs">{t.tabPRs}</TabsTrigger>
-          <TabsTrigger value="season">{t.tabSeasonBest}</TabsTrigger>
-          <TabsTrigger value="paces">{t.tabPaces}</TabsTrigger>
-          <TabsTrigger value="goals">{t.tabGoals}</TabsTrigger>
+        <TabsList className="bg-white border border-gray-100 rounded-2xl p-1 w-full grid grid-cols-4 shadow-sm h-auto">
+          <TabsTrigger value="prs" className="rounded-xl data-[state=active]:bg-[#0a1628] data-[state=active]:text-white data-[state=active]:shadow-none text-gray-500 text-xs font-semibold py-2">{t.tabPRs}</TabsTrigger>
+          <TabsTrigger value="season" className="rounded-xl data-[state=active]:bg-[#0a1628] data-[state=active]:text-white data-[state=active]:shadow-none text-gray-500 text-xs font-semibold py-2">{t.tabSeasonBest}</TabsTrigger>
+          <TabsTrigger value="paces" className="rounded-xl data-[state=active]:bg-[#0a1628] data-[state=active]:text-white data-[state=active]:shadow-none text-gray-500 text-xs font-semibold py-2">{t.tabPaces}</TabsTrigger>
+          <TabsTrigger value="goals" className="rounded-xl data-[state=active]:bg-[#0a1628] data-[state=active]:text-white data-[state=active]:shadow-none text-gray-500 text-xs font-semibold py-2">{t.tabGoals}</TabsTrigger>
         </TabsList>
 
         {/* Personal Records */}

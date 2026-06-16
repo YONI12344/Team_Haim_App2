@@ -230,9 +230,9 @@ export function AthleteStats() {
         </div>
       ) : (
         <Tabs defaultValue="weekly" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="weekly">{t.weeklyTab}</TabsTrigger>
-            <TabsTrigger value="monthly">{t.monthlyTab}</TabsTrigger>
+          <TabsList className="bg-white border border-gray-100 rounded-2xl p-1 w-full grid grid-cols-2 shadow-sm h-auto">
+            <TabsTrigger value="weekly" className="rounded-xl data-[state=active]:bg-[#0a1628] data-[state=active]:text-white data-[state=active]:shadow-none text-gray-500 font-semibold py-2.5">{t.weeklyTab}</TabsTrigger>
+            <TabsTrigger value="monthly" className="rounded-xl data-[state=active]:bg-[#0a1628] data-[state=active]:text-white data-[state=active]:shadow-none text-gray-500 font-semibold py-2.5">{t.monthlyTab}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="weekly" className="space-y-4">

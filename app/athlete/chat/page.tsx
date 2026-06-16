@@ -43,14 +43,11 @@ export default function AthleteChatPage() {
           <Loader2 className="h-8 w-8 animate-spin text-gold" />
         </div>
       ) : !coach ? (
-        <div className="p-8">
-          <Card>
-            <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground">
-                Your coach has not signed in yet. Please try again later.
-              </p>
-            </CardContent>
-          </Card>
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-8" dir="rtl">
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-12 text-center max-w-sm w-full">
+            <p className="text-[#0a1628] font-semibold text-lg mb-2">המאמן עדיין לא הצטרף</p>
+            <p className="text-gray-400 text-sm">נסה שוב מאוחר יותר</p>
+          </div>
         </div>
       ) : (
         <ChatRoom
