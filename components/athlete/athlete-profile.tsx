@@ -32,6 +32,7 @@ import {
   X,
   Heart,
   Download,
+  FileText,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { collection, doc, getDoc, getDocs, query, setDoc, updateDoc, serverTimestamp, where } from 'firebase/firestore'
@@ -67,6 +68,7 @@ import {
 } from '@/lib/export'
 import { TrainingZonesCard } from './training-zones-card'
 import { PaceEditor, RecordEditor } from './profile-editors'
+import { AthleteDocumentsView } from './athlete-documents-view'
 
 const paceTypeColors: Record<string, string> = {
   easy: 'bg-emerald-100 text-emerald-700',
@@ -1080,6 +1082,20 @@ export function AthleteProfile() {
         restingHR={form.restingHR ? Number(form.restingHR) : undefined}
         maxHR={form.maxHR ? Number(form.maxHR) : undefined}
       />
+
+      {/* Documents from coach */}
+      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-8 h-8 rounded-xl bg-[#c9a84c]/10 flex items-center justify-center">
+            <FileText className="h-4 w-4 text-[#c9a84c]" />
+          </div>
+          <div>
+            <p className="font-bold text-[#0a1628] text-sm leading-tight">קבצים ומסמכים</p>
+            <p className="text-xs text-gray-400 leading-tight mt-0.5">תכניות אימון וקבצים מהמאמן</p>
+          </div>
+        </div>
+        <AthleteDocumentsView compact />
+      </div>
 
       {/* Tabs */}
       <Tabs defaultValue="prs" className="space-y-6">

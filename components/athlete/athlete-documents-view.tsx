@@ -5,6 +5,8 @@ import { storage } from '@/lib/firebase'
 import { ref, getDownloadURL, listAll } from 'firebase/storage'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
+import { FileText, ExternalLink } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface Document {
   name: string
@@ -13,7 +15,7 @@ interface Document {
   uploadedAt: string
 }
 
-export function AthleteDocumentsView() {
+export function AthleteDocumentsView({ compact = false }: { compact?: boolean }) {
   const { user } = useAuth()
   const { t, isRTL } = useLanguage()
   const [documents, setDocuments] = useState<Document[]>([])
@@ -50,41 +52,59 @@ export function AthleteDocumentsView() {
     try { return new Date(parseInt(ts)).toLocaleDateString('he-IL') } catch { return '' }
   }
 
-  return (
-    <div style={{ maxWidth: 700, margin: '0 auto', padding: '2rem 1rem', direction: isRTL ? 'rtl' : 'ltr', minHeight: '100vh', background: 'var(--color-background-primary)' }}>
-      <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: 24, fontWeight: 500, color: 'var(--color-text-primary)', margin: '0 0 4px' }}>{t.myDocumentsTitle}</h1>
-        <p style={{ fontSize: 14, color: 'var(--color-text-secondary)', margin: 0 }}>{t.myDocumentsSubtitle}</p>
-      </div>
+  if (loading) {
+    return (
+      <p className="text-sm text-gray-400 py-2">{t.loadingDocuments}</p>
+    )
+  }
 
-      {loading ? (
-        <p style={{ color: 'var(--color-text-secondary)', fontSize: 14 }}>{t.loadingDocuments}</p>
-      ) : documents.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-secondary)' }}>
-          <p style={{ fontSize: 16, margin: '0 0 4px' }}>{t.noDocumentsYet}</p>
-          <p style={{ fontSize: 14, margin: 0 }}>{t.noDocumentsCoachWillUpload}</p>
+  if (documents.length === 0) {
+    return (
+      <div className={cn('text-center', compact ? 'py-6' : 'py-10')}>
+        <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center mx-auto mb-3">
+          <FileText className="h-6 w-6 text-gray-300" />
         </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {documents.map((doc) => (
-            <div key={doc.fullPath} style={{ background: 'var(--color-background-primary)', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 12, padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-                <div style={{ width: 36, height: 36, background: '#FCEBEB', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <span style={{ fontSize: 16 }}>📄</span>
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--color-text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.name}</p>
-                  {doc.uploadedAt && <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', margin: '2px 0 0' }}>{t.uploadedLabel} {formatDate(doc.uploadedAt)}</p>}
-                </div>
-              </div>
-              <a href={doc.url} target="_blank" rel="noopener noreferrer"
-                style={{ fontSize: 13, padding: '6px 14px', borderRadius: 8, border: '0.5px solid var(--color-border-secondary)', color: 'var(--color-text-primary)', textDecoration: 'none', background: 'var(--color-background-secondary)', flexShrink: 0 }}>
-                {t.openPdfBtn}
-              </a>
-            </div>
-          ))}
+        <p className="text-sm font-medium text-gray-400">{t.noDocumentsYet}</p>
+        <p className="text-xs text-gray-300 mt-1">{t.noDocumentsCoachWillUpload}</p>
+      </div>
+    )
+  }
+
+  return (
+    <div dir={isRTL ? 'rtl' : 'ltr'} className="space-y-3">
+      {!compact && (
+        <div className="mb-2">
+          <p className="text-xs text-gray-400">{t.myDocumentsSubtitle}</p>
         </div>
       )}
+      {documents.map((doc) => (
+        <div
+          key={doc.fullPath}
+          className="flex items-center justify-between gap-3 p-3.5 bg-gray-50 rounded-2xl"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 bg-white rounded-xl shadow-sm flex items-center justify-center flex-shrink-0 border border-gray-100">
+              <FileText className="h-4 w-4 text-[#c9a84c]" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-[#0a1628] truncate">{doc.name}</p>
+              {doc.uploadedAt && (
+                <p className="text-xs text-gray-400 mt-0.5">{t.uploadedLabel} {formatDate(doc.uploadedAt)}</p>
+              )}
+            </div>
+          </div>
+          <a
+            href={doc.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-xs font-semibold text-[#0a1628] bg-white border border-gray-200 rounded-xl px-3 py-2 flex-shrink-0 active:scale-95 transition-transform"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            {t.openPdfBtn}
+          </a>
+        </div>
+      ))}
     </div>
   )
 }
+
