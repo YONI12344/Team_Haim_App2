@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { storage } from '@/lib/firebase'
 import { ref, getDownloadURL, listAll } from 'firebase/storage'
 import { useAuth } from '@/contexts/auth-context'
+import { useLanguage } from '@/contexts/language-context'
 
 interface Document {
   name: string
@@ -14,6 +15,7 @@ interface Document {
 
 export function AthleteDocumentsView() {
   const { user } = useAuth()
+  const { t, isRTL } = useLanguage()
   const [documents, setDocuments] = useState<Document[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -49,18 +51,18 @@ export function AthleteDocumentsView() {
   }
 
   return (
-    <div style={{ maxWidth: 700, margin: '0 auto', padding: '2rem 1rem', direction: 'rtl', minHeight: '100vh', background: 'var(--color-background-primary)' }}>
+    <div style={{ maxWidth: 700, margin: '0 auto', padding: '2rem 1rem', direction: isRTL ? 'rtl' : 'ltr', minHeight: '100vh', background: 'var(--color-background-primary)' }}>
       <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: 24, fontWeight: 500, color: 'var(--color-text-primary)', margin: '0 0 4px' }}>המסמכים שלי</h1>
-        <p style={{ fontSize: 14, color: 'var(--color-text-secondary)', margin: 0 }}>קבצים ותוכניות שהמאמן שלך העלה עבורך</p>
+        <h1 style={{ fontSize: 24, fontWeight: 500, color: 'var(--color-text-primary)', margin: '0 0 4px' }}>{t.myDocumentsTitle}</h1>
+        <p style={{ fontSize: 14, color: 'var(--color-text-secondary)', margin: 0 }}>{t.myDocumentsSubtitle}</p>
       </div>
 
       {loading ? (
-        <p style={{ color: 'var(--color-text-secondary)', fontSize: 14 }}>טוען מסמכים...</p>
+        <p style={{ color: 'var(--color-text-secondary)', fontSize: 14 }}>{t.loadingDocuments}</p>
       ) : documents.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-secondary)' }}>
-          <p style={{ fontSize: 16, margin: '0 0 4px' }}>אין מסמכים עדיין</p>
-          <p style={{ fontSize: 14, margin: 0 }}>המאמן שלך יעלה כאן קבצים עבורך בקרוב</p>
+          <p style={{ fontSize: 16, margin: '0 0 4px' }}>{t.noDocumentsYet}</p>
+          <p style={{ fontSize: 14, margin: 0 }}>{t.noDocumentsCoachWillUpload}</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -72,12 +74,12 @@ export function AthleteDocumentsView() {
                 </div>
                 <div style={{ minWidth: 0 }}>
                   <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--color-text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.name}</p>
-                  {doc.uploadedAt && <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', margin: '2px 0 0' }}>הועלה: {formatDate(doc.uploadedAt)}</p>}
+                  {doc.uploadedAt && <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', margin: '2px 0 0' }}>{t.uploadedLabel} {formatDate(doc.uploadedAt)}</p>}
                 </div>
               </div>
               <a href={doc.url} target="_blank" rel="noopener noreferrer"
                 style={{ fontSize: 13, padding: '6px 14px', borderRadius: 8, border: '0.5px solid var(--color-border-secondary)', color: 'var(--color-text-primary)', textDecoration: 'none', background: 'var(--color-background-secondary)', flexShrink: 0 }}>
-                פתח PDF
+                {t.openPdfBtn}
               </a>
             </div>
           ))}

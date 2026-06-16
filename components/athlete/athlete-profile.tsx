@@ -103,7 +103,16 @@ interface ProfileForm {
 
 export function AthleteProfile() {
   const { user, firebaseUser } = useAuth()
-  const { t } = useLanguage()
+  const { t, language, setLanguage, isRTL } = useLanguage()
+
+  const handleSetLanguage = async (lang: 'he' | 'en') => {
+    setLanguage(lang)
+    if (user?.id) {
+      try {
+        await updateDoc(doc(db, 'users', user.id), { language: lang })
+      } catch {}
+    }
+  }
   const disciplineLabel: Record<Discipline, string> = {
     track: t.disciplineTrack,
     road: t.disciplineRoad,
@@ -144,9 +153,9 @@ export function AthleteProfile() {
       // Get athlete's own stravaId from their user profile
       const userSnap = await getDoc(doc(db, 'users', user.id))
       const stravaId = userSnap.data()?.stravaId
-      if (!stravaId) { toast.error('Strava לא מחובר - חבר Strava מהפרופיל'); return }
+      if (!stravaId) { toast.error(t.stravaConnectBtn); return }
       const snap = await getDoc(doc(db, 'strava_connections', `strava_${stravaId}`))
-      if (!snap.exists()) { toast.error('Strava לא מחובר'); return }
+      if (!snap.exists()) { toast.error(t.stravaConnectBtn); return }
       const stravaData = snap.data()
       const res = await fetch('/api/strava/sync', {
         method: 'POST',
@@ -243,7 +252,10 @@ export function AthleteProfile() {
       try {
         const snap = await getDoc(doc(db, 'users', user.id))
         if (snap.exists()) {
-          const data = snap.data() as Partial<AthleteProfileType>
+          const data = snap.data() as Partial<AthleteProfileType> & { language?: string }
+          if (data.language === 'en' || data.language === 'he') {
+            setLanguage(data.language)
+          }
           const meaningful =
             !!data.dateOfBirth ||
             !!data.gender ||
@@ -598,7 +610,7 @@ export function AthleteProfile() {
   const avatarUrl = photoURL || firebaseUser?.photoURL || undefined
 
   return (
-    <div className="space-y-4 pb-24" dir="rtl">
+    <div className="space-y-4 pb-24" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
         <div>
@@ -635,13 +647,38 @@ export function AthleteProfile() {
               disabled={stravaConnecting}
               className="bg-[#0a1628] hover:bg-[#0a1628]/90 text-white"
             >
-              {stravaConnecting ? "מתחבר..." : stravaConnected ? "חיבור מחדש ל-Strava" : "חיבור Strava"}
+              {stravaConnecting ? t.stravaConnectingBtn : stravaConnected ? t.stravaReconnectBtn : t.stravaConnectBtn}
             </Button>
             {stravaConnected && (
               <Button onClick={handleStravaSync} disabled={stravaSyncing} className="bg-[#c9a84c] hover:bg-[#c9a84c]/90 text-[#0a1628] font-semibold">
-                {stravaSyncing ? "מסנכרן..." : "סנכרון אימונים"}
+                {stravaSyncing ? t.stravaSyncingBtn : t.stravaSyncBtn}
               </Button>
             )}
+            {/* Language switcher */}
+            <div className="flex rounded-xl border border-gray-200 overflow-hidden">
+              <button
+                onClick={() => handleSetLanguage('he')}
+                className={cn(
+                  'px-3 py-1.5 text-sm font-semibold transition-colors',
+                  language === 'he'
+                    ? 'bg-[#0a1628] text-white'
+                    : 'bg-white text-gray-500 hover:bg-gray-50'
+                )}
+              >
+                עברית
+              </button>
+              <button
+                onClick={() => handleSetLanguage('en')}
+                className={cn(
+                  'px-3 py-1.5 text-sm font-semibold transition-colors',
+                  language === 'en'
+                    ? 'bg-[#0a1628] text-white'
+                    : 'bg-white text-gray-500 hover:bg-gray-50'
+                )}
+              >
+                English
+              </button>
+            </div>
           </div>
         ) : null}
       </div>

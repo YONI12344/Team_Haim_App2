@@ -17,15 +17,12 @@ import type { AthleteProfile, AssignedWorkout, TrainingDayType } from '@/lib/typ
 import { listJourneys, computeJourneyProgress } from '@/lib/journey'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
+import { useWorkoutTypeLabels } from '@/lib/workout-labels'
 import { toast } from 'sonner'
 import { WorkoutLogForm } from '@/components/athlete/workout-log-form'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 const WEEKDAY_KEYS = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'] as const
-const DAY_HE = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת']
-const DAY_HE_SHORT = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳']
-const DAY_EN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
-const DAY_HE_LABELS = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳']
 
 const TYPE_COLORS: Record<string, string> = {
   easy: 'bg-emerald-100 text-emerald-800 border-emerald-200',
@@ -43,21 +40,6 @@ const STATUS_STYLES: Record<string, string> = {
   completed: 'bg-emerald-100 text-emerald-700 border-emerald-200',
   skipped: 'bg-red-100 text-red-600 border-red-200',
   scheduled: 'bg-amber-100 text-amber-700 border-amber-200',
-}
-
-const TYPE_LABELS_HE: Record<string, string> = {
-  easy: 'קל',
-  long_run: 'ארוך',
-  tempo: 'טמפו',
-  intervals: 'אינטרוולים',
-  hill_repeats: 'גבעות',
-  fartlek: 'פרטלק',
-  recovery: 'התאוששות',
-  rest: 'מנוחה',
-  race: 'תחרות',
-  time_trial: 'מבחן',
-  strength: 'כוח',
-  cross_training: 'כושר',
 }
 
 const TYPE_BORDER_COLORS: Record<string, string> = {
@@ -100,7 +82,11 @@ interface JourneySummary {
 
 export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: string } = {}) {
   const { user } = useAuth()
-  const { language, t } = useLanguage()
+  const { t, isRTL } = useLanguage()
+  const typeLabels = useWorkoutTypeLabels()
+  const dayShort = [t.sun, t.mon, t.tue, t.wed, t.thu, t.fri, t.sat]
+  const dayLabels = [t.sun, t.mon, t.tue, t.wed, t.thu, t.fri, t.sat]
+  const dayEN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
   const athleteId = overrideAthleteId || user?.id || ''
   const [athlete, setAthlete] = useState<AthleteProfile | null>(null)
   const [journey, setJourney] = useState<JourneySummary | null>(null)
@@ -301,7 +287,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
             {/* Set header */}
             <div className="px-4 py-3 border-t border-border">
               <p className="text-sm font-bold text-navy text-right">
-                סט {si+1}
+                {t.setLabelPrefix} {si+1}
                 {set.reps > 1 && !hasIntervals
                   ? <span className="font-normal"> · {set.reps}× {set.distance||set.duration||''}{set.pace ? ` @ ${set.pace}` : ''}</span>
                   : <>
@@ -312,7 +298,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                 {hasIntervals && set.reps > 1 && <span className="font-normal text-muted-foreground"> · {set.reps}×</span>}
               </p>
               {!hasIntervals && set.rest && (
-                <p className="text-xs text-muted-foreground text-right mt-1">מנוחה: {set.rest}</p>
+                <p className="text-xs text-muted-foreground text-right mt-1">{t.restPrefix} {set.rest}</p>
               )}
             </div>
             {/* Intervals */}
@@ -327,7 +313,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                 </div>
                 {iv.rest && (
                   <div className="px-4 py-1.5 border-t border-border/30">
-                    <p className="text-xs text-muted-foreground text-right">מנוחה: {iv.rest}</p>
+                    <p className="text-xs text-muted-foreground text-right">{t.restPrefix} {iv.rest}</p>
                   </div>
                 )}
               </div>
@@ -355,7 +341,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
             <div className="px-4 py-3 flex items-center gap-2.5" dir="rtl">
               <span className="h-5 w-5 rounded-lg bg-[#FC4C02] flex items-center justify-center text-[9px] font-black text-white flex-shrink-0">S</span>
               <span className="text-sm text-emerald-700 font-semibold">Strava ✓</span>
-              {stravaForDate.actualDistance && <span className="text-sm text-gray-500">{stravaForDate.actualDistance} ק"מ</span>}
+              {stravaForDate.actualDistance && <span className="text-sm text-gray-500">{stravaForDate.actualDistance} km</span>}
             </div>
           )
           if (w.status === 'completed' || openLogForms.has(w.id)) return (
@@ -373,7 +359,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
             <button
               onClick={() => setOpenLogForms(prev => new Set([...prev, w.id]))}
               className="w-full px-5 py-4 text-sm font-bold text-[#0a1628] bg-[#c9a84c] hover:bg-[#c9a84c]/90 active:scale-[0.98] transition-all text-center">
-              עדכן אימון
+              {t.addFeedbackBtn}
             </button>
           )
         })()}
@@ -391,9 +377,9 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
       // Get athlete's own stravaId from their user profile
       const userSnap = await getDoc(doc(db, 'users', athleteId))
       const stravaId = userSnap.data()?.stravaId
-      if (!stravaId) { toast.error('Strava לא מחובר - חבר Strava מהפרופיל'); return }
+      if (!stravaId) { toast.error(t.stravaConnectBtn + ' — ' + t.stravaNotFoundError); return }
       const snap = await getDoc(doc(db, 'strava_connections', `strava_${stravaId}`))
-      if (!snap.exists()) { toast.error('Strava לא מחובר'); return }
+      if (!snap.exists()) { toast.error(t.stravaConnectBtn); return }
       const stravaData = snap.data()
       const res = await fetch('/api/strava/sync', {
         method: 'POST',
@@ -463,12 +449,12 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
             }
           } catch (e) { console.error('Smart auto-complete failed:', e) }
         }
-        toast.success(`סונכרנו ${saved} אימונים חדשים מ-Strava!`)
+        toast.success(`${t.syncedFromStrava}: ${saved}`)
         // Reload logs
         const logsSnap = await getDocs(query(collection(db, 'logs'), where('athleteId', '==', athleteId)))
         setWeekLogs(logsSnap.docs.map(d => ({ id: d.id, actualDistance: d.data().actualDistance, actualPace: d.data().actualPace, effort: d.data().effort, comment: d.data().comment, workoutId: d.data().workoutId, assignedWorkoutId: d.data().assignedWorkoutId, source: d.data().source, splitLogs: d.data().splitLogs || [], date: d.data().date || '', stravaActivityId: d.data().stravaActivityId, stravaName: d.data().stravaName, averageHeartRate: d.data().averageHeartRate, elevationGain: d.data().elevationGain, feedbackStatus: d.data().feedbackStatus, stravaType: d.data().stravaType })))
       }
-    } catch (err) { console.error(err); toast.error('סנכרון נכשל') }
+    } catch (err) { console.error(err); toast.error(t.stravaSyncTitle) }
     finally { setStravaSyncing(false) }
   }
 
@@ -482,27 +468,27 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
     const isPending = log.feedbackStatus === 'pending'
 
     const handleSubmit = async () => {
-      if (!pendingEffort) { toast.error('יש לבחור מאמץ 1-10'); return }
+      if (!pendingEffort) { toast.error(t.selectEffortError); return }
       setSubmitting(true)
       try {
         const { doc, updateDoc, serverTimestamp } = await import('firebase/firestore')
         const { db } = await import('@/lib/firebase')
         await updateDoc(doc(db, 'logs', log.id), { effort: pendingEffort, comment: pendingComment, feedbackStatus: 'done', updatedAt: serverTimestamp() })
         setWeekLogs(prev => prev.map(l => l.id === log.id ? { ...l, effort: pendingEffort, comment: pendingComment, feedbackStatus: 'done' } : l))
-        toast.success('תודה! האימון נשמר ✓')
-      } catch(e) { console.error(e); toast.error('שגיאה בשמירה') }
+        toast.success(t.workoutSaved)
+      } catch(e) { console.error(e); toast.error(t.savingError) }
       finally { setSubmitting(false) }
     }
 
     const handleDelete = async () => {
-      if (!confirm('למחוק אימון זה?')) return
+      if (!confirm(t.deleteWorkoutConfirm)) return
       try {
         const { doc, deleteDoc } = await import('firebase/firestore')
         const { db } = await import('@/lib/firebase')
         await deleteDoc(doc(db, 'logs', log.id))
         setWeekLogs(prev => prev.filter(l => l.id !== log.id))
-        toast.success('אימון נמחק')
-      } catch(e) { console.error(e); toast.error('שגיאה במחיקה') }
+        toast.success(t.workoutDeleted)
+      } catch(e) { console.error(e); toast.error(t.errorDeleting) }
     }
 
     const DetailsModal = () => (
@@ -512,61 +498,61 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-right">
               <span className="text-sm bg-orange-500 text-white px-2 py-0.5 rounded font-bold">Strava</span>
-              <span>{log.stravaName || 'אימון Strava'}</span>
+              <span>{log.stravaName || t.stravaWorkoutName}</span>
             </DialogTitle>
-            <DialogDescription className="sr-only">פרטי אימון Strava</DialogDescription>
+            <DialogDescription className="sr-only">{t.stravaDialogDesc}</DialogDescription>
           </DialogHeader>
           {/* Key stats */}
           <div className="grid grid-cols-2 gap-3 py-2">
             {log.actualDistance && (
               <div className="bg-muted/40 rounded-lg p-3 text-center">
                 <p className="text-2xl font-bold text-navy">{log.actualDistance}</p>
-                <p className="text-xs text-muted-foreground">ק"מ</p>
+                <p className="text-xs text-muted-foreground">km</p>
               </div>
             )}
             {log.actualPace && (
               <div className="bg-muted/40 rounded-lg p-3 text-center">
                 <p className="text-2xl font-bold text-navy" dir="ltr">{log.actualPace.replace('/km','')}</p>
-                <p className="text-xs text-muted-foreground">טמפו /ק"מ</p>
+                <p className="text-xs text-muted-foreground">{t.tempoPerKmLabel}</p>
               </div>
             )}
             {log.averageHeartRate && (
               <div className="bg-red-50 rounded-lg p-3 text-center">
                 <p className="text-2xl font-bold text-red-600">{log.averageHeartRate}</p>
-                <p className="text-xs text-muted-foreground">דופק ממוצע bpm</p>
+                <p className="text-xs text-muted-foreground">{t.avgHRBpmLabel}</p>
               </div>
             )}
             {log.elevationGain && (
               <div className="bg-emerald-50 rounded-lg p-3 text-center">
                 <p className="text-2xl font-bold text-emerald-700">{log.elevationGain}m</p>
-                <p className="text-xs text-muted-foreground">עלייה מצטברת</p>
+                <p className="text-xs text-muted-foreground">{t.elevationGainLabel}</p>
               </div>
             )}
             {log.effort && (
               <div className="bg-amber-50 rounded-lg p-3 text-center">
                 <p className="text-2xl font-bold text-amber-700">{log.effort}/10</p>
-                <p className="text-xs text-muted-foreground">מאמץ</p>
+                <p className="text-xs text-muted-foreground">{t.effortValueLabel}</p>
               </div>
             )}
           </div>
           {/* Comment */}
           {log.comment && !log.comment.startsWith('Synced from Strava:') && (
             <div className="bg-muted/30 rounded-lg p-3">
-              <p className="text-xs text-muted-foreground mb-1">הערה</p>
+              <p className="text-xs text-muted-foreground mb-1">{t.noteLabel}</p>
               <p className="text-sm text-navy italic">"{log.comment}"</p>
             </div>
           )}
           {/* Splits */}
           {log.splitLogs && log.splitLogs.length > 0 && (
             <div>
-              <p className="text-sm font-bold text-navy mb-2">פיצולים לק"מ</p>
+              <p className="text-sm font-bold text-navy mb-2">{t.kmSplitsLabel}</p>
               <div className="rounded-lg border border-border overflow-hidden">
                 <div className="grid grid-cols-5 bg-navy/5 px-2 py-1.5 text-[10px] font-bold text-navy text-center">
-                  <span>ק"מ</span>
-                  <span>זמן</span>
-                  <span>טמפו</span>
-                  <span>דופק</span>
-                  <span>זון</span>
+                  <span>km</span>
+                  <span>{t.timeInputLabel}</span>
+                  <span>{t.avgTempoLabel}</span>
+                  <span>{t.avgHRBpmLabel}</span>
+                  <span>Zone</span>
                 </div>
                 {log.splitLogs.map((s: any, i: number) => {
                   const pace = s.pace?.replace('/km','') || '—'
@@ -584,7 +570,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                   )
                 })}
               </div>
-              <p className="text-[10px] text-muted-foreground mt-1 text-center">טמפו ירוק = מהיר מהממוצע · דופק אדום = מעל 160</p>
+              <p className="text-[10px] text-muted-foreground mt-1 text-center">{t.paceColorHint}</p>
             </div>
           )}
           </div>
@@ -604,8 +590,8 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="text-sm font-bold text-navy truncate">{log.stravaName || 'אימון Strava'}</span>
-                {log.actualDistance && <span className="text-xs text-gray-500">· {log.actualDistance} ק"מ</span>}
+                <span className="text-sm font-bold text-navy truncate">{log.stravaName || t.stravaWorkoutName}</span>
+                {log.actualDistance && <span className="text-xs text-gray-500">· {log.actualDistance} km</span>}
                 {log.actualPace && <span className="text-xs text-gray-400" dir="ltr">· {log.actualPace}</span>}
               </div>
             </div>
@@ -614,7 +600,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                 onClick={() => setShowForm(prev => !prev)}
                 className={cn('text-[11px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap active:scale-95 transition-all border',
                   showForm ? 'bg-gray-100 text-gray-600 border-gray-200' : 'bg-amber-50 text-amber-700 border-amber-200')}>
-                {showForm ? 'סגור' : 'הוסף משוב'}
+                {showForm ? t.closeCta : t.addFeedbackBtn}
               </button>
               <button onClick={handleDelete} className="h-6 w-6 rounded-full hover:bg-red-50 flex items-center justify-center text-muted-foreground/50 hover:text-red-400 transition-colors text-sm">✕</button>
             </div>
@@ -625,7 +611,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
             <div className="border-t border-border/50">
               <div className="px-4 py-4 space-y-4">
                 <div>
-                  <p className="text-sm font-semibold text-navy mb-3">כמה היה קשה?</p>
+                  <p className="text-sm font-semibold text-navy mb-3">{t.howHardWasIt}</p>
                   <div className="flex items-center justify-center gap-6">
                     <button
                       onClick={() => setPendingEffort(prev => prev != null ? Math.max(1, prev - 1) : 5)}
@@ -649,11 +635,11 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                         pendingEffort <= 7 ? 'text-amber-500' :
                         pendingEffort <= 9 ? 'text-orange-500' : 'text-red-500'
                       )}>
-                        {pendingEffort == null ? 'בחר עצימות' :
-                         pendingEffort <= 3 ? 'קל מאוד' :
-                         pendingEffort <= 5 ? 'קל' :
-                         pendingEffort <= 7 ? 'בינוני' :
-                         pendingEffort <= 9 ? 'קשה' : 'מאוד קשה'}
+                        {pendingEffort == null ? t.chooseIntensity :
+                         pendingEffort <= 3 ? t.effortVeryEasy :
+                         pendingEffort <= 5 ? t.effortEasyLabel :
+                         pendingEffort <= 7 ? t.effortModerate :
+                         pendingEffort <= 9 ? t.effortHard : t.effortVeryHard}
                       </span>
                     </div>
                     <button
@@ -664,7 +650,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                   </div>
                 </div>
                 <textarea
-                  placeholder="הערה אופציונלית..."
+                  placeholder={t.optionalCommentPh}
                   value={pendingComment}
                   onChange={e => setPendingComment(e.target.value)}
                   dir="rtl"
@@ -674,7 +660,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                   onClick={handleSubmit}
                   disabled={submitting || !pendingEffort}
                   className="w-full h-12 rounded-2xl bg-navy hover:bg-navy/90 disabled:opacity-40 text-white text-base font-bold transition-all">
-                  {submitting ? 'שומר...' : 'שלח משוב למאמן ✓'}
+                  {submitting ? t.savingDots : t.sendFeedbackToCoach}
                 </button>
               </div>
             </div>
@@ -694,13 +680,13 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="text-sm font-semibold text-[#0a1628] truncate">{log.stravaName || 'Strava'}</span>
-              {log.actualDistance && <span className="text-xs text-gray-500">· {log.actualDistance} ק"מ</span>}
+              {log.actualDistance && <span className="text-xs text-gray-500">· {log.actualDistance} km</span>}
               {log.actualPace && <span className="text-xs text-gray-400" dir="ltr">· {log.actualPace}</span>}
               <span className="text-[10px] font-bold text-emerald-600">✓</span>
             </div>
             <p className="text-[10px] text-gray-400 mt-0.5">{log.date}</p>
           </div>
-          <button onClick={() => setShowDetails(true)} className="text-[10px] text-[#0a1628]/50 hover:text-[#0a1628] flex-shrink-0 font-medium border border-gray-200 rounded-full px-2 py-0.5 transition-colors">פרטים</button>
+          <button onClick={() => setShowDetails(true)} className="text-[10px] text-[#0a1628]/50 hover:text-[#0a1628] flex-shrink-0 font-medium border border-gray-200 rounded-full px-2 py-0.5 transition-colors">{t.detailsBtn}</button>
           <button onClick={handleDelete} className="h-6 w-6 rounded-full flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors flex-shrink-0 text-sm">✕</button>
         </div>
       </>
@@ -729,7 +715,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
           {/* Multi-workout index label */}
           {cardIndex != null && cardIndex > 1 && (
             <div className="px-4 pt-2.5 pb-0">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">אימון {cardIndex}</span>
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.workoutCardPrefix} {cardIndex}</span>
             </div>
           )}
 
@@ -741,16 +727,16 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <span className={cn('text-[10px] font-bold px-2.5 py-0.5 rounded-full border', TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy)}>
-                    {TYPE_LABELS_HE[w.workout?.type] || w.workout?.type}
+                    {typeLabels[w.workout?.type] || w.workout?.type}
                   </span>
                   {effStatus === 'completed' && (
                     <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-1">
                       <span className="w-3.5 h-3.5 rounded-full bg-emerald-100 inline-flex items-center justify-center text-[8px]">✓</span>
-                      {log?.actualDistance ? `${log.actualDistance} ק"מ` : 'הושלם'}
+                      {log?.actualDistance ? `${log.actualDistance} km` : t.stravaCompletedLabel}
                     </span>
                   )}
                   {effStatus === 'skipped' && (
-                    <span className="text-[10px] font-bold text-red-500 bg-red-50 border border-red-100 px-2 py-0.5 rounded-full">דולג</span>
+                    <span className="text-[10px] font-bold text-red-500 bg-red-50 border border-red-100 px-2 py-0.5 rounded-full">{t.stravaNotDoneLabel}</span>
                   )}
                 </div>
                 <p className={cn('font-bold text-[15px] leading-snug',
@@ -759,14 +745,14 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                 </p>
                 {(w.workout.distance || w.workout.duration) && (
                   <p className="text-xs text-gray-400 mt-0.5">
-                    {w.workout.distance && `${w.workout.distance} ק"מ`}
+                    {w.workout.distance && `${w.workout.distance} km`}
                     {w.workout.distance && w.workout.duration && ' · '}
-                    {w.workout.duration && `${w.workout.duration} דק'`}
+                    {w.workout.duration && `${w.workout.duration} min`}
                   </p>
                 )}
               </div>
               <div className="flex items-center gap-1 flex-shrink-0">
-                <span className="text-[10px] text-gray-400 font-medium hidden sm:block">פרטים מלאים</span>
+                <span className="text-[10px] text-gray-400 font-medium hidden sm:block">{t.detailsBtn}</span>
                 <ChevronDown className={cn('h-4 w-4 text-gray-400 transition-transform duration-200', isSelected ? 'rotate-180' : '')} />
               </div>
             </div>
@@ -784,13 +770,13 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
         {msg && (
           <div className={cn('bg-white rounded-2xl border p-4 shadow-sm', !msg.read ? 'border-l-4 border-l-[#c9a84c] border-gray-100' : 'border-gray-100')} dir="rtl">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[#c9a84c]">הודעה מהמאמן</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[#c9a84c]">{t.messageFromCoach}</p>
               {msg.createdAt?.seconds && <p className="text-[9px] text-gray-400">{format(new Date(msg.createdAt.seconds * 1000), 'd/M/yyyy')}</p>}
             </div>
             <p className="text-sm text-[#0a1628] leading-relaxed">{msg.message}</p>
             {!msg.read && (
               <button onClick={async () => { try { await updateDoc(doc(db, 'coachMessages', msg.id), { read: true }); setCoachMessages(prev => prev.map(m => m.id === msg.id ? { ...m, read: true } : m)) } catch {} }}
-                className="mt-2 text-[10px] text-gray-400 hover:text-gray-600 underline underline-offset-2">סמן כנקרא</button>
+                className="mt-2 text-[10px] text-gray-400 hover:text-gray-600 underline underline-offset-2">{t.markAsRead}</button>
             )}
           </div>
         )}
@@ -800,9 +786,9 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
           <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 border-l-4 border-l-emerald-500 overflow-hidden" dir="rtl">
             <div className="px-4 py-3 flex items-center justify-between gap-3">
               <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-1.5">ביצוע בפועל</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-1.5">{t.actualPerformance}</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {log.actualDistance && <span className="text-xs font-medium bg-gray-50 border border-gray-100 px-2.5 py-1 rounded-full">{log.actualDistance} ק"מ</span>}
+                  {log.actualDistance && <span className="text-xs font-medium bg-gray-50 border border-gray-100 px-2.5 py-1 rounded-full">{log.actualDistance} km</span>}
                   {log.actualPace && <span className="text-xs font-medium bg-gray-50 border border-gray-100 px-2.5 py-1 rounded-full" dir="ltr">{log.actualPace}</span>}
                   {log.effort != null && (
                     <span className={cn('text-xs font-medium px-2.5 py-1 rounded-full border',
@@ -811,22 +797,22 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                       log.effort <= 7 ? 'bg-amber-100 text-amber-700 border-amber-200' :
                       log.effort <= 9 ? 'bg-orange-100 text-orange-700 border-orange-200' :
                       'bg-red-100 text-red-700 border-red-200'
-                    )}>מאמץ {log.effort}/10</span>
+                    )}>{t.effortValueLabel} {log.effort}/10</span>
                   )}
                 </div>
                 {log.comment && <p className="text-xs text-gray-400 italic mt-1.5">"{log.comment}"</p>}
               </div>
               <button
                 onClick={async () => {
-                  if (!confirm('למחוק את תיעוד האימון?')) return
+                  if (!confirm(t.confirmDeleteLog)) return
                   try {
                     const { doc, deleteDoc, updateDoc } = await import('firebase/firestore')
                     const { db } = await import('@/lib/firebase')
                     if (log.id) await deleteDoc(doc(db, 'logs', log.id))
                     await updateDoc(doc(db, 'assignedWorkouts', w.id), { status: 'scheduled', completedAt: null })
                     setWeekLogs(prev => prev.filter(l => l.id !== log.id))
-                    toast.success('תיעוד נמחק')
-                  } catch(e) { console.error(e); toast.error('שגיאה במחיקה') }
+                    toast.success(t.logDeleted)
+                  } catch(e) { console.error(e); toast.error(t.errorDeleting) }
                 }}
                 className="h-7 w-7 rounded-full hover:bg-red-50 flex items-center justify-center text-gray-300 hover:text-red-400 transition-colors flex-shrink-0">✕</button>
             </div>
@@ -837,7 +823,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
   }
 
   return (
-    <div className="space-y-3 pb-24" dir="rtl">
+    <div className="space-y-3 pb-24" dir={isRTL ? 'rtl' : 'ltr'}>
 
       {/* ── Navigation ─────────────────────────────────────────────────────── */}
       <div className="space-y-2">
@@ -899,8 +885,8 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
         if (!mainW && stravaToday.length === 0) return (
           <div className="bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 rounded-3xl p-8 text-center">
             <div className="text-5xl mb-4">🌿</div>
-            <p className="text-2xl font-bold text-white mb-2">יום מנוחה</p>
-            <p className="text-sm text-white/40">תתאושש ותתכונן לאימון הבא</p>
+            <p className="text-2xl font-bold text-white mb-2">{t.restDayLabel}</p>
+            <p className="text-sm text-white/40">{t.restDaySubtitle}</p>
           </div>
         )
 
@@ -921,7 +907,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                 <div key={w.id} className="space-y-2">
                   {/* Gold "אימון N" label for multiple workouts */}
                   {dayWs.length > 1 && (
-                    <p className="text-[10px] font-bold text-[#c9a84c] uppercase tracking-widest px-1">אימון {idx + 1}</p>
+                    <p className="text-[10px] font-bold text-[#c9a84c] uppercase tracking-widest px-1">{t.workoutCardPrefix} {idx + 1}</p>
                   )}
 
                   {/* Navy gradient card — compact for multiple, large for single */}
@@ -935,14 +921,14 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                       {/* Type badge row */}
                       <div className="flex items-center justify-between mb-2.5" dir="rtl">
                         <span className="bg-white/15 text-white/90 text-[11px] font-bold px-3 py-1 rounded-full">
-                          {TYPE_LABELS_HE[w.workout?.type] || w.workout?.type || 'ריצה'}
+                          {typeLabels[w.workout?.type] || w.workout?.type || 'ריצה'}
                         </span>
                         <div className="flex items-center gap-1.5">
                           {stravaThisDay && <span className="text-[10px] font-bold text-[#FC4C02] bg-[#FC4C02]/20 px-2 py-0.5 rounded-full">Strava ✓</span>}
-                          {isEffectivelyDone && !stravaThisDay && <span className="text-[11px] font-bold text-emerald-200">✓ הושלם</span>}
-                          {wEff === 'skipped' && <span className="text-[11px] font-bold text-red-300">דולג</span>}
+                          {isEffectivelyDone && !stravaThisDay && <span className="text-[11px] font-bold text-emerald-200">{t.stravaCompletedLabel}</span>}
+                          {wEff === 'skipped' && <span className="text-[11px] font-bold text-red-300">{t.stravaNotDoneLabel}</span>}
                           {isToday(currentDate) && wEff === 'scheduled' && idx === 0 && !stravaThisDay && (
-                            <span className="text-[#c9a84c] text-[11px] font-black">היום</span>
+                            <span className="text-[#c9a84c] text-[11px] font-black">{t.today}</span>
                           )}
                         </div>
                       </div>
@@ -958,14 +944,14 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                         {w.workout.distance && (
                           <span className={cn('text-sm font-bold px-3 py-1.5 rounded-full',
                             isEffectivelyDone ? 'bg-white/20 text-white' : 'bg-[#c9a84c] text-[#0a1628]')}>
-                            {wLog?.actualDistance ?? w.workout.distance} ק"מ
+                            {wLog?.actualDistance ?? w.workout.distance} km
                           </span>
                         )}
                         {w.workout.duration && !wLog && (
-                          <span className="text-sm bg-white/15 text-white px-3 py-1.5 rounded-full">{w.workout.duration} דק'</span>
+                          <span className="text-sm bg-white/15 text-white px-3 py-1.5 rounded-full">{w.workout.duration} min</span>
                         )}
                         {wLog?.actualPace && <span className="text-sm bg-white/15 text-white px-3 py-1.5 rounded-full" dir="ltr">{wLog.actualPace}</span>}
-                        {wLog?.effort != null && <span className="text-sm bg-white/15 text-white px-3 py-1.5 rounded-full">מאמץ {wLog.effort}/10</span>}
+                        {wLog?.effort != null && <span className="text-sm bg-white/15 text-white px-3 py-1.5 rounded-full">{t.effortValueLabel} {wLog.effort}/10</span>}
                       </div>
 
                       {/* Strava match indicator */}
@@ -976,11 +962,11 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                             <span className={cn('text-[11px] font-bold',
                               stravaMatch.status === 'completed' ? 'text-emerald-300' :
                               stravaMatch.status === 'partial' ? 'text-amber-300' : 'text-red-300')}>
-                              {stravaMatch.actual} / {stravaMatch.planned} ק״מ
-                              {stravaMatch.status === 'completed' ? ' ✓ בוצע' : stravaMatch.status === 'partial' ? ' ~ חלקי' : ' ✗ לא בוצע'}
+                              {stravaMatch.actual} / {stravaMatch.planned} km
+                              {stravaMatch.status === 'completed' ? ` ${t.stravaCompletedLabel}` : stravaMatch.status === 'partial' ? ` ${t.stravaPartialLabel}` : ` ${t.stravaNotDoneLabel}`}
                             </span>
                           ) : (
-                            <span className="text-[11px] font-bold text-emerald-300">{stravaMatch.actual} ק״מ ✓</span>
+                            <span className="text-[11px] font-bold text-emerald-300">{stravaMatch.actual} km ✓</span>
                           )}
                         </div>
                       )}
@@ -992,7 +978,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                           'w-full h-11 rounded-2xl font-bold text-sm active:scale-95 transition-all',
                           wSelected ? 'bg-white/20 text-white' : 'bg-white/15 text-white hover:bg-white/20'
                         )}>
-                        {wSelected ? 'סגור ✕' : 'פרטי אימון ›'}
+                        {wSelected ? t.closeCta : t.workoutDetailsCta}
                       </button>
                     </div>
                   </div>
@@ -1009,13 +995,13 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                     <div className={cn('bg-white rounded-2xl border p-4 shadow-sm',
                       !wMsg.read ? 'border-l-4 border-l-[#c9a84c] border-gray-100' : 'border-gray-100')} dir="rtl">
                       <div className="flex items-center justify-between mb-2">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#c9a84c]">הודעה מהמאמן</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#c9a84c]">{t.messageFromCoach}</p>
                         {wMsg.createdAt?.seconds && <p className="text-[9px] text-gray-400">{format(new Date(wMsg.createdAt.seconds * 1000), 'd/M/yyyy')}</p>}
                       </div>
                       <p className="text-sm text-[#0a1628] leading-relaxed">{wMsg.message}</p>
                       {!wMsg.read && (
                         <button onClick={async () => { try { await updateDoc(doc(db, 'coachMessages', wMsg.id), { read: true }); setCoachMessages(prev => prev.map(m => m.id === wMsg.id ? { ...m, read: true } : m)) } catch {} }}
-                          className="mt-2 text-[10px] text-gray-400 hover:text-gray-600 underline underline-offset-2">סמן כנקרא</button>
+                          className="mt-2 text-[10px] text-gray-400 hover:text-gray-600 underline underline-offset-2">{t.markAsRead}</button>
                       )}
                     </div>
                   )}
@@ -1025,9 +1011,9 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                     <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 border-l-4 border-l-emerald-500 overflow-hidden" dir="rtl">
                       <div className="px-4 py-3 flex items-center justify-between gap-3">
                         <div className="flex-1 min-w-0">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-1.5">ביצוע בפועל</p>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-1.5">{t.actualPerformance}</p>
                           <div className="flex flex-wrap gap-1.5">
-                            {wLog.actualDistance && <span className="text-xs bg-gray-50 border border-gray-100 px-2.5 py-1 rounded-full">{wLog.actualDistance} ק"מ</span>}
+                            {wLog.actualDistance && <span className="text-xs bg-gray-50 border border-gray-100 px-2.5 py-1 rounded-full">{wLog.actualDistance} km</span>}
                             {wLog.actualPace && <span className="text-xs bg-gray-50 border border-gray-100 px-2.5 py-1 rounded-full" dir="ltr">{wLog.actualPace}</span>}
                             {wLog.effort != null && (
                               <span className={cn('text-xs px-2.5 py-1 rounded-full border',
@@ -1035,21 +1021,21 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                                 wLog.effort <= 5 ? 'bg-green-100 text-green-700 border-green-200' :
                                 wLog.effort <= 7 ? 'bg-amber-100 text-amber-700 border-amber-200' :
                                 wLog.effort <= 9 ? 'bg-orange-100 text-orange-700 border-orange-200' :
-                                'bg-red-100 text-red-700 border-red-200')}>מאמץ {wLog.effort}/10</span>
+                                'bg-red-100 text-red-700 border-red-200')}>{t.effortValueLabel} {wLog.effort}/10</span>
                             )}
                           </div>
                           {wLog.comment && <p className="text-xs text-gray-400 italic mt-1.5">"{wLog.comment}"</p>}
                         </div>
                         <button onClick={async () => {
-                          if (!confirm('למחוק את תיעוד האימון?')) return
+                          if (!confirm(t.confirmDeleteLog)) return
                           try {
                             const { doc, deleteDoc, updateDoc } = await import('firebase/firestore')
                             const { db } = await import('@/lib/firebase')
                             if (wLog.id) await deleteDoc(doc(db, 'logs', wLog.id))
                             await updateDoc(doc(db, 'assignedWorkouts', w.id), { status: 'scheduled', completedAt: null })
                             setWeekLogs(prev => prev.filter(l => l.id !== wLog.id))
-                            toast.success('תיעוד נמחק')
-                          } catch(e) { console.error(e); toast.error('שגיאה במחיקה') }
+                            toast.success(t.logDeleted)
+                          } catch(e) { console.error(e); toast.error(t.errorDeleting) }
                         }} className="h-7 w-7 rounded-full hover:bg-red-50 flex items-center justify-center text-gray-300 hover:text-red-400 transition-colors flex-shrink-0">✕</button>
                       </div>
                     </div>
@@ -1086,7 +1072,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                     className={cn('flex flex-col items-center py-2.5 px-3 rounded-2xl transition-all active:scale-95 flex-shrink-0 min-w-[44px]',
                       isSelDay ? 'bg-[#0a1628]' : todayFlag ? 'bg-[#0a1628]/5' : 'hover:bg-gray-50')}>
                     <span className={cn('text-[10px] font-semibold mb-0.5', isSelDay ? 'text-white/50' : todayFlag ? 'text-[#c9a84c]' : 'text-gray-400')}>
-                      {DAY_HE_SHORT[di]}
+                      {dayShort[di]}
                     </span>
                     <span className={cn('text-base font-black', isSelDay ? 'text-white' : todayFlag ? 'text-[#0a1628]' : 'text-[#0a1628]/60')}>
                       {format(day,'d')}
@@ -1112,8 +1098,8 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
               return (
                 <div className="mt-3 pt-3 border-t border-gray-50">
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs font-bold text-[#0a1628]">{weekActual} ק"מ בוצע</span>
-                    <span className="text-xs text-gray-400">מתוך {weekPlanned} ק"מ</span>
+                    <span className="text-xs font-bold text-[#0a1628]">{weekActual} {t.weekKmDoneLabel}</span>
+                    <span className="text-xs text-gray-400">{t.ofPlannedLabel} {weekPlanned} km</span>
                   </div>
                   <div className="w-full bg-gray-100 rounded-full h-1.5">
                     <div className={cn('h-1.5 rounded-full transition-all', weekActual >= weekPlanned ? 'bg-emerald-500' : 'bg-[#c9a84c]')}
@@ -1131,7 +1117,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
             const stravaDay = weekLogs.filter(l => l.date === dayStr && l.source === 'strava')
             if (dayWs.length === 0 && stravaDay.length === 0) return (
               <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 text-center">
-                <p className="font-semibold text-[#0a1628] mb-1">יום מנוחה</p>
+                <p className="font-semibold text-[#0a1628] mb-1">{t.restDayLabel}</p>
                 <p className="text-sm text-gray-400">{format(selectedWeekDay,'EEEE, d MMMM')}</p>
               </div>
             )
@@ -1169,15 +1155,15 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
               <div className="grid grid-cols-3 gap-2">
                 <div className="bg-[#0a1628] rounded-2xl p-3 text-center">
                   <p className="text-xl font-black text-white">{mKm}</p>
-                  <p className="text-[10px] text-white/50 mt-0.5">ק"מ בוצע</p>
+                  <p className="text-[10px] text-white/50 mt-0.5">{t.weekKmDoneLabel}</p>
                 </div>
                 <div className="bg-emerald-600 rounded-2xl p-3 text-center">
                   <p className="text-xl font-black text-white">{mCompleted}</p>
-                  <p className="text-[10px] text-white/70 mt-0.5">הושלמו</p>
+                  <p className="text-[10px] text-white/70 mt-0.5">{t.doneBadge}</p>
                 </div>
                 <div className="bg-white rounded-2xl border border-gray-100 p-3 text-center shadow-sm">
                   <p className="text-xl font-black text-[#0a1628]">{mTotal}</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">אימונים</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">{t.workouts}</p>
                 </div>
               </div>
             )
@@ -1186,10 +1172,10 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
           <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-4">
             {/* Day headers */}
             <div className="grid grid-cols-8 gap-1 mb-2">
-              {(language === 'he' ? DAY_HE_LABELS : DAY_EN).map((d,i) => (
+              {(isRTL ? dayLabels : dayEN).map((d,i) => (
                 <div key={i} className="text-center text-[9px] font-bold text-gray-400 py-1 uppercase tracking-wider">{d}</div>
               ))}
-              <div className="text-center text-[9px] font-bold text-gray-400 py-1 uppercase tracking-wider">ק"מ</div>
+              <div className="text-center text-[9px] font-bold text-gray-400 py-1 uppercase tracking-wider">km</div>
             </div>
 
             <div className="space-y-1">
@@ -1269,13 +1255,13 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
         {/* שלב העונה */}
         {journey && (
           <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-3">שלב העונה</p>
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-3">{t.seasonStageTitle}</p>
             <div className="space-y-2">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs font-bold bg-[#0a1628]/10 text-[#0a1628] px-3 py-1 rounded-full">{journey.stageName}</span>
-                <span className="text-sm font-semibold text-[#0a1628]">שבוע {journey.weekInStage}/{journey.totalWeeksInStage}</span>
+                <span className="text-sm font-semibold text-[#0a1628]">{t.weekWord} {journey.weekInStage}/{journey.totalWeeksInStage}</span>
                 <span className={cn('text-xs font-bold px-3 py-1 rounded-full', journey.isOffWeek ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700')}>
-                  {journey.isOffWeek ? 'שבוע מנוחה' : 'שבוע אימון'}
+                  {journey.isOffWeek ? t.offWeekLabel : t.trainingWeekLabel}
                 </span>
               </div>
               {journey.goalRaceEvent && (
@@ -1287,23 +1273,23 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
 
         {/* ק"מ השבוע */}
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-3">ק"מ השבוע</p>
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-3">{t.weeklyKmTitle}</p>
           {athlete?.weeklyKmRange ? (
             <div className="space-y-3">
               <div className="flex items-end gap-2 flex-wrap">
                 <span className="text-3xl font-black text-[#0a1628]">{thisWeekKmActual}</span>
-                <span className="text-sm text-gray-400 mb-1">/ {athlete.weeklyKmRange.min}–{athlete.weeklyKmRange.max} ק"מ</span>
+                <span className="text-sm text-gray-400 mb-1">/ {athlete.weeklyKmRange.min}–{athlete.weeklyKmRange.max} km</span>
               </div>
               <div className="w-full bg-gray-100 rounded-full h-2">
                 <div className={cn('h-2 rounded-full transition-all', thisWeekKmActual >= athlete.weeklyKmRange.min ? 'bg-emerald-500' : 'bg-[#c9a84c]')}
                   style={{width:`${Math.min(100,(thisWeekKmActual/athlete.weeklyKmRange.max)*100)}%`}}/>
               </div>
               <div className="flex items-center justify-between text-xs text-gray-500">
-                <span>{thisWeekKmActual >= athlete.weeklyKmRange.min ? 'יעד השבוע הושג!' : `נותרו ${Math.max(0,athlete.weeklyKmRange.min-thisWeekKmActual)} ק"מ`}</span>
-                <span>מתוכנן: {thisWeekKmPlanned} ק"מ</span>
+                <span>{thisWeekKmActual >= athlete.weeklyKmRange.min ? t.weekGoalAchieved : `${t.kmRemainingLabel} ${Math.max(0,athlete.weeklyKmRange.min-thisWeekKmActual)} km`}</span>
+                <span>{t.plannedLabel}: {thisWeekKmPlanned} km</span>
               </div>
             </div>
-          ) : <p className="text-sm text-gray-500">לא הוגדר יעד ק"מ</p>}
+          ) : <p className="text-sm text-gray-500">{t.goalKmNotSet}</p>}
         </div>
       </div>
 

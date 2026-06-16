@@ -582,6 +582,102 @@ interface Translations {
   goalActive: string
   goalAchieved: string
   goalArchived: string
+
+  // Strava workout / effort
+  stravaWorkoutName: string
+  syncedFromStrava: string
+  fillFromStrava: string
+  stravaSearching: string
+  stravaDataFilled: string
+  stravaDataUpdated: string
+  stravaAutoFill: string
+  stravaNotFoundError: string
+  stravaLoadError: string
+  howDidYouFeelStrava: string
+  chooseIntensity: string
+  effortVeryEasy: string
+  effortEasyLabel: string
+  effortModerate: string
+  effortHard: string
+  effortVeryHard: string
+  loggedLabel: string
+  editLogBtn: string
+  effortValueLabel: string
+  setLabelPrefix: string
+  repLabelPrefix: string
+  timeInputLabel: string
+  mmssPlaceholder: string
+  totalKmLabel: string
+  avgTempoLabel: string
+  intervalLogTitle: string
+  sendFeedbackToCoach: string
+  updateFeedback: string
+  workoutDefault: string
+
+  // Planner view
+  stravaDialogDesc: string
+  tempoPerKmLabel: string
+  avgHRBpmLabel: string
+  elevationGainLabel: string
+  noteLabel: string
+  kmSplitsLabel: string
+  paceColorHint: string
+  addFeedbackBtn: string
+  howHardWasIt: string
+  optionalCommentPh: string
+  detailsBtn: string
+  workoutCardPrefix: string
+  deleteWorkoutConfirm: string
+  restDayLabel: string
+  restDaySubtitle: string
+  messageFromCoach: string
+  markAsRead: string
+  actualPerformance: string
+  confirmDeleteLog: string
+  logDeleted: string
+  errorDeleting: string
+  selectEffortError: string
+  workoutSaved: string
+  savingError: string
+  workoutDeleted: string
+  stravaSyncTitle: string
+  workoutDetailsCta: string
+  closeCta: string
+  weekKmDoneLabel: string
+  ofPlannedLabel: string
+  weeklyKmTitle: string
+  seasonStageTitle: string
+  weekWord: string
+  trainingWeekLabel: string
+  offWeekLabel: string
+  goalKmNotSet: string
+  weekGoalAchieved: string
+  kmRemainingLabel: string
+  plannedLabel: string
+  stravaCompletedLabel: string
+  stravaPartialLabel: string
+  stravaNotDoneLabel: string
+  runFallback: string
+
+  // Documents
+  myDocumentsTitle: string
+  myDocumentsSubtitle: string
+  loadingDocuments: string
+  noDocumentsYet: string
+  noDocumentsCoachWillUpload: string
+  uploadedLabel: string
+  openPdfBtn: string
+
+  // Strava profile buttons
+  stravaConnectBtn: string
+  stravaReconnectBtn: string
+  stravaConnectingBtn: string
+  stravaSyncBtn: string
+  stravaSyncingBtn: string
+
+  // Chat page
+  coachNotJoinedTitle: string
+  tryAgainLaterText: string
 }
 
 const translations: Record<Language, Translations> = {
@@ -1134,6 +1230,97 @@ const translations: Record<Language, Translations> = {
     goalActive: 'Active',
     goalAchieved: 'Achieved',
     goalArchived: 'Archived',
+
+    stravaWorkoutName: 'Strava Workout',
+    syncedFromStrava: 'Synced from Strava',
+    fillFromStrava: 'Fill from Strava',
+    stravaSearching: 'Searching activity...',
+    stravaDataFilled: 'Strava data filled',
+    stravaDataUpdated: 'Distance and tempo updated',
+    stravaAutoFill: 'Auto-fill from last activity',
+    stravaNotFoundError: 'No Strava activity found for this date. Sync Strava first from your profile.',
+    stravaLoadError: 'Error loading Strava data',
+    howDidYouFeelStrava: 'How did you feel?',
+    chooseIntensity: 'Choose intensity',
+    effortVeryEasy: 'Very easy',
+    effortEasyLabel: 'Easy',
+    effortModerate: 'Moderate',
+    effortHard: 'Hard',
+    effortVeryHard: 'Very hard',
+    loggedLabel: 'Logged',
+    editLogBtn: 'Edit',
+    effortValueLabel: 'Effort',
+    setLabelPrefix: 'Set',
+    repLabelPrefix: 'Round',
+    timeInputLabel: 'Time',
+    mmssPlaceholder: 'mm:ss',
+    totalKmLabel: 'Total km',
+    avgTempoLabel: 'Avg tempo',
+    intervalLogTitle: 'Log by interval',
+    sendFeedbackToCoach: 'Send feedback to coach ✓',
+    updateFeedback: 'Update feedback',
+    workoutDefault: 'Workout',
+
+    stravaDialogDesc: 'Strava workout details',
+    tempoPerKmLabel: 'Pace /km',
+    avgHRBpmLabel: 'Avg HR bpm',
+    elevationGainLabel: 'Elevation gain',
+    noteLabel: 'Note',
+    kmSplitsLabel: 'km Splits',
+    paceColorHint: 'Green pace = faster than avg · Red HR = above 160',
+    addFeedbackBtn: 'Add feedback',
+    howHardWasIt: 'How hard was it?',
+    optionalCommentPh: 'Optional comment...',
+    detailsBtn: 'Details',
+    workoutCardPrefix: 'Workout',
+    deleteWorkoutConfirm: 'Delete this workout?',
+    restDayLabel: 'Rest Day',
+    restDaySubtitle: 'Recover and prepare for the next workout',
+    messageFromCoach: 'Message from coach',
+    markAsRead: 'Mark as read',
+    actualPerformance: 'Actual performance',
+    confirmDeleteLog: 'Delete this workout log?',
+    logDeleted: 'Log deleted',
+    errorDeleting: 'Error deleting',
+    selectEffortError: 'Please choose effort 1-10',
+    workoutSaved: 'Workout saved ✓',
+    savingError: 'Error saving',
+    workoutDeleted: 'Workout deleted',
+    stravaSyncTitle: 'Sync Strava',
+    workoutDetailsCta: 'Workout details ›',
+    closeCta: 'Close ✕',
+    weekKmDoneLabel: 'km done',
+    ofPlannedLabel: 'of',
+    weeklyKmTitle: 'Weekly km',
+    seasonStageTitle: 'Season stage',
+    weekWord: 'Week',
+    trainingWeekLabel: 'Training week',
+    offWeekLabel: 'Recovery week',
+    goalKmNotSet: 'No km target set',
+    weekGoalAchieved: 'Weekly goal achieved!',
+    kmRemainingLabel: 'km remaining',
+    plannedLabel: 'Planned',
+    stravaCompletedLabel: '✓ Done',
+    stravaPartialLabel: '~ Partial',
+    stravaNotDoneLabel: '✗ Not done',
+    runFallback: 'Run',
+
+    myDocumentsTitle: 'My Documents',
+    myDocumentsSubtitle: 'Files and plans your coach uploaded for you',
+    loadingDocuments: 'Loading documents...',
+    noDocumentsYet: 'No documents yet',
+    noDocumentsCoachWillUpload: 'Your coach will upload files for you soon',
+    uploadedLabel: 'Uploaded:',
+    openPdfBtn: 'Open PDF',
+
+    stravaConnectBtn: 'Connect Strava',
+    stravaReconnectBtn: 'Reconnect Strava',
+    stravaConnectingBtn: 'Connecting...',
+    stravaSyncBtn: 'Sync Workouts',
+    stravaSyncingBtn: 'Syncing...',
+
+    coachNotJoinedTitle: 'Coach has not joined yet',
+    tryAgainLaterText: 'Try again later',
   },
   he: {
     teamHaim: 'Team Haim',
@@ -1679,6 +1866,97 @@ const translations: Record<Language, Translations> = {
     goalActive: 'פעיל',
     goalAchieved: 'הושג',
     goalArchived: 'בארכיון',
+
+    stravaWorkoutName: 'אימון Strava',
+    syncedFromStrava: 'סונכרן מ-Strava',
+    fillFromStrava: 'מלא מ-Strava',
+    stravaSearching: 'מחפש פעילות...',
+    stravaDataFilled: 'נתוני Strava מולאו',
+    stravaDataUpdated: 'מרחק וטמפו עודכנו',
+    stravaAutoFill: 'מלא אוטומטית מהאימון האחרון',
+    stravaNotFoundError: 'לא נמצאה פעילות Strava לתאריך זה. סנכרן Strava תחילה מהפרופיל שלך.',
+    stravaLoadError: 'שגיאה בטעינת נתוני Strava',
+    howDidYouFeelStrava: 'כיצד הרגשת?',
+    chooseIntensity: 'בחר עצימות',
+    effortVeryEasy: 'קל מאוד',
+    effortEasyLabel: 'קל',
+    effortModerate: 'בינוני',
+    effortHard: 'קשה',
+    effortVeryHard: 'מאוד קשה',
+    loggedLabel: 'נרשם',
+    editLogBtn: 'ערוך',
+    effortValueLabel: 'מאמץ',
+    setLabelPrefix: 'סט',
+    repLabelPrefix: 'חזרה',
+    timeInputLabel: 'זמן',
+    mmssPlaceholder: 'דק:שנ',
+    totalKmLabel: 'סה"כ ק"מ',
+    avgTempoLabel: 'טמפו ממוצע',
+    intervalLogTitle: 'תיעוד לפי אינטרוול',
+    sendFeedbackToCoach: 'שלח משוב למאמן ✓',
+    updateFeedback: 'עדכן משוב',
+    workoutDefault: 'אימון',
+
+    stravaDialogDesc: 'פרטי אימון Strava',
+    tempoPerKmLabel: 'טמפו /ק"מ',
+    avgHRBpmLabel: 'דופק ממוצע bpm',
+    elevationGainLabel: 'עלייה מצטברת',
+    noteLabel: 'הערה',
+    kmSplitsLabel: 'פיצולים לק"מ',
+    paceColorHint: 'טמפו ירוק = מהיר מהממוצע · דופק אדום = מעל 160',
+    addFeedbackBtn: 'הוסף משוב',
+    howHardWasIt: 'כמה היה קשה?',
+    optionalCommentPh: 'הערה אופציונלית...',
+    detailsBtn: 'פרטים',
+    workoutCardPrefix: 'אימון',
+    deleteWorkoutConfirm: 'למחוק אימון זה?',
+    restDayLabel: 'יום מנוחה',
+    restDaySubtitle: 'תתאושש ותתכונן לאימון הבא',
+    messageFromCoach: 'הודעה מהמאמן',
+    markAsRead: 'סמן כנקרא',
+    actualPerformance: 'ביצוע בפועל',
+    confirmDeleteLog: 'למחוק את תיעוד האימון?',
+    logDeleted: 'תיעוד נמחק',
+    errorDeleting: 'שגיאה במחיקה',
+    selectEffortError: 'יש לבחור מאמץ 1-10',
+    workoutSaved: 'האימון נשמר ✓',
+    savingError: 'שגיאה בשמירה',
+    workoutDeleted: 'אימון נמחק',
+    stravaSyncTitle: 'סנכרן Strava',
+    workoutDetailsCta: 'פרטי אימון ›',
+    closeCta: 'סגור ✕',
+    weekKmDoneLabel: 'ק"מ בוצע',
+    ofPlannedLabel: 'מתוך',
+    weeklyKmTitle: 'ק"מ השבוע',
+    seasonStageTitle: 'שלב העונה',
+    weekWord: 'שבוע',
+    trainingWeekLabel: 'שבוע אימון',
+    offWeekLabel: 'שבוע מנוחה',
+    goalKmNotSet: 'לא הוגדר יעד ק"מ',
+    weekGoalAchieved: 'יעד השבוע הושג!',
+    kmRemainingLabel: 'ק"מ נותרו',
+    plannedLabel: 'מתוכנן',
+    stravaCompletedLabel: '✓ בוצע',
+    stravaPartialLabel: '~ חלקי',
+    stravaNotDoneLabel: '✗ לא בוצע',
+    runFallback: 'ריצה',
+
+    myDocumentsTitle: 'המסמכים שלי',
+    myDocumentsSubtitle: 'קבצים ותוכניות שהמאמן שלך העלה עבורך',
+    loadingDocuments: 'טוען מסמכים...',
+    noDocumentsYet: 'אין מסמכים עדיין',
+    noDocumentsCoachWillUpload: 'המאמן שלך יעלה כאן קבצים עבורך בקרוב',
+    uploadedLabel: 'הועלה:',
+    openPdfBtn: 'פתח PDF',
+
+    stravaConnectBtn: 'חיבור Strava',
+    stravaReconnectBtn: 'חיבור מחדש ל-Strava',
+    stravaConnectingBtn: 'מתחבר...',
+    stravaSyncBtn: 'סנכרון אימונים',
+    stravaSyncingBtn: 'מסנכרן...',
+
+    coachNotJoinedTitle: 'המאמן עדיין לא הצטרף',
+    tryAgainLaterText: 'נסה שוב מאוחר יותר',
   },
 }
 
@@ -1692,7 +1970,7 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined)
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguage] = useState<Language>('en')
+  const [language, setLanguage] = useState<Language>('he')
 
   useEffect(() => {
     const saved = localStorage.getItem('teamhaim-language') as Language

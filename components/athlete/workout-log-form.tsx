@@ -67,7 +67,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
       )
       const snap = await getDocs(q)
       if (snap.empty) {
-        toast.error('לא נמצאה פעילות Strava לתאריך זה. סנכרן Strava תחילה מהפרופיל שלך.')
+        toast.error(t.stravaNotFoundError)
         return
       }
       const activities = snap.docs.map(d => d.data())
@@ -77,7 +77,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
       setStravaFilled(true)
     } catch (err) {
       console.error('Strava fill error:', err)
-      toast.error('שגיאה בטעינת נתוני Strava')
+      toast.error(t.stravaLoadError)
     } finally {
       setStravaFilling(false)
     }
@@ -228,11 +228,11 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
           const { db: firestoreDb } = await import('@/lib/firebase')
           const athleteSnap = await getDoc(firestoreDoc(firestoreDb, 'users', athleteId))
           const coachId = athleteSnap.data()?.coachId
-          const athleteName = athleteSnap.data()?.name || 'ספורטאי'
+          const athleteName = athleteSnap.data()?.name || t.athleteFallback
           if (!coachId) return
-          const workoutTitle = workout?.title || 'אימון'
-          const kmStr = parsedDistance ? `${parsedDistance} ק״מ` : ''
-          const effortStr = effort != null ? ` · מאמץ ${effort}/10` : ''
+          const workoutTitle = workout?.title || t.workoutDefault
+          const kmStr = parsedDistance ? `${parsedDistance} km` : ''
+          const effortStr = effort != null ? ` · ${t.effortValueLabel} ${effort}/10` : ''
           fetch('/api/send-notification', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -261,10 +261,10 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
           <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">נרשם</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.loggedLabel}</span>
             </div>
             <Button size="sm" variant="ghost" className="h-7 px-3 text-xs text-muted-foreground rounded-lg" onClick={() => setCollapsed(false)}>
-              ערוך
+              {t.editLogBtn}
             </Button>
           </div>
           <div className="px-4 py-3 flex items-center gap-4 flex-wrap">
@@ -276,14 +276,14 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
                   effort <= 6 ? 'bg-amber-400' :
                   effort <= 7 ? 'bg-orange-400' : 'bg-red-400'
                 )}/>
-                <span className="text-sm font-semibold text-navy">מאמץ {effort}/10</span>
+                <span className="text-sm font-semibold text-navy">{t.effortValueLabel} {effort}/10</span>
               </div>
             )}
             {actualDistance && (
-              <span className="text-sm text-muted-foreground">{actualDistance} ק"מ</span>
+              <span className="text-sm text-muted-foreground">{actualDistance} km</span>
             )}
             {actualPace && (
-              <span className="text-sm text-muted-foreground">{actualPace}/ק"מ</span>
+              <span className="text-sm text-muted-foreground">{actualPace}/km</span>
             )}
           </div>
           {comment && (
@@ -301,7 +301,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
                 if (!items.length) return null
                 return (
                   <p key={si} className="text-xs text-muted-foreground">
-                    <span className="font-semibold text-navy">סט {Number(si)+1}:</span>{' '}
+                    <span className="font-semibold text-navy">{t.setLabelPrefix} {Number(si)+1}:</span>{' '}
                     {items.map((s:any) => s.distance ? `${s.distance} ${s.time}` : s.time).join(' · ')}
                   </p>
                 )
@@ -321,7 +321,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
     <div className="mt-5 pt-5 border-t border-border/40 space-y-6">
       <div className="flex items-center justify-between">
         <h4 className="font-bold text-navy text-base">
-          {stravaSource ? 'כיצד הרגשת?' : t.workoutLogHeading}
+          {stravaSource ? t.howDidYouFeelStrava : t.workoutLogHeading}
         </h4>
         {saved && (
           <div className="flex items-center gap-1.5 text-emerald-600 text-sm font-semibold">
@@ -340,14 +340,14 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-navy truncate">
-                {stravaSource.stravaName || 'אימון Strava'}
+                {stravaSource.stravaName || t.stravaWorkoutName}
               </p>
-              <p className="text-[11px] text-muted-foreground">סונכרן מ-Strava</p>
+              <p className="text-[11px] text-muted-foreground">{t.syncedFromStrava}</p>
             </div>
           </div>
           <div className="px-4 py-3 flex flex-wrap gap-2">
             {actualDistance && (
-              <span className="text-xs font-semibold bg-muted px-3 py-1.5 rounded-full">{actualDistance} ק"מ</span>
+              <span className="text-xs font-semibold bg-muted px-3 py-1.5 rounded-full">{actualDistance} km</span>
             )}
             {actualPace && (
               <span className="text-xs font-semibold bg-muted px-3 py-1.5 rounded-full">{actualPace}</span>
@@ -382,7 +382,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
       {/* Structured splits — only for non-Strava logs */}
       {hasSets && !stravaSource && (
         <div className="space-y-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">תיעוד לפי אינטרוול</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.intervalLogTitle}</p>
           {workout!.sets!.map((set, si) => {
             const intervals = (set as any).intervals
             const hasIntervals = intervals && intervals.length > 0
@@ -391,10 +391,10 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
               <div key={set.id} className="rounded-2xl border border-border overflow-hidden shadow-sm">
                 <div className="bg-navy/5 px-4 py-3 flex items-center justify-between">
                   <span className="text-xs font-bold text-navy">
-                    סט {si + 1}
-                    {hasIntervals ? ` · ${reps > 1 ? `${reps}× ` : ''}${intervals.length} אינטרוולים` : reps > 1 ? ` · ${reps} חזרות` : ''}
+                    {t.setLabelPrefix} {si + 1}
+                    {hasIntervals ? ` · ${reps > 1 ? `${reps}× ` : ''}${intervals.length}` : reps > 1 ? ` · ${reps} ${t.repLabelPrefix}` : ''}
                   </span>
-                  {set.rest && <span className="text-[11px] text-muted-foreground bg-muted px-2.5 py-0.5 rounded-full">מנוחה: {set.rest}</span>}
+                  {set.rest && <span className="text-[11px] text-muted-foreground bg-muted px-2.5 py-0.5 rounded-full">{t.restPrefix} {set.rest}</span>}
                 </div>
                 <div className="divide-y divide-border/60">
                   {hasIntervals ? (
@@ -402,7 +402,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
                       <div key={r} className={reps > 1 ? 'border-b-2 border-navy/10' : ''}>
                         {reps > 1 && (
                           <div className="bg-muted/30 px-4 py-1.5">
-                            <span className="text-[11px] font-semibold text-navy">חזרה {r + 1}</span>
+                            <span className="text-[11px] font-semibold text-navy">{t.repLabelPrefix} {r + 1}</span>
                           </div>
                         )}
                         {intervals.map((interval: any, ii: number) => {
@@ -415,8 +415,8 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
                                 <span className="text-sm font-bold text-navy">{interval.distance || interval.duration || ''}</span>
                               </div>
                               <div className="flex-1">
-                                <label className="text-[10px] text-muted-foreground block mb-1">זמן</label>
-                                <Input type="text" placeholder="דק:שנ" value={split?.time || ''}
+                                <label className="text-[10px] text-muted-foreground block mb-1">{t.timeInputLabel}</label>
+                                <Input type="text" placeholder={t.mmssPlaceholder} value={split?.time || ''}
                                   onChange={e => globalIndex >= 0 && updateSplit(globalIndex, 'time', e.target.value)}
                                   className="h-10 text-sm rounded-xl" />
                               </div>
@@ -433,12 +433,12 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
                         <div key={r} className="px-4 py-3 flex items-center gap-3">
                           <div className="w-28 flex-shrink-0">
                             <span className="text-xs font-bold text-navy">
-                              {reps > 1 ? `חזרה ${r + 1}` : (set.distance || set.duration || 'זמן')}
+                              {reps > 1 ? `${t.repLabelPrefix} ${r + 1}` : (set.distance || set.duration || t.timeInputLabel)}
                             </span>
                           </div>
                           <div className="flex-1">
-                            <label className="text-[10px] text-muted-foreground block mb-1">זמן</label>
-                            <Input type="text" placeholder="דק:שנ" value={split?.time || ''}
+                            <label className="text-[10px] text-muted-foreground block mb-1">{t.timeInputLabel}</label>
+                            <Input type="text" placeholder={t.mmssPlaceholder} value={split?.time || ''}
                               onChange={e => globalIndex >= 0 && updateSplit(globalIndex, 'time', e.target.value)}
                               className="h-10 text-sm rounded-xl" />
                           </div>
@@ -470,10 +470,10 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
           </div>
           <div dir="rtl">
             <p className="text-sm font-semibold text-navy">
-              {stravaFilling ? 'מחפש פעילות...' : stravaFilled ? 'נתוני Strava מולאו' : 'מלא מ-Strava'}
+              {stravaFilling ? t.stravaSearching : stravaFilled ? t.stravaDataFilled : t.fillFromStrava}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {stravaFilled ? 'מרחק וטמפו עודכנו' : 'מלא אוטומטית מהאימון האחרון'}
+              {stravaFilled ? t.stravaDataUpdated : t.stravaAutoFill}
             </p>
           </div>
         </div>
@@ -485,7 +485,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label htmlFor="actualDistance" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              {hasSets ? 'סה"כ ק"מ' : t.actualDistanceKm}
+              {hasSets ? t.totalKmLabel : t.actualDistanceKm}
             </Label>
             <Input id="actualDistance" type="number" step="0.1" min="0"
               placeholder={hasSets ? '10' : t.examplePlaceholder10}
@@ -494,7 +494,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="actualPace" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              {hasSets ? 'טמפו ממוצע' : t.actualPaceKm}
+              {hasSets ? t.avgTempoLabel : t.actualPaceKm}
             </Label>
             <Input id="actualPace" type="text"
               placeholder={hasSets ? '4:30' : t.examplePlaceholder530}
@@ -532,11 +532,11 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
               effort <= 6 ? 'text-amber-500' :
               effort <= 8 ? 'text-orange-500' : 'text-red-500'
             )}>
-              {effort == null ? 'בחר עצימות' :
-               effort <= 2 ? 'קל מאוד' :
-               effort <= 4 ? 'קל' :
-               effort <= 6 ? 'בינוני' :
-               effort <= 8 ? 'קשה' : 'מאוד קשה'}
+              {effort == null ? t.chooseIntensity :
+               effort <= 2 ? t.effortVeryEasy :
+               effort <= 4 ? t.effortEasyLabel :
+               effort <= 6 ? t.effortModerate :
+               effort <= 8 ? t.effortHard : t.effortVeryHard}
             </span>
           </div>
           <button type="button"
@@ -556,7 +556,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
 
       <Button onClick={handleSave} disabled={saving || effort == null}
         className="w-full h-12 bg-navy hover:bg-navy/90 text-white font-semibold rounded-2xl text-base">
-        {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />שומר...</> : existingLog ? 'עדכן משוב' : 'שלח משוב למאמן'}
+        {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />{t.savingDots}</> : existingLog ? t.updateFeedback : t.sendFeedbackToCoach}
       </Button>
     </div>
   )

@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/opt/homebrew/bin/pnpm add *)",
+      "Bash(pnpm build *)",
+      "Bash(/Users/yehonatanhaim/.nvm/versions/node/v20.14.0/bin/npx next *)",
+      "Bash(npx next *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(head -1100 /Users/yehonatanhaim/Desktop/Team_Haim_App2-main/components/athlete/athlete-planner-view.tsx)",
+      "Read(//tmp/**)"
+    ]
+  }
+}

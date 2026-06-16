@@ -7,9 +7,11 @@ import { useAuth } from '@/contexts/auth-context'
 import { conversationId, getCoachInfo, type CoachInfo } from '@/lib/coach'
 import { Loader2 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
+import { useLanguage } from '@/contexts/language-context'
 
 export default function AthleteChatPage() {
   const { user } = useAuth()
+  const { t, isRTL } = useLanguage()
   const [coach, setCoach] = useState<CoachInfo | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -43,10 +45,10 @@ export default function AthleteChatPage() {
           <Loader2 className="h-8 w-8 animate-spin text-gold" />
         </div>
       ) : !coach ? (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-8" dir="rtl">
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-8" dir={isRTL ? 'rtl' : 'ltr'}>
           <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-12 text-center max-w-sm w-full">
-            <p className="text-[#0a1628] font-semibold text-lg mb-2">המאמן עדיין לא הצטרף</p>
-            <p className="text-gray-400 text-sm">נסה שוב מאוחר יותר</p>
+            <p className="text-[#0a1628] font-semibold text-lg mb-2">{t.coachNotJoinedTitle}</p>
+            <p className="text-gray-400 text-sm">{t.tryAgainLaterText}</p>
           </div>
         </div>
       ) : (
