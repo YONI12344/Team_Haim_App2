@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/auth-context'
 import { useRouter } from 'next/navigation'
 import { useEffect, type ReactNode } from 'react'
 import { AthleteNav } from './athlete-nav'
+import { AthleteBottomNav } from './athlete-bottom-nav'
 import { Loader2 } from 'lucide-react'
 
 export function AthleteLayout({ children, hideNav }: { children: ReactNode; hideNav?: boolean }) {
@@ -34,6 +35,7 @@ export function AthleteLayout({ children, hideNav }: { children: ReactNode; hide
       <main className={hideNav ? "min-h-screen bg-gray-50" : "container px-4 py-4 md:py-6"}>
         {children}
       </main>
+      {!hideNav && <AthleteBottomNav />}
     </div>
   )
 }

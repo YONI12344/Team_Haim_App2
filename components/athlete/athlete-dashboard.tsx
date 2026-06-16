@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { format, isToday, isTomorrow, parseISO, startOfWeek, endOfWeek } from 'date-fns'
 import {
-  Calendar,
   Dumbbell,
   Clock,
   Target,
@@ -18,9 +17,7 @@ import {
   Flame,
   ChevronRight,
   ArrowUpRight,
-  Activity,
   Loader2,
-  UserPlus,
   MessageCircle,
   Bell,
   X,
@@ -128,7 +125,7 @@ export function AthleteDashboard() {
     })
   }, [])
   const { user } = useAuth()
-  const { t } = useLanguage()
+  const { t, isRTL } = useLanguage()
   const workoutTypeLabels = useWorkoutTypeLabels()
   const [profile, setProfile] = useState<Partial<AthleteProfile> | null>(null)
   const [assigned, setAssigned] = useState<AssignedWorkout[]>([])
@@ -507,44 +504,36 @@ export function AthleteDashboard() {
         </div>
       )}
 
-      {/* Quick Nav 2×2 Grid */}
-      <div className="grid grid-cols-2 gap-3">
-        <Link href="/athlete/schedule" className="block">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col items-center gap-2.5 active:scale-95 transition-transform min-h-[90px] justify-center">
-            <div className="w-10 h-10 rounded-xl bg-[#0a1628]/5 flex items-center justify-center">
-              <Calendar className="h-5 w-5 text-[#0a1628]" />
-            </div>
-            <p className="text-xs font-semibold text-[#0a1628] text-center">לוח זמנים</p>
-          </div>
-        </Link>
-        <Link href="/athlete/profile" className="block">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col items-center gap-2.5 active:scale-95 transition-transform min-h-[90px] justify-center">
-            <div className="w-10 h-10 rounded-xl bg-[#0a1628]/5 flex items-center justify-center">
-              <UserPlus className="h-5 w-5 text-[#0a1628]" />
-            </div>
-            <p className="text-xs font-semibold text-[#0a1628] text-center">פרופיל</p>
-          </div>
-        </Link>
-        <Link href="/athlete/stats" className="block">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col items-center gap-2.5 active:scale-95 transition-transform min-h-[90px] justify-center">
-            <div className="w-10 h-10 rounded-xl bg-[#0a1628]/5 flex items-center justify-center">
-              <Activity className="h-5 w-5 text-[#0a1628]" />
-            </div>
-            <p className="text-xs font-semibold text-[#0a1628] text-center">סטטיסטיקות</p>
-          </div>
-        </Link>
-        <Link href="/athlete/chat" className="block">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col items-center gap-2.5 active:scale-95 transition-transform min-h-[90px] justify-center">
-            <div className="w-10 h-10 rounded-xl bg-[#0a1628]/5 flex items-center justify-center relative">
-              <MessageCircle className="h-5 w-5 text-[#0a1628]" />
+      {/* Chat with Coach */}
+      <Link href="/athlete/chat" className="block">
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex items-center justify-between active:scale-[0.98] transition-transform">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-[#0a1628] flex items-center justify-center relative flex-shrink-0">
+              <MessageCircle className="h-6 w-6 text-white" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">{unreadCount > 9 ? '9+' : unreadCount}</span>
+                <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
               )}
             </div>
-            <p className="text-xs font-semibold text-[#0a1628] text-center">צ׳אט</p>
+            <div dir={isRTL ? 'rtl' : 'ltr'}>
+              <p className="font-bold text-[#0a1628] text-base leading-tight">
+                {isRTL ? 'צ׳אט עם המאמן' : 'Chat with Coach'}
+              </p>
+              {unreadCount > 0 ? (
+                <p className="text-sm text-[#c9a84c] font-semibold mt-0.5">
+                  {isRTL ? `${unreadCount} הודעות חדשות` : `${unreadCount} new messages`}
+                </p>
+              ) : (
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {isRTL ? 'שלח הודעה למאמן שלך' : 'Message your coach'}
+                </p>
+              )}
+            </div>
           </div>
-        </Link>
-      </div>
+          <ChevronRight className={cn('h-5 w-5 text-gray-300 flex-shrink-0', isRTL && 'rotate-180')} />
+        </div>
+      </Link>
 
     </div>
   )

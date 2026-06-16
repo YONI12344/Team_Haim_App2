@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/auth-context'
 import { useRouter } from 'next/navigation'
 import { useEffect, type ReactNode } from 'react'
 import { CoachNav } from './coach-nav'
+import { CoachBottomNav } from './coach-bottom-nav'
 import { Loader2 } from 'lucide-react'
 
 export function CoachLayout({ children, hideNav }: { children: ReactNode; hideNav?: boolean }) {
@@ -34,6 +35,7 @@ export function CoachLayout({ children, hideNav }: { children: ReactNode; hideNa
       <main className={hideNav ? "" : "container px-4 py-6 md:py-8"}>
         {children}
       </main>
+      {!hideNav && <CoachBottomNav />}
     </div>
   )
 }
