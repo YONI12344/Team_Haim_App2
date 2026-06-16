@@ -547,28 +547,49 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
             <div>
               <p className="text-sm font-bold text-navy mb-2">{t.kmSplitsLabel}</p>
               <div className="rounded-lg border border-border overflow-hidden">
-                <div className="grid grid-cols-5 bg-navy/5 px-2 py-1.5 text-[10px] font-bold text-navy text-center">
-                  <span>km</span>
-                  <span>{t.timeInputLabel}</span>
-                  <span>{t.avgTempoLabel}</span>
-                  <span>{t.avgHRBpmLabel}</span>
-                  <span>Zone</span>
-                </div>
-                {log.splitLogs.map((s: any, i: number) => {
-                  const pace = s.pace?.replace('/km','') || '—'
-                  const zone = s.paceZone || s.notes?.replace('Zone ','') || '—'
-                  const hr = s.heartRate || '—'
-                  const isfast = s.pace && parseFloat(s.pace) < parseFloat(log.actualPace || '99')
-                  return (
-                    <div key={i} className={`grid grid-cols-5 px-2 py-2 text-[11px] text-center border-t border-border/40 ${i % 2 === 0 ? 'bg-white' : 'bg-muted/20'}`} dir="ltr">
-                      <span className="font-bold text-navy">{i+1}</span>
-                      <span className="font-mono">{s.time}</span>
-                      <span className={`font-mono font-semibold ${isfast ? 'text-emerald-600' : 'text-navy'}`}>{pace}</span>
-                      <span className={`font-mono ${hr !== '—' && hr > 160 ? 'text-red-500' : hr !== '—' && hr > 140 ? 'text-orange-500' : 'text-navy'}`}>{hr}</span>
-                      <span className={`font-bold ${zone==='5'||zone==='4' ? 'text-red-500' : zone==='3' ? 'text-orange-500' : zone==='2' ? 'text-amber-500' : 'text-emerald-600'}`}>Z{zone}</span>
-                    </div>
-                  )
-                })}
+                <table className="w-full table-fixed text-[10px]" dir="ltr">
+                  <colgroup>
+                    <col style={{ width: '12%' }} />
+                    <col style={{ width: '22%' }} />
+                    <col style={{ width: '24%' }} />
+                    <col style={{ width: '24%' }} />
+                    <col style={{ width: '18%' }} />
+                  </colgroup>
+                  <thead>
+                    <tr className="bg-navy/5">
+                      <th className="py-1.5 text-center font-bold text-navy whitespace-nowrap">km</th>
+                      <th className="py-1.5 text-center font-bold text-navy whitespace-nowrap">{t.timeInputLabel}</th>
+                      <th className="py-1.5 text-center font-bold text-navy whitespace-nowrap">טמפו</th>
+                      <th className="py-1.5 text-center font-bold text-navy whitespace-nowrap">דופק</th>
+                      <th className="py-1.5 text-center font-bold text-navy whitespace-nowrap">Zone</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {log.splitLogs.map((s: any, i: number) => {
+                      const pace = s.pace?.replace('/km', '') || '—'
+                      const zone = s.paceZone || s.notes?.replace('Zone ', '') || '—'
+                      const hr = s.heartRate || '—'
+                      const isfast = s.pace && parseFloat(s.pace) < parseFloat(log.actualPace || '99')
+                      return (
+                        <tr
+                          key={i}
+                          className={cn(
+                            'border-t border-border/40',
+                            i % 2 === 0 ? 'bg-white' : 'bg-muted/20'
+                          )}
+                        >
+                          <td className="py-2 text-center font-bold text-navy">{i + 1}</td>
+                          <td className="py-2 text-center font-mono">{s.time}</td>
+                          <td className={cn('py-2 text-center font-mono font-semibold', isfast ? 'text-emerald-600' : 'text-navy')}>{pace}</td>
+                          <td className={cn('py-2 text-center font-mono', hr !== '—' && hr > 160 ? 'text-red-500' : hr !== '—' && hr > 140 ? 'text-orange-500' : 'text-navy')}>{hr}</td>
+                          <td className={cn('py-2 text-center font-bold', zone === '5' || zone === '4' ? 'text-red-500' : zone === '3' ? 'text-orange-500' : zone === '2' ? 'text-amber-500' : 'text-emerald-600')}>
+                            {zone === '—' ? '—' : `Z${zone}`}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
               </div>
               <p className="text-[10px] text-muted-foreground mt-1 text-center">{t.paceColorHint}</p>
             </div>
