@@ -695,7 +695,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
 
 
   // ── Shared premium workout card renderer ────────────────────────────────────
-  const renderWorkoutCard = (w: AssignedWorkout) => {
+  const renderWorkoutCard = (w: AssignedWorkout, cardIndex?: number) => {
     const effStatus = getEffectiveStatus(w)
     const msg = coachMessages.find(m => m.assignedWorkoutId === w.id)
     const isSelected = selectedWorkoutId === w.id
@@ -703,41 +703,64 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
       || weekLogs.find(l => !l.assignedWorkoutId && l.date === w.scheduledDate && !!l.actualDistance && l.source !== 'strava')
     return (
       <div key={w.id} className="space-y-2">
-        {/* Main card */}
+        {/* Compact premium Nike-style tile */}
         <div className={cn(
-          'bg-white rounded-3xl shadow-sm border border-l-4 overflow-hidden transition-all',
-          effStatus === 'completed' ? 'border-emerald-100 border-l-emerald-500'
-            : effStatus === 'skipped' ? 'border-red-100 border-l-red-400'
-            : `border-gray-100 ${TYPE_BORDER_COLORS[w.workout?.type] || 'border-l-[#0a1628]'}`
+          'bg-white rounded-2xl shadow-sm border-l-4 overflow-hidden transition-all',
+          effStatus === 'completed'
+            ? 'border border-emerald-100 border-l-emerald-500'
+            : effStatus === 'skipped'
+            ? 'border border-red-100 border-l-red-400'
+            : `border border-gray-100 ${TYPE_BORDER_COLORS[w.workout?.type] || 'border-l-[#0a1628]'}`
         )}>
+          {/* Multi-workout index label */}
+          {cardIndex != null && cardIndex > 1 && (
+            <div className="px-4 pt-2.5 pb-0">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">אימון {cardIndex}</span>
+            </div>
+          )}
+
+          {/* Main tap row — min 44px touch target */}
           <button
             onClick={() => setSelectedWorkoutId(prev => prev === w.id ? null : w.id)}
-            className="w-full p-5 text-right active:bg-gray-50/60 transition-colors">
-            <div className="flex items-start justify-between gap-3" dir="rtl">
+            className="w-full px-4 py-3.5 text-right active:bg-gray-50 transition-colors min-h-[56px]">
+            <div className="flex items-center justify-between gap-3" dir="rtl">
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-2 flex-wrap">
-                  <span className={cn('text-[10px] font-bold px-2.5 py-1 rounded-full border', TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy)}>
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <span className={cn('text-[10px] font-bold px-2.5 py-0.5 rounded-full border', TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy)}>
                     {TYPE_LABELS_HE[w.workout?.type] || w.workout?.type}
                   </span>
-                  {effStatus === 'completed' && <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-full">✓ הושלם</span>}
-                  {effStatus === 'skipped' && <span className="text-[10px] font-bold text-red-500 bg-red-50 border border-red-100 px-2.5 py-1 rounded-full">דולג</span>}
+                  {effStatus === 'completed' && (
+                    <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-1">
+                      <span className="w-3.5 h-3.5 rounded-full bg-emerald-100 inline-flex items-center justify-center text-[8px]">✓</span>
+                      {log?.actualDistance ? `${log.actualDistance} ק"מ` : 'הושלם'}
+                    </span>
+                  )}
+                  {effStatus === 'skipped' && (
+                    <span className="text-[10px] font-bold text-red-500 bg-red-50 border border-red-100 px-2 py-0.5 rounded-full">דולג</span>
+                  )}
                 </div>
-                <p className={cn('font-bold text-lg leading-tight mb-1', effStatus === 'completed' ? 'text-emerald-800' : 'text-[#0a1628]')}>
+                <p className={cn('font-bold text-[15px] leading-snug',
+                  effStatus === 'completed' ? 'text-gray-500' : 'text-[#0a1628]')}>
                   {w.workout.title}
                 </p>
                 {(w.workout.distance || w.workout.duration) && (
-                  <p className="text-sm text-gray-400">
+                  <p className="text-xs text-gray-400 mt-0.5">
                     {w.workout.distance && `${w.workout.distance} ק"מ`}
-                    {w.workout.distance && w.workout.duration && '  ·  '}
+                    {w.workout.distance && w.workout.duration && ' · '}
                     {w.workout.duration && `${w.workout.duration} דק'`}
                   </p>
                 )}
               </div>
-              <ChevronDown className={cn('h-5 w-5 text-gray-300 flex-shrink-0 mt-1 transition-transform duration-200', isSelected ? 'rotate-180' : '')} />
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <span className="text-[10px] text-gray-400 font-medium hidden sm:block">פרטים מלאים</span>
+                <ChevronDown className={cn('h-4 w-4 text-gray-400 transition-transform duration-200', isSelected ? 'rotate-180' : '')} />
+              </div>
             </div>
           </button>
+
+          {/* Expanded detail */}
           {isSelected && (
-            <div className="border-t border-gray-100 px-5 pb-5 pt-4">
+            <div className="border-t border-gray-100 px-4 pb-4 pt-3">
               {renderWorkoutDetail(w)}
             </div>
           )}
@@ -760,15 +783,15 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
 
         {/* Manual log result */}
         {log && (
-          <div className="bg-white rounded-3xl shadow-sm border border-emerald-100 border-l-4 border-l-emerald-500 overflow-hidden" dir="rtl">
-            <div className="p-5 flex items-start justify-between gap-3">
+          <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 border-l-4 border-l-emerald-500 overflow-hidden" dir="rtl">
+            <div className="px-4 py-3 flex items-center justify-between gap-3">
               <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-600 mb-2">ביצוע בפועל</p>
-                <div className="flex flex-wrap gap-2">
-                  {log.actualDistance && <span className="text-xs font-medium bg-gray-50 border border-gray-100 px-3 py-1.5 rounded-full">{log.actualDistance} ק"מ</span>}
-                  {log.actualPace && <span className="text-xs font-medium bg-gray-50 border border-gray-100 px-3 py-1.5 rounded-full" dir="ltr">{log.actualPace}</span>}
+                <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-1.5">ביצוע בפועל</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {log.actualDistance && <span className="text-xs font-medium bg-gray-50 border border-gray-100 px-2.5 py-1 rounded-full">{log.actualDistance} ק"מ</span>}
+                  {log.actualPace && <span className="text-xs font-medium bg-gray-50 border border-gray-100 px-2.5 py-1 rounded-full" dir="ltr">{log.actualPace}</span>}
                   {log.effort != null && (
-                    <span className={cn('text-xs font-medium px-3 py-1.5 rounded-full border',
+                    <span className={cn('text-xs font-medium px-2.5 py-1 rounded-full border',
                       log.effort <= 3 ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
                       log.effort <= 5 ? 'bg-green-100 text-green-700 border-green-200' :
                       log.effort <= 7 ? 'bg-amber-100 text-amber-700 border-amber-200' :
@@ -777,7 +800,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                     )}>מאמץ {log.effort}/10</span>
                   )}
                 </div>
-                {log.comment && <p className="text-xs text-gray-400 italic mt-2">"{log.comment}"</p>}
+                {log.comment && <p className="text-xs text-gray-400 italic mt-1.5">"{log.comment}"</p>}
               </div>
               <button
                 onClick={async () => {
@@ -802,50 +825,53 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
   return (
     <div className="space-y-3 pb-24" dir="rtl">
 
-      {/* ── Compact nav bar ────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-1.5">
-        {/* Prev */}
-        <button
-          onClick={() => setCurrentDate(d => viewMode==='day' ? new Date(d.getTime()-86400000) : viewMode==='week' ? subWeeks(d,1) : subMonths(d,1))}
-          className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center active:scale-95 transition-all flex-shrink-0">
-          <ChevronRight className="h-4 w-4 text-[#0a1628]" />
-        </button>
+      {/* ── Navigation ─────────────────────────────────────────────────────── */}
+      <div className="space-y-2">
+        {/* Row 1: Date navigation — big touch targets */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCurrentDate(d => viewMode==='day' ? new Date(d.getTime()-86400000) : viewMode==='week' ? subWeeks(d,1) : subMonths(d,1))}
+            className="w-11 h-11 rounded-2xl bg-gray-100 flex items-center justify-center active:scale-95 transition-all flex-shrink-0">
+            <ChevronRight className="h-5 w-5 text-[#0a1628]" />
+          </button>
 
-        {/* Period label */}
-        <p className="flex-1 text-center text-sm font-bold text-[#0a1628] truncate">
-          {viewMode==='day'
-            ? (isToday(currentDate) ? 'היום · ' : '') + format(currentDate,'d MMMM')
-            : viewMode==='week'
-            ? `${format(weekStart,'d')}–${format(weekEnd,'d MMM')}`
-            : format(currentDate,'MMMM yyyy')}
-        </p>
+          <p className="flex-1 text-center text-base font-bold text-[#0a1628]">
+            {viewMode==='day'
+              ? (isToday(currentDate) ? 'היום · ' : '') + format(currentDate,'d MMMM')
+              : viewMode==='week'
+              ? `${format(weekStart,'d')}–${format(weekEnd,'d MMM')}`
+              : format(currentDate,'MMMM yyyy')}
+          </p>
 
-        {/* Next */}
-        <button
-          onClick={() => setCurrentDate(d => viewMode==='day' ? new Date(d.getTime()+86400000) : viewMode==='week' ? addWeeks(d,1) : addMonths(d,1))}
-          className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center active:scale-95 transition-all flex-shrink-0">
-          <ChevronLeft className="h-4 w-4 text-[#0a1628]" />
-        </button>
-
-        {/* View toggle pills */}
-        <div className="flex gap-0.5 bg-gray-100 rounded-full p-0.5 flex-shrink-0">
-          {(['day','week','month'] as const).map(mode => (
-            <button key={mode} onClick={() => setViewMode(mode)}
-              className={cn('px-2.5 py-1.5 rounded-full text-[11px] font-bold transition-all active:scale-95',
-                viewMode === mode ? 'bg-white text-[#0a1628] shadow-sm' : 'text-gray-400')}>
-              {mode==='day' ? t.dayView : mode==='week' ? t.weekView : t.monthView}
-            </button>
-          ))}
+          <button
+            onClick={() => setCurrentDate(d => viewMode==='day' ? new Date(d.getTime()+86400000) : viewMode==='week' ? addWeeks(d,1) : addMonths(d,1))}
+            className="w-11 h-11 rounded-2xl bg-gray-100 flex items-center justify-center active:scale-95 transition-all flex-shrink-0">
+            <ChevronLeft className="h-5 w-5 text-[#0a1628]" />
+          </button>
         </div>
 
-        {/* Strava icon */}
-        <button onClick={handleStravaSync} disabled={stravaSyncing}
-          className="w-9 h-9 rounded-xl bg-[#FC4C02]/10 flex items-center justify-center active:scale-95 transition-all flex-shrink-0 disabled:opacity-50"
-          title="סנכרן Strava">
-          {stravaSyncing
-            ? <Loader2 className="h-3.5 w-3.5 animate-spin text-[#FC4C02]" />
-            : <span className="text-[12px] font-black text-[#FC4C02]">S</span>}
-        </button>
+        {/* Row 2: View tabs (gold active) + Strava button with label */}
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1 bg-gray-100 rounded-2xl p-1 flex-1">
+            {(['day','week','month'] as const).map(mode => (
+              <button key={mode} onClick={() => setViewMode(mode)}
+                className={cn('flex-1 h-10 rounded-xl text-sm font-bold transition-all active:scale-95',
+                  viewMode === mode ? 'bg-[#c9a84c] text-[#0a1628] shadow-sm' : 'text-gray-400 hover:text-gray-600')}>
+                {mode==='day' ? t.dayView : mode==='week' ? t.weekView : t.monthView}
+              </button>
+            ))}
+          </div>
+
+          {/* Strava — labeled, orange, clearly visible */}
+          <button onClick={handleStravaSync} disabled={stravaSyncing}
+            className="h-10 px-3.5 rounded-2xl bg-[#FC4C02]/10 flex items-center gap-1.5 active:scale-95 transition-all flex-shrink-0 disabled:opacity-50"
+            title="סנכרן Strava">
+            {stravaSyncing
+              ? <Loader2 className="h-3.5 w-3.5 animate-spin text-[#FC4C02]" />
+              : <span className="text-[13px] font-black text-[#FC4C02]">S</span>}
+            <span className="text-xs font-bold text-[#FC4C02]">Strava</span>
+          </button>
+        </div>
       </div>
 
       {/* ── Day View ──────────────────────────────────────────────────────── */}
@@ -1017,8 +1043,8 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
               </>
             )}
 
-            {/* Additional workouts (2nd, 3rd…) */}
-            {dayWs.slice(1).map(w => renderWorkoutCard(w))}
+            {/* Additional workouts (2nd, 3rd…) — labelled "אימון N" */}
+            {dayWs.slice(1).map((w, i) => renderWorkoutCard(w, i + 2))}
 
             {/* Strava logs */}
             {stravaToday.length > 0 && (
@@ -1040,9 +1066,9 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
       {/* ── Week View ─────────────────────────────────────────────────────── */}
       {viewMode === 'week' && (
         <div className="space-y-3">
-          {/* 7-day pill strip */}
+          {/* 7-day pill strip — horizontal scroll on mobile */}
           <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-4">
-            <div className="grid grid-cols-7 gap-1 mb-3">
+            <div className="flex gap-1 overflow-x-auto pb-1" style={{scrollbarWidth:'none'}} dir="rtl">
               {weekDays.map((day, di) => {
                 const dayWs = getWorkoutsForDay(day)
                 const hasCompleted = dayWs.some(w => getEffectiveStatus(w) === 'completed')
@@ -1052,7 +1078,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                 return (
                   <button key={di}
                     onClick={() => { setSelectedWeekDay(day); setSelectedWorkoutId(null) }}
-                    className={cn('flex flex-col items-center py-2.5 px-1 rounded-2xl transition-all active:scale-95',
+                    className={cn('flex flex-col items-center py-2.5 px-3 rounded-2xl transition-all active:scale-95 flex-shrink-0 min-w-[44px]',
                       isSelDay ? 'bg-[#0a1628]' : todayFlag ? 'bg-[#0a1628]/5' : 'hover:bg-gray-50')}>
                     <span className={cn('text-[10px] font-semibold mb-0.5', isSelDay ? 'text-white/50' : todayFlag ? 'text-[#c9a84c]' : 'text-gray-400')}>
                       {DAY_HE_SHORT[di]}
@@ -1069,10 +1095,28 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                 )
               })}
             </div>
-            <div className="flex items-center justify-between text-xs border-t border-gray-50 pt-3">
-              <span className="text-gray-400">מתוכנן: {getWeekKm(weekDays)} ק"מ</span>
-              {thisWeekKmActual > 0 && <span className="text-emerald-600 font-semibold">בוצע: {thisWeekKmActual} ק"מ</span>}
-            </div>
+
+            {/* Week km progress bar in gold */}
+            {(() => {
+              const weekPlanned = getWeekKm(weekDays)
+              const weekActual = Math.round(weekDays.reduce((s, d) => {
+                const dStr = format(d, 'yyyy-MM-dd')
+                return s + weekLogs.filter(l => l.date === dStr).reduce((a, l) => a + (l.actualDistance || 0), 0)
+              }, 0))
+              if (weekPlanned === 0) return null
+              return (
+                <div className="mt-3 pt-3 border-t border-gray-50">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-bold text-[#0a1628]">{weekActual} ק"מ בוצע</span>
+                    <span className="text-xs text-gray-400">מתוך {weekPlanned} ק"מ</span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-1.5">
+                    <div className={cn('h-1.5 rounded-full transition-all', weekActual >= weekPlanned ? 'bg-emerald-500' : 'bg-[#c9a84c]')}
+                      style={{width:`${Math.min(100,(weekActual/weekPlanned)*100)}%`}} />
+                  </div>
+                </div>
+              )
+            })()}
           </div>
 
           {/* Selected day's workouts */}
@@ -1088,7 +1132,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
             )
             return (
               <div className="space-y-3">
-                {dayWs.map(w => renderWorkoutCard(w))}
+                {dayWs.map((w, i) => renderWorkoutCard(w, dayWs.length > 1 ? i + 1 : undefined))}
                 {stravaDay.length > 0 && (
                   <div className="space-y-3">
                     <div className="flex items-center gap-3">
@@ -1108,6 +1152,32 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
       {/* ── Month View ────────────────────────────────────────────────────── */}
       {viewMode === 'month' && (
         <div className="space-y-3">
+          {/* Month stats — total km + completions */}
+          {(() => {
+            const mStart = format(monthStart, 'yyyy-MM-dd')
+            const mEnd = format(monthEnd, 'yyyy-MM-dd')
+            const monthWs = assignedWorkouts.filter(w => w.scheduledDate >= mStart && w.scheduledDate <= mEnd)
+            const mCompleted = monthWs.filter(w => getEffectiveStatus(w) === 'completed').length
+            const mTotal = monthWs.length
+            const mKm = Math.round(weekLogs.filter(l => l.date >= mStart && l.date <= mEnd).reduce((s, l) => s + (l.actualDistance || 0), 0))
+            return (
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-[#0a1628] rounded-2xl p-3 text-center">
+                  <p className="text-xl font-black text-white">{mKm}</p>
+                  <p className="text-[10px] text-white/50 mt-0.5">ק"מ בוצע</p>
+                </div>
+                <div className="bg-emerald-600 rounded-2xl p-3 text-center">
+                  <p className="text-xl font-black text-white">{mCompleted}</p>
+                  <p className="text-[10px] text-white/70 mt-0.5">הושלמו</p>
+                </div>
+                <div className="bg-white rounded-2xl border border-gray-100 p-3 text-center shadow-sm">
+                  <p className="text-xl font-black text-[#0a1628]">{mTotal}</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">אימונים</p>
+                </div>
+              </div>
+            )
+          })()}
+
           <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-4">
             {/* Day headers */}
             <div className="grid grid-cols-8 gap-1 mb-2">
@@ -1177,35 +1247,13 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
             </div>
           </div>
 
-          {/* Selected workout detail */}
+          {/* Selected workout — date label + full premium card */}
           {selectedWorkout && (
-            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 border-l-4 border-l-[#c9a84c] overflow-hidden">
-              <div className="p-5">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#c9a84c] mb-2">
-                  {format(parseISO(selectedWorkout.scheduledDate),'EEEE, d MMMM')}
-                </p>
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-bold text-[#0a1628] text-lg leading-tight">{selectedWorkout.workout.title}</p>
-                    <div className="flex gap-3 text-sm text-gray-400 mt-1">
-                      {selectedWorkout.workout.distance && <span>{selectedWorkout.workout.distance} ק"מ</span>}
-                      {selectedWorkout.workout.duration && <span>{selectedWorkout.workout.duration} דק'</span>}
-                    </div>
-                  </div>
-                  {(() => {
-                    const s = getEffectiveStatus(selectedWorkout)
-                    return (
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <span className={cn('w-2 h-2 rounded-full', s==='completed' ? 'bg-emerald-500' : s==='skipped' ? 'bg-red-400' : 'bg-amber-400')} />
-                        <span className="text-xs text-gray-400">{s==='completed'?t.completedBadge:s==='skipped'?t.skippedBadge:t.scheduledBadge}</span>
-                      </div>
-                    )
-                  })()}
-                </div>
-              </div>
-              <div className="border-t border-gray-100 px-5 pb-5">
-                {renderWorkoutDetail(selectedWorkout)}
-              </div>
+            <div className="space-y-2">
+              <p className="text-xs font-bold text-[#c9a84c] uppercase tracking-widest px-1" dir="rtl">
+                {format(parseISO(selectedWorkout.scheduledDate),'EEEE · d MMMM')}
+              </p>
+              {renderWorkoutCard(selectedWorkout)}
             </div>
           )}
         </div>
