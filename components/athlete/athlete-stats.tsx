@@ -165,7 +165,26 @@ export function AthleteStats() {
   const avgEffort = logs.length
     ? logs.reduce((s, l) => s + effortToScore(l.effort), 0) / logs.length
     : 0
-  const totalHours = 0 // Total hours not tracked in logs yet
+
+  const avgPace = useMemo(() => {
+    let totalWeightedSec = 0
+    let totalDist = 0
+    for (const log of logs) {
+      if (!log.actualPace || !log.actualDistance) continue
+      const parts = (log.actualPace as string).split(':')
+      if (parts.length !== 2) continue
+      const mins = parseInt(parts[0])
+      const secs = parseInt(parts[1])
+      if (isNaN(mins) || isNaN(secs)) continue
+      totalWeightedSec += (mins * 60 + secs) * log.actualDistance
+      totalDist += log.actualDistance
+    }
+    if (totalDist === 0) return '--:--'
+    const avg = totalWeightedSec / totalDist
+    const m = Math.floor(avg / 60)
+    const s = Math.round(avg % 60)
+    return `${m}:${s.toString().padStart(2, '0')}`
+  }, [logs])
 
   if (loading) {
     return (
@@ -199,11 +218,11 @@ export function AthleteStats() {
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-          <div className="w-9 h-9 rounded-xl bg-[#0a1628]/5 flex items-center justify-center mb-3">
-            <Clock className="h-4 w-4 text-[#0a1628]" />
+          <div className="w-9 h-9 rounded-xl bg-[#c9a84c]/10 flex items-center justify-center mb-3">
+            <Clock className="h-4 w-4 text-[#c9a84c]" />
           </div>
-          <p className="text-3xl font-black text-[#0a1628] leading-none">{totalHours.toFixed(0)}</p>
-          <p className="text-xs text-gray-400 mt-1.5">{t.totalHours}</p>
+          <p className="text-3xl font-black text-[#c9a84c] leading-none font-mono">{avgPace}</p>
+          <p className="text-xs text-gray-400 mt-1.5">טמפו ממוצע /ק"מ</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
