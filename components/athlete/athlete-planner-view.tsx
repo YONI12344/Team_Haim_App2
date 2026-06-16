@@ -90,6 +90,9 @@ const TYPE_DOT_COLORS: Record<string, string> = {
   cross_training: 'bg-teal-500',
 }
 
+const STRAVA_RUNNING_TYPES = ['Run', 'VirtualRun', 'TrailRun', 'Treadmill']
+const STRAVA_GYM_TYPES = ['WeightTraining', 'Workout', 'Crossfit', 'Yoga', 'Pilates']
+
 interface JourneySummary {
   stageName: string; weekInStage: number; totalWeeksInStage: number
   isOffWeek: boolean; goalRaceDate: string; goalRaceEvent: string
@@ -243,35 +246,34 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
     assignedWorkouts.find(w => w.id === selectedWorkoutId) || null
   , [assignedWorkouts, selectedWorkoutId])
 
+  const computeStravaMatch = useCallback((w: AssignedWorkout, dateStr: string) => {
+    try {
+      const stravaLogs = weekLogs.filter(l => l.date === dateStr && l.source === 'strava')
+      if (stravaLogs.length === 0) return null
+      const workoutType = w.workout?.type || ''
+      const isStrengthW = ['strength', 'cross_training'].includes(workoutType)
+      if (isStrengthW) {
+        const gymLog = stravaLogs.find(l => STRAVA_GYM_TYPES.includes(l.stravaType || ''))
+        if (!gymLog) return null
+        return { status: 'completed' as const, actual: gymLog.actualDistance || 0, planned: 0 }
+      }
+      const runLogs = stravaLogs.filter(l => !l.stravaType || STRAVA_RUNNING_TYPES.includes(l.stravaType))
+      if (runLogs.length === 0) return null
+      const totalActual = Math.round(runLogs.reduce((s, l) => s + (l.actualDistance || 0), 0) * 100) / 100
+      const planned = w.workout?.distance ?? 0
+      if (planned === 0) return { status: 'completed' as const, actual: totalActual, planned: 0 }
+      const ratio = totalActual / planned
+      if (ratio >= 0.7) return { status: 'completed' as const, actual: totalActual, planned }
+      if (ratio >= 0.5) return { status: 'partial' as const, actual: totalActual, planned }
+      return { status: 'none' as const, actual: totalActual, planned }
+    } catch { return null }
+  }, [weekLogs])
+
   if (loading) return (
     <div className="flex items-center justify-center min-h-[400px]">
       <Loader2 className="h-8 w-8 animate-spin text-gold" />
     </div>
   )
-
-  const RUNNING_TYPES = ['Run', 'VirtualRun', 'TrailRun', 'Treadmill']
-  const GYM_TYPES = ['WeightTraining', 'Workout', 'Crossfit', 'Yoga', 'Pilates']
-
-  const computeStravaMatch = useCallback((w: AssignedWorkout, dateStr: string) => {
-    const stravaLogs = weekLogs.filter(l => l.date === dateStr && l.source === 'strava')
-    if (stravaLogs.length === 0) return null
-    const workoutType = w.workout?.type || ''
-    const isStrengthW = ['strength', 'cross_training'].includes(workoutType)
-    if (isStrengthW) {
-      const gymLog = stravaLogs.find(l => GYM_TYPES.includes(l.stravaType || ''))
-      if (!gymLog) return null
-      return { status: 'completed' as const, actual: gymLog.actualDistance || 0, planned: 0 }
-    }
-    const runLogs = stravaLogs.filter(l => !l.stravaType || RUNNING_TYPES.includes(l.stravaType))
-    if (runLogs.length === 0) return null
-    const totalActual = Math.round(runLogs.reduce((s, l) => s + (l.actualDistance || 0), 0) * 100) / 100
-    const planned = w.workout?.distance ?? 0
-    if (planned === 0) return { status: 'completed' as const, actual: totalActual, planned: 0 }
-    const ratio = totalActual / planned
-    if (ratio >= 0.7) return { status: 'completed' as const, actual: totalActual, planned }
-    if (ratio >= 0.5) return { status: 'partial' as const, actual: totalActual, planned }
-    return { status: 'none' as const, actual: totalActual, planned }
-  }, [weekLogs])
 
   const renderWorkoutDetail = (w: AssignedWorkout) => (
     <div className="rounded-2xl overflow-hidden border border-gray-100 bg-white">
