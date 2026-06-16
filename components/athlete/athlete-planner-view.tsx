@@ -102,7 +102,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
   const [athlete, setAthlete] = useState<AthleteProfile | null>(null)
   const [journey, setJourney] = useState<JourneySummary | null>(null)
   const [assignedWorkouts, setAssignedWorkouts] = useState<AssignedWorkout[]>([])
-  const [weekLogs, setWeekLogs] = useState<{id: string, actualDistance?: number, actualPace?: string, effort?: number, comment?: string, workoutId?: string, assignedWorkoutId?: string, source?: string, splitLogs?: any[], date: string, stravaActivityId?: string, stravaName?: string, averageHeartRate?: number, elevationGain?: number, feedbackStatus?: string}[]>([])
+  const [weekLogs, setWeekLogs] = useState<{id: string, actualDistance?: number, actualPace?: string, effort?: number, comment?: string, workoutId?: string, assignedWorkoutId?: string, source?: string, splitLogs?: any[], date: string, stravaActivityId?: string, stravaName?: string, averageHeartRate?: number, elevationGain?: number, feedbackStatus?: string, stravaType?: string}[]>([])
   const [loading, setLoading] = useState(true)
   const [currentDate, setCurrentDate] = useState(new Date())
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day')
@@ -185,7 +185,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
         const from = format(startOfWeek(new Date(),{weekStartsOn:1}), 'yyyy-MM-dd')
         const to = format(endOfWeek(new Date(),{weekStartsOn:1}), 'yyyy-MM-dd')
         const logsSnap = await gd(q(col(db, 'logs'), wh('athleteId', '==', athleteId)))
-        setWeekLogs(logsSnap.docs.map(d => ({ id: d.id, actualDistance: d.data().actualDistance, actualPace: d.data().actualPace, effort: d.data().effort, comment: d.data().comment, workoutId: d.data().workoutId, assignedWorkoutId: d.data().assignedWorkoutId, source: d.data().source, splitLogs: d.data().splitLogs || [], date: d.data().date || '', stravaActivityId: d.data().stravaActivityId, stravaName: d.data().stravaName, averageHeartRate: d.data().averageHeartRate, elevationGain: d.data().elevationGain, feedbackStatus: d.data().feedbackStatus })))
+        setWeekLogs(logsSnap.docs.map(d => ({ id: d.id, actualDistance: d.data().actualDistance, actualPace: d.data().actualPace, effort: d.data().effort, comment: d.data().comment, workoutId: d.data().workoutId, assignedWorkoutId: d.data().assignedWorkoutId, source: d.data().source, splitLogs: d.data().splitLogs || [], date: d.data().date || '', stravaActivityId: d.data().stravaActivityId, stravaName: d.data().stravaName, averageHeartRate: d.data().averageHeartRate, elevationGain: d.data().elevationGain, feedbackStatus: d.data().feedbackStatus, stravaType: d.data().stravaType })))
       })
       .catch(err => console.error(err))
   }, [athleteId])
@@ -248,6 +248,30 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
       <Loader2 className="h-8 w-8 animate-spin text-gold" />
     </div>
   )
+
+  const RUNNING_TYPES = ['Run', 'VirtualRun', 'TrailRun', 'Treadmill']
+  const GYM_TYPES = ['WeightTraining', 'Workout', 'Crossfit', 'Yoga', 'Pilates']
+
+  const computeStravaMatch = useCallback((w: AssignedWorkout, dateStr: string) => {
+    const stravaLogs = weekLogs.filter(l => l.date === dateStr && l.source === 'strava')
+    if (stravaLogs.length === 0) return null
+    const workoutType = w.workout?.type || ''
+    const isStrengthW = ['strength', 'cross_training'].includes(workoutType)
+    if (isStrengthW) {
+      const gymLog = stravaLogs.find(l => GYM_TYPES.includes(l.stravaType || ''))
+      if (!gymLog) return null
+      return { status: 'completed' as const, actual: gymLog.actualDistance || 0, planned: 0 }
+    }
+    const runLogs = stravaLogs.filter(l => !l.stravaType || RUNNING_TYPES.includes(l.stravaType))
+    if (runLogs.length === 0) return null
+    const totalActual = Math.round(runLogs.reduce((s, l) => s + (l.actualDistance || 0), 0) * 100) / 100
+    const planned = w.workout?.distance ?? 0
+    if (planned === 0) return { status: 'completed' as const, actual: totalActual, planned: 0 }
+    const ratio = totalActual / planned
+    if (ratio >= 0.7) return { status: 'completed' as const, actual: totalActual, planned }
+    if (ratio >= 0.5) return { status: 'partial' as const, actual: totalActual, planned }
+    return { status: 'none' as const, actual: totalActual, planned }
+  }, [weekLogs])
 
   const renderWorkoutDetail = (w: AssignedWorkout) => (
     <div className="rounded-2xl overflow-hidden border border-gray-100 bg-white">
@@ -394,36 +418,53 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
             splitLogs: activity.splitLogs || [],
             averageHeartRate: activity.averageHeartRate || null,
             elevationGain: activity.elevationGain || null,
+            stravaType: activity.stravaType || '',
             source: 'strava',
             feedbackStatus: 'pending',
             createdAt: serverTimestamp(),
           })
           saved++
-          // Auto-complete the assigned workout for this Strava activity date
+          // Smart auto-complete: aggregate running distance for the day, then match
           try {
+            const RUNNING_TYPES_S = ['Run', 'VirtualRun', 'TrailRun', 'Treadmill']
+            const GYM_TYPES_S = ['WeightTraining', 'Workout', 'Crossfit', 'Yoga', 'Pilates']
+            const isRunAct = RUNNING_TYPES_S.includes(activity.stravaType || 'Run')
+            const isGymAct = GYM_TYPES_S.includes(activity.stravaType || '')
             const awSnap = await getDocs(query(
               collection(db, 'assignedWorkouts'),
               where('athleteId', '==', athleteId),
               where('scheduledDate', '==', activity.date)
             ))
             if (!awSnap.empty) {
-              const aw = awSnap.docs[0]
-              if (aw.data().status !== 'completed') {
-                await updateDoc(doc(db, 'assignedWorkouts', aw.id), {
-                  status: 'completed',
-                  completedAt: serverTimestamp(),
-                })
-                setAssignedWorkouts(prev =>
-                  prev.map(w => w.id === aw.id ? { ...w, status: 'completed' } : w)
-                )
+              const dateLogsSnap = await getDocs(query(
+                collection(db, 'logs'),
+                where('athleteId', '==', athleteId),
+                where('date', '==', activity.date),
+                where('source', '==', 'strava')
+              ))
+              const totalRunKm = dateLogsSnap.docs
+                .filter(d => { const t = d.data().stravaType; return !t || RUNNING_TYPES_S.includes(t) })
+                .reduce((s, d) => s + (d.data().actualDistance || 0), 0)
+              for (const aw of awSnap.docs) {
+                if (aw.data().status === 'completed') continue
+                const wType = aw.data().workout?.type || ''
+                const isStrengthW = ['strength', 'cross_training'].includes(wType)
+                const plannedDist = aw.data().workout?.distance ?? 0
+                let shouldComplete = false
+                if (isStrengthW) { shouldComplete = isGymAct }
+                else if (isRunAct) { shouldComplete = plannedDist === 0 || totalRunKm >= plannedDist * 0.7 }
+                if (shouldComplete) {
+                  await updateDoc(doc(db, 'assignedWorkouts', aw.id), { status: 'completed', completedAt: serverTimestamp() })
+                  setAssignedWorkouts(prev => prev.map(w => w.id === aw.id ? { ...w, status: 'completed' } : w))
+                }
               }
             }
-          } catch (e) { console.error('Auto-complete assigned workout failed:', e) }
+          } catch (e) { console.error('Smart auto-complete failed:', e) }
         }
         toast.success(`סונכרנו ${saved} אימונים חדשים מ-Strava!`)
         // Reload logs
         const logsSnap = await getDocs(query(collection(db, 'logs'), where('athleteId', '==', athleteId)))
-        setWeekLogs(logsSnap.docs.map(d => ({ id: d.id, actualDistance: d.data().actualDistance, actualPace: d.data().actualPace, effort: d.data().effort, comment: d.data().comment, workoutId: d.data().workoutId, assignedWorkoutId: d.data().assignedWorkoutId, source: d.data().source, splitLogs: d.data().splitLogs || [], date: d.data().date || '', stravaActivityId: d.data().stravaActivityId, stravaName: d.data().stravaName, averageHeartRate: d.data().averageHeartRate, elevationGain: d.data().elevationGain, feedbackStatus: d.data().feedbackStatus })))
+        setWeekLogs(logsSnap.docs.map(d => ({ id: d.id, actualDistance: d.data().actualDistance, actualPace: d.data().actualPace, effort: d.data().effort, comment: d.data().comment, workoutId: d.data().workoutId, assignedWorkoutId: d.data().assignedWorkoutId, source: d.data().source, splitLogs: d.data().splitLogs || [], date: d.data().date || '', stravaActivityId: d.data().stravaActivityId, stravaName: d.data().stravaName, averageHeartRate: d.data().averageHeartRate, elevationGain: d.data().elevationGain, feedbackStatus: d.data().feedbackStatus, stravaType: d.data().stravaType })))
       }
     } catch (err) { console.error(err); toast.error('סנכרון נכשל') }
     finally { setStravaSyncing(false) }
@@ -871,6 +912,8 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                 || weekLogs.find(l => !l.assignedWorkoutId && l.date === dateStr && !!l.actualDistance && l.source !== 'strava')
               const wMsg = coachMessages.find(m => m.assignedWorkoutId === w.id)
               const stravaThisDay = weekLogs.find(l => l.date === dateStr && l.source === 'strava')
+              const stravaMatch = computeStravaMatch(w, dateStr)
+              const isEffectivelyDone = wEff === 'completed' || stravaMatch?.status === 'completed'
 
               return (
                 <div key={w.id} className="space-y-2">
@@ -882,7 +925,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                   {/* Navy gradient card — compact for multiple, large for single */}
                   <div className={cn(
                     'rounded-3xl transition-all',
-                    wEff === 'completed'
+                    isEffectivelyDone
                       ? 'bg-gradient-to-br from-emerald-700 to-emerald-800'
                       : 'bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85'
                   )}>
@@ -894,7 +937,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                         </span>
                         <div className="flex items-center gap-1.5">
                           {stravaThisDay && <span className="text-[10px] font-bold text-[#FC4C02] bg-[#FC4C02]/20 px-2 py-0.5 rounded-full">Strava ✓</span>}
-                          {wEff === 'completed' && !stravaThisDay && <span className="text-[11px] font-bold text-emerald-200">✓ הושלם</span>}
+                          {isEffectivelyDone && !stravaThisDay && <span className="text-[11px] font-bold text-emerald-200">✓ הושלם</span>}
                           {wEff === 'skipped' && <span className="text-[11px] font-bold text-red-300">דולג</span>}
                           {isToday(currentDate) && wEff === 'scheduled' && idx === 0 && !stravaThisDay && (
                             <span className="text-[#c9a84c] text-[11px] font-black">היום</span>
@@ -912,7 +955,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                       <div className="flex items-center gap-2 mb-4 flex-wrap" dir="rtl">
                         {w.workout.distance && (
                           <span className={cn('text-sm font-bold px-3 py-1.5 rounded-full',
-                            wEff === 'completed' ? 'bg-white/20 text-white' : 'bg-[#c9a84c] text-[#0a1628]')}>
+                            isEffectivelyDone ? 'bg-white/20 text-white' : 'bg-[#c9a84c] text-[#0a1628]')}>
                             {wLog?.actualDistance ?? w.workout.distance} ק"מ
                           </span>
                         )}
@@ -922,6 +965,23 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                         {wLog?.actualPace && <span className="text-sm bg-white/15 text-white px-3 py-1.5 rounded-full" dir="ltr">{wLog.actualPace}</span>}
                         {wLog?.effort != null && <span className="text-sm bg-white/15 text-white px-3 py-1.5 rounded-full">מאמץ {wLog.effort}/10</span>}
                       </div>
+
+                      {/* Strava match indicator */}
+                      {stravaMatch && !wLog && (
+                        <div className="flex items-center gap-1.5 mb-3" dir="rtl">
+                          <span className="text-[9px] font-black text-[#FC4C02] bg-[#FC4C02]/25 w-4 h-4 rounded flex items-center justify-center flex-shrink-0">S</span>
+                          {stravaMatch.planned > 0 ? (
+                            <span className={cn('text-[11px] font-bold',
+                              stravaMatch.status === 'completed' ? 'text-emerald-300' :
+                              stravaMatch.status === 'partial' ? 'text-amber-300' : 'text-red-300')}>
+                              {stravaMatch.actual} / {stravaMatch.planned} ק״מ
+                              {stravaMatch.status === 'completed' ? ' ✓ בוצע' : stravaMatch.status === 'partial' ? ' ~ חלקי' : ' ✗ לא בוצע'}
+                            </span>
+                          ) : (
+                            <span className="text-[11px] font-bold text-emerald-300">{stravaMatch.actual} ק״מ ✓</span>
+                          )}
+                        </div>
+                      )}
 
                       {/* CTA — "פרטי אימון" to expand */}
                       <button

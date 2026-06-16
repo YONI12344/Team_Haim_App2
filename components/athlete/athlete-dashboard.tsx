@@ -358,48 +358,54 @@ export function AthleteDashboard() {
         </div>
       )}
 
-      {/* Hero Section — navy gradient, greeting + today workout */}
-      <div className="bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 rounded-3xl p-6">
-        <div className="flex items-start justify-between mb-3">
-          <p className="text-xl font-bold text-white">שלום, {profileName.split(' ')[0]}</p>
-          <p className="text-xs text-white/40 pt-1">{format(new Date(), 'd MMM')}</p>
-        </div>
+      {/* Hero Section — navy gradient (green when done), greeting + today workout */}
+      {(() => {
+        const mainTw = todayWorkouts[0] || null
+        const allDone = todayWorkouts.length > 0 && todayWorkouts.every(w => w.status === 'completed')
+        return (
+          <div className={cn('rounded-3xl p-6 transition-all',
+            allDone
+              ? 'bg-gradient-to-br from-emerald-700 to-emerald-800'
+              : 'bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85'
+          )}>
+            <div className="flex items-start justify-between mb-3">
+              <p className="text-xl font-bold text-white">שלום, {profileName.split(' ')[0]}</p>
+              <p className="text-xs text-white/40 pt-1">{format(new Date(), 'd MMM')}</p>
+            </div>
 
-        {todayWorkouts.length > 0 ? (
-          <>
-            {todayWorkouts.slice(0, 1).map((tw) => (
-              <div key={tw.id}>
-                <p className="text-2xl font-bold text-white leading-tight mt-2 mb-3">{tw.workout.title}</p>
-                <div className="flex items-center gap-2 flex-wrap mb-4">
-                  <span className="bg-[#c9a84c] text-[#0a1628] rounded-full px-3 py-1 text-xs font-bold">
-                    {workoutTypeLabels[tw.workout.type as WorkoutType] || tw.workout.type}
-                  </span>
-                  {tw.workout.distance && <span className="text-sm text-white/60">{tw.workout.distance} ק"מ</span>}
-                  {tw.workout.duration && <span className="text-sm text-white/60">{tw.workout.duration} דק'</span>}
-                </div>
-                <Link href={`/athlete/schedule?date=${tw.scheduledDate}&workoutId=${tw.id}`}>
-                  <button className={cn(
-                    'w-full h-12 rounded-2xl font-bold text-sm active:scale-95 transition-all',
-                    tw.status === 'completed'
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                      : 'bg-[#c9a84c] text-[#0a1628]'
-                  )}>
-                    {tw.status === 'completed' ? 'צפה בפרטים' : 'פתח אימון'}
-                  </button>
-                </Link>
+            {todayWorkouts.length > 0 ? (
+              <>
+                {todayWorkouts.slice(0, 1).map((tw) => (
+                  <div key={tw.id}>
+                    <p className="text-2xl font-bold text-white leading-tight mt-2 mb-3">{tw.workout.title}</p>
+                    <div className="flex items-center gap-2 flex-wrap mb-4">
+                      <span className={cn('rounded-full px-3 py-1 text-xs font-bold',
+                        allDone ? 'bg-white/20 text-white' : 'bg-[#c9a84c] text-[#0a1628]')}>
+                        {workoutTypeLabels[tw.workout.type as WorkoutType] || tw.workout.type}
+                      </span>
+                      {tw.workout.distance && <span className="text-sm text-white/70">{tw.workout.distance} ק"מ</span>}
+                      {tw.workout.duration && <span className="text-sm text-white/70">{tw.workout.duration} דק'</span>}
+                    </div>
+                    <Link href={`/athlete/schedule?date=${tw.scheduledDate}&workoutId=${tw.id}`}>
+                      <button className="w-full h-12 rounded-2xl font-bold text-sm active:scale-95 transition-all bg-white/20 text-white hover:bg-white/25">
+                        {tw.status === 'completed' ? '✓ הושלם — צפה בפרטים' : 'פתח אימון'}
+                      </button>
+                    </Link>
+                  </div>
+                ))}
+                {todayWorkouts.length > 1 && (
+                  <p className="text-xs text-white/40 text-center mt-2">+{todayWorkouts.length - 1} אימונים נוספים</p>
+                )}
+              </>
+            ) : (
+              <div className="mt-2">
+                <p className="text-xl font-bold text-white">יום מנוחה</p>
+                <p className="text-sm text-white/50 mt-1">תתאושש ותתכונן למחר</p>
               </div>
-            ))}
-            {todayWorkouts.length > 1 && (
-              <p className="text-xs text-white/40 text-center mt-2">+{todayWorkouts.length - 1} אימונים נוספים</p>
             )}
-          </>
-        ) : (
-          <div className="mt-2">
-            <p className="text-xl font-bold text-white">יום מנוחה</p>
-            <p className="text-sm text-white/50 mt-1">תתאושש ותתכונן למחר</p>
           </div>
-        )}
-      </div>
+        )
+      })()}
 
       {/* New athlete onboarding */}
       {isNewAthlete && <NewAthleteRedirect />}
