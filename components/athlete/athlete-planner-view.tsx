@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ChevronLeft, ChevronRight, Loader2, MapPin, Clock, ChevronDown, ChevronUp } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2, MapPin, Clock, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react'
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   addMonths, subMonths, addWeeks, subWeeks, eachDayOfInterval, isSameMonth,
@@ -345,7 +345,8 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
             && !!l.actualDistance && l.source !== 'strava'
           )
           const formOpen = openLogForms.has(w.id)
-          if (formOpen || (w.status === 'completed' && !hasManualLog)) return (
+          const stravaAwaitingFeedback = stravaForDate?.feedbackStatus === 'pending'
+          if (formOpen || (w.status === 'completed' && !hasManualLog) || stravaAwaitingFeedback) return (
             <div className="px-4 py-4">
               <WorkoutLogForm
                 workoutId={w.workoutId}
@@ -484,9 +485,9 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
     const [pendingComment, setPendingComment] = useState('')
     const [submitting, setSubmitting] = useState(false)
     const [showDetails, setShowDetails] = useState(false)
-    const [showForm, setShowForm] = useState(false)
-    const [showSplits, setShowSplits] = useState(false)
     const isPending = log.feedbackStatus === 'pending'
+    const [showForm, setShowForm] = useState(isPending)
+    const [showSplits, setShowSplits] = useState(false)
 
     const handleSubmit = async () => {
       if (!pendingEffort) { toast.error(t.selectEffortError); return }
@@ -641,8 +642,8 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
               <button
                 onClick={() => setShowForm(prev => !prev)}
                 className={cn('text-[11px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap active:scale-95 transition-all border',
-                  showForm ? 'bg-gray-100 text-gray-600 border-gray-200' : 'bg-amber-50 text-amber-700 border-amber-200')}>
-                {showForm ? t.closeCta : t.addFeedbackBtn}
+                  showForm ? 'bg-gray-100 text-gray-600 border-gray-200' : 'bg-[#c9a84c]/20 text-[#c9a84c] border-[#c9a84c]/40')}>
+                {showForm ? t.closeCta : 'ממתין למשוב שלך'}
               </button>
               <button onClick={handleDelete} className="h-6 w-6 rounded-full hover:bg-red-50 flex items-center justify-center text-muted-foreground/50 hover:text-red-400 transition-colors text-sm">✕</button>
             </div>
@@ -971,7 +972,12 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                 {typeLabels[w.workout?.type] || w.workout?.type || 'ריצה'}
               </span>
               <div className="flex items-center gap-1.5">
-                {stravaThisDay && <span className="text-[10px] font-bold text-[#FC4C02] bg-[#FC4C02]/20 px-2 py-0.5 rounded-full">Strava ✓</span>}
+                {stravaThisDay?.feedbackStatus === 'pending' && (
+                  <span className="text-[10px] font-bold bg-[#c9a84c]/25 text-[#c9a84c] border border-[#c9a84c]/40 px-2 py-0.5 rounded-full">ממתין למשוב</span>
+                )}
+                {stravaThisDay && stravaThisDay.feedbackStatus !== 'pending' && (
+                  <span className="text-[10px] font-bold text-[#FC4C02] bg-[#FC4C02]/20 px-2 py-0.5 rounded-full">Strava ✓</span>
+                )}
                 {isEffectivelyDone && !stravaThisDay && <span className="text-[11px] font-bold text-emerald-200">{t.stravaCompletedLabel}</span>}
                 {wEff === 'skipped' && <span className="text-[11px] font-bold text-red-300">{t.stravaNotDoneLabel}</span>}
                 {isToday(parseISO(w.scheduledDate)) && wEff === 'scheduled' && idx === 0 && !stravaThisDay && (
@@ -1119,15 +1125,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
             {stravaSyncing ? (
               <Loader2 className="h-4 w-4 animate-spin text-[#FC4C02]" />
             ) : (
-              <svg viewBox="0 0 16 20" className="h-4 w-3.5 flex-shrink-0" fill="none" xmlns="http://www.w3.org/2000/svg">
-                {/* running figure */}
-                <circle cx="10" cy="2" r="1.6" fill="#FC4C02"/>
-                <path d="M10 3.6L8 7l2.5 2-1.5 4" stroke="#FC4C02" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M8 7L5.5 8.5" stroke="#FC4C02" strokeWidth="1.4" strokeLinecap="round"/>
-                <path d="M10.5 9L12.5 8" stroke="#FC4C02" strokeWidth="1.4" strokeLinecap="round"/>
-                <path d="M9 13L7 17" stroke="#FC4C02" strokeWidth="1.4" strokeLinecap="round"/>
-                <path d="M9 13L11.5 16.5" stroke="#FC4C02" strokeWidth="1.4" strokeLinecap="round"/>
-              </svg>
+              <RefreshCw className="h-4 w-4 text-[#FC4C02]" />
             )}
             <span className="text-xs font-bold text-[#FC4C02]">Strava</span>
           </button>
