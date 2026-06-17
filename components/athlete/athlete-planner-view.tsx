@@ -1102,7 +1102,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
           </button>
         </div>
 
-        {/* Row 2: View tabs (gold active) + Strava button with label */}
+        {/* Row 2: View tabs (gold active) + Strava sync button */}
         <div className="flex items-center gap-2">
           <div className="flex gap-1 bg-gray-100 rounded-2xl p-1 flex-1">
             {(['day','week','month'] as const).map(mode => (
@@ -1113,7 +1113,24 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
               </button>
             ))}
           </div>
-
+          <button onClick={handleStravaSync} disabled={stravaSyncing}
+            className="h-10 px-3 rounded-2xl bg-[#FC4C02]/10 flex items-center gap-1.5 active:scale-95 transition-all flex-shrink-0 disabled:opacity-50"
+            title="סנכרן Strava">
+            {stravaSyncing ? (
+              <Loader2 className="h-4 w-4 animate-spin text-[#FC4C02]" />
+            ) : (
+              <svg viewBox="0 0 16 20" className="h-4 w-3.5 flex-shrink-0" fill="none" xmlns="http://www.w3.org/2000/svg">
+                {/* running figure */}
+                <circle cx="10" cy="2" r="1.6" fill="#FC4C02"/>
+                <path d="M10 3.6L8 7l2.5 2-1.5 4" stroke="#FC4C02" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M8 7L5.5 8.5" stroke="#FC4C02" strokeWidth="1.4" strokeLinecap="round"/>
+                <path d="M10.5 9L12.5 8" stroke="#FC4C02" strokeWidth="1.4" strokeLinecap="round"/>
+                <path d="M9 13L7 17" stroke="#FC4C02" strokeWidth="1.4" strokeLinecap="round"/>
+                <path d="M9 13L11.5 16.5" stroke="#FC4C02" strokeWidth="1.4" strokeLinecap="round"/>
+              </svg>
+            )}
+            <span className="text-xs font-bold text-[#FC4C02]">Strava</span>
+          </button>
         </div>
       </div>
 
