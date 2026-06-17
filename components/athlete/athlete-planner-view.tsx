@@ -87,6 +87,9 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
   const dayShort = [t.sun, t.mon, t.tue, t.wed, t.thu, t.fri, t.sat]
   const dayLabels = [t.sun, t.mon, t.tue, t.wed, t.thu, t.fri, t.sat]
   const dayEN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+  const heDays = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת']
+  const heMonths = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר']
+  const formatHeDateLong = (d: Date) => `יום ${heDays[d.getDay()]}, ${d.getDate()} ב${heMonths[d.getMonth()]} ${d.getFullYear()}`
   const athleteId = overrideAthleteId || user?.id || ''
   const [athlete, setAthlete] = useState<AthleteProfile | null>(null)
   const [journey, setJourney] = useState<JourneySummary | null>(null)
@@ -333,18 +336,16 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
           <p className="text-sm text-navy text-right">{t.coachNotesLabel}: {w.workout.notes}</p>
         </div>
       )}
-      {/* עדכן אימון / Strava badge / log form */}
+      {/* עדכן אימון / Strava / log form */}
       <div className="border-t border-border">
         {(() => {
           const stravaForDate = weekLogs.find(l => l.date === w.scheduledDate && l.source === 'strava')
-          if (stravaForDate) return (
-            <div className="px-4 py-3 flex items-center gap-2.5" dir="rtl">
-              <span className="h-5 w-5 rounded-lg bg-[#FC4C02] flex items-center justify-center text-[9px] font-black text-white flex-shrink-0">S</span>
-              <span className="text-sm text-emerald-700 font-semibold">Strava ✓</span>
-              {stravaForDate.actualDistance && <span className="text-sm text-gray-500">{stravaForDate.actualDistance} km</span>}
-            </div>
+          const hasManualLog = weekLogs.find(l =>
+            (l.assignedWorkoutId === w.id || (!l.assignedWorkoutId && l.date === w.scheduledDate))
+            && !!l.actualDistance && l.source !== 'strava'
           )
-          if (w.status === 'completed' || openLogForms.has(w.id)) return (
+          const formOpen = openLogForms.has(w.id)
+          if (formOpen || (w.status === 'completed' && !hasManualLog)) return (
             <div className="px-4 py-4">
               <WorkoutLogForm
                 workoutId={w.workoutId}
@@ -355,12 +356,31 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
               />
             </div>
           )
+          if (hasManualLog) return (
+            <div className="p-4 space-y-2" dir="rtl">
+              {hasManualLog.comment && <p className="text-xs text-gray-400 italic">"{hasManualLog.comment}"</p>}
+              <button
+                onClick={() => setOpenLogForms(prev => new Set([...prev, w.id]))}
+                className="w-full h-11 rounded-xl bg-[#0a1628] text-white text-sm font-bold active:scale-[0.98] transition-all">
+                ערוך
+              </button>
+            </div>
+          )
           return (
-            <button
-              onClick={() => setOpenLogForms(prev => new Set([...prev, w.id]))}
-              className="w-full px-5 py-4 text-sm font-bold text-[#0a1628] bg-[#c9a84c] hover:bg-[#c9a84c]/90 active:scale-[0.98] transition-all text-center">
-              {t.addFeedbackBtn}
-            </button>
+            <div className="p-4 space-y-2" dir="rtl">
+              <button
+                onClick={() => setOpenLogForms(prev => new Set([...prev, w.id]))}
+                className="w-full h-11 rounded-xl bg-[#0a1628] text-white text-sm font-bold active:scale-[0.98] transition-all">
+                {stravaForDate ? 'הוסף הערה לאימון' : 'עדכן אימון'}
+              </button>
+              <button
+                onClick={handleStravaSync}
+                disabled={stravaSyncing}
+                className="w-full h-9 rounded-xl bg-[#FC4C02]/10 text-[#FC4C02] text-xs font-bold flex items-center justify-center gap-1.5 active:scale-[0.98] transition-all disabled:opacity-50">
+                {stravaSyncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <span className="text-[13px] font-black">S</span>}
+                סנכרן מ-Strava
+              </button>
+            </div>
           )
         })()}
       </div>
@@ -465,6 +485,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
     const [submitting, setSubmitting] = useState(false)
     const [showDetails, setShowDetails] = useState(false)
     const [showForm, setShowForm] = useState(false)
+    const [showSplits, setShowSplits] = useState(false)
     const isPending = log.feedbackStatus === 'pending'
 
     const handleSubmit = async () => {
@@ -690,25 +711,110 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
       </>
     )
 
-    // ── STATE 2: Completed Strava — compact single row ────────────────
+    // ── STATE 2: Completed Strava — expanded stats card ────────────────
     return (
       <>
         <DetailsModal />
-        <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-white rounded-2xl border border-[#FC4C02]/15 shadow-sm" dir="rtl">
-          <div className="h-6 w-6 rounded-lg bg-[#FC4C02] flex items-center justify-center flex-shrink-0">
-            <span className="text-[9px] font-black text-white">S</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-sm font-semibold text-[#0a1628] truncate">{log.stravaName || 'Strava'}</span>
-              {log.actualDistance && <span className="text-xs text-gray-500">· {log.actualDistance} km</span>}
-              {log.actualPace && <span className="text-xs text-gray-400" dir="ltr">· {log.actualPace}</span>}
-              <span className="text-[10px] font-bold text-emerald-600">✓</span>
+        <div className="bg-white rounded-2xl border border-[#FC4C02]/15 shadow-sm overflow-hidden" dir="rtl">
+          {/* Header row */}
+          <div className="px-3.5 py-2.5 flex items-center gap-2">
+            <div className="h-6 w-6 rounded-lg bg-[#FC4C02] flex items-center justify-center flex-shrink-0">
+              <span className="text-[9px] font-black text-white">S</span>
             </div>
-            <p className="text-[10px] text-gray-400 mt-0.5">{log.date}</p>
+            <span className="flex-1 text-sm font-bold text-[#0a1628] truncate">{log.stravaName || 'Strava'}</span>
+            <span className="text-[10px] font-bold text-emerald-600 flex-shrink-0">✓</span>
+            <button onClick={() => setShowDetails(true)} className="text-[10px] text-[#0a1628]/50 hover:text-[#0a1628] flex-shrink-0 font-medium border border-gray-200 rounded-full px-2 py-0.5 transition-colors">{t.detailsBtn}</button>
+            <button onClick={handleDelete} className="h-6 w-6 rounded-full flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors flex-shrink-0 text-sm">✕</button>
           </div>
-          <button onClick={() => setShowDetails(true)} className="text-[10px] text-[#0a1628]/50 hover:text-[#0a1628] flex-shrink-0 font-medium border border-gray-200 rounded-full px-2 py-0.5 transition-colors">{t.detailsBtn}</button>
-          <button onClick={handleDelete} className="h-6 w-6 rounded-full flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors flex-shrink-0 text-sm">✕</button>
+          {/* Stats grid */}
+          {(log.actualDistance || log.actualPace || log.averageHeartRate || log.elevationGain) && (
+            <div className="px-3.5 pb-3 grid grid-cols-3 gap-1.5">
+              {log.actualDistance && (
+                <div className="bg-gray-50 rounded-xl p-2 text-center">
+                  <p className="text-base font-black text-[#0a1628]">{log.actualDistance}</p>
+                  <p className="text-[9px] text-gray-400">ק&quot;מ</p>
+                </div>
+              )}
+              {log.actualPace && (
+                <div className="bg-gray-50 rounded-xl p-2 text-center">
+                  <p className="text-base font-black text-[#0a1628]" dir="ltr">{log.actualPace.replace('/km','')}</p>
+                  <p className="text-[9px] text-gray-400">טמפו</p>
+                </div>
+              )}
+              {log.averageHeartRate && (
+                <div className="bg-red-50 rounded-xl p-2 text-center">
+                  <p className="text-base font-black text-red-600">{log.averageHeartRate}</p>
+                  <p className="text-[9px] text-gray-400">דופק</p>
+                </div>
+              )}
+              {log.elevationGain && (
+                <div className="bg-emerald-50 rounded-xl p-2 text-center">
+                  <p className="text-base font-black text-emerald-700">{log.elevationGain}m</p>
+                  <p className="text-[9px] text-gray-400">עלייה</p>
+                </div>
+              )}
+              {log.effort && (
+                <div className="bg-amber-50 rounded-xl p-2 text-center">
+                  <p className="text-base font-black text-amber-700">{log.effort}/10</p>
+                  <p className="text-[9px] text-gray-400">מאמץ</p>
+                </div>
+              )}
+            </div>
+          )}
+          {/* Expandable splits */}
+          {log.splitLogs && log.splitLogs.length > 0 && (
+            <div className="border-t border-gray-100">
+              <button
+                onClick={() => setShowSplits(prev => !prev)}
+                className="w-full px-3.5 py-2 flex items-center justify-between text-xs font-bold text-[#0a1628]/60 hover:bg-gray-50 transition-colors">
+                <span>פיצולים ({log.splitLogs.length})</span>
+                {showSplits ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              </button>
+              {showSplits && (
+                <div className="px-3.5 pb-3">
+                  <div className="rounded-lg border border-border overflow-hidden">
+                    <table className="w-full table-fixed text-[10px]" dir="ltr">
+                      <colgroup>
+                        <col style={{ width: '12%' }} />
+                        <col style={{ width: '22%' }} />
+                        <col style={{ width: '24%' }} />
+                        <col style={{ width: '24%' }} />
+                        <col style={{ width: '18%' }} />
+                      </colgroup>
+                      <thead>
+                        <tr className="bg-[#0a1628]/5">
+                          <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">km</th>
+                          <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{t.timeInputLabel}</th>
+                          <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">טמפו</th>
+                          <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">דופק</th>
+                          <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">Zone</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {log.splitLogs.map((s: any, i: number) => {
+                          const pace = s.pace?.replace('/km', '') || '—'
+                          const zone = s.paceZone || s.notes?.replace('Zone ', '') || '—'
+                          const hr = s.heartRate || '—'
+                          const isfast = s.pace && parseFloat(s.pace) < parseFloat(log.actualPace || '99')
+                          return (
+                            <tr key={i} className={cn('border-t border-border/40', i % 2 === 0 ? 'bg-white' : 'bg-muted/20')}>
+                              <td className="py-2 text-center font-bold text-[#0a1628]">{i + 1}</td>
+                              <td className="py-2 text-center font-mono">{s.time}</td>
+                              <td className={cn('py-2 text-center font-mono font-semibold', isfast ? 'text-emerald-600' : 'text-[#0a1628]')}>{pace}</td>
+                              <td className={cn('py-2 text-center font-mono', hr !== '—' && hr > 160 ? 'text-red-500' : hr !== '—' && hr > 140 ? 'text-orange-500' : 'text-[#0a1628]')}>{hr}</td>
+                              <td className={cn('py-2 text-center font-bold', zone === '5' || zone === '4' ? 'text-red-500' : zone === '3' ? 'text-orange-500' : zone === '2' ? 'text-amber-500' : 'text-emerald-600')}>
+                                {zone === '—' ? '—' : `Z${zone}`}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </>
     )
@@ -843,6 +949,131 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
     )
   }
 
+  const renderNavyWorkoutBlock = (w: AssignedWorkout, isMulti: boolean, idx: number, dateStr: string) => {
+    const wEff = getEffectiveStatus(w)
+    const wSelected = selectedWorkoutId === w.id
+    const wLog = weekLogs.find(l => l.assignedWorkoutId === w.id && !!l.actualDistance && l.source !== 'strava')
+      || weekLogs.find(l => !l.assignedWorkoutId && l.date === dateStr && !!l.actualDistance && l.source !== 'strava')
+    const wMsg = coachMessages.find(m => m.assignedWorkoutId === w.id)
+    const stravaThisDay = weekLogs.find(l => l.date === dateStr && l.source === 'strava')
+    const stravaMatch = computeStravaMatch(w, dateStr)
+    const isEffectivelyDone = wEff === 'completed' || stravaMatch?.status === 'completed'
+    return (
+      <div key={w.id} className="space-y-2">
+        {isMulti && (
+          <p className="text-[10px] font-bold text-[#c9a84c] uppercase tracking-widest px-1">{t.workoutCardPrefix} {idx + 1}</p>
+        )}
+        <div className={cn('rounded-3xl transition-all',
+          isEffectivelyDone ? 'bg-gradient-to-br from-emerald-700 to-emerald-800' : 'bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85')}>
+          <div className="p-5">
+            <div className="flex items-center justify-between mb-2.5" dir="rtl">
+              <span className="bg-white/15 text-white/90 text-[11px] font-bold px-3 py-1 rounded-full">
+                {typeLabels[w.workout?.type] || w.workout?.type || 'ריצה'}
+              </span>
+              <div className="flex items-center gap-1.5">
+                {stravaThisDay && <span className="text-[10px] font-bold text-[#FC4C02] bg-[#FC4C02]/20 px-2 py-0.5 rounded-full">Strava ✓</span>}
+                {isEffectivelyDone && !stravaThisDay && <span className="text-[11px] font-bold text-emerald-200">{t.stravaCompletedLabel}</span>}
+                {wEff === 'skipped' && <span className="text-[11px] font-bold text-red-300">{t.stravaNotDoneLabel}</span>}
+                {isToday(parseISO(w.scheduledDate)) && wEff === 'scheduled' && idx === 0 && !stravaThisDay && (
+                  <span className="text-[#c9a84c] text-[11px] font-black">{t.today}</span>
+                )}
+              </div>
+            </div>
+            <p className={cn('font-black text-white leading-tight mb-3', isMulti ? 'text-xl' : 'text-[26px]')}>
+              {w.workout.title}
+            </p>
+            <div className="flex items-center gap-2 mb-4 flex-wrap" dir="rtl">
+              {w.workout.distance && (
+                <span className={cn('text-sm font-bold px-3 py-1.5 rounded-full',
+                  isEffectivelyDone ? 'bg-white/20 text-white' : 'bg-[#c9a84c] text-[#0a1628]')}>
+                  {wLog?.actualDistance ?? w.workout.distance} km
+                </span>
+              )}
+              {w.workout.duration && !wLog && (
+                <span className="text-sm bg-white/15 text-white px-3 py-1.5 rounded-full">{w.workout.duration} min</span>
+              )}
+              {wLog?.actualPace && <span className="text-sm bg-white/15 text-white px-3 py-1.5 rounded-full" dir="ltr">{wLog.actualPace}</span>}
+              {wLog?.effort != null && <span className="text-sm bg-white/15 text-white px-3 py-1.5 rounded-full">{t.effortValueLabel} {wLog.effort}/10</span>}
+            </div>
+            {stravaMatch && !wLog && (
+              <div className="flex items-center gap-1.5 mb-3" dir="rtl">
+                <span className="text-[9px] font-black text-[#FC4C02] bg-[#FC4C02]/25 w-4 h-4 rounded flex items-center justify-center flex-shrink-0">S</span>
+                {stravaMatch.planned > 0 ? (
+                  <span className={cn('text-[11px] font-bold',
+                    stravaMatch.status === 'completed' ? 'text-emerald-300' :
+                    stravaMatch.status === 'partial' ? 'text-amber-300' : 'text-red-300')}>
+                    {stravaMatch.actual} / {stravaMatch.planned} km
+                    {stravaMatch.status === 'completed' ? ` ${t.stravaCompletedLabel}` : stravaMatch.status === 'partial' ? ` ${t.stravaPartialLabel}` : ` ${t.stravaNotDoneLabel}`}
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-bold text-emerald-300">{stravaMatch.actual} km ✓</span>
+                )}
+              </div>
+            )}
+            <button
+              onClick={() => setSelectedWorkoutId(prev => prev === w.id ? null : w.id)}
+              className={cn('w-full h-11 rounded-2xl font-bold text-sm active:scale-95 transition-all',
+                wSelected ? 'bg-white/20 text-white' : 'bg-white/15 text-white hover:bg-white/20')}>
+              {wSelected ? t.closeCta : t.workoutDetailsCta}
+            </button>
+          </div>
+        </div>
+        {wSelected && (
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+            {renderWorkoutDetail(w)}
+          </div>
+        )}
+        {wMsg && (
+          <div className={cn('bg-white rounded-2xl border p-4 shadow-sm',
+            !wMsg.read ? 'border-l-4 border-l-[#c9a84c] border-gray-100' : 'border-gray-100')} dir="rtl">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[#c9a84c]">{t.messageFromCoach}</p>
+              {wMsg.createdAt?.seconds && <p className="text-[9px] text-gray-400">{format(new Date(wMsg.createdAt.seconds * 1000), 'd/M/yyyy')}</p>}
+            </div>
+            <p className="text-sm text-[#0a1628] leading-relaxed">{wMsg.message}</p>
+            {!wMsg.read && (
+              <button onClick={async () => { try { await updateDoc(doc(db, 'coachMessages', wMsg.id), { read: true }); setCoachMessages(prev => prev.map(m => m.id === wMsg.id ? { ...m, read: true } : m)) } catch {} }}
+                className="mt-2 text-[10px] text-gray-400 hover:text-gray-600 underline underline-offset-2">{t.markAsRead}</button>
+            )}
+          </div>
+        )}
+        {wLog && (
+          <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 border-l-4 border-l-emerald-500 overflow-hidden" dir="rtl">
+            <div className="px-4 py-3 flex items-center justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-1.5">{t.actualPerformance}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {wLog.actualDistance && <span className="text-xs bg-gray-50 border border-gray-100 px-2.5 py-1 rounded-full">{wLog.actualDistance} km</span>}
+                  {wLog.actualPace && <span className="text-xs bg-gray-50 border border-gray-100 px-2.5 py-1 rounded-full" dir="ltr">{wLog.actualPace}</span>}
+                  {wLog.effort != null && (
+                    <span className={cn('text-xs px-2.5 py-1 rounded-full border',
+                      wLog.effort <= 3 ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                      wLog.effort <= 5 ? 'bg-green-100 text-green-700 border-green-200' :
+                      wLog.effort <= 7 ? 'bg-amber-100 text-amber-700 border-amber-200' :
+                      wLog.effort <= 9 ? 'bg-orange-100 text-orange-700 border-orange-200' :
+                      'bg-red-100 text-red-700 border-red-200')}>{t.effortValueLabel} {wLog.effort}/10</span>
+                  )}
+                </div>
+                {wLog.comment && <p className="text-xs text-gray-400 italic mt-1.5">"{wLog.comment}"</p>}
+              </div>
+              <button onClick={async () => {
+                if (!confirm(t.confirmDeleteLog)) return
+                try {
+                  const { doc, deleteDoc, updateDoc } = await import('firebase/firestore')
+                  const { db } = await import('@/lib/firebase')
+                  if (wLog.id) await deleteDoc(doc(db, 'logs', wLog.id))
+                  await updateDoc(doc(db, 'assignedWorkouts', w.id), { status: 'scheduled', completedAt: null })
+                  setWeekLogs(prev => prev.filter(l => l.id !== wLog.id))
+                  toast.success(t.logDeleted)
+                } catch(e) { console.error(e); toast.error(t.errorDeleting) }
+              }} className="h-7 w-7 rounded-full hover:bg-red-50 flex items-center justify-center text-gray-300 hover:text-red-400 transition-colors flex-shrink-0">✕</button>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-3 pb-24" dir={isRTL ? 'rtl' : 'ltr'}>
 
@@ -858,7 +1089,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
 
           <p className="flex-1 text-center text-base font-bold text-[#0a1628]">
             {viewMode==='day'
-              ? (isToday(currentDate) ? 'היום · ' : '') + format(currentDate,'d MMMM')
+              ? formatHeDateLong(currentDate)
               : viewMode==='week'
               ? `${format(weekStart,'d')}–${format(weekEnd,'d MMM')}`
               : format(currentDate,'MMMM yyyy')}
@@ -883,15 +1114,6 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
             ))}
           </div>
 
-          {/* Strava — labeled, orange, clearly visible */}
-          <button onClick={handleStravaSync} disabled={stravaSyncing}
-            className="h-10 px-3.5 rounded-2xl bg-[#FC4C02]/10 flex items-center gap-1.5 active:scale-95 transition-all flex-shrink-0 disabled:opacity-50"
-            title="סנכרן Strava">
-            {stravaSyncing
-              ? <Loader2 className="h-3.5 w-3.5 animate-spin text-[#FC4C02]" />
-              : <span className="text-[13px] font-black text-[#FC4C02]">S</span>}
-            <span className="text-xs font-bold text-[#FC4C02]">Strava</span>
-          </button>
         </div>
       </div>
 
@@ -913,159 +1135,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
 
         return (
           <div className="space-y-3">
-            {/* All workouts — unified navy gradient cards */}
-            {dayWs.map((w, idx) => {
-              const wEff = getEffectiveStatus(w)
-              const wSelected = selectedWorkoutId === w.id
-              const wLog = weekLogs.find(l => l.assignedWorkoutId === w.id && !!l.actualDistance && l.source !== 'strava')
-                || weekLogs.find(l => !l.assignedWorkoutId && l.date === dateStr && !!l.actualDistance && l.source !== 'strava')
-              const wMsg = coachMessages.find(m => m.assignedWorkoutId === w.id)
-              const stravaThisDay = weekLogs.find(l => l.date === dateStr && l.source === 'strava')
-              const stravaMatch = computeStravaMatch(w, dateStr)
-              const isEffectivelyDone = wEff === 'completed' || stravaMatch?.status === 'completed'
-
-              return (
-                <div key={w.id} className="space-y-2">
-                  {/* Gold "אימון N" label for multiple workouts */}
-                  {dayWs.length > 1 && (
-                    <p className="text-[10px] font-bold text-[#c9a84c] uppercase tracking-widest px-1">{t.workoutCardPrefix} {idx + 1}</p>
-                  )}
-
-                  {/* Navy gradient card — compact for multiple, large for single */}
-                  <div className={cn(
-                    'rounded-3xl transition-all',
-                    isEffectivelyDone
-                      ? 'bg-gradient-to-br from-emerald-700 to-emerald-800'
-                      : 'bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85'
-                  )}>
-                    <div className={cn('p-5', dayWs.length === 1 && 'pb-5')}>
-                      {/* Type badge row */}
-                      <div className="flex items-center justify-between mb-2.5" dir="rtl">
-                        <span className="bg-white/15 text-white/90 text-[11px] font-bold px-3 py-1 rounded-full">
-                          {typeLabels[w.workout?.type] || w.workout?.type || 'ריצה'}
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          {stravaThisDay && <span className="text-[10px] font-bold text-[#FC4C02] bg-[#FC4C02]/20 px-2 py-0.5 rounded-full">Strava ✓</span>}
-                          {isEffectivelyDone && !stravaThisDay && <span className="text-[11px] font-bold text-emerald-200">{t.stravaCompletedLabel}</span>}
-                          {wEff === 'skipped' && <span className="text-[11px] font-bold text-red-300">{t.stravaNotDoneLabel}</span>}
-                          {isToday(currentDate) && wEff === 'scheduled' && idx === 0 && !stravaThisDay && (
-                            <span className="text-[#c9a84c] text-[11px] font-black">{t.today}</span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Title — bigger for single workout */}
-                      <p className={cn('font-black text-white leading-tight mb-3',
-                        dayWs.length > 1 ? 'text-xl' : 'text-[26px]')}>
-                        {w.workout.title}
-                      </p>
-
-                      {/* Stat badges */}
-                      <div className="flex items-center gap-2 mb-4 flex-wrap" dir="rtl">
-                        {w.workout.distance && (
-                          <span className={cn('text-sm font-bold px-3 py-1.5 rounded-full',
-                            isEffectivelyDone ? 'bg-white/20 text-white' : 'bg-[#c9a84c] text-[#0a1628]')}>
-                            {wLog?.actualDistance ?? w.workout.distance} km
-                          </span>
-                        )}
-                        {w.workout.duration && !wLog && (
-                          <span className="text-sm bg-white/15 text-white px-3 py-1.5 rounded-full">{w.workout.duration} min</span>
-                        )}
-                        {wLog?.actualPace && <span className="text-sm bg-white/15 text-white px-3 py-1.5 rounded-full" dir="ltr">{wLog.actualPace}</span>}
-                        {wLog?.effort != null && <span className="text-sm bg-white/15 text-white px-3 py-1.5 rounded-full">{t.effortValueLabel} {wLog.effort}/10</span>}
-                      </div>
-
-                      {/* Strava match indicator */}
-                      {stravaMatch && !wLog && (
-                        <div className="flex items-center gap-1.5 mb-3" dir="rtl">
-                          <span className="text-[9px] font-black text-[#FC4C02] bg-[#FC4C02]/25 w-4 h-4 rounded flex items-center justify-center flex-shrink-0">S</span>
-                          {stravaMatch.planned > 0 ? (
-                            <span className={cn('text-[11px] font-bold',
-                              stravaMatch.status === 'completed' ? 'text-emerald-300' :
-                              stravaMatch.status === 'partial' ? 'text-amber-300' : 'text-red-300')}>
-                              {stravaMatch.actual} / {stravaMatch.planned} km
-                              {stravaMatch.status === 'completed' ? ` ${t.stravaCompletedLabel}` : stravaMatch.status === 'partial' ? ` ${t.stravaPartialLabel}` : ` ${t.stravaNotDoneLabel}`}
-                            </span>
-                          ) : (
-                            <span className="text-[11px] font-bold text-emerald-300">{stravaMatch.actual} km ✓</span>
-                          )}
-                        </div>
-                      )}
-
-                      {/* CTA — "פרטי אימון" to expand */}
-                      <button
-                        onClick={() => setSelectedWorkoutId(prev => prev === w.id ? null : w.id)}
-                        className={cn(
-                          'w-full h-11 rounded-2xl font-bold text-sm active:scale-95 transition-all',
-                          wSelected ? 'bg-white/20 text-white' : 'bg-white/15 text-white hover:bg-white/20'
-                        )}>
-                        {wSelected ? t.closeCta : t.workoutDetailsCta}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Expanded coach-assigned detail — white card */}
-                  {wSelected && (
-                    <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-                      {renderWorkoutDetail(w)}
-                    </div>
-                  )}
-
-                  {/* Coach message */}
-                  {wMsg && (
-                    <div className={cn('bg-white rounded-2xl border p-4 shadow-sm',
-                      !wMsg.read ? 'border-l-4 border-l-[#c9a84c] border-gray-100' : 'border-gray-100')} dir="rtl">
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#c9a84c]">{t.messageFromCoach}</p>
-                        {wMsg.createdAt?.seconds && <p className="text-[9px] text-gray-400">{format(new Date(wMsg.createdAt.seconds * 1000), 'd/M/yyyy')}</p>}
-                      </div>
-                      <p className="text-sm text-[#0a1628] leading-relaxed">{wMsg.message}</p>
-                      {!wMsg.read && (
-                        <button onClick={async () => { try { await updateDoc(doc(db, 'coachMessages', wMsg.id), { read: true }); setCoachMessages(prev => prev.map(m => m.id === wMsg.id ? { ...m, read: true } : m)) } catch {} }}
-                          className="mt-2 text-[10px] text-gray-400 hover:text-gray-600 underline underline-offset-2">{t.markAsRead}</button>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Manual log result */}
-                  {wLog && (
-                    <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 border-l-4 border-l-emerald-500 overflow-hidden" dir="rtl">
-                      <div className="px-4 py-3 flex items-center justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-1.5">{t.actualPerformance}</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {wLog.actualDistance && <span className="text-xs bg-gray-50 border border-gray-100 px-2.5 py-1 rounded-full">{wLog.actualDistance} km</span>}
-                            {wLog.actualPace && <span className="text-xs bg-gray-50 border border-gray-100 px-2.5 py-1 rounded-full" dir="ltr">{wLog.actualPace}</span>}
-                            {wLog.effort != null && (
-                              <span className={cn('text-xs px-2.5 py-1 rounded-full border',
-                                wLog.effort <= 3 ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
-                                wLog.effort <= 5 ? 'bg-green-100 text-green-700 border-green-200' :
-                                wLog.effort <= 7 ? 'bg-amber-100 text-amber-700 border-amber-200' :
-                                wLog.effort <= 9 ? 'bg-orange-100 text-orange-700 border-orange-200' :
-                                'bg-red-100 text-red-700 border-red-200')}>{t.effortValueLabel} {wLog.effort}/10</span>
-                            )}
-                          </div>
-                          {wLog.comment && <p className="text-xs text-gray-400 italic mt-1.5">"{wLog.comment}"</p>}
-                        </div>
-                        <button onClick={async () => {
-                          if (!confirm(t.confirmDeleteLog)) return
-                          try {
-                            const { doc, deleteDoc, updateDoc } = await import('firebase/firestore')
-                            const { db } = await import('@/lib/firebase')
-                            if (wLog.id) await deleteDoc(doc(db, 'logs', wLog.id))
-                            await updateDoc(doc(db, 'assignedWorkouts', w.id), { status: 'scheduled', completedAt: null })
-                            setWeekLogs(prev => prev.filter(l => l.id !== wLog.id))
-                            toast.success(t.logDeleted)
-                          } catch(e) { console.error(e); toast.error(t.errorDeleting) }
-                        }} className="h-7 w-7 rounded-full hover:bg-red-50 flex items-center justify-center text-gray-300 hover:text-red-400 transition-colors flex-shrink-0">✕</button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-
-            {/* Compact Strava activity rows */}
+            {dayWs.map((w, idx) => renderNavyWorkoutBlock(w, dayWs.length > 1, idx, dateStr))}
             {stravaToday.length > 0 && (
               <div className="space-y-1.5">
                 {stravaToday.map(log => <StravaCard key={log.id} log={log} />)}
@@ -1095,8 +1165,8 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                     <span className={cn('text-[10px] font-semibold mb-0.5', isSelDay ? 'text-white/50' : todayFlag ? 'text-[#c9a84c]' : 'text-gray-400')}>
                       {dayShort[di]}
                     </span>
-                    <span className={cn('text-base font-black', isSelDay ? 'text-white' : todayFlag ? 'text-[#0a1628]' : 'text-[#0a1628]/60')}>
-                      {format(day,'d')}
+                    <span className={cn('text-sm font-black', isSelDay ? 'text-white' : todayFlag ? 'text-[#0a1628]' : 'text-[#0a1628]/60')}>
+                      {format(day,'d/M')}
                     </span>
                     <span className={cn('w-1.5 h-1.5 rounded-full mt-1.5',
                       dayWs.length === 0 ? 'opacity-0' :
@@ -1144,7 +1214,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
             )
             return (
               <div className="space-y-3">
-                {dayWs.map((w, i) => renderWorkoutCard(w, dayWs.length > 1 ? i + 1 : undefined))}
+                {dayWs.map((w, i) => renderNavyWorkoutBlock(w, dayWs.length > 1, i, dayStr))}
                 {stravaDay.length > 0 && (
                   <div className="space-y-3">
                     <div className="flex items-center gap-3">
@@ -1265,7 +1335,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
               <p className="text-xs font-bold text-[#c9a84c] uppercase tracking-widest px-1" dir="rtl">
                 {format(parseISO(selectedWorkout.scheduledDate),'EEEE · d MMMM')}
               </p>
-              {renderWorkoutCard(selectedWorkout)}
+              {renderNavyWorkoutBlock(selectedWorkout, false, 0, selectedWorkout.scheduledDate)}
             </div>
           )}
         </div>
