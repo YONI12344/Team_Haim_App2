@@ -553,38 +553,51 @@ export function CoachDashboard() {
                           )}
                         </div>
 
-                        {/* All splits — full horizontal scroll */}
+                        {/* All splits — vertical list */}
                         {allSplits.length > 0 && (
-                          <div className="border-t border-border/30 px-4 pt-3 pb-3">
-                            <p className="text-[10px] font-semibold text-muted-foreground mb-2">
-                              {allSplits[0]?.lapIndex ? 'Laps' : 'קילומטרים'}
-                            </p>
-                            <div className="overflow-x-auto -mx-1 px-1" dir="ltr">
-                              <div className="flex gap-2 w-max pb-1">
-                                {allSplits.map((split: any, i: number) => (
-                                  <div
-                                    key={i}
-                                    className="flex-shrink-0 rounded-xl border border-border bg-muted/20 px-3 py-2.5 text-center min-w-[64px]"
-                                  >
-                                    <p className="text-[10px] font-semibold text-muted-foreground mb-1">
-                                      {split.lapIndex ? `Lap ${split.lapIndex}` : `km ${i + 1}`}
-                                    </p>
-                                    <p className="text-sm font-black text-[#0a1628] leading-none">
-                                      {split.pace || split.time || '—'}
-                                    </p>
-                                    {split.heartRate && (
-                                      <p className="text-[10px] text-red-400 mt-1 leading-none">
-                                        {split.heartRate} bpm
-                                      </p>
-                                    )}
-                                    {split.elevationDiff != null && split.elevationDiff !== 0 && (
-                                      <p className="text-[10px] text-emerald-500 mt-0.5 leading-none">
-                                        {split.elevationDiff > 0 ? '+' : ''}{split.elevationDiff}m
-                                      </p>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
+                          <div className="border-t border-border/30">
+                            {/* Header row */}
+                            <div className="px-4 pt-3 pb-1.5 grid grid-cols-[2.5rem_1fr_1fr_1fr_1fr] gap-x-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                              <span>{allSplits[0]?.lapIndex ? 'Lap' : 'km'}</span>
+                              <span>טמפו</span>
+                              <span>זמן</span>
+                              <span>דופק</span>
+                              <span>עלייה</span>
+                            </div>
+                            <div className="divide-y divide-border/20">
+                              {allSplits.map((split: any, i: number) => (
+                                <div
+                                  key={i}
+                                  className={cn(
+                                    'px-4 py-2.5 grid grid-cols-[2.5rem_1fr_1fr_1fr_1fr] gap-x-2 items-center text-xs',
+                                    i % 2 === 0 ? 'bg-white' : 'bg-muted/10'
+                                  )}
+                                >
+                                  <span className="w-7 h-7 rounded-full bg-[#0a1628]/8 flex items-center justify-center text-[11px] font-black text-[#0a1628]">
+                                    {split.lapIndex || i + 1}
+                                  </span>
+                                  <span className="font-bold text-[#0a1628]">
+                                    {split.pace || '—'}
+                                  </span>
+                                  <span className="text-muted-foreground">
+                                    {split.time || '—'}
+                                  </span>
+                                  <span className={split.heartRate ? 'font-semibold text-red-500' : 'text-muted-foreground/40'}>
+                                    {split.heartRate ? `${split.heartRate}` : '—'}
+                                  </span>
+                                  <span className={
+                                    split.elevationDiff == null || split.elevationDiff === 0
+                                      ? 'text-muted-foreground/40'
+                                      : split.elevationDiff > 0
+                                      ? 'font-semibold text-emerald-600'
+                                      : 'font-semibold text-red-400'
+                                  }>
+                                    {split.elevationDiff != null && split.elevationDiff !== 0
+                                      ? `${split.elevationDiff > 0 ? '+' : ''}${split.elevationDiff}m`
+                                      : '—'}
+                                  </span>
+                                </div>
+                              ))}
                             </div>
                           </div>
                         )}

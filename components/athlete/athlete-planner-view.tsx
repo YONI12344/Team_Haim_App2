@@ -368,18 +368,11 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
             </div>
           )
           return (
-            <div className="p-4 space-y-2" dir="rtl">
+            <div className="p-4" dir="rtl">
               <button
                 onClick={() => setOpenLogForms(prev => new Set([...prev, w.id]))}
                 className="w-full h-11 rounded-xl bg-[#0a1628] text-white text-sm font-bold active:scale-[0.98] transition-all">
                 {stravaForDate ? 'הוסף הערה לאימון' : 'עדכן אימון'}
-              </button>
-              <button
-                onClick={handleStravaSync}
-                disabled={stravaSyncing}
-                className="w-full h-9 rounded-xl bg-[#FC4C02]/10 text-[#FC4C02] text-xs font-bold flex items-center justify-center gap-1.5 active:scale-[0.98] transition-all disabled:opacity-50">
-                {stravaSyncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <span className="text-[13px] font-black">S</span>}
-                סנכרן מ-Strava
               </button>
             </div>
           )
