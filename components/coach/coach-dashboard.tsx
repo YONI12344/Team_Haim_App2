@@ -1,35 +1,24 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { format, isToday, parseISO, startOfWeek, endOfWeek, addDays, differenceInDays } from 'date-fns'
+import { format, startOfWeek, endOfWeek, addDays, differenceInDays } from 'date-fns'
 import {
-  Users,
-  Dumbbell,
-  MessageCircle,
-  ChevronRight,
-  Activity,
-  Check,
-  Loader2,
-  Send,
-  Settings,
+  MessageCircle, Check, Loader2, Send, Settings, Dumbbell,
+  CalendarPlus, Activity, AlertTriangle, Clock,
 } from 'lucide-react'
 import Link from 'next/link'
 import {
-  collection, getDocs, query, where, orderBy, limit,
-  addDoc, serverTimestamp,
-  DocumentData, QueryDocumentSnapshot,
+  collection, getDocs, query, where, orderBy,
+  addDoc, serverTimestamp, DocumentData, QueryDocumentSnapshot,
 } from 'firebase/firestore'
-
 import { db, realtimeDb } from '@/lib/firebase'
 import { ref, onValue, query as rtQuery, orderByChild, limitToLast } from 'firebase/database'
 import { useAuth } from '@/contexts/auth-context'
-import type { AthleteProfile, Workout, AssignedWorkout } from '@/lib/types'
-import { useWorkoutTypeLabels } from '@/lib/workout-labels'
+import type { AthleteProfile, AssignedWorkout } from '@/lib/types'
+import { cn } from '@/lib/utils'
 
 function mapDocToAthlete(d: QueryDocumentSnapshot<DocumentData>): AthleteProfile {
   const data = d.data()
@@ -55,9 +44,7 @@ function mapDocToAthlete(d: QueryDocumentSnapshot<DocumentData>): AthleteProfile
 }
 
 export function CoachDashboard() {
-  const workoutTypeLabels = useWorkoutTypeLabels()
   const { user } = useAuth()
-  const [totalUnread, setTotalUnread] = useState(0)
   const [athletes, setAthletes] = useState<AthleteProfile[]>([])
   const [assignedWorkouts, setAssignedWorkouts] = useState<AssignedWorkout[]>([])
   const [logs, setLogs] = useState<any[]>([])
@@ -68,27 +55,24 @@ export function CoachDashboard() {
   const [composerWorkoutId, setComposerWorkoutId] = useState<Record<string, string>>({})
   const [sendingMessage, setSendingMessage] = useState(false)
   const [messageSent, setMessageSent] = useState<string | null>(null)
-  const [expandedLog, setExpandedLog] = useState<string | null>(null)
 
   // Realtime chat unread counts
   useEffect(() => {
     if (!user?.id || !athletes.length) return
-    let unsubs: (() => void)[] = []
     const counts: Record<string, number> = {}
+    const unsubs: (() => void)[] = []
     athletes.forEach(athlete => {
       const chatId = `${user.id}_${athlete.id}`
-      const lastReadKey = `lastRead_${chatId}_${user.id}`
-      const lastRead = parseInt(localStorage.getItem(lastReadKey) || '0')
+      const lastRead = parseInt(localStorage.getItem(`lastRead_${chatId}_${user.id}`) || '0')
       const msgsRef = ref(realtimeDb, `conversations/${chatId}/messages`)
-      const msgsQuery = rtQuery(msgsRef, orderByChild('timestamp'), limitToLast(20))
-      const unsub = onValue(msgsQuery, (snapshot) => {
+      const unsub = onValue(rtQuery(msgsRef, orderByChild('timestamp'), limitToLast(20)), (snapshot) => {
         let count = 0
         snapshot.forEach((child) => {
           const msg = child.val()
           if (msg.senderId !== user.id && msg.timestamp > lastRead) count++
         })
         counts[athlete.id] = count
-        setTotalUnread(Object.values(counts).reduce((a, b) => a + b, 0))
+        setUnreadMessages({ ...counts })
       })
       unsubs.push(unsub)
     })
@@ -98,37 +82,19 @@ export function CoachDashboard() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const athletesSnap = await getDocs(
-          query(collection(db, 'users'), where('role', '==', 'athlete'))
-        )
-        setAthletes(athletesSnap.docs.map(mapDocToAthlete))
+        const snap = await getDocs(query(collection(db, 'users'), where('role', '==', 'athlete')))
+        setAthletes(snap.docs.map(mapDocToAthlete))
       } catch { setAthletes([]) }
 
       try {
-        const assignedSnap = await getDocs(
-          query(collection(db, 'assignedWorkouts'), orderBy('scheduledDate', 'asc'))
-        )
-        setAssignedWorkouts(
-          assignedSnap.docs.map((d) => ({ ...(d.data() as AssignedWorkout), id: d.id }))
-        )
+        const snap = await getDocs(query(collection(db, 'assignedWorkouts'), orderBy('scheduledDate', 'asc')))
+        setAssignedWorkouts(snap.docs.map(d => ({ ...(d.data() as AssignedWorkout), id: d.id })))
       } catch { setAssignedWorkouts([]) }
 
       try {
-        const logsSnap = await getDocs(collection(db, 'logs'))
-        setLogs(logsSnap.docs.map(d => ({ id: d.id, ...d.data() })))
+        const snap = await getDocs(collection(db, 'logs'))
+        setLogs(snap.docs.map(d => ({ id: d.id, ...d.data() })))
       } catch { setLogs([]) }
-
-      try {
-        const msgSnap = await getDocs(
-          query(collection(db, 'coachMessages'), where('read', '==', false))
-        )
-        const counts: Record<string, number> = {}
-        msgSnap.docs.forEach(d => {
-          const aid = d.data().athleteId as string
-          counts[aid] = (counts[aid] || 0) + 1
-        })
-        setUnreadMessages(counts)
-      } catch { setUnreadMessages({}) }
 
       setLoading(false)
     }
@@ -137,22 +103,14 @@ export function CoachDashboard() {
 
   const getInitials = (name: string | undefined | null) => {
     const safeName = name || '?'
-    return safeName.split(' ').map((n) => n[0] || '').join('').toUpperCase().slice(0, 2) || '?'
+    return safeName.split(' ').map(n => n[0] || '').join('').toUpperCase().slice(0, 2) || '?'
   }
 
   const todayStr = format(new Date(), 'yyyy-MM-dd')
   const yesterdayStr = format(addDays(new Date(), -1), 'yyyy-MM-dd')
+  const next7Str = format(addDays(new Date(), 7), 'yyyy-MM-dd')
   const thisWeekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
   const thisWeekEnd = format(endOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
-  const nextWeekStart = format(addDays(new Date(thisWeekEnd), 1), 'yyyy-MM-dd')
-  const nextWeekEnd = format(addDays(new Date(thisWeekEnd), 7), 'yyyy-MM-dd')
-  const sevenDaysAgo = format(addDays(new Date(), -7), 'yyyy-MM-dd')
-  const fiveDaysAgo = format(addDays(new Date(), -5), 'yyyy-MM-dd')
-
-  const completedThisWeekAll = assignedWorkouts.filter(
-    w => w.status === 'completed' && w.scheduledDate >= thisWeekStart && w.scheduledDate <= thisWeekEnd
-  )
-  const totalKmThisWeek = completedThisWeekAll.reduce((s, w) => s + (w.workout?.distance || 0), 0)
 
   const handleSendMessage = async (athleteId: string) => {
     const text = composerText[athleteId]?.trim()
@@ -170,7 +128,6 @@ export function CoachDashboard() {
         createdAt: serverTimestamp(),
         read: false,
       })
-      // Send FCM push notification to athlete (fire-and-forget)
       fetch('/api/send-notification', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -185,10 +142,7 @@ export function CoachDashboard() {
       setComposerText(prev => ({ ...prev, [athleteId]: '' }))
       setComposerWorkoutId(prev => ({ ...prev, [athleteId]: '' }))
       setMessageSent(athleteId)
-      setTimeout(() => {
-        setMessageSent(null)
-        setOpenComposer(null)
-      }, 1800)
+      setTimeout(() => { setMessageSent(null); setOpenComposer(null) }, 1800)
     } catch {}
     setSendingMessage(false)
   }
@@ -196,50 +150,66 @@ export function CoachDashboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-gold" />
+        <Loader2 className="h-8 w-8 animate-spin text-[#c9a84c]" />
       </div>
     )
   }
 
-  // Today overview counts across all athletes
+  // Today overview counts
   const todayAllWorkouts = assignedWorkouts.filter(w => w.scheduledDate === todayStr)
   const todayCompletedCount = todayAllWorkouts.filter(w => w.status === 'completed').length
   const todayPendingCount = todayAllWorkouts.filter(w => w.status !== 'completed').length
+  const todayStravaPendingCount = logs.filter(l => l.date === todayStr && l.source === 'strava' && l.feedbackStatus === 'pending').length
+
+  // Athletes without plan for next 7 days
+  const athletesNoPlan = athletes.filter(a =>
+    !assignedWorkouts.some(w => w.athleteId === a.id && w.scheduledDate > todayStr && w.scheduledDate <= next7Str)
+  )
 
   return (
-    <div className="space-y-4 pb-24" dir="rtl">
+    <div className="space-y-5 pb-24" dir="rtl">
       {/* Header */}
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl md:text-3xl font-serif font-bold text-navy">לוח בקרה</h1>
-        <p className="text-sm text-muted-foreground">{format(new Date(), 'EEEE, d MMMM yyyy')}</p>
+      <div>
+        <h1 className="text-2xl font-serif font-bold text-[#0a1628]">לוח בקרה</h1>
+        <p className="text-sm text-muted-foreground">
+          {new Date().toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+        </p>
       </div>
 
-      {/* Today's Overview Bar */}
-      {todayAllWorkouts.length > 0 && (
-        <div className="rounded-2xl bg-[#0a1628] px-5 py-4">
-          <p className="text-[10px] font-semibold text-white/40 uppercase tracking-widest mb-1.5">סיכום היום</p>
-          <p className="text-sm text-white/90">
-            <span className="text-white font-bold text-base">{todayAllWorkouts.length}</span>
-            {' '}אימונים מתוכננים{' · '}
-            <span className="text-emerald-400 font-bold">{todayCompletedCount}</span>{' '}הושלמו{' · '}
-            <span className="text-amber-400 font-bold">{todayPendingCount}</span>{' '}ממתינים
-          </p>
+      {/* Hero Overview Card */}
+      <div className="rounded-2xl bg-gradient-to-br from-[#0a1628] to-[#1a2d4a] p-5">
+        <p className="text-[10px] font-semibold text-white/40 uppercase tracking-widest mb-4">סיכום יום האימונים</p>
+        <div className="grid grid-cols-3 gap-4">
+          <div className="text-center">
+            <p className="text-3xl font-black text-[#c9a84c]">{athletes.length}</p>
+            <p className="text-[11px] text-white/60 mt-1">ספורטאים</p>
+          </div>
+          <div className="text-center border-x border-white/10">
+            <p className="text-3xl font-black text-emerald-400">{todayCompletedCount}</p>
+            <p className="text-[11px] text-white/60 mt-1">הושלמו היום</p>
+          </div>
+          <div className="text-center">
+            <p className="text-3xl font-black text-amber-400">{todayPendingCount}</p>
+            <p className="text-[11px] text-white/60 mt-1">ממתינים</p>
+          </div>
         </div>
-      )}
+        {todayStravaPendingCount > 0 && (
+          <div className="mt-4 pt-3 border-t border-white/10 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[#c9a84c] flex-shrink-0" />
+            <p className="text-xs text-[#c9a84c] font-semibold">
+              {todayStravaPendingCount} ספורטאים ממתינים למשוב על אימון Strava
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* Athletes grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {athletes.map(athlete => {
-          // Compute per-athlete data
           const athleteLogs = logs.filter(l => l.athleteId === athlete.id)
-          const sortedLogs = [...athleteLogs].sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
-          const lastLog = sortedLogs[0]
-          const lastLogDate = lastLog?.date || null
-          const daysSinceLog = lastLogDate
-            ? differenceInDays(new Date(), new Date(lastLogDate))
-            : 99
-
-          const isActive = lastLogDate ? lastLogDate >= sevenDaysAgo : false
+          const lastLog = [...athleteLogs].sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))[0]
+          const daysSinceLog = lastLog?.date ? differenceInDays(new Date(), new Date(lastLog.date)) : 99
+          const isActive = daysSinceLog < 7
           const hasUnreadMsg = (unreadMessages[athlete.id] || 0) > 0
 
           const thisWeekAthlete = assignedWorkouts.filter(
@@ -248,179 +218,237 @@ export function CoachDashboard() {
           const weekDone = thisWeekAthlete.filter(w => w.status === 'completed').length
           const weekTotal = thisWeekAthlete.length
 
-          const nextWeekAthlete = assignedWorkouts.filter(
-            w => w.athleteId === athlete.id && w.scheduledDate >= nextWeekStart && w.scheduledDate <= nextWeekEnd
-          )
-          const hasNextWeekPlan = nextWeekAthlete.length > 0
-
-          const futureWeeks = assignedWorkouts.filter(
-            w => w.athleteId === athlete.id && w.scheduledDate > todayStr
-          )
-          const futureWeekCount = new Set(
-            futureWeeks.map(w => format(startOfWeek(parseISO(w.scheduledDate), { weekStartsOn: 1 }), 'yyyy-MM-dd'))
-          ).size
-
           const todayWorkout = assignedWorkouts.find(
             w => w.athleteId === athlete.id && w.scheduledDate === todayStr
           )
 
-          // Find the log for today's workout (check by assignedWorkoutId first, then date)
           const todayLog = todayWorkout
-            ? athleteLogs.find((l: any) => l.assignedWorkoutId === todayWorkout.id) ||
-              athleteLogs.find((l: any) => l.date === todayStr && l.source !== 'strava' && l.actualDistance)
+            ? (athleteLogs.find((l: any) => l.assignedWorkoutId === todayWorkout.id && l.source !== 'strava') ||
+               athleteLogs.find((l: any) => l.date === todayStr && l.source !== 'strava' && l.actualDistance))
             : null
 
-          // Latest comment from today or yesterday
-          const recentCommentLog = [...athleteLogs]
-            .filter((l: any) => l.comment && (l.date === todayStr || l.date === yesterdayStr))
-            .sort((a: any, b: any) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))[0] || null
+          const todayStravaLog = athleteLogs.find((l: any) => l.date === todayStr && l.source === 'strava') || null
+          const todayStravaPending = todayStravaLog?.feedbackStatus === 'pending'
 
+          let todayStatus: 'done' | 'strava-pending' | 'scheduled' | 'skipped' | 'rest' = 'rest'
+          if (todayWorkout) {
+            if (todayWorkout.status === 'completed' && todayStravaPending) todayStatus = 'strava-pending'
+            else if (todayWorkout.status === 'completed') todayStatus = 'done'
+            else if (todayWorkout.status === 'skipped') todayStatus = 'skipped'
+            else todayStatus = 'scheduled'
+          } else if (todayStravaPending) {
+            todayStatus = 'strava-pending'
+          }
+
+          const yesterdayMissed = assignedWorkouts.find(
+            w => w.athleteId === athlete.id &&
+              w.scheduledDate === yesterdayStr &&
+              w.status !== 'completed' &&
+              w.status !== 'skipped'
+          )
+
+          const effectiveLog = todayLog || todayStravaLog
           const athleteAssignedWorkouts = assignedWorkouts.filter(w => w.athleteId === athlete.id)
           const isComposerOpen = openComposer === athlete.id
-          const isLogExpanded = expandedLog === athlete.id
           const sent = messageSent === athlete.id
 
           return (
             <div
               key={athlete.id}
-              className="rounded-2xl bg-card border border-border/20 shadow-sm hover:shadow-md hover:border-gold/30 transition-all p-4 space-y-3"
+              className="rounded-2xl bg-card border border-border/20 shadow-sm hover:shadow-md hover:border-[#c9a84c]/30 transition-all overflow-hidden"
             >
-              {/* Row 1: Avatar + Name + status dot */}
-              <div className="flex items-center gap-3">
-                <div className="relative flex-shrink-0">
-                  <Avatar className="h-11 w-11">
-                    <AvatarImage src={athlete.photoURL} alt={athlete.name} />
-                    <AvatarFallback className="bg-gold/10 text-gold text-sm font-bold">
-                      {getInitials(athlete.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${isActive ? 'bg-emerald-500' : 'bg-gray-300'}`} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-navy text-base leading-tight truncate">{athlete.name}</p>
-                  <p className="text-xs text-muted-foreground">{isActive ? 'פעיל לאחרונה' : 'לא פעיל'}</p>
-                </div>
-              </div>
-
-              {/* Row 2: Stat pills */}
-              <div className="flex gap-2 flex-wrap">
-                <span className="text-xs bg-muted/60 border border-border/40 rounded-full px-2.5 py-1">
-                  {futureWeekCount} שבועות מתוכננים
-                </span>
-                <span className="text-xs bg-muted/60 border border-border/40 rounded-full px-2.5 py-1">
-                  {weekTotal > 0 ? `${weekDone}/${weekTotal} השבוע` : 'אין אימונים השבוע'}
-                </span>
-                <span className="text-xs bg-muted/60 border border-border/40 rounded-full px-2.5 py-1">
-                  {daysSinceLog < 99 ? `${daysSinceLog} ימים מאז לוג אחרון` : 'אין לוגים'}
-                </span>
-              </div>
-
-              {/* Row 3: Alert badges */}
-              <div className="flex flex-wrap gap-1.5">
-                {!hasNextWeekPlan && (
-                  <Badge className="bg-red-50 text-red-600 border-red-200 border text-[10px] px-2 py-0.5 font-medium">
-                    ללא תוכנית לשבוע הבא
-                  </Badge>
-                )}
-                {daysSinceLog >= 5 && (
-                  <Badge className="bg-amber-50 text-amber-700 border-amber-200 border text-[10px] px-2 py-0.5 font-medium">
-                    לא העלה אימון 5+ ימים
-                  </Badge>
-                )}
-                {hasUnreadMsg && (
-                  <Badge className="bg-blue-50 text-blue-700 border-blue-200 border text-[10px] px-2 py-0.5 font-medium">
-                    הודעה שלא נקראה
-                  </Badge>
-                )}
-              </div>
-
-              {/* Row 4: Action buttons */}
-              <div className="flex gap-2">
-                <Link href={`/coach/athletes/${athlete.id}/planner`} className="flex-1">
-                  <Button variant="outline" size="sm" className="w-full h-8 text-xs border-navy/20 hover:border-navy/50 hover:bg-navy/5">
-                    מרכז תכנון
-                    <ChevronRight className="h-3 w-3 mr-1" />
-                  </Button>
-                </Link>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 text-xs border-gold/30 hover:border-gold/60 hover:bg-gold/5 flex-shrink-0"
-                  onClick={() => setOpenComposer(prev => prev === athlete.id ? null : athlete.id)}
-                >
-                  <MessageCircle className="h-3.5 w-3.5 ml-1" />
-                  שלח הודעה
-                </Button>
-              </div>
-
-              {/* TODAY'S WORKOUT BLOCK */}
-              {todayWorkout ? (
-                todayWorkout.status === 'completed' ? (
-                  <div className="rounded-xl border border-l-4 border-l-emerald-500 border-emerald-200 bg-emerald-50/60 p-3 space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs font-bold text-navy truncate flex-1">{todayWorkout.workout?.title}</p>
-                      <span className="text-[10px] font-bold text-emerald-600 flex-shrink-0 flex items-center gap-1 bg-white border border-emerald-200 px-2 py-0.5 rounded-full">
-                        <Check className="h-3 w-3" />הושלם
-                      </span>
+              <div className="px-4 pt-4 pb-3 space-y-3">
+                {/* Row 1: Avatar + Name + status badge */}
+                <div className="flex items-center gap-3">
+                  <Link href={`/coach/athletes/${athlete.id}/planner`} className="flex-shrink-0">
+                    <div className="relative">
+                      <Avatar className="h-11 w-11">
+                        <AvatarImage src={athlete.photoURL} alt={athlete.name} />
+                        <AvatarFallback className="bg-[#c9a84c]/10 text-[#c9a84c] text-sm font-bold">
+                          {getInitials(athlete.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className={cn(
+                        'absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white',
+                        isActive ? 'bg-emerald-500' : 'bg-gray-300'
+                      )} />
                     </div>
-                    {todayLog && (
-                      <div className="flex flex-wrap gap-1.5">
-                        {(todayLog as any).actualDistance && (
-                          <span className="text-[10px] font-semibold bg-white border border-emerald-200 px-2 py-0.5 rounded-full">{(todayLog as any).actualDistance} ק"מ</span>
-                        )}
-                        {(todayLog as any).effort != null && (
-                          <span className="text-[10px] font-semibold bg-white border border-emerald-200 px-2 py-0.5 rounded-full">מאמץ {(todayLog as any).effort}/10</span>
-                        )}
-                        {todayWorkout.workout?.distance && (
-                          <span className="text-[10px] text-muted-foreground">תוכנן: {todayWorkout.workout.distance}ק"מ</span>
-                        )}
-                      </div>
-                    )}
-                    {(todayLog as any)?.comment && (
-                      <p className="text-[10px] text-gray-500 italic line-clamp-1">"{(todayLog as any).comment}"</p>
-                    )}
+                  </Link>
+                  <div className="flex-1 min-w-0">
+                    <Link href={`/coach/athletes/${athlete.id}/planner`}>
+                      <p className="font-bold text-[#0a1628] text-base leading-tight truncate hover:text-[#c9a84c] transition-colors">
+                        {athlete.name}
+                      </p>
+                    </Link>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {weekTotal > 0 && (
+                        <span className="text-xs text-muted-foreground">{weekDone}/{weekTotal} השבוע</span>
+                      )}
+                      {hasUnreadMsg && (
+                        <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded-full">
+                          הודעה חדשה
+                        </span>
+                      )}
+                    </div>
                   </div>
-                ) : (
-                  <div className="rounded-xl border border-l-4 border-l-amber-400 border-amber-200 bg-amber-50/50 p-3 space-y-2">
-                    <div className="flex items-center justify-between gap-2">
+                  {/* Status badge */}
+                  {todayStatus === 'done' && (
+                    <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full flex-shrink-0">
+                      <Check className="h-3 w-3" />בוצע
+                    </span>
+                  )}
+                  {todayStatus === 'strava-pending' && (
+                    <span className="text-[11px] font-bold text-[#c9a84c] bg-[#c9a84c]/10 border border-[#c9a84c]/30 px-2.5 py-1 rounded-full flex-shrink-0">
+                      ממתין למשוב
+                    </span>
+                  )}
+                  {todayStatus === 'scheduled' && (
+                    <span className="flex items-center gap-1 text-[11px] font-bold text-gray-500 bg-gray-50 border border-gray-200 px-2.5 py-1 rounded-full flex-shrink-0">
+                      <Clock className="h-3 w-3" />מתוכנן
+                    </span>
+                  )}
+                  {todayStatus === 'skipped' && (
+                    <span className="text-[11px] font-bold text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded-full flex-shrink-0">
+                      לא בוצע
+                    </span>
+                  )}
+                  {todayStatus === 'rest' && (
+                    <span className="text-[11px] text-muted-foreground bg-muted/60 border border-border/40 px-2.5 py-1 rounded-full flex-shrink-0">
+                      מנוחה
+                    </span>
+                  )}
+                </div>
+
+                {/* Today's workout block */}
+                {todayWorkout ? (
+                  <div className={cn(
+                    'rounded-xl p-3 space-y-2',
+                    todayStatus === 'done'           ? 'bg-emerald-50/60 border border-emerald-200/60' :
+                    todayStatus === 'strava-pending' ? 'bg-amber-50/40 border border-[#c9a84c]/25' :
+                    todayStatus === 'scheduled'      ? 'bg-gray-50 border border-gray-200/60' :
+                    todayStatus === 'skipped'        ? 'bg-red-50/60 border border-red-200/60' :
+                                                       'bg-muted/20 border border-border/30'
+                  )}>
+                    <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold text-navy truncate">{todayWorkout.workout?.title}</p>
-                        <p className="text-[10px] text-muted-foreground">
-                          {todayWorkout.workout?.distance ? `${todayWorkout.workout.distance}ק"מ מתוכנן` : 'טרם בוצע'}
-                        </p>
+                        <p className="text-xs font-bold text-[#0a1628] truncate">{todayWorkout.workout?.title || 'אימון'}</p>
+                        {todayWorkout.workout?.distance && (
+                          <p className="text-[11px] text-muted-foreground mt-0.5">{todayWorkout.workout.distance} ק"מ מתוכנן</p>
+                        )}
                       </div>
-                      <button
-                        onClick={() => {
-                          setOpenComposer(prev => prev === athlete.id ? null : athlete.id)
-                          setComposerWorkoutId(prev => ({ ...prev, [athlete.id]: todayWorkout.id }))
-                        }}
-                        className="text-[10px] font-semibold text-amber-700 bg-white hover:bg-amber-50 border border-amber-300 px-2.5 py-1 rounded-full transition-colors flex-shrink-0"
-                      >
-                        שלח תזכורת
-                      </button>
+                    </div>
+                    {/* Stats if completed */}
+                    {(todayStatus === 'done' || todayStatus === 'strava-pending') && effectiveLog && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {(effectiveLog as any).actualDistance && (
+                          <span className="text-[10px] font-semibold bg-white border border-gray-200 px-2 py-0.5 rounded-full">
+                            {(effectiveLog as any).actualDistance} ק"מ
+                          </span>
+                        )}
+                        {(effectiveLog as any).actualPace && (
+                          <span className="text-[10px] font-semibold bg-white border border-gray-200 px-2 py-0.5 rounded-full">
+                            {(effectiveLog as any).actualPace}
+                          </span>
+                        )}
+                        {(effectiveLog as any).effort != null && (
+                          <span className="text-[10px] font-semibold bg-white border border-gray-200 px-2 py-0.5 rounded-full">
+                            מאמץ {(effectiveLog as any).effort}/10
+                          </span>
+                        )}
+                        {todayStravaLog?.averageHeartRate && (
+                          <span className="text-[10px] font-semibold bg-red-50 text-red-600 border border-red-100 px-2 py-0.5 rounded-full">
+                            {todayStravaLog.averageHeartRate} bpm
+                          </span>
+                        )}
+                        {todayStravaLog?.elevationGain != null && todayStravaLog.elevationGain > 0 && (
+                          <span className="text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded-full">
+                            +{todayStravaLog.elevationGain}m
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {(effectiveLog as any)?.comment && (
+                      <p className="text-[10px] text-gray-500 italic line-clamp-1">
+                        "{(effectiveLog as any).comment}"
+                      </p>
+                    )}
+                  </div>
+                ) : todayStravaLog ? (
+                  /* No assigned workout but has Strava activity today */
+                  <div className="rounded-xl p-3 bg-amber-50/40 border border-[#c9a84c]/25 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Activity className="h-3.5 w-3.5 text-[#FC4C02]" />
+                      <p className="text-xs font-bold text-[#0a1628]">{todayStravaLog.stravaName || 'פעילות Strava'}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {todayStravaLog.actualDistance && (
+                        <span className="text-[10px] font-semibold bg-white border border-gray-200 px-2 py-0.5 rounded-full">
+                          {todayStravaLog.actualDistance} ק"מ
+                        </span>
+                      )}
+                      {todayStravaLog.actualPace && (
+                        <span className="text-[10px] font-semibold bg-white border border-gray-200 px-2 py-0.5 rounded-full">
+                          {todayStravaLog.actualPace}
+                        </span>
+                      )}
+                      {todayStravaLog.averageHeartRate && (
+                        <span className="text-[10px] font-semibold bg-red-50 text-red-600 border border-red-100 px-2 py-0.5 rounded-full">
+                          {todayStravaLog.averageHeartRate} bpm
+                        </span>
+                      )}
                     </div>
                   </div>
-                )
-              ) : (
-                <div className="rounded-xl px-3 py-2 bg-muted/20 border border-border/30">
-                  <p className="text-[10px] text-muted-foreground text-center">מנוחה היום</p>
-                </div>
-              )}
+                ) : null}
 
-              {/* Latest athlete comment (today or yesterday) */}
-              {recentCommentLog && (recentCommentLog as any).comment && (
-                <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 space-y-0.5" dir="rtl">
-                  <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider">הערת ספורטאי</p>
-                  <p className="text-xs text-navy italic line-clamp-2">"{(recentCommentLog as any).comment}"</p>
-                  <p className="text-[9px] text-gray-400">
-                    {(recentCommentLog as any).date === todayStr ? 'היום' : 'אתמול'}
-                  </p>
+                {/* Yesterday missed alert */}
+                {yesterdayMissed && (
+                  <div className="flex items-center gap-2 rounded-lg bg-red-50 border border-red-200/60 px-3 py-2">
+                    <AlertTriangle className="h-3.5 w-3.5 text-red-500 flex-shrink-0" />
+                    <p className="text-[11px] text-red-700 font-medium">
+                      לא סיים אימון אתמול: {yesterdayMissed.workout?.title}
+                    </p>
+                  </div>
+                )}
+
+                {/* Action buttons */}
+                <div className="flex gap-2 pt-0.5">
+                  <Link href={`/coach/athletes/${athlete.id}/planner`} className="flex-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full h-8 text-xs border-[#0a1628]/20 hover:border-[#0a1628]/50 hover:bg-[#0a1628]/5"
+                    >
+                      מרכז תכנון
+                    </Button>
+                  </Link>
+                  {todayStatus === 'scheduled' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs border-amber-300 text-amber-700 hover:bg-amber-50 flex-shrink-0"
+                      onClick={() => {
+                        setOpenComposer(prev => prev === athlete.id ? null : athlete.id)
+                        if (todayWorkout) setComposerWorkoutId(prev => ({ ...prev, [athlete.id]: todayWorkout.id }))
+                      }}
+                    >
+                      שלח תזכורת
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs border-[#c9a84c]/30 hover:border-[#c9a84c]/60 hover:bg-[#c9a84c]/5 flex-shrink-0"
+                    onClick={() => setOpenComposer(prev => prev === athlete.id ? null : athlete.id)}
+                  >
+                    <MessageCircle className="h-3.5 w-3.5 ml-1" />
+                    הודעה
+                  </Button>
                 </div>
-              )}
+              </div>
 
               {/* Inline composer */}
               {isComposerOpen && (
-                <div className="rounded-xl border border-gold/30 bg-gold/5 p-3 space-y-2">
+                <div className="border-t border-border/40 bg-[#c9a84c]/5 px-4 py-3 space-y-2">
                   {sent ? (
                     <p className="text-xs font-semibold text-emerald-700 text-center py-1">ההודעה נשלחה!</p>
                   ) : (
@@ -452,7 +480,7 @@ export function CoachDashboard() {
                       )}
                       <Button
                         size="sm"
-                        className="w-full h-8 text-xs bg-navy text-white hover:bg-navy/90"
+                        className="w-full h-8 text-xs bg-[#0a1628] text-white hover:bg-[#0a1628]/90"
                         onClick={() => handleSendMessage(athlete.id)}
                         disabled={sendingMessage || !composerText[athlete.id]?.trim()}
                       >
@@ -470,32 +498,54 @@ export function CoachDashboard() {
         })}
       </div>
 
-      {/* Control center */}
-      <div className="rounded-2xl bg-card border border-border/20 shadow-sm p-5 space-y-4">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">מרכז בקרה</p>
-        <div className="grid grid-cols-3 gap-3">
-          <div className="text-center">
-            <p className="text-2xl font-bold text-emerald-600">{completedThisWeekAll.length}</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">אימונים הושלמו השבוע</p>
+      {/* Athletes without plan for next 7 days */}
+      {athletesNoPlan.length > 0 && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <CalendarPlus className="h-4 w-4 text-amber-600" />
+            <p className="text-sm font-bold text-amber-800">ספורטאים ללא תוכנית ל-7 הימים הבאים</p>
           </div>
-          <div className="text-center border-x border-border/40">
-            <p className="text-2xl font-bold text-gold">{totalKmThisWeek.toFixed(0)}</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">ק"מ כלל הספורטאים</p>
-          </div>
-          <div className="text-center">
-            <p className="text-2xl font-bold text-navy">{athletes.length}</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">ספורטאים פעילים</p>
+          <div className="space-y-2">
+            {athletesNoPlan.map(athlete => (
+              <div
+                key={athlete.id}
+                className="flex items-center justify-between gap-3 bg-white rounded-xl px-3 py-2.5 border border-amber-100"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={athlete.photoURL} alt={athlete.name} />
+                    <AvatarFallback className="bg-[#c9a84c]/10 text-[#c9a84c] text-xs font-bold">
+                      {getInitials(athlete.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="text-sm font-semibold text-[#0a1628]">{athlete.name}</p>
+                    <p className="text-[11px] text-muted-foreground">אין תוכנית ל-7 ימים הבאים</p>
+                  </div>
+                </div>
+                <Link href={`/coach/athletes/${athlete.id}/planner`}>
+                  <Button size="sm" className="h-7 text-xs bg-[#0a1628] text-white hover:bg-[#0a1628]/90">
+                    תכנן שבוע
+                  </Button>
+                </Link>
+              </div>
+            ))}
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-2 pt-1">
+      )}
+
+      {/* Control center */}
+      <div className="rounded-2xl bg-card border border-border/20 shadow-sm p-5 space-y-3">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">מרכז בקרה</p>
+        <div className="grid grid-cols-2 gap-2">
           <Link href="/coach/workouts">
-            <Button variant="outline" size="sm" className="w-full h-9 text-xs border-navy/20 hover:border-navy/40">
+            <Button variant="outline" size="sm" className="w-full h-9 text-xs border-[#0a1628]/20 hover:border-[#0a1628]/40">
               <Dumbbell className="h-3.5 w-3.5 ml-1.5" />
               ספריית אימונים
             </Button>
           </Link>
           <Link href="/coach/settings">
-            <Button variant="outline" size="sm" className="w-full h-9 text-xs border-navy/20 hover:border-navy/40">
+            <Button variant="outline" size="sm" className="w-full h-9 text-xs border-[#0a1628]/20 hover:border-[#0a1628]/40">
               <Settings className="h-3.5 w-3.5 ml-1.5" />
               הגדרות
             </Button>

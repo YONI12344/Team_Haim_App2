@@ -433,6 +433,26 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
             createdAt: serverTimestamp(),
           })
           saved++
+          // Notify coach of new Strava activity (fire-and-forget)
+          ;(async () => {
+            try {
+              const coachId = userSnap.data()?.coachId
+              const athleteName = userSnap.data()?.name || 'ספורטאי'
+              if (coachId) {
+                fetch('/api/send-notification', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    userId: coachId,
+                    title: `${athleteName} סנכרן מ-Strava`,
+                    body: `${activity.stravaName || 'פעילות'} · ${activity.distanceKm} ק"מ`,
+                    data: { type: 'strava_sync' },
+                    url: `/coach/athletes/${athleteId}/planner`,
+                  }),
+                }).catch(() => {})
+              }
+            } catch {}
+          })()
           // Smart auto-complete: aggregate running distance for the day, then match
           try {
             const RUNNING_TYPES_S = ['Run', 'VirtualRun', 'TrailRun', 'Treadmill']
