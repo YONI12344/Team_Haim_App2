@@ -28,6 +28,8 @@ interface ChatRoomProps {
   otherUserName: string
   otherUserAvatar?: string
   backLink: string
+  notificationRecipientId?: string
+  notificationTitle?: string
 }
 
 export function ChatRoom({
@@ -38,6 +40,8 @@ export function ChatRoom({
   otherUserName,
   otherUserAvatar,
   backLink,
+  notificationRecipientId,
+  notificationTitle,
 }: ChatRoomProps) {
   const { t } = useLanguage()
   const [messages, setMessages] = useState<Message[]>([])
@@ -73,14 +77,29 @@ export function ChatRoom({
   const sendMessage = async () => {
     if (!newMessage.trim()) return
 
+    const text = newMessage.trim()
     const messagesRef = ref(realtimeDb, `conversations/${chatId}/messages`)
     await push(messagesRef, {
       senderId: currentUserId,
       senderName: currentUserName,
       senderAvatar: currentUserAvatar || "",
-      content: newMessage.trim(),
+      content: text,
       timestamp: Date.now(),
     })
+
+    if (notificationRecipientId && notificationTitle) {
+      fetch('/api/send-notification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: notificationRecipientId,
+          title: notificationTitle,
+          body: text.slice(0, 100),
+          data: { type: 'chat_message' },
+          url: '/athlete/chat',
+        }),
+      }).catch(() => {})
+    }
 
     setNewMessage("")
   }

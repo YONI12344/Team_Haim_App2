@@ -60,6 +60,8 @@ export default function AthleteChatPage() {
           otherUserName={coach.name}
           otherUserAvatar={coach.photoURL}
           backLink="/athlete"
+          notificationRecipientId={coach.uid}
+          notificationTitle={`${user.name || 'הספורטאי'} שלח הודעה`}
         />
       )}
     </AthleteLayout>

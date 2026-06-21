@@ -186,6 +186,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
       parsedDistance = n
     }
     setSaving(true)
+    const isUpdate = !!existingLog?.id
     try {
       const baseData = {
         athleteId,
@@ -198,11 +199,11 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
         comment,
         splitLogs: splitLogs.filter(s => s.time || s.pace || s.notes),
       }
-      if (existingLog?.id) {
+      if (isUpdate) {
         const updatePayload: any = { ...baseData, updatedAt: serverTimestamp() }
         if (stravaSource) updatePayload.feedbackStatus = 'completed'
-        await updateDoc(doc(db, 'logs', existingLog.id), updatePayload)
-        setExistingLog({ ...existingLog, actualDistance: parsedDistance ?? undefined, actualPace: baseData.actualPace ?? undefined, effort, comment, splitLogs: baseData.splitLogs })
+        await updateDoc(doc(db, 'logs', existingLog!.id), updatePayload)
+        setExistingLog({ ...existingLog!, actualDistance: parsedDistance ?? undefined, actualPace: baseData.actualPace ?? undefined, effort, comment, splitLogs: baseData.splitLogs })
       } else {
         const docRef = await addDoc(collection(db, 'logs'), { ...baseData, createdAt: serverTimestamp() })
         setExistingLog({ id: docRef.id, athleteId, workoutId, date: scheduledDate, actualDistance: parsedDistance ?? undefined, actualPace: baseData.actualPace ?? undefined, effort, comment, splitLogs: baseData.splitLogs, createdAt: new Date() })
@@ -230,20 +231,39 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
           const coachId = athleteSnap.data()?.coachId
           const athleteName = athleteSnap.data()?.name || t.athleteFallback
           if (!coachId) return
-          const workoutTitle = workout?.title || t.workoutDefault
-          const kmStr = parsedDistance ? `${parsedDistance} km` : ''
-          const effortStr = effort != null ? ` · ${t.effortValueLabel} ${effort}/10` : ''
-          fetch('/api/send-notification', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userId: coachId,
-              title: `${athleteName} סיים אימון`,
-              body: [workoutTitle, kmStr, effortStr].filter(Boolean).join(' · '),
-              data: { type: 'workout_complete' },
-              url: `/coach/athletes/${athleteId}/planner`,
-            }),
-          }).catch(() => {})
+          if (isUpdate) {
+            // Athlete edited an existing log (comment/effort update, or Strava feedback)
+            const commentPreview = comment.trim()
+              ? comment.trim().slice(0, 100)
+              : `${t.effortValueLabel} ${effort}/10`
+            fetch('/api/send-notification', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userId: coachId,
+                title: `${athleteName} הוסיף הערה לאימון`,
+                body: commentPreview,
+                data: { type: 'workout_comment' },
+                url: `/coach/athletes/${athleteId}/planner`,
+              }),
+            }).catch(() => {})
+          } else {
+            // New log — workout completed for the first time
+            const workoutTitle = workout?.title || t.workoutDefault
+            const kmStr = parsedDistance ? `${parsedDistance} km` : ''
+            const effortStr = effort != null ? ` · ${t.effortValueLabel} ${effort}/10` : ''
+            fetch('/api/send-notification', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userId: coachId,
+                title: `${athleteName} סיים אימון`,
+                body: [workoutTitle, kmStr, effortStr].filter(Boolean).join(' · '),
+                data: { type: 'workout_complete' },
+                url: `/coach/athletes/${athleteId}/planner`,
+              }),
+            }).catch(() => {})
+          }
         } catch {}
       })()
     } catch (error) {

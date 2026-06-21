@@ -89,6 +89,8 @@ export default function CoachAthleteChat({
         otherUserName={athlete.name}
         otherUserAvatar={athlete.photoURL}
         backLink="/coach/chat"
+        notificationRecipientId={athlete.id}
+        notificationTitle="הודעה מהמאמן"
       />
     </CoachLayout>
   )
