@@ -230,42 +230,30 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
           const { db: firestoreDb } = await import('@/lib/firebase')
           const athleteSnap = await getDoc(firestoreDoc(firestoreDb, 'users', athleteId))
           const coachId = athleteSnap.data()?.coachId
-          const athleteName = athleteSnap.data()?.name || t.athleteFallback
-          if (!coachId) return
-          if (isUpdate) {
-            // Athlete edited an existing log (comment/effort update, or Strava feedback)
-            const commentPreview = comment.trim()
-              ? comment.trim().slice(0, 100)
-              : `${t.effortValueLabel} ${effort}/10`
-            fetch('/api/send-notification', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                userId: coachId,
-                title: `${athleteName} הוסיף הערה לאימון`,
-                body: commentPreview,
-                data: { type: 'workout_comment' },
-                url: `/coach/athletes/${athleteId}/planner`,
-              }),
-            }).catch(() => {})
-          } else {
-            // New log — workout completed for the first time
-            const workoutTitle = workout?.title || t.workoutDefault
-            const kmStr = parsedDistance ? `${parsedDistance} km` : ''
-            const effortStr = effort != null ? ` · ${t.effortValueLabel} ${effort}/10` : ''
-            fetch('/api/send-notification', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                userId: coachId,
-                title: `${athleteName} סיים אימון`,
-                body: [workoutTitle, kmStr, effortStr].filter(Boolean).join(' · '),
-                data: { type: 'workout_complete' },
-                url: `/coach/athletes/${athleteId}/planner`,
-              }),
-            }).catch(() => {})
+          const athleteName = athleteSnap.data()?.name || 'ספורטאי'
+          if (!coachId) {
+            console.error('[workout-log-form] No coachId on athlete doc — notification skipped', athleteId)
+            return
           }
-        } catch {}
+          const parts: string[] = []
+          if (parsedDistance) parts.push(`${parsedDistance} ק"מ`)
+          if (effort != null) parts.push(`מאמץ ${effort}/10`)
+          if (comment.trim()) parts.push(comment.trim().slice(0, 80))
+          const body = parts.join(' · ') || (workout?.title || 'אימון')
+          fetch('/api/send-notification', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: coachId,
+              title: `${athleteName} עדכן אימון`,
+              body,
+              data: { type: 'workout_update' },
+              url: `/coach/athletes/${athleteId}/planner`,
+            }),
+          }).catch(err => console.error('[workout-log-form] Failed to send coach notification:', err))
+        } catch (err) {
+          console.error('[workout-log-form] Notification IIFE error:', err)
+        }
       })()
     } catch (error) {
       console.error('Error saving workout log:', error)
