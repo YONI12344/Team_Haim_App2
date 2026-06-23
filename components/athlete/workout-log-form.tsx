@@ -24,6 +24,8 @@ import { legacyEffortToNumber } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { useLanguage } from '@/contexts/language-context'
+import { useAuth } from '@/contexts/auth-context'
+import { getCoachInfo } from '@/lib/coach'
 
 interface WorkoutLogFormProps {
   workoutId: string
@@ -35,6 +37,7 @@ interface WorkoutLogFormProps {
 
 export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, scheduledDate, workout }: WorkoutLogFormProps) {
   const { t } = useLanguage()
+  const { user } = useAuth()
   const [existingLog, setExistingLog] = useState<WorkoutLog | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -223,28 +226,26 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
       setCollapsed(true)
       toast.success(t.toastWorkoutLogged)
 
-      // Notify coach (fire-and-forget)
+      // Notify coach (fire-and-forget) — uses getCoachInfo() since this is a
+      // single-coach app; there is no coachId field on athlete user docs
       ;(async () => {
         try {
-          const { getDoc, doc: firestoreDoc } = await import('firebase/firestore')
-          const { db: firestoreDb } = await import('@/lib/firebase')
-          const athleteSnap = await getDoc(firestoreDoc(firestoreDb, 'users', athleteId))
-          const coachId = athleteSnap.data()?.coachId
-          const athleteName = athleteSnap.data()?.name || 'ספורטאי'
-          if (!coachId) {
-            console.error('[workout-log-form] No coachId on athlete doc — notification skipped', athleteId)
+          const coachInfo = await getCoachInfo()
+          if (!coachInfo?.uid) {
+            console.error('[workout-log-form] getCoachInfo returned no uid — notification skipped')
             return
           }
+          const athleteName = user?.name || 'ספורטאי'
           const parts: string[] = []
           if (parsedDistance) parts.push(`${parsedDistance} ק"מ`)
           if (effort != null) parts.push(`מאמץ ${effort}/10`)
           if (comment.trim()) parts.push(comment.trim().slice(0, 80))
-          const body = parts.join(' · ') || (workout?.title || 'אימון')
+          const body = parts.join(' · ') || workout?.title || 'אימון'
           fetch('/api/send-notification', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              userId: coachId,
+              userId: coachInfo.uid,
               title: `${athleteName} עדכן אימון`,
               body,
               data: { type: 'workout_update' },
