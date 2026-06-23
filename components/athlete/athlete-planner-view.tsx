@@ -20,6 +20,7 @@ import { useLanguage } from '@/contexts/language-context'
 import { useWorkoutTypeLabels } from '@/lib/workout-labels'
 import { toast } from 'sonner'
 import { WorkoutLogForm } from '@/components/athlete/workout-log-form'
+import { ManualLogCard } from '@/components/shared/manual-log-card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 const WEEKDAY_KEYS = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'] as const
@@ -358,13 +359,15 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
             </div>
           )
           if (hasManualLog) return (
-            <div className="p-4 space-y-2" dir="rtl">
-              {hasManualLog.comment && <p className="text-xs text-gray-400 italic">"{hasManualLog.comment}"</p>}
-              <button
-                onClick={() => setOpenLogForms(prev => new Set([...prev, w.id]))}
-                className="w-full h-11 rounded-xl bg-[#0a1628] text-white text-sm font-bold active:scale-[0.98] transition-all">
-                ערוך
-              </button>
+            <div className="p-4">
+              <ManualLogCard
+                distance={hasManualLog.actualDistance}
+                pace={hasManualLog.actualPace}
+                effort={hasManualLog.effort}
+                comment={hasManualLog.comment}
+                splitLogs={hasManualLog.splitLogs}
+                onEdit={() => setOpenLogForms(prev => new Set([...prev, w.id]))}
+              />
             </div>
           )
           return (
@@ -426,7 +429,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
             createdAt: serverTimestamp(),
           })
           saved++
-          // Notify coach of new Strava activity (fire-and-forget)
+          // Notify coach of Strava workout completion (fire-and-forget)
           ;(async () => {
             try {
               const coachId = userSnap.data()?.coachId
@@ -437,9 +440,9 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
                     userId: coachId,
-                    title: `${athleteName} סנכרן מ-Strava`,
-                    body: `${activity.stravaName || 'פעילות'} · ${activity.distanceKm} ק"מ`,
-                    data: { type: 'strava_sync' },
+                    title: `${athleteName} השלים אימון`,
+                    body: `${activity.stravaName || 'פעילות Strava'} · ${activity.distanceKm} ק"מ`,
+                    data: { type: 'workout_complete' },
                     url: `/coach/athletes/${athleteId}/planner`,
                   }),
                 }).catch(() => {})
@@ -506,11 +509,32 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
       if (!pendingEffort) { toast.error(t.selectEffortError); return }
       setSubmitting(true)
       try {
-        const { doc, updateDoc, serverTimestamp } = await import('firebase/firestore')
+        const { doc, updateDoc, serverTimestamp, getDoc } = await import('firebase/firestore')
         const { db } = await import('@/lib/firebase')
         await updateDoc(doc(db, 'logs', log.id), { effort: pendingEffort, comment: pendingComment, feedbackStatus: 'done', updatedAt: serverTimestamp() })
         setWeekLogs(prev => prev.map(l => l.id === log.id ? { ...l, effort: pendingEffort, comment: pendingComment, feedbackStatus: 'done' } : l))
         toast.success(t.workoutSaved)
+        // Notify coach of Strava feedback (fire-and-forget)
+        ;(async () => {
+          try {
+            const athleteSnap = await getDoc(doc(db, 'users', athleteId))
+            const coachId = athleteSnap.data()?.coachId
+            const athleteName = athleteSnap.data()?.name || 'ספורטאי'
+            if (!coachId) return
+            const preview = pendingComment.trim() ? pendingComment.trim().slice(0, 100) : `מאמץ ${pendingEffort}/10`
+            fetch('/api/send-notification', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userId: coachId,
+                title: `${athleteName} הוסיף הערה לאימון`,
+                body: preview,
+                data: { type: 'workout_comment' },
+                url: `/coach/athletes/${athleteId}/planner`,
+              }),
+            }).catch(() => {})
+          } catch {}
+        })()
       } catch(e) { console.error(e); toast.error(t.savingError) }
       finally { setSubmitting(false) }
     }
@@ -924,40 +948,24 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
 
         {/* Manual log result */}
         {log && (
-          <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 border-l-4 border-l-emerald-500 overflow-hidden" dir="rtl">
-            <div className="px-4 py-3 flex items-center justify-between gap-3">
-              <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-1.5">{t.actualPerformance}</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {log.actualDistance && <span className="text-xs font-medium bg-gray-50 border border-gray-100 px-2.5 py-1 rounded-full">{log.actualDistance} km</span>}
-                  {log.actualPace && <span className="text-xs font-medium bg-gray-50 border border-gray-100 px-2.5 py-1 rounded-full" dir="ltr">{log.actualPace}</span>}
-                  {log.effort != null && (
-                    <span className={cn('text-xs font-medium px-2.5 py-1 rounded-full border',
-                      log.effort <= 3 ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
-                      log.effort <= 5 ? 'bg-green-100 text-green-700 border-green-200' :
-                      log.effort <= 7 ? 'bg-amber-100 text-amber-700 border-amber-200' :
-                      log.effort <= 9 ? 'bg-orange-100 text-orange-700 border-orange-200' :
-                      'bg-red-100 text-red-700 border-red-200'
-                    )}>{t.effortValueLabel} {log.effort}/10</span>
-                  )}
-                </div>
-                {log.comment && <p className="text-xs text-gray-400 italic mt-1.5">"{log.comment}"</p>}
-              </div>
-              <button
-                onClick={async () => {
-                  if (!confirm(t.confirmDeleteLog)) return
-                  try {
-                    const { doc, deleteDoc, updateDoc } = await import('firebase/firestore')
-                    const { db } = await import('@/lib/firebase')
-                    if (log.id) await deleteDoc(doc(db, 'logs', log.id))
-                    await updateDoc(doc(db, 'assignedWorkouts', w.id), { status: 'scheduled', completedAt: null })
-                    setWeekLogs(prev => prev.filter(l => l.id !== log.id))
-                    toast.success(t.logDeleted)
-                  } catch(e) { console.error(e); toast.error(t.errorDeleting) }
-                }}
-                className="h-7 w-7 rounded-full hover:bg-red-50 flex items-center justify-center text-gray-300 hover:text-red-400 transition-colors flex-shrink-0">✕</button>
-            </div>
-          </div>
+          <ManualLogCard
+            distance={log.actualDistance}
+            pace={log.actualPace}
+            effort={log.effort}
+            comment={log.comment}
+            splitLogs={log.splitLogs}
+            onDelete={async () => {
+              if (!confirm(t.confirmDeleteLog)) return
+              try {
+                const { doc, deleteDoc, updateDoc } = await import('firebase/firestore')
+                const { db } = await import('@/lib/firebase')
+                if (log.id) await deleteDoc(doc(db, 'logs', log.id))
+                await updateDoc(doc(db, 'assignedWorkouts', w.id), { status: 'scheduled', completedAt: null })
+                setWeekLogs(prev => prev.filter(l => l.id !== log.id))
+                toast.success(t.logDeleted)
+              } catch(e) { console.error(e); toast.error(t.errorDeleting) }
+            }}
+          />
         )}
       </div>
     )
@@ -1057,37 +1065,24 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
           </div>
         )}
         {wLog && (
-          <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 border-l-4 border-l-emerald-500 overflow-hidden" dir="rtl">
-            <div className="px-4 py-3 flex items-center justify-between gap-3">
-              <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-1.5">{t.actualPerformance}</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {wLog.actualDistance && <span className="text-xs bg-gray-50 border border-gray-100 px-2.5 py-1 rounded-full">{wLog.actualDistance} km</span>}
-                  {wLog.actualPace && <span className="text-xs bg-gray-50 border border-gray-100 px-2.5 py-1 rounded-full" dir="ltr">{wLog.actualPace}</span>}
-                  {wLog.effort != null && (
-                    <span className={cn('text-xs px-2.5 py-1 rounded-full border',
-                      wLog.effort <= 3 ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
-                      wLog.effort <= 5 ? 'bg-green-100 text-green-700 border-green-200' :
-                      wLog.effort <= 7 ? 'bg-amber-100 text-amber-700 border-amber-200' :
-                      wLog.effort <= 9 ? 'bg-orange-100 text-orange-700 border-orange-200' :
-                      'bg-red-100 text-red-700 border-red-200')}>{t.effortValueLabel} {wLog.effort}/10</span>
-                  )}
-                </div>
-                {wLog.comment && <p className="text-xs text-gray-400 italic mt-1.5">"{wLog.comment}"</p>}
-              </div>
-              <button onClick={async () => {
-                if (!confirm(t.confirmDeleteLog)) return
-                try {
-                  const { doc, deleteDoc, updateDoc } = await import('firebase/firestore')
-                  const { db } = await import('@/lib/firebase')
-                  if (wLog.id) await deleteDoc(doc(db, 'logs', wLog.id))
-                  await updateDoc(doc(db, 'assignedWorkouts', w.id), { status: 'scheduled', completedAt: null })
-                  setWeekLogs(prev => prev.filter(l => l.id !== wLog.id))
-                  toast.success(t.logDeleted)
-                } catch(e) { console.error(e); toast.error(t.errorDeleting) }
-              }} className="h-7 w-7 rounded-full hover:bg-red-50 flex items-center justify-center text-gray-300 hover:text-red-400 transition-colors flex-shrink-0">✕</button>
-            </div>
-          </div>
+          <ManualLogCard
+            distance={wLog.actualDistance}
+            pace={wLog.actualPace}
+            effort={wLog.effort}
+            comment={wLog.comment}
+            splitLogs={wLog.splitLogs}
+            onDelete={async () => {
+              if (!confirm(t.confirmDeleteLog)) return
+              try {
+                const { doc, deleteDoc, updateDoc } = await import('firebase/firestore')
+                const { db } = await import('@/lib/firebase')
+                if (wLog.id) await deleteDoc(doc(db, 'logs', wLog.id))
+                await updateDoc(doc(db, 'assignedWorkouts', w.id), { status: 'scheduled', completedAt: null })
+                setWeekLogs(prev => prev.filter(l => l.id !== wLog.id))
+                toast.success(t.logDeleted)
+              } catch(e) { console.error(e); toast.error(t.errorDeleting) }
+            }}
+          />
         )}
       </div>
     )

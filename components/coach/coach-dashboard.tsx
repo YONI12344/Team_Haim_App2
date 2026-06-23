@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useNotifications } from '@/hooks/useNotifications'
+import { ManualLogCard } from '@/components/shared/manual-log-card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -736,24 +737,14 @@ export function CoachDashboard() {
 
                   {/* Manual log feedback (non-Strava) */}
                   {todayLog && !todayStravaLog && todayLog.effort != null && (
-                    <div className="px-4 py-3 space-y-2">
-                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-                        משוב ספורטאי
-                      </p>
-                      <div className="rounded-2xl border border-border bg-white px-4 py-3 space-y-1.5">
-                        <div className="flex items-center gap-2">
-                          <span className={cn(
-                            'w-2.5 h-2.5 rounded-full flex-shrink-0',
-                            todayLog.effort <= 4 ? 'bg-emerald-400' :
-                            todayLog.effort <= 6 ? 'bg-amber-400' :
-                            todayLog.effort <= 7 ? 'bg-orange-400' : 'bg-red-400'
-                          )} />
-                          <p className="text-sm font-bold text-[#0a1628]">מאמץ {todayLog.effort}/10</p>
-                        </div>
-                        {todayLog.comment && (
-                          <p className="text-sm text-gray-600 italic">"{todayLog.comment}"</p>
-                        )}
-                      </div>
+                    <div className="px-4 py-3">
+                      <ManualLogCard
+                        distance={todayLog.actualDistance}
+                        pace={todayLog.actualPace}
+                        effort={todayLog.effort}
+                        comment={todayLog.comment}
+                        splitLogs={todayLog.splitLogs}
+                      />
                     </div>
                   )}
 

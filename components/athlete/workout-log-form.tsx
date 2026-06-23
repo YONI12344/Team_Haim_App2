@@ -18,6 +18,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { CheckCircle2, Loader2, Activity, ChevronLeft } from 'lucide-react'
+import { ManualLogCard } from '@/components/shared/manual-log-card'
 import type { WorkoutLog, Workout, SplitLog } from '@/lib/types'
 import { legacyEffortToNumber } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -277,58 +278,14 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
   if (collapsed) {
     return (
       <div className="mt-4 pt-4 border-t border-border/40">
-        <div className="rounded-2xl border border-border bg-white shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.loggedLabel}</span>
-            </div>
-            <Button size="sm" variant="ghost" className="h-7 px-3 text-xs text-muted-foreground rounded-lg" onClick={() => setCollapsed(false)}>
-              {t.editLogBtn}
-            </Button>
-          </div>
-          <div className="px-4 py-3 flex items-center gap-4 flex-wrap">
-            {effort != null && (
-              <div className="flex items-center gap-1.5">
-                <span className={cn(
-                  'w-2.5 h-2.5 rounded-full flex-shrink-0',
-                  effort <= 4 ? 'bg-emerald-400' :
-                  effort <= 6 ? 'bg-amber-400' :
-                  effort <= 7 ? 'bg-orange-400' : 'bg-red-400'
-                )}/>
-                <span className="text-sm font-semibold text-navy">{t.effortValueLabel} {effort}/10</span>
-              </div>
-            )}
-            {actualDistance && (
-              <span className="text-sm text-muted-foreground">{actualDistance} km</span>
-            )}
-            {actualPace && (
-              <span className="text-sm text-muted-foreground">{actualPace}/km</span>
-            )}
-          </div>
-          {comment && (
-            <div className="px-4 pb-3">
-              <p className="text-sm text-muted-foreground italic">"{comment}"</p>
-            </div>
-          )}
-          {splitLogs && splitLogs.filter((s:any) => s.time && s.time.includes(':') && !String(s.distance||'').includes("ד'")).length > 0 && (
-            <div className="px-4 pb-3 space-y-0.5 border-t border-border/40 pt-3">
-              {Array.from(new Set(splitLogs
-                .filter((s:any) => s.time && s.time.includes(':') && !String(s.distance||'').includes("ד'"))
-                .map((s:any) => s.setIndex)
-              )).map((si: any) => {
-                const items = splitLogs.filter((s:any) => s.setIndex === si && s.time && s.time.includes(':') && !String(s.distance||'').includes("ד'"))
-                if (!items.length) return null
-                return (
-                  <p key={si} className="text-xs text-muted-foreground">
-                    <span className="font-semibold text-navy">{t.setLabelPrefix} {Number(si)+1}:</span>{' '}
-                    {items.map((s:any) => s.distance ? `${s.distance} ${s.time}` : s.time).join(' · ')}
-                  </p>
-                )
-              })}
-            </div>
-          )}
-        </div>
+        <ManualLogCard
+          distance={actualDistance ? parseFloat(actualDistance) : null}
+          pace={actualPace || null}
+          effort={effort}
+          comment={comment}
+          splitLogs={splitLogs}
+          onEdit={() => setCollapsed(false)}
+        />
       </div>
     )
   }
