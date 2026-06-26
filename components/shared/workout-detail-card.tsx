@@ -32,7 +32,7 @@ export function WorkoutDetailCard({ w, showLog, log }: Props) {
             {/* Set header */}
             <div className="bg-navy/5 px-5 py-3 flex items-center justify-between gap-2 flex-wrap">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-bold text-navy">סט {si + 1}</span>
+                <span className="text-xs font-bold text-navy">{t.setLabelPrefix} {si + 1}</span>
                 {!hasIntervals && set.reps > 1 && (
                   <span className="bg-navy/10 text-navy text-[11px] font-semibold px-2.5 py-0.5 rounded-full">{set.reps}×</span>
                 )}
@@ -47,7 +47,7 @@ export function WorkoutDetailCard({ w, showLog, log }: Props) {
                 )}
               </div>
               {set.rest && !hasIntervals && (
-                <span className="text-[11px] text-muted-foreground bg-muted px-2.5 py-0.5 rounded-full">מנוחה: {set.rest}</span>
+                <span className="text-[11px] text-muted-foreground bg-muted px-2.5 py-0.5 rounded-full">{t.restLabel}: {set.rest}</span>
               )}
             </div>
 
@@ -65,7 +65,7 @@ export function WorkoutDetailCard({ w, showLog, log }: Props) {
                         <span className="bg-gold/15 text-yellow-700 text-[11px] font-semibold px-2.5 py-0.5 rounded-full">{iv.pace}</span>
                       )}
                       {iv.rest && (
-                        <span className="text-[11px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">מנוחה: {iv.rest}</span>
+                        <span className="text-[11px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{t.restLabel}: {iv.rest}</span>
                       )}
                     </div>
                   </div>
@@ -76,7 +76,7 @@ export function WorkoutDetailCard({ w, showLog, log }: Props) {
             {/* Between-sets rest for interval sets */}
             {hasIntervals && set.rest && (
               <div className="px-5 py-2 bg-muted/30 border-t border-border/40">
-                <p className="text-[11px] text-muted-foreground text-center">מנוחה בין סטים: {set.rest}</p>
+                <p className="text-[11px] text-muted-foreground text-center">{t.restBetweenSets}: {set.rest}</p>
               </div>
             )}
           </div>
@@ -102,7 +102,7 @@ export function WorkoutDetailCard({ w, showLog, log }: Props) {
       {/* Log summary */}
       {showLog && log && (
         <div className="px-5 py-4 border-t-2 border-emerald-200 bg-emerald-50">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600 mb-2">תוצאות</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600 mb-2">{t.resultsLabel}</p>
           <div className="flex items-center gap-2 flex-wrap">
             {log.effort != null && (
               <span className={cn(
@@ -111,10 +111,10 @@ export function WorkoutDetailCard({ w, showLog, log }: Props) {
                 log.effort <= 6 ? 'bg-amber-100 text-amber-700' :
                 log.effort <= 7 ? 'bg-orange-100 text-orange-700' :
                 'bg-red-100 text-red-700'
-              )}>מאמץ {log.effort}/10</span>
+              )}>{t.effortValueLabel} {log.effort}/10</span>
             )}
-            {log.actualDistance && <span className="text-sm text-muted-foreground">{log.actualDistance} ק"מ</span>}
-            {log.actualPace && <span className="text-sm text-muted-foreground">{log.actualPace}/ק"מ</span>}
+            {log.actualDistance && <span className="text-sm text-muted-foreground">{log.actualDistance} {t.km}</span>}
+            {log.actualPace && <span className="text-sm text-muted-foreground">{log.actualPace}/{t.km}</span>}
           </div>
           {log.comment && <p className="text-sm text-navy italic mt-2">"{log.comment}"</p>}
         </div>

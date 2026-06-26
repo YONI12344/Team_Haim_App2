@@ -161,7 +161,6 @@ interface Translations {
   restBetweenReps: string
   setsLabel: string
   repLabel: string
-  repsLabel: string
   coachNotesLabel: string
   logWorkoutBtn: string
   completedBadge: string
@@ -258,6 +257,9 @@ interface Translations {
   athletes: string
   workouts: string
   settings: string
+  navHome: string
+  navPlan: string
+  navStats: string
   coachPortal: string
   
   // Schedule
@@ -678,6 +680,48 @@ interface Translations {
   // Chat page
   coachNotJoinedTitle: string
   tryAgainLaterText: string
+
+  // Notification banner (dashboard)
+  notificationsTitle: string
+  notificationsDesc: string
+  enableBtn: string
+
+  // Dashboard hero / weekly card
+  helloGreeting: string
+  workoutDoneDetails: string
+  openWorkoutBtn: string
+  moreWorkoutsSuffix: string
+  pendingFeedbackSuffix: string
+  addEffortNoteLabel: string
+  yourWeekLabel: string
+  averageEffortShort: string
+  workoutsStatLabel: string
+
+  // Coach note card
+  nextWeekFocusLabel: string
+  coachNoteHeading: string
+  markedAsReadBtn: string
+
+  // Chat card on dashboard
+  chatWithCoachLabel: string
+  newMessagesSuffix: string
+  messageYourCoach: string
+  newMessageNotifTitle: string
+  theCoachFallback: string
+
+  // Planner / chat read states
+  seenLabel: string
+
+  // Chat room rich bubbles
+  weeklySummaryLabel: string
+  setsCountSuffix: string
+
+  // Shared workout cards
+  tempoLabel: string
+  heartRateLabel: string
+  elevationShort: string
+  splitsLabelShort: string
+  resultsLabel: string
 }
 
 const translations: Record<Language, Translations> = {
@@ -830,7 +874,6 @@ const translations: Record<Language, Translations> = {
     restBetweenReps: 'Rest',
     setsLabel: 'Sets',
     repLabel: 'Round',
-    repsLabel: 'Rounds',
     coachNotesLabel: 'Coach notes',
     logWorkoutBtn: 'Log workout',
     completedBadge: 'Done',
@@ -924,7 +967,10 @@ const translations: Record<Language, Translations> = {
     workouts: 'Workouts',
     settings: 'Settings',
     coachPortal: 'Coach Portal',
-    
+    navHome: 'Home',
+    navPlan: 'Plan',
+    navStats: 'Stats',
+
     weeklySchedule: 'Weekly Schedule',
     totalPlanned: 'Total Planned',
     totalCompleted: 'Completed',
@@ -1321,6 +1367,41 @@ const translations: Record<Language, Translations> = {
 
     coachNotJoinedTitle: 'Coach has not joined yet',
     tryAgainLaterText: 'Try again later',
+
+    notificationsTitle: 'Enable Notifications',
+    notificationsDesc: 'Get workout reminders and messages from your coach',
+    enableBtn: 'Enable',
+
+    helloGreeting: 'Hello',
+    workoutDoneDetails: '✓ Done — View Details',
+    openWorkoutBtn: 'Open Workout',
+    moreWorkoutsSuffix: 'more workouts',
+    pendingFeedbackSuffix: 'workouts waiting for feedback',
+    addEffortNoteLabel: 'Add effort and a note to your coach',
+    yourWeekLabel: 'Your Week',
+    averageEffortShort: 'Avg Effort',
+    workoutsStatLabel: 'Workouts',
+
+    nextWeekFocusLabel: 'Next Week Focus',
+    coachNoteHeading: "Coach's Note",
+    markedAsReadBtn: 'Read',
+
+    chatWithCoachLabel: 'Chat with Coach',
+    newMessagesSuffix: 'new messages',
+    messageYourCoach: 'Message your coach',
+    newMessageNotifTitle: 'New message from your coach',
+    theCoachFallback: 'The Coach',
+
+    seenLabel: 'Seen',
+
+    weeklySummaryLabel: 'Weekly Summary',
+    setsCountSuffix: 'sets',
+
+    tempoLabel: 'Pace',
+    heartRateLabel: 'HR',
+    elevationShort: 'Elev.',
+    splitsLabelShort: 'Splits',
+    resultsLabel: 'Results',
   },
   he: {
     teamHaim: 'Team Haim',
@@ -1471,7 +1552,6 @@ const translations: Record<Language, Translations> = {
     restBetweenReps: 'מנוחה',
     setsLabel: 'סטים',
     repLabel: 'חזרה',
-    repsLabel: 'חזרות',
     coachNotesLabel: 'הערות מאמן',
     logWorkoutBtn: 'תעד אימון',
     completedBadge: 'הושלם',
@@ -1565,7 +1645,10 @@ const translations: Record<Language, Translations> = {
     workouts: 'אימונים',
     settings: 'הגדרות',
     coachPortal: 'אזור המאמן',
-    
+    navHome: 'בית',
+    navPlan: 'לוח',
+    navStats: 'סטטס',
+
     weeklySchedule: 'לוח שבועי',
     totalPlanned: 'סה"כ מתוכנן',
     totalCompleted: 'הושלם',
@@ -1957,6 +2040,41 @@ const translations: Record<Language, Translations> = {
 
     coachNotJoinedTitle: 'המאמן עדיין לא הצטרף',
     tryAgainLaterText: 'נסה שוב מאוחר יותר',
+
+    notificationsTitle: 'הפעל התראות',
+    notificationsDesc: 'קבל תזכורות לאימונים והודעות מהמאמן',
+    enableBtn: 'הפעל',
+
+    helloGreeting: 'שלום',
+    workoutDoneDetails: '✓ הושלם — צפה בפרטים',
+    openWorkoutBtn: 'פתח אימון',
+    moreWorkoutsSuffix: 'אימונים נוספים',
+    pendingFeedbackSuffix: 'אימונים מחכים למשוב',
+    addEffortNoteLabel: 'הוסף מאמץ והערה למאמן',
+    yourWeekLabel: 'השבוע שלך',
+    averageEffortShort: 'מאמץ ממוצע',
+    workoutsStatLabel: 'אימונים',
+
+    nextWeekFocusLabel: 'פוקוס שבוע הבא',
+    coachNoteHeading: 'הערת המאמן',
+    markedAsReadBtn: 'קראתי',
+
+    chatWithCoachLabel: 'צ׳אט עם המאמן',
+    newMessagesSuffix: 'הודעות חדשות',
+    messageYourCoach: 'שלח הודעה למאמן שלך',
+    newMessageNotifTitle: 'הודעה חדשה מהמאמן',
+    theCoachFallback: 'המאמן',
+
+    seenLabel: 'נראה',
+
+    weeklySummaryLabel: 'סיכום שבועי',
+    setsCountSuffix: 'סטים',
+
+    tempoLabel: 'טמפו',
+    heartRateLabel: 'דופק',
+    elevationShort: 'עלייה',
+    splitsLabelShort: 'פיצולים',
+    resultsLabel: 'תוצאות',
   },
 }
 

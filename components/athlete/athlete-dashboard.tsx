@@ -159,7 +159,7 @@ export function AthleteDashboard() {
               count++
               // Show browser notification for very recent messages
               if (msg.timestamp > now - 15000 && 'Notification' in window && Notification.permission === 'granted') {
-                new Notification('הודעה חדשה מהמאמן 💬', { body: msg.content, icon: '/favicon.ico' })
+                new Notification(t.newMessageNotifTitle + ' 💬', { body: msg.content, icon: '/favicon.ico' })
               }
             }
           })
@@ -357,7 +357,7 @@ export function AthleteDashboard() {
               const chatId = conversationId(coachInfo.uid, user.id)
               await push(ref(realtimeDb, `conversations/${chatId}/messages`), {
                 senderId: coachInfo.uid,
-                senderName: coachInfo.name || 'המאמן',
+                senderName: coachInfo.name || t.theCoachFallback,
                 content: [note.coachNote, note.nextWeekFocus].filter(Boolean).join('\n'),
                 type: 'weekly_summary',
                 weeklyNoteId: note.id,
@@ -394,14 +394,14 @@ export function AthleteDashboard() {
             <Bell className="h-5 w-5 text-[#c9a84c]" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-[#0a1628] leading-tight">הפעל התראות</p>
-            <p className="text-xs text-gray-500 mt-0.5">קבל תזכורות לאימונים והודעות מהמאמן</p>
+            <p className="text-sm font-semibold text-[#0a1628] leading-tight">{t.notificationsTitle}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{t.notificationsDesc}</p>
           </div>
           <button
             onClick={enableNotifications}
             className="bg-[#0a1628] text-white rounded-xl px-4 h-9 text-sm font-semibold flex-shrink-0 active:scale-95 transition-transform"
           >
-            הפעל
+            {t.enableBtn}
           </button>
           <button
             onClick={() => {
@@ -409,7 +409,7 @@ export function AthleteDashboard() {
               setNotifBannerDismissed(true)
             }}
             className="text-gray-400 hover:text-gray-600 flex-shrink-0"
-            aria-label="סגור"
+            aria-label={t.close}
           >
             <X className="h-4 w-4" />
           </button>
@@ -427,7 +427,7 @@ export function AthleteDashboard() {
               : 'bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85'
           )}>
             <div className="flex items-start justify-between mb-3">
-              <p className="text-xl font-bold text-white">שלום, {profileName.split(' ')[0]}</p>
+              <p className="text-xl font-bold text-white">{t.helloGreeting}, {profileName.split(' ')[0]}</p>
               <p className="text-xs text-white/40 pt-1">{format(new Date(), 'd MMM')}</p>
             </div>
 
@@ -441,24 +441,24 @@ export function AthleteDashboard() {
                         allDone ? 'bg-white/20 text-white' : 'bg-[#c9a84c] text-[#0a1628]')}>
                         {workoutTypeLabels[tw.workout.type as WorkoutType] || tw.workout.type}
                       </span>
-                      {tw.workout.distance && <span className="text-sm text-white/70">{tw.workout.distance} ק"מ</span>}
-                      {tw.workout.duration && <span className="text-sm text-white/70">{tw.workout.duration} דק'</span>}
+                      {tw.workout.distance && <span className="text-sm text-white/70">{tw.workout.distance} {t.km}</span>}
+                      {tw.workout.duration && <span className="text-sm text-white/70">{tw.workout.duration} {t.min}</span>}
                     </div>
                     <Link href={`/athlete/schedule?date=${tw.scheduledDate}&workoutId=${tw.id}`}>
                       <button className="w-full h-12 rounded-2xl font-bold text-sm active:scale-95 transition-all bg-white/20 text-white hover:bg-white/25">
-                        {tw.status === 'completed' ? '✓ הושלם — צפה בפרטים' : 'פתח אימון'}
+                        {tw.status === 'completed' ? t.workoutDoneDetails : t.openWorkoutBtn}
                       </button>
                     </Link>
                   </div>
                 ))}
                 {todayWorkouts.length > 1 && (
-                  <p className="text-xs text-white/40 text-center mt-2">+{todayWorkouts.length - 1} אימונים נוספים</p>
+                  <p className="text-xs text-white/40 text-center mt-2">+{todayWorkouts.length - 1} {t.moreWorkoutsSuffix}</p>
                 )}
               </>
             ) : (
               <div className="mt-2">
-                <p className="text-xl font-bold text-white">יום מנוחה</p>
-                <p className="text-sm text-white/50 mt-1">תתאושש ותתכונן למחר</p>
+                <p className="text-xl font-bold text-white">{t.restDayLabel}</p>
+                <p className="text-sm text-white/50 mt-1">{t.restDaySubtitle}</p>
               </div>
             )}
           </div>
@@ -473,7 +473,7 @@ export function AthleteDashboard() {
         <div className="space-y-3">
           {unreadCoachMessages.map(msg => (
             <div key={msg.id} className="bg-white rounded-3xl shadow-sm border border-gray-100 border-l-4 border-l-[#c9a84c] p-5">
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-[#c9a84c] mb-2">הודעה מהמאמן</p>
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-[#c9a84c] mb-2">{t.messageFromCoach}</p>
               {msg.workoutTitle && <p className="text-xs text-gray-400 mb-2">{msg.workoutTitle}</p>}
               <p className="text-sm text-[#0a1628] leading-relaxed">{msg.message}</p>
               <div className="flex items-center justify-between mt-3">
@@ -488,7 +488,7 @@ export function AthleteDashboard() {
                   className="flex items-center gap-1.5 bg-[#c9a84c] hover:bg-[#b8962e] text-white text-xs font-semibold px-3 py-1.5 rounded-full transition-colors active:scale-95"
                 >
                   <CheckCircle2 className="h-3.5 w-3.5" />
-                  קראתי
+                  {t.markedAsReadBtn}
                 </button>
               </div>
             </div>
@@ -505,8 +505,8 @@ export function AthleteDashboard() {
                 <TrendingUp className="h-5 w-5 text-[#FC4C02]" />
               </div>
               <div>
-                <p className="text-sm font-bold text-[#0a1628]">{pendingFeedbackLogs.length} אימונים מחכים למשוב</p>
-                <p className="text-xs text-gray-500 mt-0.5">הוסף מאמץ והערה למאמן</p>
+                <p className="text-sm font-bold text-[#0a1628]">{pendingFeedbackLogs.length} {t.pendingFeedbackSuffix}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{t.addEffortNoteLabel}</p>
               </div>
             </div>
             <ArrowUpRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
@@ -516,28 +516,28 @@ export function AthleteDashboard() {
 
       {/* Weekly Progress Card */}
       <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
-        <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-4">השבוע שלך</p>
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-4">{t.yourWeekLabel}</p>
         <div className="w-full bg-gray-100 rounded-full h-2 mb-3">
           <div
             className="bg-[#0a1628] rounded-full h-2 transition-all duration-500"
             style={{ width: `${weeklyProgress}%` }}
           />
         </div>
-        <p className="text-sm text-gray-500 mb-4">{completedThisWeek} מתוך {totalThisWeek} אימונים הושלמו</p>
+        <p className="text-sm text-gray-500 mb-4">{completedThisWeek} {t.ofPlannedLabel} {totalThisWeek} {t.workoutsCompletedLabel}</p>
         <div className="grid grid-cols-3 gap-4 border-t border-gray-50 pt-4">
           <div className="text-center">
             <p className="text-3xl font-black text-[#0a1628] leading-none">{totalDistance.toFixed(0)}</p>
-            <p className="text-xs text-gray-400 mt-1.5">ק"מ בוצע</p>
+            <p className="text-xs text-gray-400 mt-1.5">{t.weekKmDoneLabel}</p>
           </div>
           <div className="text-center border-x border-gray-100">
             <p className="text-3xl font-black text-[#0a1628] leading-none">
               {effortCount > 0 ? avgEffortNumeric.toFixed(1) : '—'}
             </p>
-            <p className="text-xs text-gray-400 mt-1.5">מאמץ ממוצע</p>
+            <p className="text-xs text-gray-400 mt-1.5">{t.averageEffortShort}</p>
           </div>
           <div className="text-center">
             <p className="text-3xl font-black text-[#0a1628] leading-none">{completedThisWeek}</p>
-            <p className="text-xs text-gray-400 mt-1.5">אימונים</p>
+            <p className="text-xs text-gray-400 mt-1.5">{t.workoutsStatLabel}</p>
           </div>
         </div>
       </div>
@@ -547,14 +547,14 @@ export function AthleteDashboard() {
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 border-l-4 border-l-[#0a1628] p-5">
           {latestCoachNote.nextWeekFocus && (
             <>
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-2">פוקוס שבוע הבא</p>
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-2">{t.nextWeekFocusLabel}</p>
               <p className="text-sm text-[#0a1628] leading-relaxed mb-4">{latestCoachNote.nextWeekFocus}</p>
               <div className="border-t border-gray-100 mb-4" />
             </>
           )}
           {latestCoachNote.coachNote && (
             <>
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-2">הערת המאמן</p>
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-2">{t.coachNoteHeading}</p>
               <p className="text-base text-[#0a1628] font-medium leading-relaxed italic">{latestCoachNote.coachNote}</p>
             </>
           )}
@@ -568,7 +568,7 @@ export function AthleteDashboard() {
               className="flex items-center gap-1.5 bg-[#0a1628] hover:bg-[#0a1628]/90 text-white text-xs font-semibold px-3 py-1.5 rounded-full transition-colors active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <CheckCircle2 className="h-3.5 w-3.5" />
-              קראתי
+              {t.markedAsReadBtn}
             </button>
           </div>
         </div>
@@ -587,17 +587,13 @@ export function AthleteDashboard() {
               )}
             </div>
             <div dir={isRTL ? 'rtl' : 'ltr'}>
-              <p className="font-bold text-[#0a1628] text-base leading-tight">
-                {isRTL ? 'צ׳אט עם המאמן' : 'Chat with Coach'}
-              </p>
+              <p className="font-bold text-[#0a1628] text-base leading-tight">{t.chatWithCoachLabel}</p>
               {unreadCount > 0 ? (
                 <p className="text-sm text-[#c9a84c] font-semibold mt-0.5">
-                  {isRTL ? `${unreadCount} הודעות חדשות` : `${unreadCount} new messages`}
+                  {unreadCount} {t.newMessagesSuffix}
                 </p>
               ) : (
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {isRTL ? 'שלח הודעה למאמן שלך' : 'Message your coach'}
-                </p>
+                <p className="text-xs text-gray-400 mt-0.5">{t.messageYourCoach}</p>
               )}
             </div>
           </div>

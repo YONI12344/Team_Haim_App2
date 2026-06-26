@@ -61,7 +61,6 @@ const DAY_BADGE: Record<string, string> = {
   long_run: 'bg-orange-100 text-orange-700 border-orange-200',
 }
 
-const HEBREW_DAY_NAMES = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
 
 interface JourneySummary {
   stageName: string
@@ -76,6 +75,7 @@ interface Props { athleteId: string }
 
 export function AthletePlanner({ athleteId }: Props) {
   const { user } = useAuth()
+  const { t } = useLanguage()
   const workoutTypeLabels = useWorkoutTypeLabels()
 
   const [athlete, setAthlete] = useState<AthleteProfile | null>(null)
@@ -296,13 +296,13 @@ export function AthletePlanner({ athleteId }: Props) {
           createdAt: new Date(),
           updatedAt: new Date(),
         } as any])
-        toast.success('אימון נוצר ושובץ ליום!')
+        toast.success(t.toastAdded)
       } else {
-        toast.success('אימון נוצר בהצלחה!')
+        toast.success(t.toastAdded)
       }
       setNewWO({ title: '', type: 'easy', distance: '', duration: '', description: '', notes: '' })
       setShowCreateWorkout(false)
-    } catch { toast.error('שגיאה ביצירת אימון') }
+    } catch { toast.error(t.tryAgainLaterText) }
     finally { setCreatingWorkout(false) }
   }
 
@@ -328,8 +328,8 @@ export function AthletePlanner({ athleteId }: Props) {
         w.id === editingWorkout.id ? { ...w, ...updated } : w
       ))
       setEditingWorkout(null)
-      toast.success('אימון עודכן!')
-    } catch { toast.error('שגיאה בעדכון אימון') }
+      toast.success(t.toastUpdated)
+    } catch { toast.error(t.tryAgainLaterText) }
     finally { setSavingEdit(false) }
   }
 
@@ -415,7 +415,7 @@ export function AthletePlanner({ athleteId }: Props) {
     const from = format(weekStart, 'yyyy-MM-dd')
     const to = format(weekEnd, 'yyyy-MM-dd')
     const weekWorkouts = assignedWorkouts.filter(w => w.scheduledDate >= from && w.scheduledDate <= to)
-    if (weekWorkouts.length === 0) { toast.error('אין אימונים בשבוע זה'); return }
+    if (weekWorkouts.length === 0) { toast.error(t.noWorkoutsYet); return }
     const nextWeekStart = addWeeks(weekStart, 1)
     try {
       await Promise.all(weekWorkouts.map(w => {
@@ -431,10 +431,10 @@ export function AthletePlanner({ athleteId }: Props) {
           status: 'scheduled', createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
         })
       }))
-      toast.success('שבוע הועתק לשבוע הבא!')
+      toast.success(t.toastAdded)
       const snap = await getDocs(query(collection(db,'assignedWorkouts'),where('athleteId','==',athleteId)))
       setAssignedWorkouts(snap.docs.map(d => ({...(d.data() as AssignedWorkout), id: d.id})))
-    } catch { toast.error('שגיאה בהעתקה') }
+    } catch { toast.error(t.tryAgainLaterText) }
   }
 
   const handleDeleteWorkout = async (aw: AssignedWorkout) => {
@@ -442,8 +442,8 @@ export function AthletePlanner({ athleteId }: Props) {
       await deleteDoc(doc(db, 'assignedWorkouts', aw.id))
       setAssignedWorkouts(prev => prev.filter(w => w.id !== aw.id))
       if (selectedAssignedId === aw.id) setSelectedAssignedId(null)
-      toast.success('אימון נמחק')
-    } catch { toast.error('שגיאה במחיקה') }
+      toast.success(t.workoutDeleted)
+    } catch { toast.error(t.errorDeleting) }
   }
 
   const handlePasteWorkout = async (dateStr: string) => {
@@ -456,9 +456,9 @@ export function AthletePlanner({ athleteId }: Props) {
         createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
       })
       setAssignedWorkouts(prev => [...prev, { ...copiedWorkout, id: ref.id, scheduledDate: dateStr, status: 'scheduled' } as any])
-      toast.success('אימון הודבק!')
+      toast.success(t.toastAdded)
       setCopiedWorkout(null)
-    } catch { toast.error('שגיאה בהדבקה') }
+    } catch { toast.error(t.tryAgainLaterText) }
   }
 
   const selectedAW = useMemo(() => assignedWorkouts.find(w => w.id === selectedAssignedId) || null, [assignedWorkouts, selectedAssignedId])
@@ -551,7 +551,7 @@ export function AthletePlanner({ athleteId }: Props) {
       if (data.error) throw new Error(data.error)
       setAiReport(data.report)
     } catch (err) {
-      toast.error('שגיאה ביצירת דוח: ' + String(err))
+      toast.error(t.tryAgainLaterText)
     } finally {
       setAiReportLoading(false)
     }
@@ -574,7 +574,7 @@ export function AthletePlanner({ athleteId }: Props) {
       const chatId = `${user.id}_${athleteId}`
       await push(ref(realtimeDb, `conversations/${chatId}/messages`), {
         senderId: user.id,
-        senderName: user.name || 'המאמן',
+        senderName: user.name || t.theCoachFallback,
         content: coachMessageText.trim(),
         type: 'coach_message',
         payload: {
@@ -594,9 +594,9 @@ export function AthletePlanner({ athleteId }: Props) {
         timestamp: Date.now(),
       })
       setCoachMessageText('')
-      toast.success('הערה נשלחה לספורטאי!')
+      toast.success(t.toastUpdated)
     } catch {
-      toast.error('שגיאה בשליחה')
+      toast.error(t.tryAgainLaterText)
     } finally {
       setSendingCoachMessage(false)
     }
@@ -670,11 +670,11 @@ export function AthletePlanner({ athleteId }: Props) {
         approved: true,
         createdAt: serverTimestamp(),
       })
-      toast.success('סיכום שבועי נשלח לספורטאי!')
+      toast.success(t.toastUpdated)
       setShowWeeklySummary(false)
       setWeeklySummary(null)
     } catch (err) {
-      toast.error('שגיאה בשמירה: ' + String(err))
+      toast.error(t.tryAgainLaterText)
     } finally {
       setSavingWeeklySummary(false)
     }
@@ -716,7 +716,7 @@ export function AthletePlanner({ athleteId }: Props) {
         <div className="flex items-center gap-3 flex-wrap">
           <Link href={`/coach/athletes/${athleteId}`}>
             <Button variant="ghost" size="sm" className="text-muted-foreground">
-              <ArrowLeft className="h-4 w-4 mr-1"/>חזרה
+              <ArrowLeft className="h-4 w-4 mr-1"/>{t.backBtn}
             </Button>
           </Link>
           <Avatar className="h-10 w-10">
@@ -727,8 +727,8 @@ export function AthletePlanner({ athleteId }: Props) {
             <h1 className="font-bold text-navy text-xl">{athlete?.name}</h1>
             <div className="flex items-center gap-2 flex-wrap">
               {journey && <Badge className="bg-navy/10 text-navy border-navy/20 text-xs">{journey.stageName} · שבוע {journey.weekInStage}/{journey.totalWeeksInStage}</Badge>}
-              {journey && <Badge variant="outline" className={cn('text-xs', journey.isOffWeek ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-emerald-100 text-emerald-700 border-emerald-200')}>{journey.isOffWeek ? 'שבוע מנוחה' : 'שבוע אימון'}</Badge>}
-              {athlete?.weeklyKmRange && <span className="text-xs text-muted-foreground">יעד: {athlete.weeklyKmRange.min}–{athlete.weeklyKmRange.max} ק"מ/שבוע</span>}
+              {journey && <Badge variant="outline" className={cn('text-xs', journey.isOffWeek ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-emerald-100 text-emerald-700 border-emerald-200')}>{journey.isOffWeek ? t.offWeekLabel : t.trainingWeekLabel}</Badge>}
+              {athlete?.weeklyKmRange && <span className="text-xs text-muted-foreground">{athlete.weeklyKmRange.min}–{athlete.weeklyKmRange.max} {t.km}</span>}
             </div>
           </div>
           <Button size="sm" variant="outline" className="h-8 text-xs border-gold/40 text-gold hover:bg-gold/10 ml-auto flex-shrink-0"
@@ -891,7 +891,7 @@ export function AthletePlanner({ athleteId }: Props) {
                             )
                           })}
                           <div className="flex flex-col items-center justify-center rounded-lg bg-muted/30">
-                            {wKm > 0 ? <><p className="text-xs font-bold text-navy">{wKm}</p><p className="text-[9px] text-muted-foreground">ק"מ</p></> : <p className="text-[9px] text-muted-foreground">—</p>}
+                            {wKm > 0 ? <><p className="text-xs font-bold text-navy">{wKm}</p><p className="text-[9px] text-muted-foreground">{t.km}</p></> : <p className="text-[9px] text-muted-foreground">—</p>}
                           </div>
                         </div>
                       )
@@ -913,22 +913,22 @@ export function AthletePlanner({ athleteId }: Props) {
                   <p className="font-bold text-navy text-lg">{selectedAW.workout?.title}</p>
                   <p className="text-xs text-muted-foreground">{format(parseISO(selectedAW.scheduledDate),'EEEE, d MMMM yyyy')}</p>
                   <div className="flex gap-2 mt-1 flex-wrap">
-                    {selectedAW.workout?.distance && <Badge variant="outline" className="text-xs"><MapPin className="h-3 w-3 mr-1"/>{selectedAW.workout.distance} ק"מ</Badge>}
-                    {selectedAW.workout?.duration && <Badge variant="outline" className="text-xs"><Clock className="h-3 w-3 mr-1"/>{selectedAW.workout.duration} דק'</Badge>}
+                    {selectedAW.workout?.distance && <Badge variant="outline" className="text-xs"><MapPin className="h-3 w-3 mr-1"/>{selectedAW.workout.distance} {t.km}</Badge>}
+                    {selectedAW.workout?.duration && <Badge variant="outline" className="text-xs"><Clock className="h-3 w-3 mr-1"/>{selectedAW.workout.duration} {t.min}</Badge>}
                     <Badge variant="outline" className={cn('text-xs', selectedAW.status==='completed' ? 'bg-emerald-100 text-emerald-700' : selectedAW.status==='skipped' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-700')}>
-                      {selectedAW.status==='completed'?'הושלם':selectedAW.status==='skipped'?'דולג':'מתוכנן'}
+                      {selectedAW.status==='completed' ? t.completedBadge : selectedAW.status==='skipped' ? t.skippedBadge : t.scheduledBadge}
                     </Badge>
                   </div>
                 </div>
                 <div className="flex gap-1 flex-shrink-0">
-                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setCopiedWorkout(selectedAW); setSelectedAssignedId(null); toast.success('אימון הועתק') }}>
-                    <Copy className="h-3 w-3 mr-1"/>העתק
+                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setCopiedWorkout(selectedAW); setSelectedAssignedId(null); toast.success(t.toastAdded) }}>
+                    <Copy className="h-3 w-3 mr-1"/>{t.copyBtn}
                   </Button>
                   <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setBuilderWorkoutId(selectedAW.workoutId); setEditingAssignedId(selectedAW.id); setShowBuilderDialog(true) }}>
-                    <Pencil className="h-3 w-3 mr-1"/>ערוך
+                    <Pencil className="h-3 w-3 mr-1"/>{t.editBtn}
                   </Button>
                   <Button variant="outline" size="sm" className="h-7 text-xs text-destructive hover:text-destructive" onClick={() => handleDeleteWorkout(selectedAW)}>
-                    <Trash2 className="h-3 w-3 mr-1"/>מחק
+                    <Trash2 className="h-3 w-3 mr-1"/>{t.deleteBtn}
                   </Button>
                 </div>
               </div>
@@ -1010,11 +1010,11 @@ export function AthletePlanner({ athleteId }: Props) {
 
               {/* Coach message to athlete */}
               <div className="space-y-1.5 border-t pt-3" dir="rtl">
-                <Label className="text-xs font-semibold text-navy">הערת מאמן לספורטאי</Label>
+                <Label className="text-xs font-semibold text-navy">{t.coachNotesLabel}</Label>
                 <Textarea
                   value={coachMessageText}
                   onChange={e => setCoachMessageText(e.target.value)}
-                  placeholder="כתוב הערה אישית לספורטאי על אימון זה..."
+                  placeholder={t.typeMessage}
                   className="text-xs min-h-[60px]"
                   dir="rtl"
                 />
@@ -1131,9 +1131,9 @@ export function AthletePlanner({ athleteId }: Props) {
                     <p className="text-xs font-semibold text-navy border-b pb-1">ניתוח שלושת השבועות האחרונים</p>
                     <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
                       {[
-                        { label: 'שבוע 1', text: aiReport.week1Analysis },
-                        { label: 'שבוע 2', text: aiReport.week2Analysis },
-                        { label: 'שבוע 3', text: aiReport.week3Analysis },
+                        { label: `${t.week} 1`, text: aiReport.week1Analysis },
+                        { label: `${t.week} 2`, text: aiReport.week2Analysis },
+                        { label: `${t.week} 3`, text: aiReport.week3Analysis },
                       ].map((wk, i) => wk.text ? (
                         <div key={i} className="rounded-lg bg-muted/30 border border-border/40 p-2.5">
                           <p className="text-[10px] font-bold text-navy mb-1">{wk.label}</p>
@@ -1245,12 +1245,12 @@ export function AthletePlanner({ athleteId }: Props) {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">הערת מאמן אישית</Label>
+                <Label className="text-xs font-semibold">{t.coachNotesLabel}</Label>
                 <Textarea
                   value={weeklyCoachNote}
                   onChange={e => setWeeklyCoachNote(e.target.value)}
                   className="text-xs min-h-[80px]"
-                  placeholder="הוסף הערה אישית לספורטאי..."
+                  placeholder={t.typeMessage}
                   dir="rtl"
                 />
               </div>
@@ -1273,13 +1273,13 @@ export function AthletePlanner({ athleteId }: Props) {
               <CardTitle className="text-sm">שיבוץ אימון</CardTitle>
               <Button size="sm" variant="outline" className="h-7 text-xs border-gold/40 text-gold hover:bg-gold/10"
                 onClick={() => { setBuilderWorkoutId(undefined); setShowBuilderDialog(true) }}>
-                <Plus className="h-3 w-3 mr-1"/>צור חדש
+                <Plus className="h-3 w-3 mr-1"/>{t.createWorkoutTitle}
               </Button>
             </div>
             {selectedDate && <p className="text-xs text-muted-foreground mt-1">{format(selectedDate,'EEEE, d MMMM')}</p>}
             <div className="relative mt-2">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground"/>
-              <Input value={librarySearch} onChange={e => setLibrarySearch(e.target.value)} placeholder="חיפוש אימון..." className="pl-7 h-7 text-xs" dir="auto"/>
+              <Input value={librarySearch} onChange={e => setLibrarySearch(e.target.value)} placeholder={t.searchWorkoutsPh} className="pl-7 h-7 text-xs" dir="auto"/>
             </div>
           </CardHeader>
           <CardContent className="px-3 pb-3">
@@ -1381,7 +1381,7 @@ export function AthletePlanner({ athleteId }: Props) {
       <Dialog open={showBuilderDialog} onOpenChange={(open) => { if (!open) { setShowBuilderDialog(false); setBuilderWorkoutId(undefined) } }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{builderWorkoutId ? 'ערוך אימון' : 'צור אימון חדש'}</DialogTitle>
+            <DialogTitle>{builderWorkoutId ? t.editWorkoutTitle : t.createWorkoutTitle}</DialogTitle>
           </DialogHeader>
           {showBuilderDialog && (
             <WorkoutBuilder

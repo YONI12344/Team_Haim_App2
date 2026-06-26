@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils'
 
 function StatsPageContent() {
   const [activeTab, setActiveTab] = useState<'stats' | 'journey'>('stats')
-  const { isRTL } = useLanguage()
+  const { t } = useLanguage()
 
   return (
     <div>
@@ -23,7 +23,7 @@ function StatsPageContent() {
               : 'text-gray-500 hover:text-gray-700'
           )}
         >
-          {isRTL ? 'סטטיסטיקות' : 'Statistics'}
+          {t.statistics}
         </button>
         <button
           onClick={() => setActiveTab('journey')}
@@ -34,7 +34,7 @@ function StatsPageContent() {
               : 'text-gray-500 hover:text-gray-700'
           )}
         >
-          {isRTL ? 'מסע' : 'Journey'}
+          {t.journey}
         </button>
       </div>
 

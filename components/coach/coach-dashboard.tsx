@@ -19,6 +19,7 @@ import {
 import { db, realtimeDb } from '@/lib/firebase'
 import { ref, push, onValue, query as rtQuery, orderByChild, limitToLast } from 'firebase/database'
 import { useAuth } from '@/contexts/auth-context'
+import { useLanguage } from '@/contexts/language-context'
 import type { AthleteProfile, AssignedWorkout } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -47,6 +48,7 @@ function mapDocToAthlete(d: QueryDocumentSnapshot<DocumentData>): AthleteProfile
 
 export function CoachDashboard() {
   const { user } = useAuth()
+  const { t } = useLanguage()
   const { permission, enableNotifications } = useNotifications()
   const [notifBannerDismissed, setNotifBannerDismissed] = useState(false)
   const [athletes, setAthletes] = useState<AthleteProfile[]>([])
@@ -219,14 +221,14 @@ export function CoachDashboard() {
             <Bell className="h-5 w-5 text-[#c9a84c]" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-[#0a1628] leading-tight">הפעל התראות</p>
-            <p className="text-xs text-gray-500 mt-0.5">קבל עדכונים כשספורטאים מסיימים אימונים ושולחים הודעות</p>
+            <p className="text-sm font-semibold text-[#0a1628] leading-tight">{t.notificationsTitle}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{t.notificationsDesc}</p>
           </div>
           <button
             onClick={enableNotifications}
             className="bg-[#0a1628] text-white rounded-xl px-4 h-9 text-sm font-semibold flex-shrink-0 active:scale-95 transition-transform"
           >
-            הפעל
+            {t.enableBtn}
           </button>
           <button
             onClick={() => {
@@ -265,8 +267,8 @@ export function CoachDashboard() {
             : -1
           const needsNewPlan = daysUntilPlanEnd < 7
           const planEndDisplay = lastFutureDate
-            ? `מתוכנן עד ${format(parseISO(lastFutureDate), 'd/M')}`
-            : 'אין תכנית'
+            ? `${t.scheduledBadge} ${format(parseISO(lastFutureDate), 'd/M')}`
+            : '—'
 
           // Today's workout + logs
           const todayWorkout = athleteAssignedWorkouts.find(w => w.scheduledDate === todayStr)
@@ -354,27 +356,27 @@ export function CoachDashboard() {
                   <div className="flex-shrink-0 mt-0.5">
                     {todayStatus === 'done' && (
                       <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded-full">
-                        <Check className="h-3 w-3" />בוצע
+                        <Check className="h-3 w-3" />{t.completedBadge}
                       </span>
                     )}
                     {todayStatus === 'strava-pending' && (
                       <span className="text-[11px] font-bold text-[#c9a84c] bg-[#c9a84c]/10 border border-[#c9a84c]/30 px-2.5 py-1.5 rounded-full">
-                        ממתין למשוב
+                        {t.pendingBadge}
                       </span>
                     )}
                     {todayStatus === 'scheduled' && (
                       <span className="flex items-center gap-1 text-[11px] font-bold text-gray-500 bg-gray-50 border border-gray-200 px-2.5 py-1.5 rounded-full">
-                        <Clock className="h-3 w-3" />מתוכנן
+                        <Clock className="h-3 w-3" />{t.scheduledBadge}
                       </span>
                     )}
                     {todayStatus === 'skipped' && (
                       <span className="text-[11px] font-bold text-red-600 bg-red-50 border border-red-200 px-2.5 py-1.5 rounded-full">
-                        לא בוצע
+                        {t.skippedBadge}
                       </span>
                     )}
                     {todayStatus === 'rest' && (
                       <span className="text-[11px] text-muted-foreground bg-muted/40 border border-border/30 px-2.5 py-1.5 rounded-full">
-                        מנוחה
+                        {t.restDayLabel}
                       </span>
                     )}
                   </div>
@@ -438,7 +440,7 @@ export function CoachDashboard() {
                           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                             {todayWorkout.workout?.distance && (
                               <span className="text-[11px] text-muted-foreground">
-                                {todayWorkout.workout.distance} ק"מ מתוכנן
+                                {todayWorkout.workout.distance} {t.km} {t.scheduledBadge.toLowerCase()}
                               </span>
                             )}
                             {todayWorkout.workout?.type && (
@@ -554,7 +556,7 @@ export function CoachDashboard() {
                   </button>
                 ) : (
                   <div className="rounded-2xl px-4 py-3.5 bg-muted/20 border border-border/30 text-center">
-                    <p className="text-[11px] text-muted-foreground">אין אימון מתוכנן היום · יום מנוחה</p>
+                    <p className="text-[11px] text-muted-foreground">{t.restDayLabel}</p>
                   </div>
                 )}
               </div>
@@ -582,8 +584,8 @@ export function CoachDashboard() {
                             </p>
                             <p className="text-[11px] text-muted-foreground">
                               {todayStravaLog.feedbackStatus === 'pending'
-                                ? 'ממתין למשוב ספורטאי'
-                                : 'סונכרן מ-Strava ✓'}
+                                ? t.pendingBadge
+                                : 'Strava ✓'}
                             </p>
                           </div>
                         </div>
@@ -621,11 +623,11 @@ export function CoachDashboard() {
                           <div className="border-t border-border/30">
                             {/* Header row */}
                             <div className="px-4 pt-3 pb-1.5 grid grid-cols-[2.5rem_1fr_1fr_1fr_1fr] gap-x-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-                              <span>{allSplits[0]?.lapIndex ? 'Lap' : 'km'}</span>
-                              <span>טמפו</span>
-                              <span>זמן</span>
-                              <span>דופק</span>
-                              <span>עלייה</span>
+                              <span>{allSplits[0]?.lapIndex ? 'Lap' : t.km}</span>
+                              <span>{t.tempoLabel}</span>
+                              <span>{t.timeInputLabel}</span>
+                              <span>{t.heartRateLabel}</span>
+                              <span>{t.elevationShort}</span>
                             </div>
                             <div className="divide-y divide-border/20">
                               {allSplits.map((split: any, i: number) => (
@@ -715,19 +717,19 @@ export function CoachDashboard() {
                           <div key={set.id || si} className="px-4 py-2.5 border-b border-border/30 last:border-0">
                             <div className="flex items-center justify-between gap-2 mb-1">
                               <span className="text-xs font-bold text-[#0a1628]">
-                                סט {si + 1}
+                                {t.setLabelPrefix} {si + 1}
                                 {set.reps > 1 ? ` · ${set.reps}×` : ''}
                                 {set.distance ? ` ${set.distance}` : ''}
                                 {set.duration ? ` ${set.duration}` : ''}
                               </span>
                               {set.rest && (
                                 <span className="text-[10px] text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-full">
-                                  מנוחה {set.rest}
+                                  {t.restLabel} {set.rest}
                                 </span>
                               )}
                             </div>
                             {set.pace && (
-                              <p className="text-[11px] text-muted-foreground">טמפו יעד: {set.pace}</p>
+                              <p className="text-[11px] text-muted-foreground">{t.tempoLabel}: {set.pace}</p>
                             )}
                             {set.notes && (
                               <p className="text-[11px] text-gray-500 italic">{set.notes}</p>
@@ -741,7 +743,7 @@ export function CoachDashboard() {
                                       {ii + 1}
                                     </span>
                                     <span>{interval.distance || interval.pace || ''}</span>
-                                    {interval.rest && <span className="text-muted-foreground">· מנוחה {interval.rest}</span>}
+                                    {interval.rest && <span className="text-muted-foreground">· {t.restLabel} {interval.rest}</span>}
                                   </div>
                                 ))}
                               </div>

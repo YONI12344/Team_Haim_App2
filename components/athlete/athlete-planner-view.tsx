@@ -88,9 +88,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
   const dayShort = [t.sun, t.mon, t.tue, t.wed, t.thu, t.fri, t.sat]
   const dayLabels = [t.sun, t.mon, t.tue, t.wed, t.thu, t.fri, t.sat]
   const dayEN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
-  const heDays = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת']
-  const heMonths = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר']
-  const formatHeDateLong = (d: Date) => `יום ${heDays[d.getDay()]}, ${d.getDate()} ב${heMonths[d.getMonth()]} ${d.getFullYear()}`
+  const formatHeDateLong = (d: Date) => d.toLocaleDateString(isRTL ? 'he-IL' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   const athleteId = overrideAthleteId || user?.id || ''
   const [athlete, setAthlete] = useState<AthleteProfile | null>(null)
   const [journey, setJourney] = useState<JourneySummary | null>(null)
@@ -618,8 +616,8 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                     <tr className="bg-navy/5">
                       <th className="py-1.5 text-center font-bold text-navy whitespace-nowrap">km</th>
                       <th className="py-1.5 text-center font-bold text-navy whitespace-nowrap">{t.timeInputLabel}</th>
-                      <th className="py-1.5 text-center font-bold text-navy whitespace-nowrap">טמפו</th>
-                      <th className="py-1.5 text-center font-bold text-navy whitespace-nowrap">דופק</th>
+                      <th className="py-1.5 text-center font-bold text-navy whitespace-nowrap">{t.tempoLabel}</th>
+                      <th className="py-1.5 text-center font-bold text-navy whitespace-nowrap">{t.heartRateLabel}</th>
                       <th className="py-1.5 text-center font-bold text-navy whitespace-nowrap">Zone</th>
                     </tr>
                   </thead>
@@ -776,25 +774,25 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
               {log.actualPace && (
                 <div className="bg-gray-50 rounded-xl p-2 text-center">
                   <p className="text-base font-black text-[#0a1628]" dir="ltr">{log.actualPace.replace('/km','')}</p>
-                  <p className="text-[9px] text-gray-400">טמפו</p>
+                  <p className="text-[9px] text-gray-400">{t.tempoLabel}</p>
                 </div>
               )}
               {log.averageHeartRate && (
                 <div className="bg-red-50 rounded-xl p-2 text-center">
                   <p className="text-base font-black text-red-600">{log.averageHeartRate}</p>
-                  <p className="text-[9px] text-gray-400">דופק</p>
+                  <p className="text-[9px] text-gray-400">{t.heartRateLabel}</p>
                 </div>
               )}
               {log.elevationGain && (
                 <div className="bg-emerald-50 rounded-xl p-2 text-center">
                   <p className="text-base font-black text-emerald-700">{log.elevationGain}m</p>
-                  <p className="text-[9px] text-gray-400">עלייה</p>
+                  <p className="text-[9px] text-gray-400">{t.elevationShort}</p>
                 </div>
               )}
               {log.effort && (
                 <div className="bg-amber-50 rounded-xl p-2 text-center">
                   <p className="text-base font-black text-amber-700">{log.effort}/10</p>
-                  <p className="text-[9px] text-gray-400">מאמץ</p>
+                  <p className="text-[9px] text-gray-400">{t.effortValueLabel}</p>
                 </div>
               )}
             </div>
@@ -805,7 +803,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
               <button
                 onClick={() => setShowSplits(prev => !prev)}
                 className="w-full px-3.5 py-2 flex items-center justify-between text-xs font-bold text-[#0a1628]/60 hover:bg-gray-50 transition-colors">
-                <span>פיצולים ({log.splitLogs.length})</span>
+                <span>{t.splitsLabelShort} ({log.splitLogs.length})</span>
                 {showSplits ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
               </button>
               {showSplits && (
@@ -823,8 +821,8 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                         <tr className="bg-[#0a1628]/5">
                           <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">km</th>
                           <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{t.timeInputLabel}</th>
-                          <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">טמפו</th>
-                          <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">דופק</th>
+                          <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{t.tempoLabel}</th>
+                          <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{t.heartRateLabel}</th>
                           <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">Zone</th>
                         </tr>
                       </thead>
@@ -1058,7 +1056,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
               {wMsg.read && wMsg.readAt ? (
                 <span className="flex items-center gap-1 text-[9px] text-emerald-500 font-medium">
                   <CheckCircle2 className="h-3 w-3" />
-                  נראה {format(new Date(wMsg.readAt), 'HH:mm')}
+                  {t.seenLabel} {format(new Date(wMsg.readAt), 'HH:mm')}
                 </span>
               ) : wMsg.createdAt?.seconds && (
                 <p className="text-[9px] text-gray-400">{format(new Date(wMsg.createdAt.seconds * 1000), 'd/M/yyyy')}</p>
@@ -1076,7 +1074,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                   className="flex items-center gap-1.5 bg-[#c9a84c] hover:bg-[#b8962e] text-white text-xs font-semibold px-3 py-1.5 rounded-full transition-colors active:scale-95"
                 >
                   <CheckCircle2 className="h-3.5 w-3.5" />
-                  קראתי
+                  {t.markedAsReadBtn}
                 </button>
               </div>
             )}

@@ -8,13 +8,13 @@ import { useLanguage } from '@/contexts/language-context'
 
 export function AthleteBottomNav() {
   const pathname = usePathname()
-  const { isRTL } = useLanguage()
+  const { t } = useLanguage()
 
   const tabs = [
-    { href: '/athlete', label: isRTL ? 'בית' : 'Home', icon: Home, exact: true },
-    { href: '/athlete/schedule', label: isRTL ? 'לוח' : 'Plan', icon: Calendar, exact: false },
-    { href: '/athlete/stats', label: isRTL ? 'סטטס' : 'Stats', icon: BarChart2, exact: false },
-    { href: '/athlete/profile', label: isRTL ? 'פרופיל' : 'Profile', icon: User, exact: false },
+    { href: '/athlete', label: t.navHome, icon: Home, exact: true },
+    { href: '/athlete/schedule', label: t.navPlan, icon: Calendar, exact: false },
+    { href: '/athlete/stats', label: t.navStats, icon: BarChart2, exact: false },
+    { href: '/athlete/profile', label: t.profile, icon: User, exact: false },
   ]
 
   return (

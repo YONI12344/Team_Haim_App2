@@ -9,7 +9,29 @@
       "Bash(git commit *)",
       "Bash(git push *)",
       "Bash(head -1100 /Users/yehonatanhaim/Desktop/Team_Haim_App2-main/components/athlete/athlete-planner-view.tsx)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(python3 -c \"import reportlab; print\\(reportlab.Version\\)\")",
+      "Bash(python3 -c \"import PIL; print\\('pillow ok'\\)\")",
+      "Bash(python3 -c \"from bidi.algorithm import get_display; print\\('bidi ok'\\)\")",
+      "Bash(pip3 install *)",
+      "Bash(python3 generate_pdf.py)",
+      "Bash(open *)",
+      "Bash(/opt/homebrew/bin/pnpm build *)",
+      "Bash(git config *)",
+      "Bash(gh auth *)",
+      "Bash(gh repo *)",
+      "Bash(git remote *)",
+      "Bash(git fetch *)",
+      "Bash(git pull *)",
+      "Bash(python3 *)",
+      "Bash(pnpm tsc *)",
+      "Bash(git *)",
+      "Bash(firebase deploy *)",
+      "Bash(npx firebase-tools *)",
+      "Bash(npx firebase-tools@latest *)",
+      "Bash(xargs -I{} bash -c 'echo \"=== {} ===\"; grep -Pn \"[\\\\x{0590}-\\\\x{05FF}]\" \"{}\" 2>/dev/null || echo \"no Hebrew\"')",
+      "Bash(grep -v \"string$\\\\|Language$\\\\|void$\\\\|boolean$\\\\|ReactNode$\")",
+      "Bash(grep -v \"//\\\\|minimum\\\\|maxLength\\\\|adminEmail\\\\|import\\\\|string$\")"
     ]
   }
 }

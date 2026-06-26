@@ -61,7 +61,7 @@ export default function AthleteChatPage() {
           otherUserAvatar={coach.photoURL}
           backLink="/athlete"
           notificationRecipientId={coach.uid}
-          notificationTitle={`${user.name || 'הספורטאי'} שלח הודעה`}
+          notificationTitle={`${user.name || t.theCoachFallback}`}
         />
       )}
     </AthleteLayout>

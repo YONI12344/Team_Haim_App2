@@ -247,7 +247,7 @@ export function ChatRoom({
                         {/* Weekly summary header */}
                         {isWeeklySummary && wp && (
                           <div className="bg-[#0a1628] px-4 pt-3 pb-2" dir="rtl">
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-[#c9a84c]">סיכום שבועי</p>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-[#c9a84c]">{t.weeklySummaryLabel}</p>
                             {wp.weekStart && (
                               <p className="text-xs text-white/70 mt-0.5">{wp.weekStart} – {wp.weekEnd}</p>
                             )}
@@ -269,10 +269,10 @@ export function ChatRoom({
                                   <span className={cn("text-[10px]", isOwn ? "text-white/60" : "text-gray-400")}>{cp.workoutType}</span>
                                 )}
                                 {cp.distance && (
-                                  <span className={cn("text-[10px]", isOwn ? "text-white/60" : "text-gray-400")}>{cp.distance} ק"מ</span>
+                                  <span className={cn("text-[10px]", isOwn ? "text-white/60" : "text-gray-400")}>{cp.distance} {t.km}</span>
                                 )}
                                 {cp.duration && (
-                                  <span className={cn("text-[10px]", isOwn ? "text-white/60" : "text-gray-400")}>{cp.duration} דק'</span>
+                                  <span className={cn("text-[10px]", isOwn ? "text-white/60" : "text-gray-400")}>{cp.duration} {t.min}</span>
                                 )}
                                 {cp.scheduledDate && (
                                   <span className={cn("text-[10px]", isOwn ? "text-white/60" : "text-gray-400")}>{cp.scheduledDate}</span>
@@ -280,7 +280,7 @@ export function ChatRoom({
                               </div>
                               {cp.sets && cp.sets.length > 0 && (
                                 <p className={cn("text-[10px] mt-1", isOwn ? "text-white/60" : "text-gray-400")}>
-                                  {cp.sets.length} סטים
+                                  {cp.sets.length} {t.setsCountSuffix}
                                   {cp.sets[0]?.distance ? ` · ${cp.sets[0].distance}` : ''}
                                   {cp.sets[0]?.pace ? ` @ ${cp.sets[0].pace}` : ''}
                                 </p>
