@@ -1068,12 +1068,10 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
             {!wMsg.read && (
               <div className="flex justify-end mt-3">
                 <button
-                  onClick={async () => {
-                    try {
-                      const readAt = Date.now()
-                      await updateDoc(doc(db, 'coachMessages', wMsg.id), { read: true, readAt })
-                      setCoachMessages(prev => prev.map(m => m.id === wMsg.id ? { ...m, read: true, readAt } : m))
-                    } catch {}
+                  onClick={() => {
+                    const readAt = Date.now()
+                    setCoachMessages(prev => prev.map(m => m.id === wMsg.id ? { ...m, read: true, readAt } : m)) // instant
+                    updateDoc(doc(db, 'coachMessages', wMsg.id), { read: true, readAt }).catch(() => {})
                   }}
                   className="flex items-center gap-1.5 bg-[#c9a84c] hover:bg-[#b8962e] text-white text-xs font-semibold px-3 py-1.5 rounded-full transition-colors active:scale-95"
                 >

@@ -11,6 +11,28 @@ import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { useLanguage } from "@/contexts/language-context"
 
+interface WeeklySummaryPayload {
+  summary?: string
+  achievements?: string
+  improvements?: string
+  nextWeekFocus?: string
+  coachNote?: string
+  weekStart?: string
+  weekEnd?: string
+}
+
+interface CoachMessagePayload {
+  assignedWorkoutId?: string
+  workoutTitle?: string
+  workoutType?: string
+  description?: string
+  distance?: number | null
+  duration?: number | null
+  sets?: { reps?: number; distance?: string; pace?: string; rest?: string }[]
+  scheduledDate?: string
+  status?: string
+}
+
 interface Message {
   id: string
   senderId: string
@@ -18,6 +40,8 @@ interface Message {
   senderAvatar?: string
   content: string
   timestamp: number
+  type?: 'weekly_summary' | 'coach_message'
+  payload?: WeeklySummaryPayload | CoachMessagePayload
 }
 
 interface ChatRoomProps {
@@ -192,6 +216,10 @@ export function ChatRoom({
               <div className="space-y-3">
                 {group.messages.map((message) => {
                   const isOwn = message.senderId === currentUserId
+                  const isWeeklySummary = message.type === 'weekly_summary'
+                  const isCoachMsg = message.type === 'coach_message'
+                  const wp = isWeeklySummary ? message.payload as WeeklySummaryPayload : null
+                  const cp = isCoachMsg ? message.payload as CoachMessagePayload : null
                   return (
                     <div
                       key={message.id}
@@ -210,21 +238,59 @@ export function ChatRoom({
                       )}
                       <div
                         className={cn(
-                          "max-w-[75%] px-4 py-2.5 rounded-2xl",
+                          "max-w-[80%] rounded-2xl overflow-hidden",
                           isOwn
                             ? "bg-[#0a1628] text-white rounded-br-md"
                             : "bg-white border border-gray-100 text-[#0a1628] rounded-bl-md shadow-sm"
                         )}
                       >
-                        <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
-                        <p
-                          className={cn(
-                            "text-[10px] mt-1",
-                            isOwn ? "text-white/60" : "text-gray-400"
+                        {/* Weekly summary header */}
+                        {isWeeklySummary && wp && (
+                          <div className="bg-[#0a1628] px-4 pt-3 pb-2" dir="rtl">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-[#c9a84c]">סיכום שבועי</p>
+                            {wp.weekStart && (
+                              <p className="text-xs text-white/70 mt-0.5">{wp.weekStart} – {wp.weekEnd}</p>
+                            )}
+                          </div>
+                        )}
+                        <div className="px-4 py-2.5">
+                          <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+                          {/* Coach message workout details card */}
+                          {isCoachMsg && cp && cp.workoutTitle && (
+                            <div className={cn(
+                              "mt-2.5 rounded-xl p-3 border",
+                              isOwn ? "border-white/20 bg-white/10" : "border-[#c9a84c]/30 bg-[#c9a84c]/5"
+                            )} dir="rtl">
+                              <p className={cn("text-xs font-bold leading-tight", isOwn ? "text-white" : "text-[#0a1628]")}>
+                                {cp.workoutTitle}
+                              </p>
+                              <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
+                                {cp.workoutType && (
+                                  <span className={cn("text-[10px]", isOwn ? "text-white/60" : "text-gray-400")}>{cp.workoutType}</span>
+                                )}
+                                {cp.distance && (
+                                  <span className={cn("text-[10px]", isOwn ? "text-white/60" : "text-gray-400")}>{cp.distance} ק"מ</span>
+                                )}
+                                {cp.duration && (
+                                  <span className={cn("text-[10px]", isOwn ? "text-white/60" : "text-gray-400")}>{cp.duration} דק'</span>
+                                )}
+                                {cp.scheduledDate && (
+                                  <span className={cn("text-[10px]", isOwn ? "text-white/60" : "text-gray-400")}>{cp.scheduledDate}</span>
+                                )}
+                              </div>
+                              {cp.sets && cp.sets.length > 0 && (
+                                <p className={cn("text-[10px] mt-1", isOwn ? "text-white/60" : "text-gray-400")}>
+                                  {cp.sets.length} סטים
+                                  {cp.sets[0]?.distance ? ` · ${cp.sets[0].distance}` : ''}
+                                  {cp.sets[0]?.pace ? ` @ ${cp.sets[0].pace}` : ''}
+                                </p>
+                              )}
+                            </div>
                           )}
-                        >
-                          {formatTime(message.timestamp)}
-                        </p>
+                          <p className={cn("text-[10px] mt-1.5", isOwn ? "text-white/60" : "text-gray-400")}>
+                            {formatTime(message.timestamp)}
+                          </p>
+                        </div>
                       </div>
                       {isOwn && (
                         <Avatar className="h-8 w-8">

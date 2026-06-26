@@ -326,36 +326,38 @@ export function AthleteDashboard() {
 
   const unreadCoachMessages = coachMessages.filter(m => !m.read)
 
-  // Dismiss weekly summary: save to chat thread, mark read in Firestore, hide from dashboard
-  const handleDismissWeeklySummary = async () => {
+  // Dismiss weekly summary: hide immediately, then save to chat + mark read in background
+  const handleDismissWeeklySummary = () => {
     if (!latestCoachNote || !user) return
-    try {
-      const coachInfo = await getCoachInfo()
-      if (coachInfo) {
-        const chatId = conversationId(coachInfo.uid, user.id)
-        const messagesRef = ref(realtimeDb, `conversations/${chatId}/messages`)
-        await push(messagesRef, {
-          senderId: coachInfo.uid,
-          senderName: coachInfo.name || 'המאמן',
-          content: [latestCoachNote.coachNote, latestCoachNote.nextWeekFocus].filter(Boolean).join('\n'),
-          type: 'weekly_summary',
-          payload: {
-            summary: latestCoachNote.summary || '',
-            achievements: latestCoachNote.achievements || '',
-            improvements: latestCoachNote.improvements || '',
-            nextWeekFocus: latestCoachNote.nextWeekFocus || '',
-            coachNote: latestCoachNote.coachNote || '',
-            weekStart: latestCoachNote.weekStart || '',
-            weekEnd: latestCoachNote.weekEnd || '',
-          },
-          timestamp: Date.now(),
-        })
+    const note = latestCoachNote
+    setLatestCoachNote(null) // instant hide
+    ;(async () => {
+      try {
+        const coachInfo = await getCoachInfo()
+        if (coachInfo) {
+          const chatId = conversationId(coachInfo.uid, user.id)
+          await push(ref(realtimeDb, `conversations/${chatId}/messages`), {
+            senderId: coachInfo.uid,
+            senderName: coachInfo.name || 'המאמן',
+            content: [note.coachNote, note.nextWeekFocus].filter(Boolean).join('\n'),
+            type: 'weekly_summary',
+            payload: {
+              summary: note.summary || '',
+              achievements: note.achievements || '',
+              improvements: note.improvements || '',
+              nextWeekFocus: note.nextWeekFocus || '',
+              coachNote: note.coachNote || '',
+              weekStart: note.weekStart || '',
+              weekEnd: note.weekEnd || '',
+            },
+            timestamp: Date.now(),
+          })
+        }
+        await updateDoc(doc(db, 'weeklyNotes', note.id), { readByAthlete: true })
+      } catch (e) {
+        console.error('dismiss summary error', e)
       }
-      await updateDoc(doc(db, 'weeklyNotes', latestCoachNote.id), { readByAthlete: true })
-      setLatestCoachNote(null)
-    } catch (e) {
-      console.error('dismiss summary error', e)
-    }
+    })()
   }
 
   return (
@@ -455,11 +457,9 @@ export function AthleteDashboard() {
                   <p className="text-xs text-gray-400">{format(new Date(msg.createdAt.seconds * 1000), 'd/M/yyyy HH:mm')}</p>
                 )}
                 <button
-                  onClick={async () => {
-                    try {
-                      await updateDoc(doc(db, 'coachMessages', msg.id), { read: true, readAt: Date.now() })
-                      setCoachMessages(prev => prev.filter(m => m.id !== msg.id))
-                    } catch {}
+                  onClick={() => {
+                    setCoachMessages(prev => prev.filter(m => m.id !== msg.id)) // instant hide
+                    updateDoc(doc(db, 'coachMessages', msg.id), { read: true, readAt: Date.now() }).catch(() => {})
                   }}
                   className="flex items-center gap-1.5 bg-[#c9a84c] hover:bg-[#b8962e] text-white text-xs font-semibold px-3 py-1.5 rounded-full transition-colors active:scale-95"
                 >
