@@ -62,7 +62,12 @@ service cloud.firestore {
     match /weeklyNotes/{docId} {
       allow read: if request.auth != null
         && (isCoach() || resource.data.athleteId == request.auth.uid);
-      allow create, update, delete: if isCoach();
+      allow create, delete: if isCoach();
+      allow update: if isCoach()
+        || (request.auth != null
+            && resource.data.athleteId == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['readByAthlete']));
     }
 
     match /coachMessages/{docId} {
@@ -73,7 +78,7 @@ service cloud.firestore {
         || (request.auth != null
             && resource.data.athleteId == request.auth.uid
             && request.resource.data.diff(resource.data).affectedKeys()
-               .hasOnly(['read']));
+               .hasOnly(['read', 'readAt']));
     }
   }
 }
