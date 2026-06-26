@@ -134,6 +134,7 @@ export function AthleteDashboard() {
   const [loading, setLoading] = useState(true)
   const [unreadCount, setUnreadCount] = useState(0)
   const [latestCoachNote, setLatestCoachNote] = useState<any>(null)
+  const [allUnreadNotes, setAllUnreadNotes] = useState<any[]>([])
   const [isDismissingNote, setIsDismissingNote] = useState(false)
   const [coachMessages, setCoachMessages] = useState<any[]>([])
 
@@ -202,18 +203,18 @@ export function AthleteDashboard() {
 
     loadProfile()
 
-    // Load latest approved coach note
+    // Load latest approved coach note — only show the newest unread one
     getDocs(query(
       collection(db, 'weeklyNotes'),
       where('athleteId', '==', user.id),
       where('approved', '==', true),
     )).then(snap => {
-      const notes = snap.docs
-        .map(d => ({ id: d.id, ...d.data() })) as any[]
+      const notes = snap.docs.map(d => ({ id: d.id, ...d.data() })) as any[]
       const unread = notes.filter(n => !n.readByAthlete)
       if (unread.length > 0) {
         unread.sort((a, b) => (b.weekStart || '').localeCompare(a.weekStart || ''))
         setLatestCoachNote(unread[0])
+        setAllUnreadNotes(unread) // keep full list so dismiss can clear all at once
       }
     }).catch(() => {})
 
@@ -327,27 +328,28 @@ export function AthleteDashboard() {
 
   const unreadCoachMessages = coachMessages.filter(m => !m.read)
 
-  // Dismiss weekly summary: hide immediately, mark Firestore read FIRST, then write to chat
+  // Dismiss weekly summary: hide immediately, mark ALL unread notes as read in Firestore,
+  // then write only the newest one to the chat thread (no duplicates, no re-appearing card).
   const handleDismissWeeklySummary = () => {
     if (!latestCoachNote || !user || isDismissingNote) return
     const note = latestCoachNote
+    const toMark = allUnreadNotes.length > 0 ? allUnreadNotes : [note]
     setIsDismissingNote(true)
     setLatestCoachNote(null) // instant hide
+    setAllUnreadNotes([])
     ;(async () => {
       try {
-        // Step 1: Check whether this note was already marked read in Firestore.
-        // If it was, a chat message was already written — skip the push to avoid duplicates.
+        // Step 1: Mark ALL unread weekly notes as read at once.
+        // This prevents older notes from re-appearing on the next refresh.
+        // Check newest note first to skip chat write if already processed.
         const noteSnap = await getDoc(doc(db, 'weeklyNotes', note.id))
         const alreadyRead = noteSnap.exists() && noteSnap.data()?.readByAthlete === true
 
-        // Step 2: Persist readByAthlete:true FIRST — decoupled from the chat write.
-        // If this throws (security rule, network), the card may reappear on next load,
-        // but no duplicate chat message will be written.
-        if (!alreadyRead) {
-          await updateDoc(doc(db, 'weeklyNotes', note.id), { readByAthlete: true })
-        }
+        await Promise.all(
+          toMark.map(n => updateDoc(doc(db, 'weeklyNotes', n.id), { readByAthlete: true }))
+        )
 
-        // Step 3: Write to chat — only if not already done (idempotent).
+        // Step 2: Write the newest note to chat — only once (idempotent guard).
         if (!alreadyRead) {
           try {
             const coachInfo = await getCoachInfo()
@@ -372,14 +374,12 @@ export function AthleteDashboard() {
               })
             }
           } catch (chatErr) {
-            // Chat write failed — not critical. readByAthlete is already true so
-            // the card won't reappear, but the note won't be in the chat thread.
             console.error('chat write error', chatErr)
           }
         }
       } catch (e) {
         console.error('dismiss summary error', e)
-        setIsDismissingNote(false) // allow retry if Firestore write failed
+        setIsDismissingNote(false)
       }
     })()
   }
