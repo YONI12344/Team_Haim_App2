@@ -134,6 +134,7 @@ export function AthleteDashboard() {
   const [loading, setLoading] = useState(true)
   const [unreadCount, setUnreadCount] = useState(0)
   const [latestCoachNote, setLatestCoachNote] = useState<any>(null)
+  const [isDismissingNote, setIsDismissingNote] = useState(false)
   const [coachMessages, setCoachMessages] = useState<any[]>([])
 
   useEffect(() => {
@@ -326,36 +327,59 @@ export function AthleteDashboard() {
 
   const unreadCoachMessages = coachMessages.filter(m => !m.read)
 
-  // Dismiss weekly summary: hide immediately, then save to chat + mark read in background
+  // Dismiss weekly summary: hide immediately, mark Firestore read FIRST, then write to chat
   const handleDismissWeeklySummary = () => {
-    if (!latestCoachNote || !user) return
+    if (!latestCoachNote || !user || isDismissingNote) return
     const note = latestCoachNote
+    setIsDismissingNote(true)
     setLatestCoachNote(null) // instant hide
     ;(async () => {
       try {
-        const coachInfo = await getCoachInfo()
-        if (coachInfo) {
-          const chatId = conversationId(coachInfo.uid, user.id)
-          await push(ref(realtimeDb, `conversations/${chatId}/messages`), {
-            senderId: coachInfo.uid,
-            senderName: coachInfo.name || 'המאמן',
-            content: [note.coachNote, note.nextWeekFocus].filter(Boolean).join('\n'),
-            type: 'weekly_summary',
-            payload: {
-              summary: note.summary || '',
-              achievements: note.achievements || '',
-              improvements: note.improvements || '',
-              nextWeekFocus: note.nextWeekFocus || '',
-              coachNote: note.coachNote || '',
-              weekStart: note.weekStart || '',
-              weekEnd: note.weekEnd || '',
-            },
-            timestamp: Date.now(),
-          })
+        // Step 1: Check whether this note was already marked read in Firestore.
+        // If it was, a chat message was already written — skip the push to avoid duplicates.
+        const noteSnap = await getDoc(doc(db, 'weeklyNotes', note.id))
+        const alreadyRead = noteSnap.exists() && noteSnap.data()?.readByAthlete === true
+
+        // Step 2: Persist readByAthlete:true FIRST — decoupled from the chat write.
+        // If this throws (security rule, network), the card may reappear on next load,
+        // but no duplicate chat message will be written.
+        if (!alreadyRead) {
+          await updateDoc(doc(db, 'weeklyNotes', note.id), { readByAthlete: true })
         }
-        await updateDoc(doc(db, 'weeklyNotes', note.id), { readByAthlete: true })
+
+        // Step 3: Write to chat — only if not already done (idempotent).
+        if (!alreadyRead) {
+          try {
+            const coachInfo = await getCoachInfo()
+            if (coachInfo) {
+              const chatId = conversationId(coachInfo.uid, user.id)
+              await push(ref(realtimeDb, `conversations/${chatId}/messages`), {
+                senderId: coachInfo.uid,
+                senderName: coachInfo.name || 'המאמן',
+                content: [note.coachNote, note.nextWeekFocus].filter(Boolean).join('\n'),
+                type: 'weekly_summary',
+                weeklyNoteId: note.id,
+                payload: {
+                  summary: note.summary || '',
+                  achievements: note.achievements || '',
+                  improvements: note.improvements || '',
+                  nextWeekFocus: note.nextWeekFocus || '',
+                  coachNote: note.coachNote || '',
+                  weekStart: note.weekStart || '',
+                  weekEnd: note.weekEnd || '',
+                },
+                timestamp: Date.now(),
+              })
+            }
+          } catch (chatErr) {
+            // Chat write failed — not critical. readByAthlete is already true so
+            // the card won't reappear, but the note won't be in the chat thread.
+            console.error('chat write error', chatErr)
+          }
+        }
       } catch (e) {
         console.error('dismiss summary error', e)
+        setIsDismissingNote(false) // allow retry if Firestore write failed
       }
     })()
   }
@@ -540,7 +564,8 @@ export function AthleteDashboard() {
             )}
             <button
               onClick={handleDismissWeeklySummary}
-              className="flex items-center gap-1.5 bg-[#0a1628] hover:bg-[#0a1628]/90 text-white text-xs font-semibold px-3 py-1.5 rounded-full transition-colors active:scale-95"
+              disabled={isDismissingNote}
+              className="flex items-center gap-1.5 bg-[#0a1628] hover:bg-[#0a1628]/90 text-white text-xs font-semibold px-3 py-1.5 rounded-full transition-colors active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <CheckCircle2 className="h-3.5 w-3.5" />
               קראתי
