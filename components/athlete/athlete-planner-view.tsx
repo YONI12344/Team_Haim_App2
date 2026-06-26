@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ChevronLeft, ChevronRight, Loader2, MapPin, Clock, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2, MapPin, Clock, ChevronDown, ChevronUp, RefreshCw, CheckCircle2 } from 'lucide-react'
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   addMonths, subMonths, addWeeks, subWeeks, eachDayOfInterval, isSameMonth,
@@ -1055,12 +1055,32 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
             !wMsg.read ? 'border-l-4 border-l-[#c9a84c] border-gray-100' : 'border-gray-100')} dir="rtl">
             <div className="flex items-center justify-between mb-2">
               <p className="text-[10px] font-bold uppercase tracking-widest text-[#c9a84c]">{t.messageFromCoach}</p>
-              {wMsg.createdAt?.seconds && <p className="text-[9px] text-gray-400">{format(new Date(wMsg.createdAt.seconds * 1000), 'd/M/yyyy')}</p>}
+              {wMsg.read && wMsg.readAt ? (
+                <span className="flex items-center gap-1 text-[9px] text-emerald-500 font-medium">
+                  <CheckCircle2 className="h-3 w-3" />
+                  נראה {format(new Date(wMsg.readAt), 'HH:mm')}
+                </span>
+              ) : wMsg.createdAt?.seconds && (
+                <p className="text-[9px] text-gray-400">{format(new Date(wMsg.createdAt.seconds * 1000), 'd/M/yyyy')}</p>
+              )}
             </div>
             <p className="text-sm text-[#0a1628] leading-relaxed">{wMsg.message}</p>
             {!wMsg.read && (
-              <button onClick={async () => { try { await updateDoc(doc(db, 'coachMessages', wMsg.id), { read: true }); setCoachMessages(prev => prev.map(m => m.id === wMsg.id ? { ...m, read: true } : m)) } catch {} }}
-                className="mt-2 text-[10px] text-gray-400 hover:text-gray-600 underline underline-offset-2">{t.markAsRead}</button>
+              <div className="flex justify-end mt-3">
+                <button
+                  onClick={async () => {
+                    try {
+                      const readAt = Date.now()
+                      await updateDoc(doc(db, 'coachMessages', wMsg.id), { read: true, readAt })
+                      setCoachMessages(prev => prev.map(m => m.id === wMsg.id ? { ...m, read: true, readAt } : m))
+                    } catch {}
+                  }}
+                  className="flex items-center gap-1.5 bg-[#c9a84c] hover:bg-[#b8962e] text-white text-xs font-semibold px-3 py-1.5 rounded-full transition-colors active:scale-95"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  קראתי
+                </button>
+              </div>
             )}
           </div>
         )}

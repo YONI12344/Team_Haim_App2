@@ -21,7 +21,8 @@ import {
   isSameDay, isToday, parseISO,
 } from 'date-fns'
 import { cn } from '@/lib/utils'
-import { db } from '@/lib/firebase'
+import { db, realtimeDb } from '@/lib/firebase'
+import { ref, push } from 'firebase/database'
 import {
   collection, doc, getDoc, getDocs, query,
   where, addDoc, serverTimestamp, deleteDoc,
@@ -568,6 +569,29 @@ export function AthletePlanner({ athleteId }: Props) {
         message: coachMessageText.trim(),
         createdAt: serverTimestamp(),
         read: false,
+      })
+      // Mirror to RTDB chat thread with full workout payload
+      const chatId = `${user.id}_${athleteId}`
+      await push(ref(realtimeDb, `conversations/${chatId}/messages`), {
+        senderId: user.id,
+        senderName: user.name || 'המאמן',
+        content: coachMessageText.trim(),
+        type: 'coach_message',
+        payload: {
+          assignedWorkoutId: selectedAW.id,
+          workoutTitle: selectedAW.workout?.title || '',
+          workoutType: selectedAW.workout?.type || '',
+          description: selectedAW.workout?.description || '',
+          distance: selectedAW.workout?.distance ?? null,
+          duration: selectedAW.workout?.duration ?? null,
+          sets: selectedAW.workout?.sets ?? [],
+          warmup: selectedAW.workout?.warmup || '',
+          cooldown: selectedAW.workout?.cooldown || '',
+          notes: selectedAW.workout?.notes || '',
+          scheduledDate: selectedAW.scheduledDate,
+          status: selectedAW.status,
+        },
+        timestamp: Date.now(),
       })
       setCoachMessageText('')
       toast.success('הערה נשלחה לספורטאי!')

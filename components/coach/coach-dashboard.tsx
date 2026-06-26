@@ -17,7 +17,7 @@ import {
   addDoc, serverTimestamp, DocumentData, QueryDocumentSnapshot,
 } from 'firebase/firestore'
 import { db, realtimeDb } from '@/lib/firebase'
-import { ref, onValue, query as rtQuery, orderByChild, limitToLast } from 'firebase/database'
+import { ref, push, onValue, query as rtQuery, orderByChild, limitToLast } from 'firebase/database'
 import { useAuth } from '@/contexts/auth-context'
 import type { AthleteProfile, AssignedWorkout } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -159,6 +159,29 @@ export function CoachDashboard() {
         message: text,
         createdAt: serverTimestamp(),
         read: false,
+      })
+      // Mirror to RTDB chat thread with full workout payload
+      const chatId = `${user.id}_${athleteId}`
+      await push(ref(realtimeDb, `conversations/${chatId}/messages`), {
+        senderId: user.id,
+        senderName: user.name || 'המאמן',
+        content: text,
+        type: 'coach_message',
+        payload: workout ? {
+          assignedWorkoutId: workout.id,
+          workoutTitle: workout.workout?.title || '',
+          workoutType: workout.workout?.type || '',
+          description: workout.workout?.description || '',
+          distance: workout.workout?.distance ?? null,
+          duration: workout.workout?.duration ?? null,
+          sets: workout.workout?.sets ?? [],
+          warmup: workout.workout?.warmup || '',
+          cooldown: workout.workout?.cooldown || '',
+          notes: workout.workout?.notes || '',
+          scheduledDate: workout.scheduledDate,
+          status: workout.status,
+        } : null,
+        timestamp: Date.now(),
       })
       fetch('/api/send-notification', {
         method: 'POST',

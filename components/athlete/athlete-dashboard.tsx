@@ -21,6 +21,7 @@ import {
   MessageCircle,
   Bell,
   X,
+  CheckCircle2,
 } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
@@ -37,7 +38,7 @@ import {
   type QueryDocumentSnapshot,
 } from 'firebase/firestore'
 import { db, realtimeDb } from '@/lib/firebase'
-import { ref, onValue, query as rtQuery, orderByChild, limitToLast } from 'firebase/database'
+import { ref, push, onValue, query as rtQuery, orderByChild, limitToLast } from 'firebase/database'
 import { getCoachInfo, conversationId } from '@/lib/coach'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
@@ -206,10 +207,12 @@ export function AthleteDashboard() {
       where('athleteId', '==', user.id),
       where('approved', '==', true),
     )).then(snap => {
-      const notes = snap.docs.map(d => ({ id: d.id, ...d.data() })) as any[]
-      if (notes.length > 0) {
-        notes.sort((a, b) => (b.weekStart || '').localeCompare(a.weekStart || ''))
-        setLatestCoachNote(notes[0])
+      const notes = snap.docs
+        .map(d => ({ id: d.id, ...d.data() })) as any[]
+      const unread = notes.filter(n => !n.readByAthlete)
+      if (unread.length > 0) {
+        unread.sort((a, b) => (b.weekStart || '').localeCompare(a.weekStart || ''))
+        setLatestCoachNote(unread[0])
       }
     }).catch(() => {})
 
@@ -323,6 +326,38 @@ export function AthleteDashboard() {
 
   const unreadCoachMessages = coachMessages.filter(m => !m.read)
 
+  // Dismiss weekly summary: save to chat thread, mark read in Firestore, hide from dashboard
+  const handleDismissWeeklySummary = async () => {
+    if (!latestCoachNote || !user) return
+    try {
+      const coachInfo = await getCoachInfo()
+      if (coachInfo) {
+        const chatId = conversationId(coachInfo.uid, user.id)
+        const messagesRef = ref(realtimeDb, `conversations/${chatId}/messages`)
+        await push(messagesRef, {
+          senderId: coachInfo.uid,
+          senderName: coachInfo.name || 'המאמן',
+          content: [latestCoachNote.coachNote, latestCoachNote.nextWeekFocus].filter(Boolean).join('\n'),
+          type: 'weekly_summary',
+          payload: {
+            summary: latestCoachNote.summary || '',
+            achievements: latestCoachNote.achievements || '',
+            improvements: latestCoachNote.improvements || '',
+            nextWeekFocus: latestCoachNote.nextWeekFocus || '',
+            coachNote: latestCoachNote.coachNote || '',
+            weekStart: latestCoachNote.weekStart || '',
+            weekEnd: latestCoachNote.weekEnd || '',
+          },
+          timestamp: Date.now(),
+        })
+      }
+      await updateDoc(doc(db, 'weeklyNotes', latestCoachNote.id), { readByAthlete: true })
+      setLatestCoachNote(null)
+    } catch (e) {
+      console.error('dismiss summary error', e)
+    }
+  }
+
   return (
     <div className="space-y-4 pb-24" dir="rtl">
 
@@ -417,18 +452,19 @@ export function AthleteDashboard() {
               <p className="text-sm text-[#0a1628] leading-relaxed">{msg.message}</p>
               <div className="flex items-center justify-between mt-3">
                 {msg.createdAt?.seconds && (
-                  <p className="text-xs text-gray-400">{format(new Date(msg.createdAt.seconds * 1000), 'd/M/yyyy')}</p>
+                  <p className="text-xs text-gray-400">{format(new Date(msg.createdAt.seconds * 1000), 'd/M/yyyy HH:mm')}</p>
                 )}
                 <button
-                  className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
                   onClick={async () => {
                     try {
-                      await updateDoc(doc(db, 'coachMessages', msg.id), { read: true })
+                      await updateDoc(doc(db, 'coachMessages', msg.id), { read: true, readAt: Date.now() })
                       setCoachMessages(prev => prev.filter(m => m.id !== msg.id))
                     } catch {}
                   }}
+                  className="flex items-center gap-1.5 bg-[#c9a84c] hover:bg-[#b8962e] text-white text-xs font-semibold px-3 py-1.5 rounded-full transition-colors active:scale-95"
                 >
-                  סמן כנקרא
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  קראתי
                 </button>
               </div>
             </div>
@@ -498,9 +534,18 @@ export function AthleteDashboard() {
               <p className="text-base text-[#0a1628] font-medium leading-relaxed italic">{latestCoachNote.coachNote}</p>
             </>
           )}
-          {latestCoachNote.weekStart && (
-            <p className="text-xs text-gray-400 mt-3">{latestCoachNote.weekStart} – {latestCoachNote.weekEnd}</p>
-          )}
+          <div className="flex items-center justify-between mt-4">
+            {latestCoachNote.weekStart && (
+              <p className="text-xs text-gray-400">{latestCoachNote.weekStart} – {latestCoachNote.weekEnd}</p>
+            )}
+            <button
+              onClick={handleDismissWeeklySummary}
+              className="flex items-center gap-1.5 bg-[#0a1628] hover:bg-[#0a1628]/90 text-white text-xs font-semibold px-3 py-1.5 rounded-full transition-colors active:scale-95"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              קראתי
+            </button>
+          </div>
         </div>
       )}
 
