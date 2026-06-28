@@ -168,7 +168,7 @@ export function AthleteProfile() {
       if (data.success) {
         let saved = 0
         for (const activity of data.activities) {
-          const existing = await getDocs(query(collection(db, 'logs'), where('stravaActivityId', '==', activity.stravaActivityId)))
+          const existing = await getDocs(query(collection(db, 'logs'), where('stravaActivityId', '==', activity.stravaActivityId), where('athleteId', '==', user.id)))
           if (!existing.empty) {
             // Update splits in case format changed
             await updateDoc(doc(db, 'logs', existing.docs[0].id), {

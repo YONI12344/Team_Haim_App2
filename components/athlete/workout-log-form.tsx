@@ -115,13 +115,29 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
   useEffect(() => {
     const loadLog = async () => {
       try {
+        // First try to find a log by the assigned workout's workoutId
         const q = query(
           collection(db, 'logs'),
           where('workoutId', '==', workoutId),
           where('athleteId', '==', athleteId),
           limit(1)
         )
-        const snapshot = await getDocs(q)
+        let snapshot = await getDocs(q)
+
+        // If no match by workoutId, fall back to a Strava log for the same date.
+        // This prevents workout-log-form from creating a second document alongside
+        // an existing Strava log (which has workoutId 'strava_<id>', not the template id).
+        if (snapshot.empty && scheduledDate) {
+          const stravaQ = query(
+            collection(db, 'logs'),
+            where('athleteId', '==', athleteId),
+            where('date', '==', scheduledDate),
+            where('source', '==', 'strava'),
+            limit(1)
+          )
+          snapshot = await getDocs(stravaQ)
+        }
+
         if (!snapshot.empty) {
           const logData = snapshot.docs[0].data()
           const effortNum = legacyEffortToNumber(logData.effort)
