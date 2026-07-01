@@ -17,6 +17,8 @@ import {
   Pencil,
   Trash2,
   Download,
+  Bell,
+  BellOff,
 } from 'lucide-react'
 import Link from 'next/link'
 import {
@@ -108,6 +110,7 @@ export function AthleteRoster() {
               trainingPaces: Array.isArray(data.trainingPaces) ? data.trainingPaces : [],
               goals: Array.isArray(data.goals) ? data.goals : [],
               coachId: data.coachId,
+              mutedByCoach: data.mutedByCoach ?? false,
               createdAt: data.createdAt?.toDate?.() || new Date(),
               updatedAt: data.updatedAt?.toDate?.() || new Date(),
             }
@@ -196,6 +199,21 @@ export function AthleteRoster() {
       toast.error('Export failed. Please try again.')
     } finally {
       setExportingAthleteId(null)
+    }
+  }
+
+  const handleToggleMute = async (athlete: AthleteProfile) => {
+    const newMuted = !athlete.mutedByCoach
+    // Optimistic update
+    setAthletes(prev => prev.map(a => a.id === athlete.id ? { ...a, mutedByCoach: newMuted } : a))
+    try {
+      await updateDoc(doc(db, 'users', athlete.id), { mutedByCoach: newMuted, updatedAt: serverTimestamp() })
+      toast.success(newMuted ? `התראות של ${athlete.name} הושתקו` : `התראות של ${athlete.name} הופעלו`)
+    } catch (err) {
+      // Rollback on failure
+      setAthletes(prev => prev.map(a => a.id === athlete.id ? { ...a, mutedByCoach: !newMuted } : a))
+      console.error('Error toggling mute:', err)
+      toast.error('שגיאה בשמירת ההגדרה')
     }
   }
 
@@ -382,25 +400,43 @@ export function AthleteRoster() {
 
                   {isCoach && (
                     <>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleExportAthlete(athlete.id)}
-                        disabled={exportingAthleteId === athlete.id}
-                        aria-label={
-                          exportingAthleteId === athlete.id
-                            ? `${t.exportingAria} ${athlete.name}`
-                            : `${t.exportAria} ${athlete.name}`
-                        }
-                        className="w-full mt-2 border-gold/40 text-navy hover:border-gold"
-                      >
-                        {exportingAthleteId === athlete.id ? (
-                          <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-                        ) : (
-                          <Download className="h-3.5 w-3.5 mr-1" />
-                        )}
-                        {exportingAthleteId === athlete.id ? t.exportingDots : t.exportToExcel}
-                      </Button>
+                      <div className="flex gap-2 mt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleExportAthlete(athlete.id)}
+                          disabled={exportingAthleteId === athlete.id}
+                          aria-label={
+                            exportingAthleteId === athlete.id
+                              ? `${t.exportingAria} ${athlete.name}`
+                              : `${t.exportAria} ${athlete.name}`
+                          }
+                          className="flex-1 border-gold/40 text-navy hover:border-gold"
+                        >
+                          {exportingAthleteId === athlete.id ? (
+                            <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                          ) : (
+                            <Download className="h-3.5 w-3.5 mr-1" />
+                          )}
+                          {exportingAthleteId === athlete.id ? t.exportingDots : t.exportToExcel}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleToggleMute(athlete)}
+                          title={athlete.mutedByCoach ? 'בטל השתקה' : 'השתק התראות'}
+                          aria-label={athlete.mutedByCoach ? `בטל השתקת התראות של ${athlete.name}` : `השתק התראות של ${athlete.name}`}
+                          className={athlete.mutedByCoach
+                            ? 'border-destructive/40 text-destructive hover:border-destructive hover:bg-destructive/5'
+                            : 'border-gold/40 text-navy hover:border-gold'
+                          }
+                        >
+                          {athlete.mutedByCoach
+                            ? <BellOff className="h-3.5 w-3.5" />
+                            : <Bell className="h-3.5 w-3.5" />
+                          }
+                        </Button>
+                      </div>
                       <div className="grid grid-cols-2 gap-2 mt-2">
                         <Button
                           variant="outline"

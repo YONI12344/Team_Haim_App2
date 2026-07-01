@@ -60,6 +60,7 @@ export interface AthleteProfile {
   trainingPaces: TrainingPace[]
   goals: Goal[]
   coachId?: string
+  mutedByCoach?: boolean
   onboardingComplete?: boolean
   // Weekly training template — which type of session each day of the week
   weekSchedule?: WeekSchedule

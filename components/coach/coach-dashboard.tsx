@@ -41,6 +41,7 @@ function mapDocToAthlete(d: QueryDocumentSnapshot<DocumentData>): AthleteProfile
     trainingPaces: Array.isArray(data.trainingPaces) ? data.trainingPaces : [],
     goals: Array.isArray(data.goals) ? data.goals : [],
     coachId: data.coachId,
+    mutedByCoach: data.mutedByCoach ?? false,
     createdAt: data.createdAt?.toDate?.() || new Date(),
     updatedAt: data.updatedAt?.toDate?.() || new Date(),
   }
@@ -117,6 +118,7 @@ export function CoachDashboard() {
   useEffect(() => {
     if (!user?.id || loading || !athletes.length) return
     athletes.forEach(athlete => {
+      if (athlete.mutedByCoach) return
       const future = assignedWorkouts.filter(
         w => w.athleteId === athlete.id && w.scheduledDate >= todayStr
       )

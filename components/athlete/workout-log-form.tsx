@@ -10,6 +10,7 @@ import {
   query,
   where,
   getDocs,
+  getDoc,
   addDoc,
   updateDoc,
   doc,
@@ -251,6 +252,8 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
             console.error('[workout-log-form] getCoachInfo returned no uid — notification skipped')
             return
           }
+          const athleteSnap = await getDoc(doc(db, 'users', athleteId))
+          if (athleteSnap.data()?.mutedByCoach === true) return
           const athleteName = user?.name || 'ספורטאי'
           const parts: string[] = []
           if (parsedDistance) parts.push(`${parsedDistance} ק"מ`)

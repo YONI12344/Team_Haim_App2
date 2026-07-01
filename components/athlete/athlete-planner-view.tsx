@@ -432,7 +432,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
             try {
               const coachId = userSnap.data()?.coachId
               const athleteName = userSnap.data()?.name || 'ספורטאי'
-              if (coachId) {
+              if (coachId && !userSnap.data()?.mutedByCoach) {
                 fetch('/api/send-notification', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
@@ -518,7 +518,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
             const athleteSnap = await getDoc(doc(db, 'users', athleteId))
             const coachId = athleteSnap.data()?.coachId
             const athleteName = athleteSnap.data()?.name || 'ספורטאי'
-            if (!coachId) return
+            if (!coachId || athleteSnap.data()?.mutedByCoach === true) return
             const preview = pendingComment.trim() ? pendingComment.trim().slice(0, 100) : `מאמץ ${pendingEffort}/10`
             fetch('/api/send-notification', {
               method: 'POST',
