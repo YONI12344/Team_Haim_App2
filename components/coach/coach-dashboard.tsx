@@ -94,25 +94,30 @@ export function CoachDashboard() {
     return () => unsubs.forEach(u => u())
   }, [user?.id, athletes.length])
 
-  // Load all data
+  // Load all data — parallel queries with date limits to avoid full-table scans
   useEffect(() => {
+    if (!user?.id) return
     const loadData = async () => {
+      const thirtyDaysAgo = format(addDays(new Date(), -30), 'yyyy-MM-dd')
       try {
-        const snap = await getDocs(query(collection(db, 'users'), where('role', '==', 'athlete')))
-        setAthletes(snap.docs.map(mapDocToAthlete))
-      } catch { setAthletes([]) }
-      try {
-        const snap = await getDocs(query(collection(db, 'assignedWorkouts'), orderBy('scheduledDate', 'asc')))
-        setAssignedWorkouts(snap.docs.map(d => ({ ...(d.data() as AssignedWorkout), id: d.id })))
-      } catch { setAssignedWorkouts([]) }
-      try {
-        const snap = await getDocs(collection(db, 'logs'))
-        setLogs(snap.docs.map(d => ({ id: d.id, ...d.data() })))
-      } catch { setLogs([]) }
+        const [athleteSnap, assignedSnap, logsSnap] = await Promise.all([
+          getDocs(query(collection(db, 'users'), where('role', '==', 'athlete'), where('coachId', '==', user.id))),
+          getDocs(query(collection(db, 'assignedWorkouts'), where('scheduledDate', '>=', thirtyDaysAgo), orderBy('scheduledDate', 'asc'))),
+          getDocs(query(collection(db, 'logs'), where('date', '>=', thirtyDaysAgo))),
+        ])
+        setAthletes(athleteSnap.docs.map(mapDocToAthlete))
+        setAssignedWorkouts(assignedSnap.docs.map(d => ({ ...(d.data() as AssignedWorkout), id: d.id })))
+        setLogs(logsSnap.docs.map(d => ({ id: d.id, ...d.data() })))
+      } catch (err) {
+        console.error('Error loading coach dashboard data:', err)
+        setAthletes([])
+        setAssignedWorkouts([])
+        setLogs([])
+      }
       setLoading(false)
     }
     loadData()
-  }, [])
+  }, [user?.id])
 
   // Low-plan notifications — once per day per athlete (localStorage throttle)
   useEffect(() => {

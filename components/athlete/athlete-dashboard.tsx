@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import { format, isToday, isTomorrow, parseISO, startOfWeek, endOfWeek } from 'date-fns'
+import { format, isToday, isTomorrow, parseISO, startOfWeek, endOfWeek, addDays } from 'date-fns'
 import {
   Dumbbell,
   Clock,
@@ -228,9 +228,14 @@ export function AthleteDashboard() {
       setCoachMessages(msgs)
     }).catch(() => {})
 
-    // Real-time listener for assigned workouts
+    // Real-time listener for assigned workouts — limit to 7 days back, 90 days ahead
+    const sevenDaysAgo = format(addDays(new Date(), -7), 'yyyy-MM-dd')
     unsubAssigned = onSnapshot(
-      query(collection(db, 'assignedWorkouts'), where('athleteId', '==', user.id)),
+      query(
+        collection(db, 'assignedWorkouts'),
+        where('athleteId', '==', user.id),
+        where('scheduledDate', '>=', sevenDaysAgo),
+      ),
       (snap) => {
         setAssigned(snap.docs.map(mapAssignedWorkout))
         setLoading(false)
@@ -242,9 +247,10 @@ export function AthleteDashboard() {
       }
     )
 
-    // Real-time listener for logs
+    // Real-time listener for logs — limit to last 30 days
+    const thirtyDaysAgo = format(addDays(new Date(), -30), 'yyyy-MM-dd')
     unsubLogs = onSnapshot(
-      query(collection(db, 'logs'), where('athleteId', '==', user.id)),
+      query(collection(db, 'logs'), where('athleteId', '==', user.id), where('date', '>=', thirtyDaysAgo)),
       (snap) => {
         setLogs(snap.docs.map((d) => {
           const data = d.data()
