@@ -101,7 +101,7 @@ export function CoachDashboard() {
       const thirtyDaysAgo = format(addDays(new Date(), -30), 'yyyy-MM-dd')
       try {
         const [athleteSnap, assignedSnap, logsSnap] = await Promise.all([
-          getDocs(query(collection(db, 'users'), where('role', '==', 'athlete'), where('coachId', '==', user.id))),
+          getDocs(query(collection(db, 'users'), where('role', '==', 'athlete'))),
           getDocs(query(collection(db, 'assignedWorkouts'), where('scheduledDate', '>=', thirtyDaysAgo), orderBy('scheduledDate', 'asc'))),
           getDocs(query(collection(db, 'logs'), where('date', '>=', thirtyDaysAgo))),
         ])
