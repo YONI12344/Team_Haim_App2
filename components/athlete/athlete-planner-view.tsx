@@ -368,11 +368,11 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
             </div>
           )
           return (
-            <div className="p-4" dir="rtl">
+            <div className="p-4" dir={isRTL ? 'rtl' : 'ltr'}>
               <button
                 onClick={() => setOpenLogForms(prev => new Set([...prev, w.id]))}
                 className="w-full h-11 rounded-xl bg-[#0a1628] text-white text-sm font-bold active:scale-[0.98] transition-all">
-                {stravaForDate ? 'הוסף הערה לאימון' : 'עדכן אימון'}
+                {stravaForDate ? t.addNoteToWorkoutBtn : t.updateWorkoutBtn}
               </button>
             </div>
           )

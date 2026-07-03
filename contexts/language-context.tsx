@@ -163,6 +163,7 @@ interface Translations {
   repLabel: string
   coachNotesLabel: string
   logWorkoutBtn: string
+  addNoteToWorkoutBtn: string
   completedBadge: string
   skippedBadge: string
   scheduledBadge: string
@@ -876,6 +877,7 @@ const translations: Record<Language, Translations> = {
     repLabel: 'Round',
     coachNotesLabel: 'Coach notes',
     logWorkoutBtn: 'Log workout',
+    addNoteToWorkoutBtn: 'Add note to workout',
     completedBadge: 'Done',
     skippedBadge: 'Skipped',
     scheduledBadge: 'Planned',
@@ -1554,6 +1556,7 @@ const translations: Record<Language, Translations> = {
     repLabel: 'חזרה',
     coachNotesLabel: 'הערות מאמן',
     logWorkoutBtn: 'תעד אימון',
+    addNoteToWorkoutBtn: 'הוסף הערה לאימון',
     completedBadge: 'הושלם',
     skippedBadge: 'דולג',
     scheduledBadge: 'מתוכנן',
