@@ -11,9 +11,9 @@ interface Props {
 }
 
 export function WorkoutDetailCard({ w, showLog, log }: Props) {
-  const { t } = useLanguage()
+  const { t, isRTL } = useLanguage()
   return (
-    <div className="rounded-2xl border border-border overflow-hidden bg-white shadow-sm" dir="rtl">
+    <div className="rounded-2xl border border-border overflow-hidden bg-white shadow-sm" dir={isRTL ? 'rtl' : 'ltr'}>
 
       {/* Warmup */}
       {w.workout.warmup && (

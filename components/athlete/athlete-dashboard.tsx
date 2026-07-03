@@ -386,7 +386,7 @@ export function AthleteDashboard() {
   }
 
   return (
-    <div className="space-y-4 pb-24" dir="rtl">
+    <div className="space-y-4 pb-24" dir={isRTL ? 'rtl' : 'ltr'}>
 
       {/* Notification permission banner — only when not yet asked and not dismissed */}
       {permission === 'default' && !notifBannerDismissed && (

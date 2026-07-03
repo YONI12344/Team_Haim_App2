@@ -229,7 +229,7 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-28 md:pb-6">
       {/* Back Button */}
       {!hideBackButton && (
         <Link href="/coach/workouts">
