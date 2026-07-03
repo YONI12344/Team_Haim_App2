@@ -46,9 +46,6 @@ export function WorkoutDetailCard({ w, showLog, log }: Props) {
                   <span className="bg-navy/10 text-navy text-[11px] font-semibold px-2.5 py-0.5 rounded-full">{set.reps}×</span>
                 )}
               </div>
-              {set.rest && !hasIntervals && (
-                <span className="text-[11px] text-muted-foreground bg-muted px-2.5 py-0.5 rounded-full">{t.restLabel}: {set.rest}</span>
-              )}
             </div>
 
             {/* Intervals */}
@@ -73,8 +70,8 @@ export function WorkoutDetailCard({ w, showLog, log }: Props) {
               </div>
             )}
 
-            {/* Between-sets rest for interval sets */}
-            {hasIntervals && set.rest && (
+            {/* Between-sets rest — always at the bottom of the set card */}
+            {set.rest && (
               <div className="px-5 py-2 bg-muted/30 border-t border-border/40">
                 <p className="text-[11px] text-muted-foreground text-center">{t.restBetweenSets}: {set.rest}</p>
               </div>
