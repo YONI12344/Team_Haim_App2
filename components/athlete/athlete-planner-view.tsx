@@ -276,12 +276,14 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
         const hasIntervals = set.intervals && set.intervals.length > 0
         return (
           <div key={set.id||si}>
-            {/* Rest between sets separator */}
+            {/* Rest between sets separator — use PREVIOUS set's rest */}
             {si > 0 && (
               <div className="flex items-center gap-3 px-4" style={{height:'28px'}}>
                 <div className="flex-1 h-px bg-border"/>
                 <span className="text-xs text-muted-foreground whitespace-nowrap">
-                  {set.rest ? `${t.restBetweenSets}: ${set.rest}` : t.continueToNext}
+                  {(w.workout.sets as any[])[si - 1]?.rest
+                    ? `${t.restBetweenSets}: ${(w.workout.sets as any[])[si - 1].rest}`
+                    : t.continueToNext}
                 </span>
                 <div className="flex-1 h-px bg-border"/>
               </div>
@@ -299,9 +301,6 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                 }
                 {hasIntervals && set.reps > 1 && <span className="font-normal text-muted-foreground"> · {set.reps}×</span>}
               </p>
-              {!hasIntervals && set.rest && (
-                <p className="text-xs text-muted-foreground text-right mt-1">{t.restPrefix} {set.rest}</p>
-              )}
             </div>
             {/* Intervals */}
             {hasIntervals && set.intervals.map((iv: any, ii: number) => (

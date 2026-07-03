@@ -379,7 +379,6 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
                     {t.setLabelPrefix} {si + 1}
                     {hasIntervals ? ` · ${reps > 1 ? `${reps}× ` : ''}${intervals.length}` : reps > 1 ? ` · ${reps} ${t.repLabelPrefix}` : ''}
                   </span>
-                  {set.rest && <span className="text-[11px] text-muted-foreground bg-muted px-2.5 py-0.5 rounded-full">{t.restPrefix} {set.rest}</span>}
                 </div>
                 <div className="divide-y divide-border/60">
                   {hasIntervals ? (

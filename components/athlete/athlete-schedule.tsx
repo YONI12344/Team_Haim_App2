@@ -590,7 +590,6 @@ export function AthleteSchedule({ athleteId: propAthleteId, readOnly = false }: 
                               <span className="font-semibold text-navy">
                                 {set.reps > 1 ? `${set.reps}x ` : ''}{!hasIntervals && (set.distance || set.duration)}{!hasIntervals && set.pace && <span className="text-muted-foreground font-normal ml-1"> @ {set.pace}</span>}
                               </span>
-                              {set.rest && <span className="text-xs text-muted-foreground">{t.restPrefix} {set.rest}</span>}
                             </div>
                             {hasIntervals && (
                               <div className="border-t border-border/40 divide-y divide-border/30">
@@ -600,6 +599,11 @@ export function AthleteSchedule({ athleteId: propAthleteId, readOnly = false }: 
                                     {iv.rest && <span className="text-xs text-muted-foreground">{t.restPrefix} {iv.rest}</span>}
                                   </div>
                                 ))}
+                              </div>
+                            )}
+                            {set.rest && (
+                              <div className="px-3 py-1.5 bg-muted/40 border-t border-border/30 text-center">
+                                <span className="text-xs text-muted-foreground">{t.restBetweenSets}: {set.rest}</span>
                               </div>
                             )}
                           </div>
