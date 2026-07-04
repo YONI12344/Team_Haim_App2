@@ -119,6 +119,17 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
     return new Date()
   })
 
+  // When ?date= URL param changes (e.g. from dashboard pending-feedback link), jump to that date
+  useEffect(() => {
+    const p = searchParams?.get('date')
+    if (!p) return
+    const d = new Date(p)
+    if (!isNaN(d.getTime())) {
+      setCurrentDate(d)
+      setSelectedWeekDay(d)
+    }
+  }, [searchParams])
+
   useEffect(() => {
     if (!athleteId) return
     const load = async () => {
