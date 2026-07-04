@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState, useMemo, useCallback } from 'react'
-import { useSearchParams } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -84,7 +83,6 @@ interface JourneySummary {
 
 export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: string } = {}) {
   const { user } = useAuth()
-  const searchParams = useSearchParams()
   const { t, isRTL } = useLanguage()
   const typeLabels = useWorkoutTypeLabels()
   const dayShort = [t.sun, t.mon, t.tue, t.wed, t.thu, t.fri, t.sat]
@@ -119,16 +117,17 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
     return new Date()
   })
 
-  // When ?date= URL param changes (e.g. from dashboard pending-feedback link), jump to that date
+  // When ?date= is in the URL (e.g. from dashboard pending-feedback link), jump to that date
   useEffect(() => {
-    const p = searchParams?.get('date')
+    if (typeof window === 'undefined') return
+    const p = new URLSearchParams(window.location.search).get('date')
     if (!p) return
     const d = new Date(p)
     if (!isNaN(d.getTime())) {
       setCurrentDate(d)
       setSelectedWeekDay(d)
     }
-  }, [searchParams])
+  }, [])
 
   useEffect(() => {
     if (!athleteId) return
