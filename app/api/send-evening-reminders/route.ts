@@ -1,7 +1,5 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getGoogleAccessToken, fsQuery, fsGetDoc, sendFCM } from '@/lib/google-auth'
-
-const TARGET_HOUR = 19 // send at 7 PM athlete local time
 
 function localHour(timezone: string): number {
   try {
@@ -22,14 +20,18 @@ function localDate(timezone: string): string {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const accessToken = await getGoogleAccessToken()
 
-    const workouts = await fsQuery(
-      'assignedWorkouts',
-      [],
-      accessToken,
+    const workouts = await fsQuery('assignedWorkouts', [], accessToken)
+    const logs = await fsQuery('logs', [], accessToken)
+
+    const loggedAthletes = new Set(
+      logs
+        .filter((l) => l.data.source !== 'strava')
+        .map((l) => l.data.athleteId as string)
+        .filter(Boolean),
     )
 
     const athleteIds = new Set(
@@ -39,26 +41,18 @@ export async function GET() {
         .filter(Boolean),
     )
 
-    const logs = await fsQuery('logs', [], accessToken)
-    const loggedAthletes = new Set(
-      logs
-        .filter((l) => l.data.source !== 'strava')
-        .map((l) => l.data.athleteId as string)
-        .filter(Boolean),
-    )
-
     const results: string[] = []
     for (const athleteId of athleteIds) {
       if (loggedAthletes.has(athleteId)) continue
 
-      // Get athlete's timezone
       const userDoc = await fsGetDoc('users', athleteId, accessToken)
       const tz: string = userDoc?.timezone || 'Asia/Jerusalem'
 
-      // Only send at 7 PM in the athlete's local timezone
-      if (localHour(tz) !== TARGET_HOUR) continue
+      // Send if athlete's local time is between 19–21 (7–9 PM)
+      // Two crons cover different regions: eu runs at 16:00 UTC, us at 23:00 UTC
+      const hour = localHour(tz)
+      if (hour < 19 || hour > 21) continue
 
-      // Only send if they have an incomplete workout today in their local date
       const today = localDate(tz)
       const hasTodayWorkout = workouts.some(
         (w) =>

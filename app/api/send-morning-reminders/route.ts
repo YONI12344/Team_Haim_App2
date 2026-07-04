@@ -1,7 +1,5 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getGoogleAccessToken, fsQuery, fsGetDoc, sendFCM } from '@/lib/google-auth'
-
-const TARGET_HOUR = 7 // send at 7 AM athlete local time
 
 function localHour(timezone: string): number {
   try {
@@ -16,27 +14,21 @@ function localHour(timezone: string): number {
 
 function localDate(timezone: string): string {
   try {
-    return new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(new Date()) // en-CA gives YYYY-MM-DD
+    return new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(new Date())
   } catch {
     return new Date().toISOString().slice(0, 10)
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const accessToken = await getGoogleAccessToken()
 
-    const workouts = await fsQuery(
-      'assignedWorkouts',
-      [],
-      accessToken,
-    )
+    const workouts = await fsQuery('assignedWorkouts', [], accessToken)
 
-    // Group by athlete, keep only one workout per athlete
     const byAthlete = new Map<string, { title: string; distance?: number; scheduledDate: string }>()
     for (const { data } of workouts) {
       if (!data.athleteId || byAthlete.has(data.athleteId)) continue
-      // Only today's workouts — we'll check "today" per athlete timezone below
       byAthlete.set(data.athleteId, {
         title: data.workout?.title || 'אימון',
         distance: data.workout?.distance ?? undefined,
@@ -46,14 +38,14 @@ export async function GET() {
 
     const results: string[] = []
     for (const [athleteId, workout] of byAthlete.entries()) {
-      // Get athlete's timezone from their profile
       const userDoc = await fsGetDoc('users', athleteId, accessToken)
       const tz: string = userDoc?.timezone || 'Asia/Jerusalem'
 
-      // Only send if it's currently 7 AM in the athlete's timezone
-      if (localHour(tz) !== TARGET_HOUR) continue
+      // Send if athlete's local time is between 7–9 AM
+      // Two crons cover different regions: eu runs at 05:00 UTC, us at 13:00 UTC
+      const hour = localHour(tz)
+      if (hour < 7 || hour > 9) continue
 
-      // Only send if the workout is scheduled for today in the athlete's local date
       const today = localDate(tz)
       if (workout.scheduledDate !== today) continue
 
