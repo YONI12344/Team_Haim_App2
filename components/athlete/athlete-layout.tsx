@@ -6,6 +6,8 @@ import { useEffect, type ReactNode } from 'react'
 import { AthleteNav } from './athlete-nav'
 import { AthleteBottomNav } from './athlete-bottom-nav'
 import { Loader2 } from 'lucide-react'
+import { doc, setDoc } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
 
 export function AthleteLayout({ children, hideNav }: { children: ReactNode; hideNav?: boolean }) {
   const { user, loading } = useAuth()
@@ -16,6 +18,14 @@ export function AthleteLayout({ children, hideNav }: { children: ReactNode; hide
       router.push('/')
     }
   }, [user, loading, router])
+
+  // Save athlete's timezone once per session so reminders fire at the right local time
+  useEffect(() => {
+    if (!user?.id) return
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+    if (!tz) return
+    setDoc(doc(db, 'users', user.id), { timezone: tz }, { merge: true }).catch(() => {})
+  }, [user?.id])
 
   if (loading) {
     return (

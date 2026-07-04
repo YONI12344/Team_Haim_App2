@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -83,6 +84,7 @@ interface JourneySummary {
 
 export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: string } = {}) {
   const { user } = useAuth()
+  const searchParams = useSearchParams()
   const { t, isRTL } = useLanguage()
   const typeLabels = useWorkoutTypeLabels()
   const dayShort = [t.sun, t.mon, t.tue, t.wed, t.thu, t.fri, t.sat]
@@ -95,14 +97,27 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
   const [assignedWorkouts, setAssignedWorkouts] = useState<AssignedWorkout[]>([])
   const [weekLogs, setWeekLogs] = useState<{id: string, actualDistance?: number, actualPace?: string, effort?: number, comment?: string, workoutId?: string, assignedWorkoutId?: string, source?: string, splitLogs?: any[], date: string, stravaActivityId?: string, stravaName?: string, averageHeartRate?: number, elevationGain?: number, feedbackStatus?: string, stravaType?: string}[]>([])
   const [loading, setLoading] = useState(true)
-  const [currentDate, setCurrentDate] = useState(new Date())
+  const [currentDate, setCurrentDate] = useState(() => {
+    // If ?date=YYYY-MM-DD is in the URL, jump straight to that date
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search).get('date')
+      if (p) { const d = new Date(p); if (!isNaN(d.getTime())) return d }
+    }
+    return new Date()
+  })
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day')
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null)
   const [openLogForms, setOpenLogForms] = useState<Set<string>>(new Set())
   const [expandedToday, setExpandedToday] = useState(false)
   const [stravaSyncing, setStravaSyncing] = useState(false)
   const [coachMessages, setCoachMessages] = useState<any[]>([])
-  const [selectedWeekDay, setSelectedWeekDay] = useState<Date>(() => new Date())
+  const [selectedWeekDay, setSelectedWeekDay] = useState<Date>(() => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search).get('date')
+      if (p) { const d = new Date(p); if (!isNaN(d.getTime())) return d }
+    }
+    return new Date()
+  })
 
   useEffect(() => {
     if (!athleteId) return

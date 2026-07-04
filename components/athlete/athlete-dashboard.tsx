@@ -497,22 +497,43 @@ export function AthleteDashboard() {
         </div>
       )}
 
-      {/* Pending Strava Feedback */}
+      {/* Pending Strava Feedback — one card per workout */}
       {pendingFeedbackLogs.length > 0 && (
-        <Link href="/athlete/schedule">
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex items-center justify-between gap-4 active:scale-[0.98] transition-transform">
-            <div className="flex items-center gap-3">
-              <div className="h-11 w-11 rounded-2xl bg-[#FC4C02]/10 flex items-center justify-center flex-shrink-0">
-                <TrendingUp className="h-5 w-5 text-[#FC4C02]" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-[#0a1628]">{pendingFeedbackLogs.length} {t.pendingFeedbackSuffix}</p>
-                <p className="text-xs text-gray-500 mt-0.5">{t.addEffortNoteLabel}</p>
-              </div>
-            </div>
-            <ArrowUpRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
-          </div>
-        </Link>
+        <div className="space-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 px-1">
+            {pendingFeedbackLogs.length} {t.pendingFeedbackSuffix}
+          </p>
+          {pendingFeedbackLogs
+            .sort((a: any, b: any) => b.date.localeCompare(a.date))
+            .slice(0, 5)
+            .map((log: any) => (
+              <Link key={log.id} href={`/athlete/schedule?date=${log.date}`}>
+                <div className="bg-white rounded-2xl shadow-sm border border-[#FC4C02]/20 p-4 flex items-center justify-between gap-4 active:scale-[0.98] transition-transform">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-[#FC4C02]/10 flex items-center justify-center flex-shrink-0">
+                      <TrendingUp className="h-4 w-4 text-[#FC4C02]" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-[#0a1628] leading-tight">
+                        {log.stravaName || t.pendingFeedbackSuffix}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {log.date} {log.actualDistance ? `· ${log.actualDistance} km` : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <ArrowUpRight className="h-4 w-4 text-[#FC4C02] flex-shrink-0" />
+                </div>
+              </Link>
+            ))}
+          {pendingFeedbackLogs.length > 5 && (
+            <Link href="/athlete/schedule">
+              <p className="text-xs text-center text-gray-400 pt-1">
+                +{pendingFeedbackLogs.length - 5} more
+              </p>
+            </Link>
+          )}
+        </div>
       )}
 
       {/* Weekly Progress Card */}
