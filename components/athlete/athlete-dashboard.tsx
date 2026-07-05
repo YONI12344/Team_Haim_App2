@@ -228,8 +228,8 @@ export function AthleteDashboard() {
       setCoachMessages(msgs)
     }).catch(() => {})
 
-    // Real-time listener for assigned workouts — last 30 days + all future
-    const thirtyDaysAgo = format(addDays(new Date(), -30), 'yyyy-MM-dd')
+    // Real-time listener for assigned workouts — last 14 days + all future
+    const thirtyDaysAgo = format(addDays(new Date(), -14), 'yyyy-MM-dd')
     unsubAssigned = onSnapshot(
       query(collection(db, 'assignedWorkouts'), where('athleteId', '==', user.id), where('scheduledDate', '>=', thirtyDaysAgo)),
       (snap) => {
@@ -243,7 +243,7 @@ export function AthleteDashboard() {
       }
     )
 
-    // Real-time listener for logs — last 30 days
+    // Real-time listener for logs — last 14 days
     unsubLogs = onSnapshot(
       query(collection(db, 'logs'), where('athleteId', '==', user.id), where('date', '>=', thirtyDaysAgo)),
       (snap) => {
