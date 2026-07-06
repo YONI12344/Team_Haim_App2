@@ -12,7 +12,15 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if request.auth != null;
-      allow write: if isSelf(userId) || isCoach();
+      // Self-writes are allowed, but a non-coach can never set their own
+      // (or anyone else's) role to 'coach' this way — only the real
+      // coach account (isCoach(), checked against the verified Google
+      // auth token email) can ever write role: 'coach'. Without this,
+      // the client-side check in auth-context.tsx is cosmetic only:
+      // anyone signed in could call Firestore directly and grant
+      // themselves the coach role.
+      allow write: if isCoach()
+        || (isSelf(userId) && request.resource.data.role != 'coach');
       match /journey/{journeyId} {
         allow read, write: if isSelf(userId) || isCoach();
       }
