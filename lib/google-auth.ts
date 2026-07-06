@@ -86,6 +86,12 @@ export async function sendFCM(
   data: Record<string, string>,
   accessToken: string,
 ): Promise<string> {
+  // Data-only message: no top-level `notification` field. FCM/browsers
+  // auto-display a system notification whenever a `notification` field is
+  // present, and our service worker's onBackgroundMessage ALSO calls
+  // showNotification() — together that showed every push twice. Putting
+  // title/body inside `data` means only our own showNotification() call
+  // (in public/firebase-messaging-sw.js) displays anything.
   const res = await fetch(
     `https://fcm.googleapis.com/v1/projects/${PROJECT_ID}/messages:send`,
     {
@@ -94,15 +100,8 @@ export async function sendFCM(
       body: JSON.stringify({
         message: {
           token: fcmToken,
-          notification,
-          data,
-          android: {
-            priority: 'high',
-            notification: { channel_id: 'team-haim-default', sound: 'default' },
-          },
-          apns: {
-            payload: { aps: { sound: 'default', badge: 1, 'content-available': 1 } },
-          },
+          data: { ...data, title: notification.title, body: notification.body },
+          webpush: { headers: { Urgency: 'high' } },
         },
       }),
     },

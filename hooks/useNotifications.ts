@@ -18,7 +18,7 @@ export function useNotifications() {
     }
 
     const unsubscribe = listenForForegroundMessages((payload) => {
-      const body = payload.notification?.body || ''
+      const body = payload.data?.body || ''
       toast(body, {
         duration: 5000,
         position: 'top-right',

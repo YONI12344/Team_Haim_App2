@@ -14,7 +14,10 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
-  const { title, body, icon } = payload.notification || {};
+  // Data-only messages: title/body/icon live in payload.data, not
+  // payload.notification, so the browser never auto-displays its own
+  // notification and this showNotification() call is the only one.
+  const { title, body, icon } = payload.data || {};
   self.registration.showNotification(title || 'Team Haim', {
     body: body || '',
     icon: icon || '/icon-192x192.png',
