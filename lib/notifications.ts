@@ -13,7 +13,10 @@
 
 import { getMessaging, getToken, onMessage } from 'firebase/messaging'
 import { doc, setDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore'
-import { db } from './firebase'
+// Use the already-initialized app instance directly — calling getApp() via a
+// separate import can resolve a second copy of firebase/app under Turbopack,
+// which throws "No Firebase App '[DEFAULT]' has been created"
+import app, { db } from './firebase'
 
 const VAPID_KEY = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY || ''
 
@@ -28,8 +31,7 @@ export async function requestNotificationPermission(userId: string): Promise<str
 
     const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js')
 
-    const { getApp } = await import('firebase/app')
-    const messaging = getMessaging(getApp())
+    const messaging = getMessaging(app)
 
     const token = await getToken(messaging, {
       vapidKey: VAPID_KEY,
@@ -54,8 +56,7 @@ export async function requestNotificationPermission(userId: string): Promise<str
 
 export function listenForForegroundMessages(onReceive: (payload: any) => void): () => void {
   try {
-    const { getApp } = require('firebase/app')
-    const messaging = getMessaging(getApp())
+    const messaging = getMessaging(app)
     return onMessage(messaging, onReceive)
   } catch (error) {
     console.error('Foreground message listener error:', error)

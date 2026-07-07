@@ -29,7 +29,7 @@ import {
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/auth-context'
 import { isCoachEmail } from '@/lib/constants'
-import { useWorkoutTypeLabels } from '@/lib/workout-labels'
+import { useWorkoutTypeLabels, autoWorkoutTitle } from '@/lib/workout-labels'
 import { useLanguage } from '@/contexts/language-context'
 
 const workoutTypeOrder: WorkoutType[] = [
@@ -42,6 +42,8 @@ const workoutTypeOrder: WorkoutType[] = [
   'recovery',
   'strength',
   'cross_training',
+  'swim',
+  'bike',
   'rest',
   'race',
   'time_trial',
@@ -161,10 +163,9 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!title.trim()) {
-      toast.error('Please enter a workout title')
-      return
-    }
+    // Empty title → auto-generate one from the type + sets/distance/duration
+    const finalTitle = title.trim() ||
+      autoWorkoutTitle(workoutTypeLabels, type, { distance, duration, sets: sets as any[] })
 
     if (!isCoach) {
       toast.error('Only the coach account can save workouts')
@@ -174,7 +175,7 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
     setIsSubmitting(true)
     try {
       const payload = {
-        title: title.trim(),
+        title: finalTitle,
         type,
         description: description.trim(),
         duration: duration ? Number(duration) : null,

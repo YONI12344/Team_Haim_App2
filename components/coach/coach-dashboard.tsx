@@ -20,6 +20,8 @@ import { db, realtimeDb } from '@/lib/firebase'
 import { ref, push, onValue, query as rtQuery, orderByChild, limitToLast } from 'firebase/database'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
+import { useWorkoutTypeLabels, workoutTypeColors } from '@/lib/workout-labels'
+import { getActivityInfo, activityLabel, formatDurationMin } from '@/lib/activity-types'
 import type { AthleteProfile, AssignedWorkout } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -49,7 +51,8 @@ function mapDocToAthlete(d: QueryDocumentSnapshot<DocumentData>): AthleteProfile
 
 export function CoachDashboard() {
   const { user } = useAuth()
-  const { t } = useLanguage()
+  const { t, isRTL } = useLanguage()
+  const typeLabels = useWorkoutTypeLabels()
   const { permission, enableNotifications } = useNotifications()
   const [notifBannerDismissed, setNotifBannerDismissed] = useState(false)
   const [athletes, setAthletes] = useState<AthleteProfile[]>([])
@@ -210,6 +213,75 @@ export function CoachDashboard() {
     setSendingMessage(null)
   }
 
+  // Per-athlete daily snapshot — computed once, then sorted so athletes who
+  // need the coach's attention appear first
+  const athleteData = athletes.map(athlete => {
+    const athleteLogs = logs.filter(l => l.athleteId === athlete.id)
+    const athleteAssignedWorkouts = assignedWorkouts.filter(w => w.athleteId === athlete.id)
+
+    // Plan end date
+    const futureWorkouts = athleteAssignedWorkouts.filter(w => w.scheduledDate >= todayStr)
+    const lastFutureDate = futureWorkouts.length > 0
+      ? futureWorkouts[futureWorkouts.length - 1].scheduledDate
+      : null
+    const daysUntilPlanEnd = lastFutureDate
+      ? differenceInDays(parseISO(lastFutureDate), new Date())
+      : -1
+    const needsNewPlan = daysUntilPlanEnd < 7
+
+    // Today's workout + logs (Strava sync or manual athlete upload)
+    const todayWorkout = athleteAssignedWorkouts.find(w => w.scheduledDate === todayStr)
+    const todayLog = todayWorkout
+      ? (athleteLogs.find((l: any) => l.assignedWorkoutId === todayWorkout.id && l.source !== 'strava' && l.source !== 'manual') ||
+         athleteLogs.find((l: any) => l.date === todayStr && l.source !== 'strava' && l.source !== 'manual' && l.actualDistance))
+      : null
+    // All of today's activities (Strava + manual) — pending-feedback first
+    const todayActivityLogs: any[] = athleteLogs
+      .filter((l: any) => l.date === todayStr && (l.source === 'strava' || l.source === 'manual'))
+      .sort((a: any, b: any) =>
+        (a.feedbackStatus === 'pending' ? 0 : 1) - (b.feedbackStatus === 'pending' ? 0 : 1))
+    const todayStravaLog: any = todayActivityLogs[0] || null
+    const todayStravaPending = todayStravaLog?.feedbackStatus === 'pending'
+
+    // Yesterday missed
+    const yesterdayMissed = athleteAssignedWorkouts.find(
+      w => w.scheduledDate === yesterdayStr && w.status !== 'completed' && w.status !== 'skipped'
+    )
+
+    // Status
+    let todayStatus: 'done' | 'strava-pending' | 'scheduled' | 'skipped' | 'rest' = 'rest'
+    if (todayWorkout) {
+      if (todayWorkout.status === 'completed' && todayStravaPending) todayStatus = 'strava-pending'
+      else if (todayWorkout.status === 'completed') todayStatus = 'done'
+      else if (todayWorkout.status === 'skipped') todayStatus = 'skipped'
+      else todayStatus = 'scheduled'
+    } else if (todayStravaPending) {
+      todayStatus = 'strava-pending'
+    } else if (todayStravaLog) {
+      todayStatus = 'done'
+    }
+
+    // Attention score — higher = shown first
+    const attention =
+      (todayStravaPending ? 8 : 0) +
+      (needsNewPlan ? 4 : 0) +
+      (yesterdayMissed ? 2 : 0) +
+      (todayStatus === 'scheduled' ? 1 : 0)
+
+    return {
+      athlete, athleteLogs, athleteAssignedWorkouts, lastFutureDate, needsNewPlan,
+      todayWorkout, todayLog, todayStravaLog, todayActivityLogs, todayStravaPending,
+      yesterdayMissed, todayStatus, attention,
+    }
+  }).sort((a, b) => b.attention - a.attention)
+
+  const summary = {
+    trained: athleteData.filter(d => d.todayStatus === 'done').length,
+    pending: athleteData.filter(d => d.todayStatus === 'strava-pending').length,
+    scheduled: athleteData.filter(d => d.todayStatus === 'scheduled').length,
+    needPlan: athleteData.filter(d => d.needsNewPlan).length,
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -258,50 +330,35 @@ export function CoachDashboard() {
         </p>
       </div>
 
-      {/* Per-athlete command center cards */}
-      <div className="space-y-4">
-        {athletes.map(athlete => {
-          const athleteLogs = logs.filter(l => l.athleteId === athlete.id)
-          const athleteAssignedWorkouts = assignedWorkouts.filter(w => w.athleteId === athlete.id)
+      {/* Daily summary strip */}
+      <div className="grid grid-cols-4 gap-2">
+        <div className="bg-emerald-600 rounded-2xl p-3 text-center">
+          <p className="text-xl font-black text-white leading-none">{summary.trained}</p>
+          <p className="text-[10px] text-white/80 mt-1">התאמנו היום</p>
+        </div>
+        <div className={cn('rounded-2xl p-3 text-center', summary.pending > 0 ? 'bg-[#c9a84c]' : 'bg-white border border-gray-100')}>
+          <p className={cn('text-xl font-black leading-none', summary.pending > 0 ? 'text-[#0a1628]' : 'text-gray-300')}>{summary.pending}</p>
+          <p className={cn('text-[10px] mt-1', summary.pending > 0 ? 'text-[#0a1628]/70' : 'text-gray-400')}>ממתין למשוב</p>
+        </div>
+        <div className="bg-white rounded-2xl border border-gray-100 p-3 text-center">
+          <p className="text-xl font-black text-[#0a1628] leading-none">{summary.scheduled}</p>
+          <p className="text-[10px] text-gray-400 mt-1">מתוכנן היום</p>
+        </div>
+        <div className={cn('rounded-2xl p-3 text-center', summary.needPlan > 0 ? 'bg-red-500' : 'bg-white border border-gray-100')}>
+          <p className={cn('text-xl font-black leading-none', summary.needPlan > 0 ? 'text-white' : 'text-gray-300')}>{summary.needPlan}</p>
+          <p className={cn('text-[10px] mt-1', summary.needPlan > 0 ? 'text-white/85' : 'text-gray-400')}>צריך תכנית</p>
+        </div>
+      </div>
 
-          // Plan end date
-          const futureWorkouts = athleteAssignedWorkouts.filter(w => w.scheduledDate >= todayStr)
-          const lastFutureDate = futureWorkouts.length > 0
-            ? futureWorkouts[futureWorkouts.length - 1].scheduledDate
-            : null
-          const daysUntilPlanEnd = lastFutureDate
-            ? differenceInDays(parseISO(lastFutureDate), new Date())
-            : -1
-          const needsNewPlan = daysUntilPlanEnd < 7
+      {/* Per-athlete command center cards — sorted by attention */}
+      <div className="space-y-4">
+        {athleteData.map(({
+          athlete, lastFutureDate, needsNewPlan, todayWorkout, todayLog,
+          todayStravaLog, todayActivityLogs, yesterdayMissed, todayStatus,
+        }) => {
           const planEndDisplay = lastFutureDate
             ? `${t.scheduledBadge} ${format(parseISO(lastFutureDate), 'd/M')}`
             : '—'
-
-          // Today's workout + logs
-          const todayWorkout = athleteAssignedWorkouts.find(w => w.scheduledDate === todayStr)
-          const todayLog = todayWorkout
-            ? (athleteLogs.find((l: any) => l.assignedWorkoutId === todayWorkout.id && l.source !== 'strava') ||
-               athleteLogs.find((l: any) => l.date === todayStr && l.source !== 'strava' && l.actualDistance))
-            : null
-          const todayStravaLog: any = athleteLogs.find((l: any) => l.date === todayStr && l.source === 'strava') || null
-          const todayStravaPending = todayStravaLog?.feedbackStatus === 'pending'
-
-          // Yesterday missed
-          const yesterdayMissed = athleteAssignedWorkouts.find(
-            w => w.scheduledDate === yesterdayStr && w.status !== 'completed' && w.status !== 'skipped'
-          )
-
-          // Status
-          let todayStatus: 'done' | 'strava-pending' | 'scheduled' | 'skipped' | 'rest' = 'rest'
-          if (todayWorkout) {
-            if (todayWorkout.status === 'completed' && todayStravaPending) todayStatus = 'strava-pending'
-            else if (todayWorkout.status === 'completed') todayStatus = 'done'
-            else if (todayWorkout.status === 'skipped') todayStatus = 'skipped'
-            else todayStatus = 'scheduled'
-          } else if (todayStravaPending) {
-            todayStatus = 'strava-pending'
-          }
-
           const effectiveLog: any = todayLog || todayStravaLog
           const allSplits: any[] = todayStravaLog?.splitLogs || []
           const hasUnreadMsg = (unreadMessages[athlete.id] || 0) > 0
@@ -311,6 +368,12 @@ export function CoachDashboard() {
 
           // Workout sets for expanded view
           const workoutSets = todayWorkout?.workout?.sets || []
+
+          // Activity (Strava / manual) type info
+          const actInfo = todayStravaLog ? getActivityInfo(todayStravaLog) : null
+          const isManualAct = todayStravaLog?.source === 'manual'
+          const actDuration = formatDurationMin(todayStravaLog?.durationMin, true)
+          const actName = todayStravaLog?.stravaName || (actInfo ? activityLabel(actInfo.kind, true) : '')
 
           return (
             <div
@@ -445,23 +508,35 @@ export function CoachDashboard() {
                             {todayWorkout.workout?.title || 'אימון'}
                           </p>
                           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                            {todayWorkout.workout?.distance && (
-                              <span className="text-[11px] text-muted-foreground">
-                                {todayWorkout.workout.distance} {t.km} {t.scheduledBadge.toLowerCase()}
+                            {todayWorkout.workout?.type && (
+                              <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full border',
+                                workoutTypeColors[todayWorkout.workout.type] || 'bg-gray-100 text-gray-600 border-gray-200')}>
+                                {typeLabels[todayWorkout.workout.type] || todayWorkout.workout.type}
                               </span>
                             )}
-                            {todayWorkout.workout?.type && (
-                              <span className="text-[11px] text-muted-foreground capitalize">
-                                · {todayWorkout.workout.type}
+                            {todayWorkout.workout?.distance && (
+                              <span className="text-[11px] text-muted-foreground">
+                                {todayWorkout.workout.distance} {t.km}
+                              </span>
+                            )}
+                            {todayWorkout.movedByAthlete && (
+                              <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
+                                {t.movedByAthleteTag}
                               </span>
                             )}
                           </div>
                         </div>
                         <div className="flex items-center gap-1.5 flex-shrink-0">
                           {todayStravaLog && (
-                            <span className="flex items-center gap-1 text-[10px] font-bold text-[#FC4C02] bg-[#FC4C02]/10 border border-[#FC4C02]/20 px-2 py-0.5 rounded-full">
-                              <Activity className="h-2.5 w-2.5" />Strava
-                            </span>
+                            isManualAct ? (
+                              <span className="flex items-center gap-1 text-[10px] font-bold text-[#0a1628] bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">
+                                {actInfo?.emoji} {t.manualActivityTag}
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1 text-[10px] font-bold text-[#FC4C02] bg-[#FC4C02]/10 border border-[#FC4C02]/20 px-2 py-0.5 rounded-full">
+                                <Activity className="h-2.5 w-2.5" />Strava
+                              </span>
+                            )
                           )}
                           <ChevronDown className={cn(
                             'h-4 w-4 text-muted-foreground transition-transform duration-200',
@@ -473,6 +548,11 @@ export function CoachDashboard() {
                       {/* Compact stats (always visible) */}
                       {effectiveLog && (todayStatus === 'done' || todayStatus === 'strava-pending') && (
                         <div className="flex flex-wrap gap-1.5">
+                          {actInfo && !actInfo.hasDistance && actDuration && (
+                            <span className="text-[11px] font-semibold bg-white border border-gray-200 px-2.5 py-1 rounded-full">
+                              {actInfo.emoji} {actDuration}
+                            </span>
+                          )}
                           {effectiveLog.actualDistance && (
                             <span className="text-[11px] font-semibold bg-white border border-gray-200 px-2.5 py-1 rounded-full">
                               {effectiveLog.actualDistance} ק"מ
@@ -534,11 +614,21 @@ export function CoachDashboard() {
                       isExpanded && 'ring-2 ring-[#c9a84c]/40'
                     )}>
                       <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 flex-1">
-                          <Activity className="h-3.5 w-3.5 text-[#FC4C02]" />
-                          <p className="text-sm font-bold text-[#0a1628]">
-                            {todayStravaLog.stravaName || 'פעילות Strava'}
-                          </p>
+                        <div className="flex items-center gap-2 flex-1 flex-wrap">
+                          {isManualAct
+                            ? <span className="text-sm">{actInfo?.emoji}</span>
+                            : <Activity className="h-3.5 w-3.5 text-[#FC4C02]" />}
+                          {actInfo && (
+                            <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full border', actInfo.badgeClass)}>
+                              {activityLabel(actInfo.kind, true)}
+                            </span>
+                          )}
+                          <p className="text-sm font-bold text-[#0a1628]">{actName}</p>
+                          {isManualAct && (
+                            <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">
+                              {t.manualActivityTag}
+                            </span>
+                          )}
                         </div>
                         <ChevronDown className={cn(
                           'h-4 w-4 text-muted-foreground transition-transform duration-200',
@@ -547,6 +637,11 @@ export function CoachDashboard() {
                       </div>
                       {!isExpanded && (
                         <div className="flex flex-wrap gap-1.5">
+                          {actInfo && !actInfo.hasDistance && actDuration && (
+                            <span className="text-[11px] font-semibold bg-white border border-gray-200 px-2.5 py-1 rounded-full">
+                              {actDuration}
+                            </span>
+                          )}
                           {todayStravaLog.actualDistance && (
                             <span className="text-[11px] font-semibold bg-white border border-gray-200 px-2.5 py-1 rounded-full">
                               {todayStravaLog.actualDistance} ק"מ
@@ -566,6 +661,36 @@ export function CoachDashboard() {
                     <p className="text-[11px] text-muted-foreground">{t.restDayLabel}</p>
                   </div>
                 )}
+
+                {/* Additional activities today — each in its own box */}
+                {todayActivityLogs.length > 1 && todayActivityLogs.slice(1).map((extra: any) => {
+                  const exInfo = getActivityInfo(extra)
+                  const exManual = extra.source === 'manual'
+                  const exDur = formatDurationMin(extra.durationMin, true)
+                  return (
+                    <div key={extra.id} className="rounded-2xl p-3 bg-white border border-border/40 flex items-center gap-2 flex-wrap">
+                      <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full border flex-shrink-0', exInfo.badgeClass)}>
+                        {exInfo.emoji} {activityLabel(exInfo.kind, true)}
+                      </span>
+                      <span className="text-xs font-bold text-[#0a1628] truncate flex-1 min-w-0">
+                        {extra.stravaName || activityLabel(exInfo.kind, true)}
+                      </span>
+                      {exInfo.hasDistance && extra.actualDistance ? (
+                        <span className="text-[11px] font-semibold bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-full flex-shrink-0">
+                          {extra.actualDistance} ק"מ
+                        </span>
+                      ) : exDur ? (
+                        <span className="text-[11px] font-semibold bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-full flex-shrink-0">
+                          {exDur}
+                        </span>
+                      ) : null}
+                      <span className={cn('text-[10px] font-bold flex-shrink-0',
+                        exManual ? 'text-gray-400' : 'text-[#FC4C02]')}>
+                        {exManual ? t.manualActivityTag : 'Strava'}
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
 
               {/* ── EXPANDED DETAIL (athlete-view style) ── */}
@@ -576,30 +701,45 @@ export function CoachDashboard() {
                   {todayStravaLog && (
                     <div className="px-4 py-3 space-y-2">
                       <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-                        פרטי Strava
+                        {isManualAct ? 'פרטי פעילות' : 'פרטי Strava'}
                       </p>
 
                       <div className="rounded-2xl border border-border overflow-hidden bg-white shadow-sm" dir="rtl">
-                        {/* Orange header */}
-                        <div className="px-4 py-3 flex items-center gap-3 bg-[#FC4C02]/5 border-b border-border/50">
-                          <div className="h-10 w-10 rounded-xl bg-[#FC4C02] flex items-center justify-center flex-shrink-0">
-                            <Activity className="h-5 w-5 text-white" />
+                        {/* Header */}
+                        <div className={cn('px-4 py-3 flex items-center gap-3 border-b border-border/50',
+                          isManualAct ? 'bg-[#0a1628]/5' : 'bg-[#FC4C02]/5')}>
+                          <div className={cn('h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0',
+                            isManualAct ? 'bg-[#0a1628]' : 'bg-[#FC4C02]')}>
+                            {isManualAct
+                              ? <span className="text-lg">{actInfo?.emoji}</span>
+                              : <Activity className="h-5 w-5 text-white" />}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-[#0a1628] truncate">
-                              {todayStravaLog.stravaName || 'פעילות Strava'}
-                            </p>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {actInfo && (
+                                <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full border', actInfo.badgeClass)}>
+                                  {activityLabel(actInfo.kind, true)}
+                                </span>
+                              )}
+                              <p className="text-sm font-bold text-[#0a1628] truncate">{actName}</p>
+                            </div>
                             <p className="text-[11px] text-muted-foreground">
                               {todayStravaLog.feedbackStatus === 'pending'
                                 ? t.pendingBadge
-                                : 'Strava ✓'}
+                                : isManualAct ? t.manualActivityTag : 'Strava ✓'}
                             </p>
                           </div>
                         </div>
 
                         {/* Stats grid 2×2 */}
                         <div className="px-4 py-3 grid grid-cols-2 gap-x-6 gap-y-3">
-                          {todayStravaLog.actualDistance != null && (
+                          {actDuration && (
+                            <div>
+                              <p className="text-[10px] text-muted-foreground mb-0.5">משך</p>
+                              <p className="text-xl font-black text-[#0a1628]">{actDuration}</p>
+                            </div>
+                          )}
+                          {todayStravaLog.actualDistance != null && todayStravaLog.actualDistance !== 0 && (
                             <div>
                               <p className="text-[10px] text-muted-foreground mb-0.5">מרחק</p>
                               <p className="text-xl font-black text-[#0a1628]">{todayStravaLog.actualDistance} ק"מ</p>

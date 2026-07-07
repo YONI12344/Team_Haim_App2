@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -31,7 +32,7 @@ import type { AthleteProfile, Workout, AssignedWorkout, TrainingDayType, Workout
 import { legacyEffortToNumber } from '@/lib/types'
 import { listJourneys, computeJourneyProgress } from '@/lib/journey'
 import { useAuth } from '@/contexts/auth-context'
-import { useWorkoutTypeLabels } from '@/lib/workout-labels'
+import { useWorkoutTypeLabels, autoWorkoutTitle } from '@/lib/workout-labels'
 import { WorkoutBuilder } from '@/components/coach/workout-builder'
 import { useLanguage } from '@/contexts/language-context'
 import { toast } from 'sonner'
@@ -77,8 +78,21 @@ export function AthletePlanner({ athleteId }: Props) {
   const { user } = useAuth()
   const { t } = useLanguage()
   const workoutTypeLabels = useWorkoutTypeLabels()
+  const router = useRouter()
 
   const [athlete, setAthlete] = useState<AthleteProfile | null>(null)
+  // All athletes — for the quick switcher in the header
+  const [allAthletes, setAllAthletes] = useState<{ id: string; name: string }[]>([])
+
+  useEffect(() => {
+    getDocs(query(collection(db, 'users'), where('role', '==', 'athlete')))
+      .then(snap => setAllAthletes(
+        snap.docs
+          .map(d => ({ id: d.id, name: d.data().name || d.data().email || '—' }))
+          .sort((a, b) => a.name.localeCompare(b.name, 'he'))
+      ))
+      .catch(() => {})
+  }, [])
   const [journey, setJourney] = useState<JourneySummary | null>(null)
   const [workoutLibrary, setWorkoutLibrary] = useState<Workout[]>([])
   const [assignedWorkouts, setAssignedWorkouts] = useState<AssignedWorkout[]>([])
@@ -251,11 +265,13 @@ export function AthletePlanner({ athleteId }: Props) {
 
   // ── Assign ────────────────────────────────────────────────────────────────
   const handleCreateWorkout = async () => {
-    if (!newWO.title.trim()) return
+    // Empty title → auto-generate one from the type + distance/duration
+    const finalTitle = newWO.title.trim() ||
+      autoWorkoutTitle(workoutTypeLabels, newWO.type, { distance: newWO.distance, duration: newWO.duration })
     setCreatingWorkout(true)
     try {
       const ref = await addDoc(collection(db, 'workouts'), {
-        title: newWO.title.trim(), type: newWO.type,
+        title: finalTitle, type: newWO.type,
         description: newWO.description.trim(),
         distance: newWO.distance ? Number(newWO.distance) : null,
         duration: newWO.duration ? Number(newWO.duration) : null,
@@ -264,7 +280,7 @@ export function AthletePlanner({ athleteId }: Props) {
         createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
       })
       const created: Workout = {
-        id: ref.id, title: newWO.title.trim(), type: newWO.type,
+        id: ref.id, title: finalTitle, type: newWO.type,
         description: newWO.description.trim(),
         distance: newWO.distance ? Number(newWO.distance) : undefined,
         duration: newWO.duration ? Number(newWO.duration) : undefined,
@@ -724,7 +740,22 @@ export function AthletePlanner({ athleteId }: Props) {
             <AvatarFallback className="bg-navy text-white">{athlete?.name?.charAt(0)}</AvatarFallback>
           </Avatar>
           <div className="flex-1">
-            <h1 className="font-bold text-navy text-xl">{athlete?.name}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="font-bold text-navy text-xl">{athlete?.name}</h1>
+              {/* Quick athlete switcher — jump straight to another athlete's planner */}
+              {allAthletes.length > 1 && (
+                <select
+                  value={athleteId}
+                  onChange={e => { if (e.target.value !== athleteId) router.push(`/coach/athletes/${e.target.value}/planner`) }}
+                  className="h-7 text-xs rounded-lg border border-border bg-white px-1.5 text-navy font-semibold cursor-pointer hover:border-gold/50 transition-colors"
+                  title="מעבר מהיר לספורטאי אחר"
+                >
+                  {allAthletes.map(a => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              )}
+            </div>
             <div className="flex items-center gap-2 flex-wrap">
               {journey && <Badge className="bg-navy/10 text-navy border-navy/20 text-xs">{journey.stageName} · שבוע {journey.weekInStage}/{journey.totalWeeksInStage}</Badge>}
               {journey && <Badge variant="outline" className={cn('text-xs', journey.isOffWeek ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-emerald-100 text-emerald-700 border-emerald-200')}>{journey.isOffWeek ? t.offWeekLabel : t.trainingWeekLabel}</Badge>}

@@ -114,6 +114,8 @@ export type WorkoutType =
   | 'recovery'
   | 'strength'
   | 'cross_training'
+  | 'swim'
+  | 'bike'
   | 'rest'
   | 'race'
   | 'time_trial'
@@ -163,6 +165,9 @@ export interface AssignedWorkout {
   assignedBy: string
   scheduledDate: string
   status: 'scheduled' | 'completed' | 'skipped' | 'modified'
+  // Set when the athlete moved this workout to a different day
+  movedByAthlete?: boolean
+  movedFromDate?: string
   athleteNotes?: string
   coachFeedback?: string
   completedAt?: Date
@@ -262,6 +267,9 @@ export interface WorkoutLog {
   splitLogs?: SplitLog[]
   source?: string
   feedbackStatus?: string
+  // Manual uploads: activity kind from lib/activity-types (run, gym, yoga, ...)
+  activityType?: string
+  durationMin?: number
   stravaActivityId?: number
   stravaName?: string
   averageHeartRate?: number

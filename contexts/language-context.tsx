@@ -283,6 +283,8 @@ interface Translations {
   recovery: string
   strength: string
   crossTraining: string
+  swimLabel: string
+  bikeLabel: string
   race: string
   timeTrial: string
   
@@ -723,6 +725,22 @@ interface Translations {
   elevationShort: string
   splitsLabelShort: string
   resultsLabel: string
+
+  // Activity logging & moving workouts
+  addActivityBtn: string
+  addActivityTitle: string
+  addActivityDesc: string
+  activityTypeLabel: string
+  durationMinLabel: string
+  activityAddedToast: string
+  manualActivityTag: string
+  moveWorkoutBtn: string
+  moveWorkoutTitle: string
+  moveWorkoutDesc: string
+  movedByAthleteTag: string
+  moveSuccessToast: string
+  editActivityBtn: string
+  fixStravaDataHint: string
 }
 
 const translations: Record<Language, Translations> = {
@@ -991,6 +1009,8 @@ const translations: Record<Language, Translations> = {
     recovery: 'Recovery',
     strength: 'Strength',
     crossTraining: 'Cross Training',
+    swimLabel: 'Swim',
+    bikeLabel: 'Bike',
     race: 'Race',
     timeTrial: 'Time Trial',
     
@@ -1404,6 +1424,21 @@ const translations: Record<Language, Translations> = {
     elevationShort: 'Elev.',
     splitsLabelShort: 'Splits',
     resultsLabel: 'Results',
+
+    addActivityBtn: 'Add Activity',
+    addActivityTitle: 'Add Activity',
+    addActivityDesc: "Log a workout that isn't in your plan or didn't sync from Strava",
+    activityTypeLabel: 'Activity type',
+    durationMinLabel: 'Duration (min)',
+    activityAddedToast: 'Activity added!',
+    manualActivityTag: 'Added manually',
+    moveWorkoutBtn: 'Move to another day',
+    moveWorkoutTitle: 'Move Workout',
+    moveWorkoutDesc: 'Pick a new day for this workout. Your coach will be notified.',
+    movedByAthleteTag: 'Moved by athlete',
+    moveSuccessToast: 'Workout moved!',
+    editActivityBtn: 'Edit',
+    fixStravaDataHint: 'You can fix the distance or pace if Strava missed something',
   },
   he: {
     teamHaim: 'Team Haim',
@@ -1665,11 +1700,13 @@ const translations: Record<Language, Translations> = {
     longRun: 'ריצה ארוכה',
     tempo: 'טמפו',
     intervals: 'אינטרוולים',
-    hillRepeats: 'חזרות גבעה',
+    hillRepeats: 'עליות',
     fartlek: 'פרטלק',
     recovery: 'התאוששות',
     strength: 'כוח',
     crossTraining: 'אימון משולב',
+    swimLabel: 'שחייה',
+    bikeLabel: 'אופניים',
     race: 'תחרות',
     timeTrial: 'מבחן זמן',
     
@@ -2078,6 +2115,21 @@ const translations: Record<Language, Translations> = {
     elevationShort: 'עלייה',
     splitsLabelShort: 'פיצולים',
     resultsLabel: 'תוצאות',
+
+    addActivityBtn: 'הוסף פעילות',
+    addActivityTitle: 'הוספת פעילות',
+    addActivityDesc: 'תעד אימון שלא בתכנית או שלא הסתנכרן מ-Strava',
+    activityTypeLabel: 'סוג פעילות',
+    durationMinLabel: 'משך (דקות)',
+    activityAddedToast: 'הפעילות נוספה!',
+    manualActivityTag: 'הוסף ידנית',
+    moveWorkoutBtn: 'הזז ליום אחר',
+    moveWorkoutTitle: 'הזזת אימון',
+    moveWorkoutDesc: 'בחר יום חדש לאימון. המאמן יקבל עדכון.',
+    movedByAthleteTag: 'הוזז ע״י הספורטאי',
+    moveSuccessToast: 'האימון הוזז!',
+    editActivityBtn: 'ערוך',
+    fixStravaDataHint: 'אפשר לתקן מרחק או טמפו אם Strava פספס משהו',
   },
 }
 

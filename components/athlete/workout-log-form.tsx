@@ -464,29 +464,31 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
         {!stravaFilling && !stravaFilled && <ChevronLeft className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
       </button>}
 
-      {/* Distance + pace — hidden when Strava data already shown in card */}
-      {!stravaSource && (
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="actualDistance" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              {hasSets ? t.totalKmLabel : t.actualDistanceKm}
-            </Label>
-            <Input id="actualDistance" type="number" step="0.1" min="0"
-              placeholder={hasSets ? '10' : t.examplePlaceholder10}
-              value={actualDistance} onChange={e => setActualDistance(e.target.value)}
-              className="h-11 text-base rounded-xl text-center font-semibold" />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="actualPace" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              {hasSets ? t.avgTempoLabel : t.actualPaceKm}
-            </Label>
-            <Input id="actualPace" type="text"
-              placeholder={hasSets ? '4:30' : t.examplePlaceholder530}
-              value={actualPace} onChange={e => setActualPace(e.target.value)}
-              className="h-11 text-base rounded-xl text-center font-semibold" />
-          </div>
-        </div>
+      {/* Distance + pace — editable even for Strava logs so the athlete can
+          fix or add data Strava missed */}
+      {stravaSource && (
+        <p className="text-xs text-muted-foreground -mb-3">{t.fixStravaDataHint}</p>
       )}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="actualDistance" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            {hasSets ? t.totalKmLabel : t.actualDistanceKm}
+          </Label>
+          <Input id="actualDistance" type="number" step="0.1" min="0"
+            placeholder={hasSets ? '10' : t.examplePlaceholder10}
+            value={actualDistance} onChange={e => setActualDistance(e.target.value)}
+            className="h-11 text-base rounded-xl text-center font-semibold" />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="actualPace" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            {hasSets ? t.avgTempoLabel : t.actualPaceKm}
+          </Label>
+          <Input id="actualPace" type="text"
+            placeholder={hasSets ? '4:30' : t.examplePlaceholder530}
+            value={actualPace} onChange={e => setActualPace(e.target.value)}
+            className="h-11 text-base rounded-xl text-center font-semibold" />
+        </div>
+      </div>
 
       {/* Effort */}
       <div className="space-y-3">

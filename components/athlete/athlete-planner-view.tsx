@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ChevronLeft, ChevronRight, Loader2, MapPin, Clock, ChevronDown, ChevronUp, RefreshCw, CheckCircle2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2, MapPin, Clock, ChevronDown, ChevronUp, RefreshCw, CheckCircle2, Plus, CalendarClock } from 'lucide-react'
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   addMonths, subMonths, addWeeks, subWeeks, eachDayOfInterval, isSameMonth,
@@ -22,6 +22,13 @@ import { toast } from 'sonner'
 import { WorkoutLogForm } from '@/components/athlete/workout-log-form'
 import { ManualLogCard } from '@/components/shared/manual-log-card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { AddActivityDialog } from '@/components/athlete/add-activity-dialog'
+import { MoveWorkoutDialog } from '@/components/athlete/move-workout-dialog'
+import {
+  getActivityInfo, getActivityKind, isRunningKind, isGymKind,
+  formatDurationMin, activityLabel,
+  STRAVA_RUNNING_TYPES, STRAVA_GYM_TYPES,
+} from '@/lib/activity-types'
 
 const WEEKDAY_KEYS = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'] as const
 
@@ -35,6 +42,11 @@ const TYPE_COLORS: Record<string, string> = {
   recovery: 'bg-gray-100 text-gray-600 border-gray-200',
   rest: 'bg-muted text-muted-foreground',
   race: 'bg-red-100 text-red-700 border-red-200',
+  strength: 'bg-rose-100 text-rose-700 border-rose-200',
+  cross_training: 'bg-teal-100 text-teal-700 border-teal-200',
+  swim: 'bg-sky-100 text-sky-700 border-sky-200',
+  bike: 'bg-indigo-100 text-indigo-700 border-indigo-200',
+  time_trial: 'bg-indigo-100 text-indigo-700 border-indigo-200',
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -56,6 +68,8 @@ const TYPE_BORDER_COLORS: Record<string, string> = {
   time_trial: 'border-l-indigo-500',
   strength: 'border-l-rose-500',
   cross_training: 'border-l-teal-500',
+  swim: 'border-l-sky-500',
+  bike: 'border-l-indigo-400',
 }
 
 const TYPE_DOT_COLORS: Record<string, string> = {
@@ -71,15 +85,62 @@ const TYPE_DOT_COLORS: Record<string, string> = {
   time_trial: 'bg-indigo-500',
   strength: 'bg-rose-500',
   cross_training: 'bg-teal-500',
+  swim: 'bg-sky-500',
+  bike: 'bg-indigo-400',
 }
-
-const STRAVA_RUNNING_TYPES = ['Run', 'VirtualRun', 'TrailRun', 'Treadmill']
-const STRAVA_GYM_TYPES = ['WeightTraining', 'Workout', 'Crossfit', 'Yoga', 'Pilates']
 
 interface JourneySummary {
   stageName: string; weekInStage: number; totalWeeksInStage: number
   isOffWeek: boolean; goalRaceDate: string; goalRaceEvent: string
 }
+
+interface WeekLog {
+  id: string
+  actualDistance?: number
+  actualPace?: string
+  effort?: number
+  comment?: string
+  workoutId?: string
+  assignedWorkoutId?: string
+  source?: string
+  splitLogs?: any[]
+  date: string
+  stravaActivityId?: string
+  stravaName?: string
+  averageHeartRate?: number
+  elevationGain?: number
+  feedbackStatus?: string
+  stravaType?: string
+  activityType?: string
+  durationMin?: number
+}
+
+function mapLogDoc(d: { id: string; data: () => any }): WeekLog {
+  const v = d.data()
+  return {
+    id: d.id,
+    actualDistance: v.actualDistance,
+    actualPace: v.actualPace,
+    effort: v.effort,
+    comment: v.comment,
+    workoutId: v.workoutId,
+    assignedWorkoutId: v.assignedWorkoutId,
+    source: v.source,
+    splitLogs: v.splitLogs || [],
+    date: v.date || '',
+    stravaActivityId: v.stravaActivityId,
+    stravaName: v.stravaName,
+    averageHeartRate: v.averageHeartRate,
+    elevationGain: v.elevationGain,
+    feedbackStatus: v.feedbackStatus,
+    stravaType: v.stravaType,
+    activityType: v.activityType,
+    durationMin: v.durationMin,
+  }
+}
+
+/** Logs that render as standalone activity cards (Strava sync or manual upload) */
+const isActivityLog = (l: WeekLog) => l.source === 'strava' || l.source === 'manual'
 
 export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: string } = {}) {
   const { user } = useAuth()
@@ -93,7 +154,10 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
   const [athlete, setAthlete] = useState<AthleteProfile | null>(null)
   const [journey, setJourney] = useState<JourneySummary | null>(null)
   const [assignedWorkouts, setAssignedWorkouts] = useState<AssignedWorkout[]>([])
-  const [weekLogs, setWeekLogs] = useState<{id: string, actualDistance?: number, actualPace?: string, effort?: number, comment?: string, workoutId?: string, assignedWorkoutId?: string, source?: string, splitLogs?: any[], date: string, stravaActivityId?: string, stravaName?: string, averageHeartRate?: number, elevationGain?: number, feedbackStatus?: string, stravaType?: string}[]>([])
+  const [weekLogs, setWeekLogs] = useState<WeekLog[]>([])
+  const [addActivityOpen, setAddActivityOpen] = useState(false)
+  const [addActivityDate, setAddActivityDate] = useState<string>(() => format(new Date(), 'yyyy-MM-dd'))
+  const [moveWorkoutTarget, setMoveWorkoutTarget] = useState<AssignedWorkout | null>(null)
   const [loading, setLoading] = useState(true)
   const [currentDate, setCurrentDate] = useState(() => {
     // If ?date=YYYY-MM-DD is in the URL, jump straight to that date
@@ -201,7 +265,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
         const from = format(startOfWeek(new Date(),{weekStartsOn:1}), 'yyyy-MM-dd')
         const to = format(endOfWeek(new Date(),{weekStartsOn:1}), 'yyyy-MM-dd')
         const logsSnap = await gd(q(col(db, 'logs'), wh('athleteId', '==', athleteId)))
-        setWeekLogs(logsSnap.docs.map(d => ({ id: d.id, actualDistance: d.data().actualDistance, actualPace: d.data().actualPace, effort: d.data().effort, comment: d.data().comment, workoutId: d.data().workoutId, assignedWorkoutId: d.data().assignedWorkoutId, source: d.data().source, splitLogs: d.data().splitLogs || [], date: d.data().date || '', stravaActivityId: d.data().stravaActivityId, stravaName: d.data().stravaName, averageHeartRate: d.data().averageHeartRate, elevationGain: d.data().elevationGain, feedbackStatus: d.data().feedbackStatus, stravaType: d.data().stravaType })))
+        setWeekLogs(logsSnap.docs.map(mapLogDoc))
       })
       .catch(err => console.error(err))
   }, [athleteId])
@@ -236,7 +300,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
     if (w.status === 'completed') return 'completed'
     const hasLog = weekLogs.some(l =>
       (l.assignedWorkoutId === w.id || (!l.assignedWorkoutId && l.date === w.scheduledDate)) &&
-      !!l.actualDistance && l.source !== 'strava'
+      !!l.actualDistance && !isActivityLog(l)
     )
     if (hasLog) return 'completed'
     if (w.status === 'skipped') return 'skipped'
@@ -261,16 +325,24 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
 
   const computeStravaMatch = useCallback((w: AssignedWorkout, dateStr: string) => {
     try {
-      const stravaLogs = weekLogs.filter(l => l.date === dateStr && l.source === 'strava')
-      if (stravaLogs.length === 0) return null
+      const activityLogs = weekLogs.filter(l => l.date === dateStr && isActivityLog(l))
+      if (activityLogs.length === 0) return null
       const workoutType = w.workout?.type || ''
       const isStrengthW = ['strength', 'cross_training'].includes(workoutType)
       if (isStrengthW) {
-        const gymLog = stravaLogs.find(l => STRAVA_GYM_TYPES.includes(l.stravaType || ''))
+        const gymLog = activityLogs.find(l => isGymKind(getActivityKind(l)))
         if (!gymLog) return null
         return { status: 'completed' as const, actual: gymLog.actualDistance || 0, planned: 0 }
       }
-      const runLogs = stravaLogs.filter(l => !l.stravaType || STRAVA_RUNNING_TYPES.includes(l.stravaType))
+      if (workoutType === 'swim' || workoutType === 'bike') {
+        const match = activityLogs.find(l => {
+          const k = getActivityKind(l)
+          return workoutType === 'swim' ? k === 'swim' : k === 'ride'
+        })
+        if (!match) return null
+        return { status: 'completed' as const, actual: match.actualDistance || 0, planned: 0 }
+      }
+      const runLogs = activityLogs.filter(l => isRunningKind(getActivityKind(l)))
       if (runLogs.length === 0) return null
       const totalActual = Math.round(runLogs.reduce((s, l) => s + (l.actualDistance || 0), 0) * 100) / 100
       const planned = w.workout?.distance ?? 0
@@ -365,7 +437,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
           const stravaForDate = weekLogs.find(l => l.date === w.scheduledDate && l.source === 'strava')
           const hasManualLog = weekLogs.find(l =>
             (l.assignedWorkoutId === w.id || (!l.assignedWorkoutId && l.date === w.scheduledDate))
-            && !!l.actualDistance && l.source !== 'strava'
+            && !!l.actualDistance && !isActivityLog(l)
           )
           const formOpen = openLogForms.has(w.id)
           const stravaAwaitingFeedback = stravaForDate?.feedbackStatus === 'pending'
@@ -440,6 +512,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
             date: activity.date,
             actualDistance: activity.distanceKm,
             actualPace: activity.avgPace,
+            durationMin: activity.durationMin || null,
             effort: null,
             comment: '',
             splitLogs: activity.splitLogs || [],
@@ -473,10 +546,8 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
           })()
           // Smart auto-complete: aggregate running distance for the day, then match
           try {
-            const RUNNING_TYPES_S = ['Run', 'VirtualRun', 'TrailRun', 'Treadmill']
-            const GYM_TYPES_S = ['WeightTraining', 'Workout', 'Crossfit', 'Yoga', 'Pilates']
-            const isRunAct = RUNNING_TYPES_S.includes(activity.stravaType || 'Run')
-            const isGymAct = GYM_TYPES_S.includes(activity.stravaType || '')
+            const isRunAct = STRAVA_RUNNING_TYPES.includes(activity.stravaType || 'Run')
+            const isGymAct = STRAVA_GYM_TYPES.includes(activity.stravaType || '')
             const awSnap = await getDocs(query(
               collection(db, 'assignedWorkouts'),
               where('athleteId', '==', athleteId),
@@ -490,7 +561,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                 where('source', '==', 'strava')
               ))
               const totalRunKm = dateLogsSnap.docs
-                .filter(d => { const t = d.data().stravaType; return !t || RUNNING_TYPES_S.includes(t) })
+                .filter(d => { const t = d.data().stravaType; return !t || STRAVA_RUNNING_TYPES.includes(t) })
                 .reduce((s, d) => s + (d.data().actualDistance || 0), 0)
               for (const aw of awSnap.docs) {
                 if (aw.data().status === 'completed') continue
@@ -499,6 +570,8 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                 const plannedDist = aw.data().workout?.distance ?? 0
                 let shouldComplete = false
                 if (isStrengthW) { shouldComplete = isGymAct }
+                else if (wType === 'swim') { shouldComplete = activity.stravaType === 'Swim' }
+                else if (wType === 'bike') { shouldComplete = ['Ride', 'VirtualRide', 'MountainBikeRide', 'GravelRide', 'EBikeRide'].includes(activity.stravaType || '') }
                 else if (isRunAct) { shouldComplete = plannedDist === 0 || totalRunKm >= plannedDist * 0.7 }
                 if (shouldComplete) {
                   await updateDoc(doc(db, 'assignedWorkouts', aw.id), { status: 'completed', completedAt: serverTimestamp() })
@@ -511,16 +584,23 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
         toast.success(`${t.syncedFromStrava}: ${saved}`)
         // Reload logs
         const logsSnap = await getDocs(query(collection(db, 'logs'), where('athleteId', '==', athleteId)))
-        setWeekLogs(logsSnap.docs.map(d => ({ id: d.id, actualDistance: d.data().actualDistance, actualPace: d.data().actualPace, effort: d.data().effort, comment: d.data().comment, workoutId: d.data().workoutId, assignedWorkoutId: d.data().assignedWorkoutId, source: d.data().source, splitLogs: d.data().splitLogs || [], date: d.data().date || '', stravaActivityId: d.data().stravaActivityId, stravaName: d.data().stravaName, averageHeartRate: d.data().averageHeartRate, elevationGain: d.data().elevationGain, feedbackStatus: d.data().feedbackStatus, stravaType: d.data().stravaType })))
+        setWeekLogs(logsSnap.docs.map(mapLogDoc))
       }
     } catch (err) { console.error(err); toast.error(t.stravaSyncTitle) }
     finally { setStravaSyncing(false) }
   }
 
 
-  const StravaCard = ({ log }: { log: typeof weekLogs[0] }) => {
-    const [pendingEffort, setPendingEffort] = useState<number|null>(null)
-    const [pendingComment, setPendingComment] = useState('')
+  const StravaCard = ({ log }: { log: WeekLog }) => {
+    const kindInfo = getActivityInfo(log)
+    const isManual = log.source === 'manual'
+    const displayName = log.stravaName || activityLabel(kindInfo.kind, isRTL)
+    const durationDisplay = formatDurationMin(log.durationMin, isRTL)
+    const [pendingEffort, setPendingEffort] = useState<number|null>(log.effort ?? null)
+    const [pendingComment, setPendingComment] = useState(log.comment || '')
+    const [editDistance, setEditDistance] = useState(log.actualDistance != null && log.actualDistance !== 0 ? String(log.actualDistance) : '')
+    const [editPace, setEditPace] = useState(log.actualPace || '')
+    const [editDuration, setEditDuration] = useState(log.durationMin ? String(log.durationMin) : '')
     const [submitting, setSubmitting] = useState(false)
     const [showDetails, setShowDetails] = useState(false)
     const isPending = log.feedbackStatus === 'pending'
@@ -529,12 +609,31 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
 
     const handleSubmit = async () => {
       if (!pendingEffort) { toast.error(t.selectEffortError); return }
+      const parsedDistance = editDistance.trim() ? parseFloat(editDistance) : null
+      if (editDistance.trim() && (!Number.isFinite(parsedDistance!) || parsedDistance! < 0)) {
+        toast.error(t.toastDistanceInvalid); return
+      }
+      const parsedDuration = editDuration.trim() ? parseInt(editDuration, 10) : null
       setSubmitting(true)
       try {
         const { doc, updateDoc, serverTimestamp, getDoc } = await import('firebase/firestore')
         const { db } = await import('@/lib/firebase')
-        await updateDoc(doc(db, 'logs', log.id), { effort: pendingEffort, comment: pendingComment, feedbackStatus: 'done', updatedAt: serverTimestamp() })
-        setWeekLogs(prev => prev.map(l => l.id === log.id ? { ...l, effort: pendingEffort, comment: pendingComment, feedbackStatus: 'done' } : l))
+        const changes = {
+          effort: pendingEffort,
+          comment: pendingComment,
+          actualDistance: kindInfo.hasDistance ? parsedDistance : log.actualDistance ?? null,
+          actualPace: kindInfo.hasDistance ? (editPace.trim() || null) : log.actualPace ?? null,
+          durationMin: parsedDuration ?? log.durationMin ?? null,
+          feedbackStatus: 'done',
+        }
+        await updateDoc(doc(db, 'logs', log.id), { ...changes, updatedAt: serverTimestamp() })
+        setWeekLogs(prev => prev.map(l => l.id === log.id ? {
+          ...l, effort: pendingEffort, comment: pendingComment, feedbackStatus: 'done',
+          actualDistance: changes.actualDistance ?? undefined,
+          actualPace: changes.actualPace ?? undefined,
+          durationMin: changes.durationMin ?? undefined,
+        } : l))
+        setShowForm(false)
         toast.success(t.workoutSaved)
         // Notify coach of Strava feedback (fire-and-forget)
         ;(async () => {
@@ -577,14 +676,27 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
         <DialogContent className="max-w-md w-full" dir="rtl">
           <div className="max-h-[75vh] overflow-y-auto pr-1">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-right">
-              <span className="text-sm bg-orange-500 text-white px-2 py-0.5 rounded font-bold">Strava</span>
-              <span>{log.stravaName || t.stravaWorkoutName}</span>
+            <DialogTitle className="flex items-center gap-2 text-right flex-wrap">
+              {isManual ? (
+                <span className="text-sm bg-gray-600 text-white px-2 py-0.5 rounded font-bold">{t.manualActivityTag}</span>
+              ) : (
+                <span className="text-sm bg-orange-500 text-white px-2 py-0.5 rounded font-bold">Strava</span>
+              )}
+              <span className={cn('text-xs font-semibold px-2 py-0.5 rounded-full border', kindInfo.badgeClass)}>
+                {kindInfo.emoji} {activityLabel(kindInfo.kind, isRTL)}
+              </span>
+              <span>{displayName}</span>
             </DialogTitle>
             <DialogDescription className="sr-only">{t.stravaDialogDesc}</DialogDescription>
           </DialogHeader>
           {/* Key stats */}
           <div className="grid grid-cols-2 gap-3 py-2">
+            {durationDisplay && (
+              <div className="bg-muted/40 rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold text-navy">{durationDisplay}</p>
+                <p className="text-xs text-muted-foreground">{t.durationMinLabel}</p>
+              </div>
+            )}
             {log.actualDistance && (
               <div className="bg-muted/40 rounded-lg p-3 text-center">
                 <p className="text-2xl font-bold text-navy">{log.actualDistance}</p>
@@ -680,21 +792,26 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
       </Dialog>
     )
 
-    // ── STATE 1: Pending feedback — compact collapsible ───────────────
-    if (isPending) return (
+    // ── STATE 1: Pending feedback (or editing) — compact collapsible ───
+    if (isPending || showForm) return (
       <>
         <DetailsModal />
         <div className="rounded-2xl border border-amber-200/60 bg-white shadow-sm overflow-hidden" dir="rtl">
           {/* Compact header row */}
           <div className="px-3.5 py-2.5 flex items-center gap-2">
-            <div className="h-6 w-6 rounded-lg bg-[#FC4C02] flex items-center justify-center flex-shrink-0">
-              <span className="text-[9px] font-black text-white">S</span>
+            <div className={cn('h-6 w-6 rounded-lg flex items-center justify-center flex-shrink-0',
+              isManual ? 'bg-[#0a1628]' : 'bg-[#FC4C02]')}>
+              <span className="text-[11px]">{isManual ? kindInfo.emoji : <span className="text-[9px] font-black text-white">S</span>}</span>
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="text-sm font-bold text-navy truncate">{log.stravaName || t.stravaWorkoutName}</span>
-                {log.actualDistance && <span className="text-xs text-gray-500">· {log.actualDistance} km</span>}
-                {log.actualPace && <span className="text-xs text-gray-400" dir="ltr">· {log.actualPace}</span>}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full border flex-shrink-0', kindInfo.badgeClass)}>
+                  {kindInfo.emoji} {activityLabel(kindInfo.kind, isRTL)}
+                </span>
+                <span className="text-sm font-bold text-navy truncate">{displayName}</span>
+                {kindInfo.hasDistance && !!log.actualDistance && <span className="text-xs text-gray-500">· {log.actualDistance} km</span>}
+                {kindInfo.hasDistance && log.actualPace && <span className="text-xs text-gray-400" dir="ltr">· {log.actualPace}</span>}
+                {!kindInfo.hasDistance && durationDisplay && <span className="text-xs text-gray-500">· {durationDisplay}</span>}
               </div>
             </div>
             <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -751,6 +868,34 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                     </button>
                   </div>
                 </div>
+                {/* Fix / complete missing data */}
+                <div className="space-y-1.5">
+                  <p className="text-[11px] text-muted-foreground">{t.fixStravaDataHint}</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {kindInfo.hasDistance && (
+                      <div>
+                        <label className="text-[10px] text-muted-foreground block mb-1">{t.km}</label>
+                        <input type="number" step="0.1" min="0" value={editDistance}
+                          onChange={e => setEditDistance(e.target.value)}
+                          className="w-full h-10 rounded-xl border border-border/60 bg-muted/20 text-center text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-navy/20" />
+                      </div>
+                    )}
+                    {kindInfo.hasDistance && (
+                      <div>
+                        <label className="text-[10px] text-muted-foreground block mb-1">{t.tempoLabel}</label>
+                        <input type="text" placeholder="5:30" value={editPace}
+                          onChange={e => setEditPace(e.target.value)} dir="ltr"
+                          className="w-full h-10 rounded-xl border border-border/60 bg-muted/20 text-center text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-navy/20" />
+                      </div>
+                    )}
+                    <div>
+                      <label className="text-[10px] text-muted-foreground block mb-1">{t.durationMinLabel}</label>
+                      <input type="number" min="0" value={editDuration}
+                        onChange={e => setEditDuration(e.target.value)}
+                        className="w-full h-10 rounded-xl border border-border/60 bg-muted/20 text-center text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-navy/20" />
+                    </div>
+                  </div>
+                </div>
                 <textarea
                   placeholder={t.optionalCommentPh}
                   value={pendingComment}
@@ -778,17 +923,28 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
         <div className="bg-white rounded-2xl border border-[#FC4C02]/15 shadow-sm overflow-hidden" dir="rtl">
           {/* Header row */}
           <div className="px-3.5 py-2.5 flex items-center gap-2">
-            <div className="h-6 w-6 rounded-lg bg-[#FC4C02] flex items-center justify-center flex-shrink-0">
-              <span className="text-[9px] font-black text-white">S</span>
+            <div className={cn('h-6 w-6 rounded-lg flex items-center justify-center flex-shrink-0',
+              isManual ? 'bg-[#0a1628]' : 'bg-[#FC4C02]')}>
+              <span className="text-[11px]">{isManual ? kindInfo.emoji : <span className="text-[9px] font-black text-white">S</span>}</span>
             </div>
-            <span className="flex-1 text-sm font-bold text-[#0a1628] truncate">{log.stravaName || 'Strava'}</span>
+            <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full border flex-shrink-0', kindInfo.badgeClass)}>
+              {kindInfo.emoji} {activityLabel(kindInfo.kind, isRTL)}
+            </span>
+            <span className="flex-1 text-sm font-bold text-[#0a1628] truncate">{displayName}</span>
             <span className="text-[10px] font-bold text-emerald-600 flex-shrink-0">✓</span>
+            <button onClick={() => setShowForm(true)} className="text-[10px] text-[#0a1628]/50 hover:text-[#0a1628] flex-shrink-0 font-medium border border-gray-200 rounded-full px-2 py-0.5 transition-colors">{t.editActivityBtn}</button>
             <button onClick={() => setShowDetails(true)} className="text-[10px] text-[#0a1628]/50 hover:text-[#0a1628] flex-shrink-0 font-medium border border-gray-200 rounded-full px-2 py-0.5 transition-colors">{t.detailsBtn}</button>
             <button onClick={handleDelete} className="h-6 w-6 rounded-full flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors flex-shrink-0 text-sm">✕</button>
           </div>
           {/* Stats grid */}
-          {(log.actualDistance || log.actualPace || log.averageHeartRate || log.elevationGain) && (
+          {(log.actualDistance || log.actualPace || log.averageHeartRate || log.elevationGain || durationDisplay) && (
             <div className="px-3.5 pb-3 grid grid-cols-3 gap-1.5">
+              {durationDisplay && !kindInfo.hasDistance && (
+                <div className="bg-gray-50 rounded-xl p-2 text-center">
+                  <p className="text-base font-black text-[#0a1628]">{durationDisplay}</p>
+                  <p className="text-[9px] text-gray-400">{t.durationMinLabel}</p>
+                </div>
+              )}
               {log.actualDistance && (
                 <div className="bg-gray-50 rounded-xl p-2 text-center">
                   <p className="text-base font-black text-[#0a1628]">{log.actualDistance}</p>
@@ -886,8 +1042,8 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
     const effStatus = getEffectiveStatus(w)
     const msg = coachMessages.find(m => m.assignedWorkoutId === w.id)
     const isSelected = selectedWorkoutId === w.id
-    const log = weekLogs.find(l => l.assignedWorkoutId === w.id && !!l.actualDistance && l.source !== 'strava')
-      || weekLogs.find(l => !l.assignedWorkoutId && l.date === w.scheduledDate && !!l.actualDistance && l.source !== 'strava')
+    const log = weekLogs.find(l => l.assignedWorkoutId === w.id && !!l.actualDistance && !isActivityLog(l))
+      || weekLogs.find(l => !l.assignedWorkoutId && l.date === w.scheduledDate && !!l.actualDistance && !isActivityLog(l))
     return (
       <div key={w.id} className="space-y-2">
         {/* Compact premium Nike-style tile */}
@@ -996,8 +1152,8 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
   const renderNavyWorkoutBlock = (w: AssignedWorkout, isMulti: boolean, idx: number, dateStr: string) => {
     const wEff = getEffectiveStatus(w)
     const wSelected = selectedWorkoutId === w.id
-    const wLog = weekLogs.find(l => l.assignedWorkoutId === w.id && !!l.actualDistance && l.source !== 'strava')
-      || weekLogs.find(l => !l.assignedWorkoutId && l.date === dateStr && !!l.actualDistance && l.source !== 'strava')
+    const wLog = weekLogs.find(l => l.assignedWorkoutId === w.id && !!l.actualDistance && !isActivityLog(l))
+      || weekLogs.find(l => !l.assignedWorkoutId && l.date === dateStr && !!l.actualDistance && !isActivityLog(l))
     const wMsg = coachMessages.find(m => m.assignedWorkoutId === w.id)
     const stravaThisDay = weekLogs.find(l => l.date === dateStr && l.source === 'strava')
     const stravaMatch = computeStravaMatch(w, dateStr)
@@ -1059,12 +1215,25 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                 )}
               </div>
             )}
-            <button
-              onClick={() => setSelectedWorkoutId(prev => prev === w.id ? null : w.id)}
-              className={cn('w-full h-11 rounded-2xl font-bold text-sm active:scale-95 transition-all',
-                wSelected ? 'bg-white/20 text-white' : 'bg-white/15 text-white hover:bg-white/20')}>
-              {wSelected ? t.closeCta : t.workoutDetailsCta}
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setSelectedWorkoutId(prev => prev === w.id ? null : w.id)}
+                className={cn('flex-1 h-11 rounded-2xl font-bold text-sm active:scale-95 transition-all',
+                  wSelected ? 'bg-white/20 text-white' : 'bg-white/15 text-white hover:bg-white/20')}>
+                {wSelected ? t.closeCta : t.workoutDetailsCta}
+              </button>
+              {wEff === 'scheduled' && !isEffectivelyDone && (
+                <button
+                  onClick={() => setMoveWorkoutTarget(w)}
+                  title={t.moveWorkoutBtn}
+                  className="h-11 w-11 rounded-2xl bg-white/10 hover:bg-white/20 text-white/70 hover:text-white flex items-center justify-center active:scale-95 transition-all flex-shrink-0">
+                  <CalendarClock className="h-5 w-5" />
+                </button>
+              )}
+            </div>
+            {(w as any).movedByAthlete && (
+              <p className="text-[10px] text-white/40 mt-2 text-center" dir="rtl">{t.movedByAthleteTag}</p>
+            )}
           </div>
         </div>
         {wSelected && (
@@ -1184,26 +1353,39 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
       {viewMode === 'day' && (() => {
         const dayWs = getWorkoutsForDay(currentDate)
         const dateStr = format(currentDate, 'yyyy-MM-dd')
-        const stravaToday = weekLogs.filter(l => l.date === dateStr && l.source === 'strava')
+        const activitiesToday = weekLogs.filter(l => l.date === dateStr && isActivityLog(l))
         const mainW = dayWs[0] || null
 
+        const addActivityButton = (
+          <button
+            onClick={() => { setAddActivityDate(dateStr); setAddActivityOpen(true) }}
+            className="w-full h-12 rounded-2xl border-2 border-dashed border-gray-200 hover:border-[#c9a84c]/50 text-gray-400 hover:text-[#c9a84c] text-sm font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98] bg-white/50">
+            <Plus className="h-4 w-4" />
+            {t.addActivityBtn}
+          </button>
+        )
+
         // ── Rest day hero ──
-        if (!mainW && stravaToday.length === 0) return (
-          <div className="bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 rounded-3xl p-8 text-center">
-            <div className="text-5xl mb-4">🌿</div>
-            <p className="text-2xl font-bold text-white mb-2">{t.restDayLabel}</p>
-            <p className="text-sm text-white/40">{t.restDaySubtitle}</p>
+        if (!mainW && activitiesToday.length === 0) return (
+          <div className="space-y-3">
+            <div className="bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 rounded-3xl p-8 text-center">
+              <div className="text-5xl mb-4">🌿</div>
+              <p className="text-2xl font-bold text-white mb-2">{t.restDayLabel}</p>
+              <p className="text-sm text-white/40">{t.restDaySubtitle}</p>
+            </div>
+            {addActivityButton}
           </div>
         )
 
         return (
           <div className="space-y-3">
             {dayWs.map((w, idx) => renderNavyWorkoutBlock(w, dayWs.length > 1, idx, dateStr))}
-            {stravaToday.length > 0 && (
+            {activitiesToday.length > 0 && (
               <div className="space-y-1.5">
-                {stravaToday.map(log => <StravaCard key={log.id} log={log} />)}
+                {activitiesToday.map(log => <StravaCard key={log.id} log={log} />)}
               </div>
             )}
+            {addActivityButton}
           </div>
         )
       })()}
@@ -1268,26 +1450,38 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
           {(() => {
             const dayWs = getWorkoutsForDay(selectedWeekDay)
             const dayStr = format(selectedWeekDay, 'yyyy-MM-dd')
-            const stravaDay = weekLogs.filter(l => l.date === dayStr && l.source === 'strava')
-            if (dayWs.length === 0 && stravaDay.length === 0) return (
-              <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 text-center">
-                <p className="font-semibold text-[#0a1628] mb-1">{t.restDayLabel}</p>
-                <p className="text-sm text-gray-400">{format(selectedWeekDay,'EEEE, d MMMM')}</p>
+            const activitiesDay = weekLogs.filter(l => l.date === dayStr && isActivityLog(l))
+            const addActivityButton = (
+              <button
+                onClick={() => { setAddActivityDate(dayStr); setAddActivityOpen(true) }}
+                className="w-full h-12 rounded-2xl border-2 border-dashed border-gray-200 hover:border-[#c9a84c]/50 text-gray-400 hover:text-[#c9a84c] text-sm font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98] bg-white/50">
+                <Plus className="h-4 w-4" />
+                {t.addActivityBtn}
+              </button>
+            )
+            if (dayWs.length === 0 && activitiesDay.length === 0) return (
+              <div className="space-y-3">
+                <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 text-center">
+                  <p className="font-semibold text-[#0a1628] mb-1">{t.restDayLabel}</p>
+                  <p className="text-sm text-gray-400">{format(selectedWeekDay,'EEEE, d MMMM')}</p>
+                </div>
+                {addActivityButton}
               </div>
             )
             return (
               <div className="space-y-3">
                 {dayWs.map((w, i) => renderNavyWorkoutBlock(w, dayWs.length > 1, i, dayStr))}
-                {stravaDay.length > 0 && (
+                {activitiesDay.length > 0 && (
                   <div className="space-y-3">
                     <div className="flex items-center gap-3">
                       <div className="flex-1 border-t border-gray-100" />
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Strava</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{t.workouts}</span>
                       <div className="flex-1 border-t border-gray-100" />
                     </div>
-                    {stravaDay.map(log => <StravaCard key={log.id} log={log} />)}
+                    {activitiesDay.map(log => <StravaCard key={log.id} log={log} />)}
                   </div>
                 )}
+                {addActivityButton}
               </div>
             )
           })()}
@@ -1345,35 +1539,50 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                     {days.map((day, di) => {
                       const inMonth = isSameMonth(day, currentDate)
                       const dayWs = getWorkoutsForDay(day)
+                      const dStr = format(day, 'yyyy-MM-dd')
+                      // Done activities (Strava / manual) — shown even on days with no planned workout
+                      const dayActivities = weekLogs.filter(l => l.date === dStr && isActivityLog(l))
                       const todayFlag = isToday(day)
-                      const hasCompleted = dayWs.some(w => getEffectiveStatus(w) === 'completed')
                       const selectedInDay = dayWs.some(w => w.id === selectedWorkoutId)
                       const hasUnreadMsg = dayWs.some(w => coachMessages.some(m => m.assignedWorkoutId === w.id && !m.read))
+                      const clickable = inMonth && (dayWs.length > 0 || dayActivities.length > 0)
                       return (
                         <div key={di}
                           onClick={() => {
-                            if (!inMonth || dayWs.length === 0) return
-                            const first = dayWs[0]
-                            setSelectedWorkoutId(prev => prev === first.id ? null : first.id)
+                            if (!clickable) return
+                            if (dayWs.length > 0) {
+                              const first = dayWs[0]
+                              setSelectedWorkoutId(prev => prev === first.id ? null : first.id)
+                            } else {
+                              // Activity-only day → jump to its day view
+                              setCurrentDate(day)
+                              setViewMode('day')
+                            }
                           }}
                           className={cn(
                             'min-h-[52px] rounded-xl p-1.5 flex flex-col items-center gap-1 transition-all',
                             !inMonth ? 'opacity-15 pointer-events-none' : '',
                             todayFlag ? 'bg-[#0a1628]/5' : '',
                             selectedInDay ? 'bg-[#c9a84c]/10 ring-1 ring-[#c9a84c]/30' : '',
-                            dayWs.length > 0 && inMonth ? 'cursor-pointer hover:bg-gray-50' : ''
+                            clickable ? 'cursor-pointer hover:bg-gray-50' : ''
                           )}>
                           {todayFlag ? (
                             <span className="w-5 h-5 rounded-full bg-[#c9a84c] flex items-center justify-center text-[9px] font-black text-[#0a1628]">{format(day,'d')}</span>
                           ) : (
                             <span className={cn('text-[11px] font-semibold', inMonth ? 'text-[#0a1628]/70' : 'text-gray-300')}>{format(day,'d')}</span>
                           )}
-                          {dayWs.length > 0 && (
-                            <div className="flex gap-0.5 flex-wrap justify-center">
+                          {(dayWs.length > 0 || dayActivities.length > 0) && (
+                            <div className="flex gap-0.5 flex-wrap justify-center items-center">
                               {dayWs.slice(0,3).map((w,i) => (
                                 <span key={i} className={cn('w-1.5 h-1.5 rounded-full',
                                   getEffectiveStatus(w) === 'completed' ? 'bg-emerald-500' : TYPE_DOT_COLORS[w.workout?.type] || 'bg-[#0a1628]'
                                 )} />
+                              ))}
+                              {/* Extra done activities beyond the plan */}
+                              {dayWs.length === 0 && dayActivities.slice(0,3).map((l, i) => (
+                                <span key={`a${i}`} className="text-[8px] leading-none">
+                                  {getActivityInfo(l).emoji}
+                                </span>
                               ))}
                             </div>
                           )}
@@ -1447,6 +1656,40 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
         </div>
       </div>
 
+      {/* ── Dialogs ───────────────────────────────────────────────────────── */}
+      <AddActivityDialog
+        open={addActivityOpen}
+        onOpenChange={setAddActivityOpen}
+        athleteId={athleteId}
+        athleteName={athlete?.name}
+        date={addActivityDate}
+        onSaved={async (log) => {
+          setWeekLogs(prev => [...prev, log])
+          // Refresh assigned workouts — auto-complete may have marked one done
+          try {
+            const snap = await getDocs(query(collection(db, 'assignedWorkouts'), where('athleteId', '==', athleteId)))
+            setAssignedWorkouts(snap.docs.map(d => ({ ...(d.data() as AssignedWorkout), id: d.id })))
+          } catch {}
+        }}
+      />
+      {moveWorkoutTarget && (
+        <MoveWorkoutDialog
+          open={!!moveWorkoutTarget}
+          onOpenChange={(o) => { if (!o) setMoveWorkoutTarget(null) }}
+          workout={moveWorkoutTarget}
+          athleteId={athleteId}
+          athleteName={athlete?.name}
+          busyDates={assignedWorkouts.map(w => w.scheduledDate)}
+          onMoved={(workoutId, newDate) => {
+            setAssignedWorkouts(prev => prev.map(w =>
+              w.id === workoutId
+                ? { ...w, scheduledDate: newDate, movedByAthlete: true, movedFromDate: moveWorkoutTarget.scheduledDate } as any
+                : w
+            ))
+            setMoveWorkoutTarget(null)
+          }}
+        />
+      )}
     </div>
   )
 }

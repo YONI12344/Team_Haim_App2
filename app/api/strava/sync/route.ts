@@ -93,6 +93,7 @@ export async function POST(request: NextRequest) {
         stravaActivityId: activity.id,
         stravaName: activity.name,
         stravaType: activity.type,
+        startTime: activity.start_date_local || null,
         date,
         distanceKm,
         durationMin,

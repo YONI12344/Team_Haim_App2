@@ -33,3 +33,7 @@ functions/.env
 # Capacitor native platforms
 ios/
 android/
+
+# Claude Code local settings (personal, not for GitHub)
+.claude/settings.local.json
+.claude/launch.json
