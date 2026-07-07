@@ -68,10 +68,13 @@ export function WorkoutLibrary() {
           query(collection(db, 'workouts'), orderBy('createdAt', 'desc')),
         )
         setWorkouts(
-          snap.docs.map((d) => ({
-            ...(d.data() as Workout),
-            id: d.id,
-          })),
+          snap.docs
+            // Hide per-week clones created by copy-week / paste
+            .filter((d) => !d.data().libraryHidden)
+            .map((d) => ({
+              ...(d.data() as Workout),
+              id: d.id,
+            })),
         )
       } catch (err) {
         console.error('Error loading workouts:', err)

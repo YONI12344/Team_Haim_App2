@@ -98,7 +98,7 @@ export function CoachPlanningHub() {
         ])
         const athletes = usersSnap.docs.map(d => ({ ...(d.data() as AthleteProfile), id: d.id }))
         const allAW = awSnap.docs.map(d => ({ ...(d.data() as AssignedWorkout), id: d.id }))
-        setWorkoutLibrary(wSnap.docs.map(d => ({ ...(d.data() as Workout), id: d.id })))
+        setWorkoutLibrary(wSnap.docs.filter(d => !d.data().libraryHidden).map(d => ({ ...(d.data() as Workout), id: d.id })))
         const result: AthleteWeekData[] = await Promise.all(athletes.map(async (athlete) => {
           let journeyStage = undefined
           try {

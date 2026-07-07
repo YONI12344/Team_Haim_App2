@@ -208,6 +208,8 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
             personalRecords: [], seasonBests: [], trainingPaces: [], goals: [],
             weekSchedule: d.weekSchedule, weeklyKmRange: d.weeklyKmRange,
             offWeekInterval: d.offWeekInterval,
+            weekStartDay: d.weekStartDay === 1 ? 1 : 0,
+            kmWeekStartDay: d.kmWeekStartDay === 0 ? 0 : 1,
             createdAt: d.createdAt?.toDate?.() || new Date(),
             updatedAt: d.updatedAt?.toDate?.() || new Date(),
           })
@@ -237,10 +239,18 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
     load()
   }, [athleteId])
 
+  // Per-athlete week settings (calendar display + weekly-km counting)
+  const calWeekStartsOn: 0 | 1 = athlete?.weekStartDay === 1 ? 1 : 0
+  const kmWeekStartsOn: 0 | 1 = athlete?.kmWeekStartDay === 0 ? 0 : 1
+  // Day labels rotated to match the athlete's week start
+  const rotateDays = <T,>(a: T[]): T[] => [...a.slice(calWeekStartsOn), ...a.slice(0, calWeekStartsOn)]
+  const dayShortRot = rotateDays(dayShort)
+  const dayLabelsRot = rotateDays(isRTL ? dayLabels : dayEN)
+
   useEffect(() => {
     if (viewMode !== 'week') return
-    const ws = startOfWeek(currentDate, { weekStartsOn: 0 })
-    const we = endOfWeek(currentDate, { weekStartsOn: 0 })
+    const ws = startOfWeek(currentDate, { weekStartsOn: calWeekStartsOn })
+    const we = endOfWeek(currentDate, { weekStartsOn: calWeekStartsOn })
     if (selectedWeekDay < ws || selectedWeekDay > we) {
       const today = new Date()
       setSelectedWeekDay(today >= ws && today <= we ? today : ws)
@@ -274,13 +284,13 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
     return weekLogs.find(l => l.workoutId === workoutId || l.date === date)
   }
 
-  const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 })
-  const weekEnd = endOfWeek(currentDate, { weekStartsOn: 0 })
+  const weekStart = startOfWeek(currentDate, { weekStartsOn: calWeekStartsOn })
+  const weekEnd = endOfWeek(currentDate, { weekStartsOn: calWeekStartsOn })
   const weekDays = useMemo(() => eachDayOfInterval({ start: weekStart, end: weekEnd }), [currentDate])
 
   const monthStart = startOfMonth(currentDate)
   const monthEnd = endOfMonth(currentDate)
-  const monthWeeks = useMemo(() => eachWeekOfInterval({ start: monthStart, end: monthEnd }, { weekStartsOn: 0 }), [currentDate])
+  const monthWeeks = useMemo(() => eachWeekOfInterval({ start: monthStart, end: monthEnd }, { weekStartsOn: calWeekStartsOn }), [currentDate, calWeekStartsOn])
 
   const getWorkoutsForDate = useCallback((dateStr: string) =>
     assignedWorkouts.filter(w => w.scheduledDate === dateStr)
@@ -309,15 +319,15 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
 
   const todayWorkouts = useMemo(() => getWorkoutsForDay(new Date()), [getWorkoutsForDay])
 
-  const weekStartStr = format(startOfWeek(new Date(), {weekStartsOn: 1}), 'yyyy-MM-dd')
-  const weekEndStr = format(endOfWeek(new Date(), {weekStartsOn: 1}), 'yyyy-MM-dd')
+  const weekStartStr = format(startOfWeek(new Date(), {weekStartsOn: kmWeekStartsOn}), 'yyyy-MM-dd')
+  const weekEndStr = format(endOfWeek(new Date(), {weekStartsOn: kmWeekStartsOn}), 'yyyy-MM-dd')
   const thisWeekKmActual = Math.round(weekLogs.filter(l => l.date >= weekStartStr && l.date <= weekEndStr).reduce((s, l) => s + (l.actualDistance || 0), 0))
   const thisWeekKmPlanned = useMemo(() => {
-    const from = format(startOfWeek(new Date(),{weekStartsOn:1}), 'yyyy-MM-dd')
-    const to = format(endOfWeek(new Date(),{weekStartsOn:1}), 'yyyy-MM-dd')
+    const from = format(startOfWeek(new Date(),{weekStartsOn:kmWeekStartsOn}), 'yyyy-MM-dd')
+    const to = format(endOfWeek(new Date(),{weekStartsOn:kmWeekStartsOn}), 'yyyy-MM-dd')
     return assignedWorkouts.filter(w => w.scheduledDate>=from && w.scheduledDate<=to)
       .reduce((s,w) => s+(w.workout?.distance??0), 0)
-  }, [assignedWorkouts])
+  }, [assignedWorkouts, kmWeekStartsOn])
 
   const selectedWorkout = useMemo(() =>
     assignedWorkouts.find(w => w.id === selectedWorkoutId) || null
@@ -1408,7 +1418,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
                     className={cn('flex flex-col items-center py-2.5 px-3 rounded-2xl transition-all active:scale-95 flex-shrink-0 min-w-[44px]',
                       isSelDay ? 'bg-[#0a1628]' : todayFlag ? 'bg-[#0a1628]/5' : 'hover:bg-gray-50')}>
                     <span className={cn('text-[10px] font-semibold mb-0.5', isSelDay ? 'text-white/50' : todayFlag ? 'text-[#c9a84c]' : 'text-gray-400')}>
-                      {dayShort[di]}
+                      {dayShortRot[di]}
                     </span>
                     <span className={cn('text-sm font-black', isSelDay ? 'text-white' : todayFlag ? 'text-[#0a1628]' : 'text-[#0a1628]/60')}>
                       {format(day,'d/M')}
@@ -1520,7 +1530,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
           <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-4">
             {/* Day headers */}
             <div className="grid grid-cols-8 gap-1 mb-2">
-              {(isRTL ? dayLabels : dayEN).map((d,i) => (
+              {dayLabelsRot.map((d,i) => (
                 <div key={i} className="text-center text-[9px] font-bold text-gray-400 py-1 uppercase tracking-wider">{d}</div>
               ))}
               <div className="text-center text-[9px] font-bold text-gray-400 py-1 uppercase tracking-wider">km</div>
@@ -1528,7 +1538,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
 
             <div className="space-y-1">
               {monthWeeks.map((weekStartDay, wi) => {
-                const days = eachDayOfInterval({ start: weekStartDay, end: endOfWeek(weekStartDay,{weekStartsOn:0}) })
+                const days = eachDayOfInterval({ start: weekStartDay, end: endOfWeek(weekStartDay,{weekStartsOn:calWeekStartsOn}) })
                 const wKm = getWeekKm(days)
                 const wDone = Math.round(days.reduce((s,d) => {
                   const dStr = format(d,'yyyy-MM-dd')

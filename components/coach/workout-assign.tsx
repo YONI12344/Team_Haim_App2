@@ -113,10 +113,12 @@ export function WorkoutAssign({ workoutId, athleteId }: WorkoutAssignProps) {
         })
         setAthletes(loadedAthletes)
 
-        const loadedWorkouts: Workout[] = wSnap.docs.map((d) => ({
-          ...(d.data() as Workout),
-          id: d.id,
-        }))
+        const loadedWorkouts: Workout[] = wSnap.docs
+          .filter((d) => !d.data().libraryHidden)
+          .map((d) => ({
+            ...(d.data() as Workout),
+            id: d.id,
+          }))
         setWorkouts(loadedWorkouts)
 
         if (workoutId) {

@@ -191,6 +191,7 @@ export function AthleteDashboard() {
             personalRecords: Array.isArray(data.personalRecords) ? data.personalRecords : [],
             goals: Array.isArray(data.goals) ? data.goals : [],
             onboardingComplete: data.onboardingComplete === true,
+            kmWeekStartDay: data.kmWeekStartDay === 0 ? 0 : 1,
           })
         } else {
           setProfile({ name: user.name, events: [], personalRecords: [], goals: [] })
@@ -294,8 +295,10 @@ export function AthleteDashboard() {
     (w) => w.scheduledDate && isToday(parseISO(w.scheduledDate)),
   )
 
-  const startOfThisWeek = startOfWeek(new Date(), { weekStartsOn: 1 })
-  const endOfThisWeek = endOfWeek(new Date(), { weekStartsOn: 1 })
+  // Weekly window follows the athlete's km-week start setting (default Monday)
+  const kmWeekStartsOn: 0 | 1 = profile?.kmWeekStartDay === 0 ? 0 : 1
+  const startOfThisWeek = startOfWeek(new Date(), { weekStartsOn: kmWeekStartsOn })
+  const endOfThisWeek = endOfWeek(new Date(), { weekStartsOn: kmWeekStartsOn })
   const thisWeekWorkouts = assigned.filter((w) => {
     if (!w.scheduledDate) return false
     const d = parseISO(w.scheduledDate)
@@ -308,8 +311,8 @@ export function AthleteDashboard() {
     : 0
 
   // Aggregate weekly stats from logs
-  const startOfThisWeekStr = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
-  const endOfThisWeekStr = format(endOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
+  const startOfThisWeekStr = format(startOfThisWeek, 'yyyy-MM-dd')
+  const endOfThisWeekStr = format(endOfThisWeek, 'yyyy-MM-dd')
   const thisWeekLogs = logs.filter(l => l.date >= startOfThisWeekStr && l.date <= endOfThisWeekStr)
   const pendingFeedbackLogs = (logs as any[]).filter(l => l.source === 'strava' && l.feedbackStatus === 'pending')
   const totalDistance = thisWeekLogs.reduce((s, l) => s + (l.actualDistance || 0), 0)

@@ -64,6 +64,10 @@ export interface AthleteProfile {
   onboardingComplete?: boolean
   // Weekly training template — which type of session each day of the week
   weekSchedule?: WeekSchedule
+  // First day of the calendar week for this athlete (0 = Sunday, 1 = Monday)
+  weekStartDay?: 0 | 1
+  // Day the weekly-km count resets (0 = Sunday, 1 = Monday)
+  kmWeekStartDay?: 0 | 1
   // Target weekly km range, e.g. { min: 40, max: 60 }
   weeklyKmRange?: { min: number; max: number }
   // Recovery week interval: every Nth week is an off/recovery week (default 4)

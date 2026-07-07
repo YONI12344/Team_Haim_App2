@@ -34,11 +34,14 @@ service cloud.firestore {
     match /assignedWorkouts/{docId} {
       allow read: if request.auth != null;
       allow create, delete: if isCoach();
+      // Athletes may complete/skip their workout or move it to another day
+      // (movedByAthlete/movedFromDate flag the move for the coach).
       allow update: if isCoach()
         || (request.auth != null
             && resource.data.athleteId == request.auth.uid
             && request.resource.data.diff(resource.data).affectedKeys()
-               .hasOnly(['status', 'completedAt', 'athleteNotes', 'updatedAt']));
+               .hasOnly(['status', 'completedAt', 'athleteNotes', 'updatedAt',
+                         'scheduledDate', 'movedByAthlete', 'movedFromDate']));
     }
 
     match /logs/{logId} {
@@ -76,6 +79,12 @@ service cloud.firestore {
             && resource.data.athleteId == request.auth.uid
             && request.resource.data.diff(resource.data).affectedKeys()
                .hasOnly(['readByAthlete']));
+    }
+
+    match /lactateTests/{docId} {
+      allow read: if request.auth != null
+        && (isCoach() || resource.data.athleteId == request.auth.uid);
+      allow create, update, delete: if isCoach();
     }
 
     match /coachMessages/{docId} {

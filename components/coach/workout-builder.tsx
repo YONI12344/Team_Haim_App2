@@ -201,18 +201,21 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
         updatedBy: user?.id || null,
       }
 
+      let savedId = workoutId
       if (workoutId) {
         await updateDoc(doc(db, 'workouts', workoutId), payload)
         toast.success('Workout updated!')
       } else {
-        await addDoc(collection(db, 'workouts'), {
+        const ref = await addDoc(collection(db, 'workouts'), {
           ...payload,
           createdAt: serverTimestamp(),
           createdBy: user?.id || null,
         })
+        savedId = ref.id
         toast.success('Workout created!')
       }
-      if (onDone) onDone(); else router.push('/coach/workouts')
+      // Pass the saved workout back so callers can auto-assign it to a date
+      if (onDone) onDone({ id: savedId, ...payload }); else router.push('/coach/workouts')
     } catch (err) {
       console.error('Error saving workout:', err)
       toast.error('Failed to save workout')
