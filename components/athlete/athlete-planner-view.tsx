@@ -142,7 +142,15 @@ function mapLogDoc(d: { id: string; data: () => any }): WeekLog {
 /** Logs that render as standalone activity cards (Strava sync or manual upload) */
 const isActivityLog = (l: WeekLog) => l.source === 'strava' || l.source === 'manual'
 
-export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: string } = {}) {
+interface AthletePlannerViewProps {
+  overrideAthleteId?: string
+  /** yyyy-MM-dd — when set (e.g. embedded in the coach planner), seeds and
+   *  keeps syncing the displayed date so it always matches the date the
+   *  coach is looking at, instead of defaulting to today. */
+  initialDate?: string
+}
+
+export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePlannerViewProps = {}) {
   const { user } = useAuth()
   const { t, isRTL } = useLanguage()
   const typeLabels = useWorkoutTypeLabels()
@@ -160,6 +168,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
   const [moveWorkoutTarget, setMoveWorkoutTarget] = useState<AssignedWorkout | null>(null)
   const [loading, setLoading] = useState(true)
   const [currentDate, setCurrentDate] = useState(() => {
+    if (initialDate) { const d = new Date(initialDate); if (!isNaN(d.getTime())) return d }
     // If ?date=YYYY-MM-DD is in the URL, jump straight to that date
     if (typeof window !== 'undefined') {
       const p = new URLSearchParams(window.location.search).get('date')
@@ -174,6 +183,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
   const [stravaSyncing, setStravaSyncing] = useState(false)
   const [coachMessages, setCoachMessages] = useState<any[]>([])
   const [selectedWeekDay, setSelectedWeekDay] = useState<Date>(() => {
+    if (initialDate) { const d = new Date(initialDate); if (!isNaN(d.getTime())) return d }
     if (typeof window !== 'undefined') {
       const p = new URLSearchParams(window.location.search).get('date')
       if (p) { const d = new Date(p); if (!isNaN(d.getTime())) return d }
@@ -192,6 +202,17 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
       setSelectedWeekDay(d)
     }
   }, [])
+
+  // Embedded mode (coach planner): keep the displayed date in sync with the
+  // initialDate prop whenever the coach taps a different date on the calendar
+  useEffect(() => {
+    if (!initialDate) return
+    const d = new Date(initialDate)
+    if (isNaN(d.getTime())) return
+    setCurrentDate(d)
+    setSelectedWeekDay(d)
+    setViewMode('day')
+  }, [initialDate])
 
   useEffect(() => {
     if (!athleteId) return

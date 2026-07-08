@@ -35,6 +35,7 @@ import { useAuth } from '@/contexts/auth-context'
 import { useWorkoutTypeLabels, autoWorkoutTitle } from '@/lib/workout-labels'
 import { WorkoutBuilder } from '@/components/coach/workout-builder'
 import { ActivityDetailView } from '@/components/shared/activity-detail-view'
+import { AthletePlannerView } from '@/components/athlete/athlete-planner-view'
 import { useLanguage } from '@/contexts/language-context'
 import { toast } from 'sonner'
 
@@ -144,6 +145,9 @@ export function AthletePlanner({ athleteId }: Props) {
   // Coach messages
   const [coachMessageText, setCoachMessageText] = useState('')
   const [sendingCoachMessage, setSendingCoachMessage] = useState(false)
+  // Message composer under the embedded "exactly as the athlete sees it" view
+  const [dayMessageText, setDayMessageText] = useState('')
+  const [sendingDayMessage, setSendingDayMessage] = useState(false)
 
   // Weekly summary
   const [showWeeklySummary, setShowWeeklySummary] = useState(false)
@@ -783,48 +787,71 @@ export function AthletePlanner({ athleteId }: Props) {
     }
   }
 
+  /** Shared send — used by both the workout-detail composer and the
+   *  embedded athlete-view composer below the calendar. */
+  const sendCoachMessage = async (text: string, workout?: AssignedWorkout | null) => {
+    if (!user) return
+    await addDoc(collection(db, 'coachMessages'), {
+      athleteId,
+      coachId: user.id,
+      assignedWorkoutId: workout?.id || null,
+      workoutTitle: workout?.workout?.title || null,
+      message: text.trim(),
+      createdAt: serverTimestamp(),
+      read: false,
+    })
+    // Mirror to RTDB chat thread with full workout payload when tied to one
+    const chatId = `${user.id}_${athleteId}`
+    await push(ref(realtimeDb, `conversations/${chatId}/messages`), {
+      senderId: user.id,
+      senderName: user.name || t.theCoachFallback,
+      content: text.trim(),
+      type: 'coach_message',
+      payload: workout ? {
+        assignedWorkoutId: workout.id,
+        workoutTitle: workout.workout?.title || '',
+        workoutType: workout.workout?.type || '',
+        description: workout.workout?.description || '',
+        distance: workout.workout?.distance ?? null,
+        duration: workout.workout?.duration ?? null,
+        sets: workout.workout?.sets ?? [],
+        warmup: workout.workout?.warmup || '',
+        cooldown: workout.workout?.cooldown || '',
+        notes: workout.workout?.notes || '',
+        scheduledDate: workout.scheduledDate,
+        status: workout.status,
+      } : null,
+      timestamp: Date.now(),
+    })
+  }
+
   const handleSendCoachMessage = async () => {
-    if (!selectedAW || !user || !coachMessageText.trim()) return
+    if (!selectedAW || !coachMessageText.trim()) return
     setSendingCoachMessage(true)
     try {
-      await addDoc(collection(db, 'coachMessages'), {
-        athleteId,
-        coachId: user.id,
-        assignedWorkoutId: selectedAW.id,
-        workoutTitle: selectedAW.workout?.title || 'אימון',
-        message: coachMessageText.trim(),
-        createdAt: serverTimestamp(),
-        read: false,
-      })
-      // Mirror to RTDB chat thread with full workout payload
-      const chatId = `${user.id}_${athleteId}`
-      await push(ref(realtimeDb, `conversations/${chatId}/messages`), {
-        senderId: user.id,
-        senderName: user.name || t.theCoachFallback,
-        content: coachMessageText.trim(),
-        type: 'coach_message',
-        payload: {
-          assignedWorkoutId: selectedAW.id,
-          workoutTitle: selectedAW.workout?.title || '',
-          workoutType: selectedAW.workout?.type || '',
-          description: selectedAW.workout?.description || '',
-          distance: selectedAW.workout?.distance ?? null,
-          duration: selectedAW.workout?.duration ?? null,
-          sets: selectedAW.workout?.sets ?? [],
-          warmup: selectedAW.workout?.warmup || '',
-          cooldown: selectedAW.workout?.cooldown || '',
-          notes: selectedAW.workout?.notes || '',
-          scheduledDate: selectedAW.scheduledDate,
-          status: selectedAW.status,
-        },
-        timestamp: Date.now(),
-      })
+      await sendCoachMessage(coachMessageText, selectedAW)
       setCoachMessageText('')
       toast.success(t.toastUpdated)
     } catch {
       toast.error(t.tryAgainLaterText)
     } finally {
       setSendingCoachMessage(false)
+    }
+  }
+
+  const handleSendDayMessage = async () => {
+    if (!selectedDate || !dayMessageText.trim()) return
+    setSendingDayMessage(true)
+    try {
+      const dateStr = format(selectedDate, 'yyyy-MM-dd')
+      const dayWorkout = assignedWorkouts.find(w => w.scheduledDate === dateStr) || null
+      await sendCoachMessage(dayMessageText, dayWorkout)
+      setDayMessageText('')
+      toast.success(t.toastUpdated)
+    } catch {
+      toast.error(t.tryAgainLaterText)
+    } finally {
+      setSendingDayMessage(false)
     }
   }
 
@@ -1237,6 +1264,44 @@ export function AthletePlanner({ athleteId }: Props) {
             )}
           </CardContent>
         </Card>
+
+        {/* Athlete's exact view — the same component the athlete sees, for
+            whichever date the coach last tapped on the calendar above */}
+        {selectedDate && (
+          <Card className="border-navy/15">
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-sm flex items-center gap-2">
+                👤 בדיוק כמו שהספורטאי רואה
+                <span className="text-xs font-normal text-muted-foreground">— {format(selectedDate, 'EEEE, d MMMM')}</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <AthletePlannerView overrideAthleteId={athleteId} initialDate={format(selectedDate, 'yyyy-MM-dd')} />
+
+              {/* Send a message tied to this day — same composer style as the workout panel */}
+              <div className="space-y-1.5 border-t pt-3 mt-4" dir="rtl">
+                <Label className="text-xs font-semibold text-navy">שלח הודעה לספורטאי על היום הזה</Label>
+                <Textarea
+                  value={dayMessageText}
+                  onChange={e => setDayMessageText(e.target.value)}
+                  placeholder={t.typeMessage}
+                  className="text-xs min-h-[60px]"
+                  dir="rtl"
+                />
+                <Button
+                  size="sm"
+                  className="w-full h-8 text-xs bg-navy text-white hover:bg-navy/90"
+                  onClick={handleSendDayMessage}
+                  disabled={sendingDayMessage || !dayMessageText.trim()}
+                >
+                  {sendingDayMessage && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1"/>}
+                  <Send className="h-3.5 w-3.5 mr-1"/>
+                  שלח הערה
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Selected workout detail + log */}
         {selectedAW && (
