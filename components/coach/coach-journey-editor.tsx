@@ -44,6 +44,7 @@ import {
   saveJourney,
 } from '@/lib/journey'
 import { JourneyTimeline } from '@/components/journey/journey-timeline'
+import { JourneyWizard } from '@/components/coach/journey-wizard'
 import type { JourneyDoc, JourneyStage, JourneyStageType } from '@/lib/types'
 import { toast } from 'sonner'
 import { useLanguage } from '@/contexts/language-context'
@@ -80,6 +81,7 @@ export function CoachJourneyEditor({ athleteId }: Props) {
   const [active, setActive] = useState<JourneyDoc | null>(null)
   const [editingStage, setEditingStage] = useState<JourneyStage | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [wizardOpen, setWizardOpen] = useState(false)
 
   const reload = async () => {
     setLoading(true)
@@ -227,16 +229,26 @@ export function CoachJourneyEditor({ athleteId }: Props) {
               </SelectContent>
             </Select>
           )}
-          <Button onClick={handleNewBlank} variant="outline">
+          <Button onClick={() => setWizardOpen(true)} className="bg-gold hover:bg-gold/90 text-navy font-bold">
+            <Sparkles className="mr-2 h-4 w-4" /> בנה מסע מותאם אישית
+          </Button>
+          <Button onClick={handleNewBlank} variant="outline" size="sm">
             <Plus className="mr-2 h-4 w-4" /> {t.blankBtn}
           </Button>
           {journeyTemplates.map((tpl) => (
-            <Button key={tpl.key} variant="outline" onClick={() => handleTemplate(tpl.key)}>
-              <Sparkles className="mr-2 h-4 w-4" /> {tpl.label}
+            <Button key={tpl.key} variant="outline" size="sm" onClick={() => handleTemplate(tpl.key)}>
+              {tpl.label}
             </Button>
           ))}
         </div>
       </div>
+
+      <JourneyWizard
+        open={wizardOpen}
+        onOpenChange={setWizardOpen}
+        athleteId={athleteId}
+        onCreated={(j) => { setJourneys(prev => [...prev, j]); setActive(j) }}
+      />
 
       {!active ? (
         <Card className="rounded-2xl border-dashed">

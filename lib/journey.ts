@@ -17,7 +17,7 @@ import {
   deleteDoc,
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import type { JourneyDoc, JourneyStage, JourneyStageType } from '@/lib/types'
+import type { JourneyDoc, JourneyStage, JourneyStageType, WorkoutType } from '@/lib/types'
 
 function genId(prefix = 'id'): string {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
@@ -305,6 +305,148 @@ export function buildTemplate(
   const t = journeyTemplates.find((x) => x.key === key)
   if (!t) return null
   return t.build(input)
+}
+
+// -------------------- custom wizard (athlete-data driven) --------------------
+
+/** Hebrew labels for workout types — used only to generate readable
+ *  keyWorkouts text on stages; this file has no access to language context. */
+const TYPE_HE: Record<WorkoutType, string> = {
+  easy: 'ריצה קלה', long_run: 'ריצה ארוכה', tempo: 'טמפו/סף', intervals: 'אינטרוולים',
+  hill_repeats: 'עליות', fartlek: 'פרטלק', recovery: 'התאוששות', strength: 'חיזוק',
+  cross_training: 'אימון משולב', swim: 'שחייה', bike: 'אופניים', rest: 'מנוחה',
+  race: 'תחרות', time_trial: 'מבחן זמן',
+}
+
+/** Which of the coach's chosen workout types make sense in each phase. */
+const PHASE_TYPES: Record<JourneyStageType, WorkoutType[]> = {
+  base: ['easy', 'long_run', 'recovery', 'strength', 'cross_training', 'swim', 'bike'],
+  build: ['tempo', 'fartlek', 'hill_repeats', 'intervals', 'cross_training', 'long_run'],
+  peak: ['intervals', 'tempo', 'hill_repeats', 'time_trial', 'race'],
+  taper: ['easy', 'recovery', 'strength'],
+  race_week: ['easy', 'recovery'],
+  recovery: ['easy', 'recovery'],
+  custom: ['easy'],
+}
+
+const PHASE_FALLBACK_HE: Record<JourneyStageType, string[]> = {
+  base: ['ריצה קלה', 'ריצה ארוכה קלה', 'האצות (strides)'],
+  build: ['טמפו/סף', 'אינטרוולים', 'ריצה ארוכה'],
+  peak: ['קצב מרוץ', 'אינטרוולים קצרים', 'סימולציה'],
+  taper: ['קל + פתיחות', 'הפחתת נפח'],
+  race_week: ['קל בלבד', 'פתיחות לפני המרוץ'],
+  recovery: ['קל בלבד'],
+  custom: ['ריצה קלה'],
+}
+
+function keyWorkoutsForPhase(phase: JourneyStageType, chosen: WorkoutType[]): string[] {
+  const relevant = chosen.filter((w) => PHASE_TYPES[phase]?.includes(w))
+  if (relevant.length === 0) return PHASE_FALLBACK_HE[phase]
+  return relevant.slice(0, 4).map((w) => TYPE_HE[w] || w)
+}
+
+/** Split total available weeks into [base, build, peak, taper, race_week]. */
+function splitWeeksForCustomJourney(totalWeeks: number): number[] {
+  const weeks = Math.max(4, totalWeeks)
+  const raceWeek = 1
+  const taper = weeks >= 10 ? 2 : 1
+  const remaining = Math.max(2, weeks - raceWeek - taper)
+  const peak = Math.max(1, Math.round(remaining * 0.25))
+  const build = Math.max(1, Math.round(remaining * 0.40))
+  const base = Math.max(1, remaining - peak - build)
+  return [base, build, peak, taper, raceWeek]
+}
+
+export interface InterimRace {
+  event: string
+  date: string
+  type?: 'race' | 'time_trial'
+  notes?: string
+}
+
+export interface CustomJourneyInput {
+  startDate: string
+  goalRaceEvent: string
+  goalRaceDate: string
+  goalRaceTarget?: string
+  createdBy: string
+  /** Athlete's current weekly km (baseline, before the plan ramps up). */
+  currentWeeklyKm: number
+  /** Target weekly km at the peak of training. */
+  peakWeeklyKm: number
+  /** Workout types the coach wants emphasized — filtered into each stage. */
+  workoutTypes: WorkoutType[]
+  /** Tune-up / time-trial races along the way — added as stage milestones. */
+  interimRaces?: InterimRace[]
+}
+
+/**
+ * Builds a full 5-stage journey (בסיס/בנייה/שיא/חידוד/שבוע תחרות) sized to
+ * the athlete's actual data: stage lengths scale with however many weeks
+ * are available until the goal race, weekly volume ramps from the
+ * athlete's current km to their peak target, and each stage's key workouts
+ * are drawn from the types the coach actually wants to use with them —
+ * instead of the fixed generic templates.
+ */
+export function buildCustomJourney(input: CustomJourneyInput): JourneyDoc {
+  const totalWeeks = Math.round(
+    (new Date(input.goalRaceDate).getTime() - new Date(input.startDate).getTime()) / (7 * 86400000),
+  )
+  const splits = splitWeeksForCustomJourney(totalWeeks)
+  const stageTypes: JourneyStageType[] = ['base', 'build', 'peak', 'taper', 'race_week']
+  const stageNamesHe = ['בסיס', 'בנייה', 'שיא', 'חידוד', 'שבוע תחרות']
+
+  const current = Math.max(0, input.currentWeeklyKm || 0)
+  const peak = Math.max(current, input.peakWeeklyKm || current)
+  const volumes = [
+    Math.round(current + (peak - current) * 0.3),
+    Math.round(current + (peak - current) * 0.7),
+    peak,
+    Math.round(peak * 0.6),
+    Math.round(peak * 0.3),
+  ]
+
+  const stages: JourneyStage[] = []
+  let cursor = input.startDate
+  splits.forEach((w, i) => {
+    const end = addDaysISO(cursor, w * 7 - 1)
+    const isLast = i === splits.length - 1
+    const stageEnd = isLast ? input.goalRaceDate : end
+    stages.push(
+      newStage({
+        name: stageNamesHe[i],
+        type: stageTypes[i],
+        startDate: cursor,
+        endDate: stageEnd,
+        focus: keyWorkoutsForPhase(stageTypes[i], input.workoutTypes).join(' · '),
+        weeklyVolumeKm: volumes[i],
+        keyWorkouts: keyWorkoutsForPhase(stageTypes[i], input.workoutTypes),
+        milestones: isLast ? [`${input.goalRaceEvent} — יעד העונה`] : [],
+      }),
+    )
+    cursor = addDaysISO(stageEnd, 1)
+  })
+
+  // Interim races: attach as a milestone on whichever stage contains the date
+  for (const race of input.interimRaces || []) {
+    const stage = stages.find((s) => race.date >= s.startDate && race.date <= s.endDate)
+    if (stage) {
+      stage.milestones = [...(stage.milestones || []), `${race.date} — ${race.event}`]
+    }
+  }
+
+  return {
+    id: genId('journey'),
+    title: input.goalRaceEvent ? `בדרך ל־${input.goalRaceEvent}` : 'מסע העונה',
+    goalRaceEvent: input.goalRaceEvent,
+    goalRaceDate: input.goalRaceDate,
+    goalRaceTarget: input.goalRaceTarget,
+    startDate: input.startDate,
+    stages,
+    createdBy: input.createdBy,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  }
 }
 
 export function newEmptyJourney(input: TemplateInput, title = 'Season Journey'): JourneyDoc {
