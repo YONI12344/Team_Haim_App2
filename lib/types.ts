@@ -175,6 +175,9 @@ export interface AssignedWorkout {
   // Set when the athlete moved this workout to a different day
   movedByAthlete?: boolean
   movedFromDate?: string
+  // Coach override: show this workout to the athlete even beyond the
+  // rolling visibility window (race/time_trial types bypass automatically)
+  showAheadOverride?: boolean
   athleteNotes?: string
   coachFeedback?: string
   completedAt?: Date

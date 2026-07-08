@@ -281,10 +281,15 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
         const cutoffStr = visibleWeeks > 0
           ? format(addWeeks(startOfWeek(new Date(), { weekStartsOn: 6 }), visibleWeeks), 'yyyy-MM-dd')
           : null
+        // Race/time-trial workouts and coach-flagged ones bypass the window —
+        // the calendar date itself is always navigable, only the regular
+        // workout content beyond the window is hidden.
+        const bypassesWindow = (w: AssignedWorkout) =>
+          w.showAheadOverride || w.workout?.type === 'race' || w.workout?.type === 'time_trial'
         setAssignedWorkouts(
           snap.docs
             .map(d => ({ ...(d.data() as AssignedWorkout), id: d.id }))
-            .filter(w => !cutoffStr || w.scheduledDate < cutoffStr)
+            .filter(w => !cutoffStr || w.scheduledDate < cutoffStr || bypassesWindow(w))
         )
         const { getDocs: gd, query: q, collection: col, where: wh } = await import('firebase/firestore')
         const from = format(startOfWeek(new Date(),{weekStartsOn:1}), 'yyyy-MM-dd')

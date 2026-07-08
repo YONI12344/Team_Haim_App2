@@ -292,8 +292,10 @@ export function AthleteDashboard() {
   const visCutoff = visibleWeeks > 0
     ? format(addDays(startOfWeek(new Date(), { weekStartsOn: 6 }), visibleWeeks * 7), 'yyyy-MM-dd')
     : null
+  const bypassesVisWindow = (w: AssignedWorkout) =>
+    w.showAheadOverride || w.workout?.type === 'race' || w.workout?.type === 'time_trial'
   const upcomingWorkouts = assigned
-    .filter((w) => w.status === 'scheduled' && (!visCutoff || w.scheduledDate < visCutoff))
+    .filter((w) => w.status === 'scheduled' && (!visCutoff || w.scheduledDate < visCutoff || bypassesVisWindow(w)))
     .sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate))
     .slice(0, 5)
 

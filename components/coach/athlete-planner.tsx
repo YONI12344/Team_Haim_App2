@@ -26,7 +26,7 @@ import { db, realtimeDb } from '@/lib/firebase'
 import { ref, push } from 'firebase/database'
 import {
   collection, doc, getDoc, getDocs, query,
-  where, addDoc, serverTimestamp, deleteDoc,
+  where, addDoc, serverTimestamp, deleteDoc, updateDoc,
 } from 'firebase/firestore'
 import type { AthleteProfile, Workout, AssignedWorkout, TrainingDayType, WorkoutLog, WorkoutType, JourneyDoc, JourneyStage } from '@/lib/types'
 import { legacyEffortToNumber } from '@/lib/types'
@@ -34,6 +34,7 @@ import { listJourneys, computeJourneyProgress, saveJourney, stageDisplayName } f
 import { useAuth } from '@/contexts/auth-context'
 import { useWorkoutTypeLabels, autoWorkoutTitle } from '@/lib/workout-labels'
 import { WorkoutBuilder } from '@/components/coach/workout-builder'
+import { ActivityDetailView } from '@/components/shared/activity-detail-view'
 import { useLanguage } from '@/contexts/language-context'
 import { toast } from 'sonner'
 
@@ -1253,6 +1254,34 @@ export function AthletePlanner({ athleteId }: Props) {
                       {selectedAW.status==='completed' ? t.completedBadge : selectedAW.status==='skipped' ? t.skippedBadge : t.scheduledBadge}
                     </Badge>
                   </div>
+                  {/* Beyond the athlete's rolling visibility window — offer to show it early */}
+                  {(() => {
+                    const visW = athlete?.visibleWeeksAhead ?? 2
+                    if (visW <= 0) return null
+                    const cutoff = format(addWeeks(startOfWeek(new Date(), { weekStartsOn: 6 }), visW), 'yyyy-MM-dd')
+                    const bypasses = selectedAW.showAheadOverride || selectedAW.workout?.type === 'race' || selectedAW.workout?.type === 'time_trial'
+                    if (selectedAW.scheduledDate < cutoff || bypasses) return bypasses && selectedAW.scheduledDate >= cutoff ? (
+                      <button
+                        onClick={async () => {
+                          await updateDoc(doc(db, 'assignedWorkouts', selectedAW.id), { showAheadOverride: false })
+                          setAssignedWorkouts(prev => prev.map(w => w.id === selectedAW.id ? { ...w, showAheadOverride: false } : w))
+                        }}
+                        className="mt-1.5 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-1 w-fit">
+                        ✓ גלוי לספורטאי מראש — לחץ להסתרה
+                      </button>
+                    ) : null
+                    return (
+                      <button
+                        onClick={async () => {
+                          await updateDoc(doc(db, 'assignedWorkouts', selectedAW.id), { showAheadOverride: true })
+                          setAssignedWorkouts(prev => prev.map(w => w.id === selectedAW.id ? { ...w, showAheadOverride: true } : w))
+                          toast.success('הספורטאי יראה את האימון הזה כבר עכשיו')
+                        }}
+                        className="mt-1.5 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1 w-fit">
+                        👁 מעבר לחלון הרגיל — הצג לספורטאי מראש
+                      </button>
+                    )
+                  })()}
                 </div>
                 <div className="flex gap-1 flex-shrink-0">
                   <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setCopiedWorkout(selectedAW); setSelectedAssignedId(null); toast.success(t.toastAdded) }}>
@@ -1313,53 +1342,11 @@ export function AthletePlanner({ athleteId }: Props) {
                 </div>
               )}
 
-              {/* Athlete log */}
+              {/* Athlete log — full detail, same view the athlete sees */}
               {selectedLog && (
-                <div className="rounded-xl border-2 border-emerald-200 bg-emerald-50 p-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-bold text-emerald-700">איך היה לו — סיכום האימון</p>
-                    {(selectedLog as any).source === 'strava' && (
-                      <span className="text-[10px] font-bold text-[#FC4C02] bg-[#FC4C02]/10 border border-[#FC4C02]/20 px-2 py-0.5 rounded-full">Strava</span>
-                    )}
-                    {(selectedLog as any).source === 'manual' && (
-                      <span className="text-[10px] font-bold text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">הוסף ידנית</span>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-2 text-xs">
-                    {selectedLog.effort != null && <span className="bg-white rounded-lg px-2 py-1 border border-emerald-200">מאמץ: <strong>{selectedLog.effort}/10</strong></span>}
-                    {selectedLog.actualDistance && <span className="bg-white rounded-lg px-2 py-1 border border-emerald-200">ק"מ בפועל: <strong>{selectedLog.actualDistance}</strong></span>}
-                    {selectedLog.actualPace && <span className="bg-white rounded-lg px-2 py-1 border border-emerald-200" dir="ltr">טמפו: <strong>{selectedLog.actualPace}</strong></span>}
-                    {(selectedLog as any).averageHeartRate ? <span className="bg-white rounded-lg px-2 py-1 border border-red-200 text-red-600">♥ <strong>{(selectedLog as any).averageHeartRate}</strong> bpm</span> : null}
-                    {(selectedLog as any).elevationGain > 0 ? <span className="bg-white rounded-lg px-2 py-1 border border-emerald-200">↑ <strong>{(selectedLog as any).elevationGain}</strong>m</span> : null}
-                    {(selectedLog as any).durationMin > 0 ? <span className="bg-white rounded-lg px-2 py-1 border border-emerald-200">⏱ <strong>{(selectedLog as any).durationMin}</strong> דק'</span> : null}
-                    {selectedAW.workout?.distance && selectedLog.actualDistance ? (
-                      <span className={cn('rounded-lg px-2 py-1 border font-bold',
-                        selectedLog.actualDistance >= selectedAW.workout.distance * 0.95
-                          ? 'bg-emerald-100 border-emerald-300 text-emerald-800'
-                          : 'bg-amber-50 border-amber-200 text-amber-700')}>
-                        {Math.round((selectedLog.actualDistance / selectedAW.workout.distance) * 100)}% מהמתוכנן
-                      </span>
-                    ) : null}
-                  </div>
-                  {selectedLog.comment && (
-                    <div className="bg-white rounded-lg p-2.5 border border-emerald-200">
-                      <p className="text-[10px] text-emerald-700 font-semibold mb-1">הערות אתלט</p>
-                      <p className="text-xs text-navy leading-relaxed">{selectedLog.comment}</p>
-                    </div>
-                  )}
-                  {selectedLog.splitLogs && selectedLog.splitLogs.length > 0 && (
-                    <div className="space-y-1">
-                      <p className="text-[10px] text-emerald-700 font-semibold">זמנים</p>
-                      {selectedLog.splitLogs.slice(0, 30).map((s:any, i:number) => (
-                        <div key={i} className="flex items-center gap-2 text-xs bg-white rounded px-2 py-1 border border-emerald-200" dir="ltr">
-                          <span className="font-bold text-navy w-14">{s.lapIndex ? `Lap ${s.lapIndex}` : s.distance || `#${i+1}`}</span>
-                          {s.pace && <span className="text-navy font-bold">{s.pace}</span>}
-                          {s.time && <span className="text-emerald-700">{s.time}</span>}
-                          {s.heartRate ? <span className="text-red-500">♥{s.heartRate}</span> : null}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                <div className="space-y-2">
+                  <p className="text-xs font-bold text-emerald-700">איך היה לו — תצוגת ספורטאי מלאה</p>
+                  <ActivityDetailView log={selectedLog as any} plannedDistance={selectedAW.workout?.distance ?? null} />
                 </div>
               )}
 
@@ -1766,6 +1753,7 @@ export function AthletePlanner({ athleteId }: Props) {
                       await ud(dc(db, 'users', athleteId), { offWeekInterval: v })
                     }}
                     className="h-7 text-xs rounded-lg border border-border bg-white px-1.5 font-semibold text-navy">
+                    <option value={2}>2 שבועות</option>
                     <option value={3}>3 שבועות</option>
                     <option value={4}>4 שבועות</option>
                     <option value={5}>5 שבועות</option>
