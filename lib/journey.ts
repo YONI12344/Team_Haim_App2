@@ -318,21 +318,29 @@ const TYPE_HE: Record<WorkoutType, string> = {
   race: 'תחרות', time_trial: 'מבחן זמן',
 }
 
-/** Which of the coach's chosen workout types make sense in each phase. */
+/**
+ * Which of the coach's chosen workout types make sense in each phase, in
+ * priority order — this encodes the actual progression Yoni coaches with:
+ * base = easy/hills/fartlek/long run (aerobic, no hard intensity yet);
+ * build = threshold/tempo work introduced while fartlek and hills continue;
+ * peak = sharpen into specific intervals + goal-pace work.
+ * The order here (not the order the coach clicked the chips) decides which
+ * types surface first in each stage's keyWorkouts.
+ */
 const PHASE_TYPES: Record<JourneyStageType, WorkoutType[]> = {
-  base: ['easy', 'long_run', 'recovery', 'strength', 'cross_training', 'swim', 'bike'],
-  build: ['tempo', 'fartlek', 'hill_repeats', 'intervals', 'cross_training', 'long_run'],
-  peak: ['intervals', 'tempo', 'hill_repeats', 'time_trial', 'race'],
-  taper: ['easy', 'recovery', 'strength'],
+  base: ['easy', 'long_run', 'hill_repeats', 'fartlek', 'strength', 'cross_training', 'swim', 'bike', 'recovery'],
+  build: ['tempo', 'fartlek', 'hill_repeats', 'long_run', 'intervals', 'cross_training'],
+  peak: ['intervals', 'tempo', 'time_trial', 'hill_repeats', 'race'],
+  taper: ['easy', 'tempo', 'recovery', 'strength'],
   race_week: ['easy', 'recovery'],
   recovery: ['easy', 'recovery'],
   custom: ['easy'],
 }
 
 const PHASE_FALLBACK_HE: Record<JourneyStageType, string[]> = {
-  base: ['ריצה קלה', 'ריצה ארוכה קלה', 'האצות (strides)'],
-  build: ['טמפו/סף', 'אינטרוולים', 'ריצה ארוכה'],
-  peak: ['קצב מרוץ', 'אינטרוולים קצרים', 'סימולציה'],
+  base: ['ריצה קלה', 'ריצה ארוכה', 'עליות', 'פרטלק'],
+  build: ['טמפו/סף', 'פרטלק', 'עליות', 'ריצה ארוכה'],
+  peak: ['אינטרוולים ספציפיים', 'קצב מטרה (Goal Pace)', 'טמפו/סף'],
   taper: ['קל + פתיחות', 'הפחתת נפח'],
   race_week: ['קל בלבד', 'פתיחות לפני המרוץ'],
   recovery: ['קל בלבד'],
@@ -340,9 +348,15 @@ const PHASE_FALLBACK_HE: Record<JourneyStageType, string[]> = {
 }
 
 function keyWorkoutsForPhase(phase: JourneyStageType, chosen: WorkoutType[]): string[] {
-  const relevant = chosen.filter((w) => PHASE_TYPES[phase]?.includes(w))
-  if (relevant.length === 0) return PHASE_FALLBACK_HE[phase]
-  return relevant.slice(0, 4).map((w) => TYPE_HE[w] || w)
+  const order = PHASE_TYPES[phase] || []
+  let relevant = order.filter((w) => chosen.includes(w)).map((w) => TYPE_HE[w] || w)
+  if (relevant.length === 0) relevant = PHASE_FALLBACK_HE[phase]
+  // Peak is where training gets race-specific — always call out goal-pace
+  // work here regardless of which type chips the coach picked.
+  if (phase === 'peak' && !relevant.includes('קצב מטרה (Goal Pace)')) {
+    relevant = [...relevant, 'קצב מטרה (Goal Pace)']
+  }
+  return relevant.slice(0, 5)
 }
 
 /** Split total available weeks into [base, build, peak, taper, race_week]. */
@@ -378,15 +392,32 @@ export interface CustomJourneyInput {
   workoutTypes: WorkoutType[]
   /** Tune-up / time-trial races along the way — added as stage milestones. */
   interimRaces?: InterimRace[]
+  /** Explicit km target per stage [base, build, peak, taper, race_week] —
+   *  overrides the auto-ramp from currentWeeklyKm/peakWeeklyKm when given. */
+  phaseVolumesKm?: number[]
+}
+
+/** Auto-ramp default km target for each of the 5 stages, from current to peak. */
+export function defaultPhaseVolumes(currentWeeklyKm: number, peakWeeklyKm: number): number[] {
+  const current = Math.max(0, currentWeeklyKm || 0)
+  const peak = Math.max(current, peakWeeklyKm || current)
+  return [
+    Math.round(current + (peak - current) * 0.3),
+    Math.round(current + (peak - current) * 0.7),
+    peak,
+    Math.round(peak * 0.6),
+    Math.round(peak * 0.3),
+  ]
 }
 
 /**
  * Builds a full 5-stage journey (בסיס/בנייה/שיא/חידוד/שבוע תחרות) sized to
  * the athlete's actual data: stage lengths scale with however many weeks
  * are available until the goal race, weekly volume ramps from the
- * athlete's current km to their peak target, and each stage's key workouts
- * are drawn from the types the coach actually wants to use with them —
- * instead of the fixed generic templates.
+ * athlete's current km to their peak target (or uses the coach's explicit
+ * per-phase km when provided), and each stage's key workouts are drawn
+ * from the types the coach actually wants to use with them — instead of
+ * the fixed generic templates.
  */
 export function buildCustomJourney(input: CustomJourneyInput): JourneyDoc {
   const totalWeeks = Math.round(
@@ -396,15 +427,9 @@ export function buildCustomJourney(input: CustomJourneyInput): JourneyDoc {
   const stageTypes: JourneyStageType[] = ['base', 'build', 'peak', 'taper', 'race_week']
   const stageNamesHe = ['בסיס', 'בנייה', 'שיא', 'חידוד', 'שבוע תחרות']
 
-  const current = Math.max(0, input.currentWeeklyKm || 0)
-  const peak = Math.max(current, input.peakWeeklyKm || current)
-  const volumes = [
-    Math.round(current + (peak - current) * 0.3),
-    Math.round(current + (peak - current) * 0.7),
-    peak,
-    Math.round(peak * 0.6),
-    Math.round(peak * 0.3),
-  ]
+  const volumes = input.phaseVolumesKm && input.phaseVolumesKm.length === 5
+    ? input.phaseVolumesKm
+    : defaultPhaseVolumes(input.currentWeeklyKm, input.peakWeeklyKm)
 
   const stages: JourneyStage[] = []
   let cursor = input.startDate

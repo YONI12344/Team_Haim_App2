@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/auth-context'
 import { useWorkoutTypeLabels } from '@/lib/workout-labels'
-import { buildCustomJourney, saveJourney, type InterimRace } from '@/lib/journey'
+import { buildCustomJourney, saveJourney, defaultPhaseVolumes, type InterimRace } from '@/lib/journey'
 import type { JourneyDoc, WorkoutType, ExperienceLevel } from '@/lib/types'
 
 interface Props {
@@ -56,8 +56,12 @@ export function JourneyWizard({ open, onOpenChange, athleteId, onCreated }: Prop
   const [currentWeeklyKm, setCurrentWeeklyKm] = useState('')
   const [peakWeeklyKm, setPeakWeeklyKm] = useState('')
   const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel | ''>('')
-  const [selectedTypes, setSelectedTypes] = useState<WorkoutType[]>(['easy', 'long_run', 'tempo', 'intervals'])
+  const [selectedTypes, setSelectedTypes] = useState<WorkoutType[]>(['easy', 'long_run', 'hill_repeats', 'fartlek', 'tempo', 'intervals'])
   const [interimRaces, setInterimRaces] = useState<InterimRace[]>([])
+  // Per-phase km override — empty = use the auto-computed default (shown as placeholder)
+  const [phaseKmOverride, setPhaseKmOverride] = useState<string[]>(['', '', '', '', ''])
+  const phaseLabels = ['בסיס', 'בנייה', 'שיא', 'חידוד', 'שבוע תחרות']
+  const computedDefaults = defaultPhaseVolumes(Number(currentWeeklyKm) || 0, Number(peakWeeklyKm) || Number(currentWeeklyKm) || 0)
 
   // Prefill from the athlete's existing profile whenever the wizard opens
   useEffect(() => {
@@ -98,6 +102,9 @@ export function JourneyWizard({ open, onOpenChange, athleteId, onCreated }: Prop
     }
     const current = Number(currentWeeklyKm) || 0
     const peak = Number(peakWeeklyKm) || current
+    // Per-phase km: blank field falls back to the computed default for that phase
+    const phaseVolumesKm = computedDefaults.map((def, i) =>
+      phaseKmOverride[i].trim() ? Number(phaseKmOverride[i]) : def)
     setSaving(true)
     try {
       const journey = buildCustomJourney({
@@ -110,6 +117,7 @@ export function JourneyWizard({ open, onOpenChange, athleteId, onCreated }: Prop
         peakWeeklyKm: peak,
         workoutTypes: selectedTypes,
         interimRaces: interimRaces.filter(r => r.event.trim() && r.date),
+        phaseVolumesKm,
       })
       await saveJourney(athleteId, journey)
 
@@ -232,6 +240,26 @@ export function JourneyWizard({ open, onOpenChange, athleteId, onCreated }: Prop
                 <option value="advanced">מתקדם</option>
                 <option value="professional">מקצועי</option>
               </select>
+            </div>
+          </div>
+
+          {/* Km target per phase — auto-computed, fully overridable */}
+          <div className="space-y-2 border-t pt-4">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">📈 ק&quot;מ שבועי לפי שלב</p>
+            <p className="text-[11px] text-muted-foreground -mt-1">מחושב אוטומטית מהנפח הנוכחי לשיא — אפשר לשנות כל שלב בנפרד</p>
+            <div className="grid grid-cols-5 gap-1.5">
+              {phaseLabels.map((label, i) => (
+                <div key={i} className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground block text-center">{label}</Label>
+                  <Input
+                    type="number" min="0"
+                    value={phaseKmOverride[i]}
+                    onChange={e => setPhaseKmOverride(prev => prev.map((v, vi) => vi === i ? e.target.value : v))}
+                    placeholder={String(computedDefaults[i])}
+                    className="h-9 text-xs text-center font-semibold px-1"
+                  />
+                </div>
+              ))}
             </div>
           </div>
 
