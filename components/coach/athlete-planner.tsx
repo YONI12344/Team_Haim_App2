@@ -30,7 +30,7 @@ import {
 } from 'firebase/firestore'
 import type { AthleteProfile, Workout, AssignedWorkout, TrainingDayType, WorkoutLog, WorkoutType, JourneyDoc, JourneyStage } from '@/lib/types'
 import { legacyEffortToNumber } from '@/lib/types'
-import { listJourneys, computeJourneyProgress } from '@/lib/journey'
+import { listJourneys, computeJourneyProgress, saveJourney, stageDisplayName } from '@/lib/journey'
 import { useAuth } from '@/contexts/auth-context'
 import { useWorkoutTypeLabels, autoWorkoutTitle } from '@/lib/workout-labels'
 import { WorkoutBuilder } from '@/components/coach/workout-builder'
@@ -135,10 +135,10 @@ export function AthletePlanner({ athleteId }: Props) {
   const [qaDesc, setQaDesc] = useState('')
   const [qaSaving, setQaSaving] = useState(false)
   const [qaSearch, setQaSearch] = useState('')
-  const [qaShowLibrary, setQaShowLibrary] = useState(false)
+  const [qaShowCreate, setQaShowCreate] = useState(false)
 
   const resetQuickAssign = () => {
-    setQaType(null); setQaTitle(''); setQaDistance(''); setQaDuration(''); setQaDesc(''); setQaSearch(''); setQaShowLibrary(false)
+    setQaType(null); setQaTitle(''); setQaDistance(''); setQaDuration(''); setQaDesc(''); setQaSearch(''); setQaShowCreate(false)
   }
   // Coach messages
   const [coachMessageText, setCoachMessageText] = useState('')
@@ -174,6 +174,7 @@ export function AthletePlanner({ athleteId }: Props) {
             weeklyKmRange: d.weeklyKmRange,
             offWeekInterval: d.offWeekInterval,
             targetPaceKm: d.targetPaceKm,
+            visibleWeeksAhead: typeof d.visibleWeeksAhead === 'number' ? d.visibleWeeksAhead : 2,
             weekStartDay: d.weekStartDay === 1 ? 1 : 0,
             kmWeekStartDay: d.kmWeekStartDay === 0 ? 0 : 1,
             createdAt: d.createdAt?.toDate?.() || new Date(),
@@ -198,7 +199,7 @@ export function AthletePlanner({ athleteId }: Props) {
               const cur   = Math.max(1, Math.ceil((today.getTime() - s.getTime()) / (7 * 86400000)))
               const offN  = d.offWeekInterval ?? 4
               setJourney({
-                stageName: stage.name,
+                stageName: stageDisplayName(stage),
                 weekInStage: cur,
                 totalWeeksInStage: total,
                 isOffWeek: cur % offN === 0,
@@ -492,6 +493,16 @@ export function AthletePlanner({ athleteId }: Props) {
     } as AssignedWorkout])
   }
 
+  /** Remove a workout from the library (assigned copies keep working) */
+  const handleDeleteLibraryWorkout = async (w: Workout) => {
+    if (!confirm(`למחוק את "${w.title}" מהספרייה? אימונים שכבר שובצו לא יושפעו.`)) return
+    try {
+      await deleteDoc(doc(db, 'workouts', w.id))
+      setWorkoutLibrary(prev => prev.filter(x => x.id !== w.id))
+      toast.success(t.workoutDeleted)
+    } catch { toast.error(t.errorDeleting) }
+  }
+
   /** One-tap create+assign from the quick-assign sheet: type + numbers → done */
   const handleQuickCreateAssign = async () => {
     if (!qaType || !quickAssignDate || !user) return
@@ -676,7 +687,7 @@ export function AthletePlanner({ athleteId }: Props) {
   }
 
   const selectedAW = useMemo(() => assignedWorkouts.find(w => w.id === selectedAssignedId) || null, [assignedWorkouts, selectedAssignedId])
-  const selectedLog = useMemo(() => selectedAW ? (logs.find(l => l.assignedWorkoutId === selectedAW.id) || logs.find(l => l.workoutId === selectedAW.workoutId && l.date === selectedAW.scheduledDate)) : null, [selectedAW, logs])
+  const selectedLog = useMemo(() => selectedAW ? (logs.find(l => l.assignedWorkoutId === selectedAW.id) || logs.find(l => l.workoutId === selectedAW.workoutId && l.date === selectedAW.scheduledDate) || logs.find((l: any) => l.date === selectedAW.scheduledDate && (l.source === 'strava' || l.source === 'manual'))) : null, [selectedAW, logs])
   const filteredLibrary = useMemo(() => workoutLibrary.filter(w => w.title?.toLowerCase().includes(librarySearch.toLowerCase())), [workoutLibrary, librarySearch])
 
   // Last-14-days analysis (computed from loaded state, no API call)
@@ -984,7 +995,7 @@ export function AthletePlanner({ athleteId }: Props) {
                 </span>
                 {todayInfo?.meta && (
                   <span className={cn('text-xs font-bold px-2.5 py-0.5 rounded-full border', todayInfo.meta.chip)}>
-                    {todayInfo.stage?.name || todayInfo.meta.he}
+                    {todayInfo.stage ? stageDisplayName(todayInfo.stage) : todayInfo.meta.he}
                   </span>
                 )}
                 {todayInfo?.isDownWeek && (
@@ -1305,11 +1316,30 @@ export function AthletePlanner({ athleteId }: Props) {
               {/* Athlete log */}
               {selectedLog && (
                 <div className="rounded-xl border-2 border-emerald-200 bg-emerald-50 p-3 space-y-2">
-                  <p className="text-xs font-bold text-emerald-700">דוח אתלט</p>
-                  <div className="flex flex-wrap gap-3 text-xs">
-                    <span className="bg-white rounded-lg px-2 py-1 border border-emerald-200">מאמץ: <strong>{selectedLog.effort}/10</strong></span>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold text-emerald-700">איך היה לו — סיכום האימון</p>
+                    {(selectedLog as any).source === 'strava' && (
+                      <span className="text-[10px] font-bold text-[#FC4C02] bg-[#FC4C02]/10 border border-[#FC4C02]/20 px-2 py-0.5 rounded-full">Strava</span>
+                    )}
+                    {(selectedLog as any).source === 'manual' && (
+                      <span className="text-[10px] font-bold text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">הוסף ידנית</span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    {selectedLog.effort != null && <span className="bg-white rounded-lg px-2 py-1 border border-emerald-200">מאמץ: <strong>{selectedLog.effort}/10</strong></span>}
                     {selectedLog.actualDistance && <span className="bg-white rounded-lg px-2 py-1 border border-emerald-200">ק"מ בפועל: <strong>{selectedLog.actualDistance}</strong></span>}
-                    {selectedLog.actualPace && <span className="bg-white rounded-lg px-2 py-1 border border-emerald-200">טמפו: <strong>{selectedLog.actualPace}</strong></span>}
+                    {selectedLog.actualPace && <span className="bg-white rounded-lg px-2 py-1 border border-emerald-200" dir="ltr">טמפו: <strong>{selectedLog.actualPace}</strong></span>}
+                    {(selectedLog as any).averageHeartRate ? <span className="bg-white rounded-lg px-2 py-1 border border-red-200 text-red-600">♥ <strong>{(selectedLog as any).averageHeartRate}</strong> bpm</span> : null}
+                    {(selectedLog as any).elevationGain > 0 ? <span className="bg-white rounded-lg px-2 py-1 border border-emerald-200">↑ <strong>{(selectedLog as any).elevationGain}</strong>m</span> : null}
+                    {(selectedLog as any).durationMin > 0 ? <span className="bg-white rounded-lg px-2 py-1 border border-emerald-200">⏱ <strong>{(selectedLog as any).durationMin}</strong> דק'</span> : null}
+                    {selectedAW.workout?.distance && selectedLog.actualDistance ? (
+                      <span className={cn('rounded-lg px-2 py-1 border font-bold',
+                        selectedLog.actualDistance >= selectedAW.workout.distance * 0.95
+                          ? 'bg-emerald-100 border-emerald-300 text-emerald-800'
+                          : 'bg-amber-50 border-amber-200 text-amber-700')}>
+                        {Math.round((selectedLog.actualDistance / selectedAW.workout.distance) * 100)}% מהמתוכנן
+                      </span>
+                    ) : null}
                   </div>
                   {selectedLog.comment && (
                     <div className="bg-white rounded-lg p-2.5 border border-emerald-200">
@@ -1320,10 +1350,12 @@ export function AthletePlanner({ athleteId }: Props) {
                   {selectedLog.splitLogs && selectedLog.splitLogs.length > 0 && (
                     <div className="space-y-1">
                       <p className="text-[10px] text-emerald-700 font-semibold">זמנים</p>
-                      {selectedLog.splitLogs.map((s:any, i:number) => (
-                        <div key={i} className="flex items-center gap-2 text-xs bg-white rounded px-2 py-1 border border-emerald-200">
-                          <span className="font-bold text-navy w-16">{s.distance || `חזרה ${i+1}`}</span>
-                          {s.time && <span className="text-emerald-700 font-bold">{s.time}</span>}
+                      {selectedLog.splitLogs.slice(0, 30).map((s:any, i:number) => (
+                        <div key={i} className="flex items-center gap-2 text-xs bg-white rounded px-2 py-1 border border-emerald-200" dir="ltr">
+                          <span className="font-bold text-navy w-14">{s.lapIndex ? `Lap ${s.lapIndex}` : s.distance || `#${i+1}`}</span>
+                          {s.pace && <span className="text-navy font-bold">{s.pace}</span>}
+                          {s.time && <span className="text-emerald-700">{s.time}</span>}
+                          {s.heartRate ? <span className="text-red-500">♥{s.heartRate}</span> : null}
                         </div>
                       ))}
                     </div>
@@ -1355,56 +1387,6 @@ export function AthletePlanner({ athleteId }: Props) {
             </CardContent>
           </Card>
         )}
-
-        {/* STEP 1 — Last-14-days auto analysis */}
-        <Card>
-          <CardHeader className="pb-2 pt-4 px-4">
-            <CardTitle className="text-sm">מה קרה השבועיים האחרונים 📊</CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 pb-4 space-y-3">
-            {/* Stats row */}
-            <div className="grid grid-cols-3 gap-2">
-              <div className="rounded-lg bg-navy/5 border border-navy/10 p-2 text-center">
-                <p className="text-base font-bold text-navy">{analysisData.totalPlanned}</p>
-                <p className="text-[10px] text-muted-foreground">ק"מ מתוכנן</p>
-              </div>
-              <div className="rounded-lg bg-emerald-50 border border-emerald-100 p-2 text-center">
-                <p className="text-base font-bold text-emerald-700">{analysisData.totalDone}</p>
-                <p className="text-[10px] text-muted-foreground">ק"מ בוצע</p>
-              </div>
-              <div className="rounded-lg bg-gold/10 border border-gold/20 p-2 text-center">
-                <p className="text-base font-bold text-navy">{analysisData.avgEffort ?? '—'}</p>
-                <p className="text-[10px] text-muted-foreground">מאמץ ממוצע</p>
-              </div>
-            </div>
-            {/* Workout rows */}
-            {analysisData.recent.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center py-2">אין אימונים ב-14 הימים האחרונים</p>
-            ) : (
-              <div className="space-y-1 max-h-48 overflow-y-auto">
-                {analysisData.recent.map(w => {
-                  const matchLog = logs.find(l => l.assignedWorkoutId === w.id || (l.workoutId === w.workoutId && l.date === w.scheduledDate))
-                  return (
-                    <div key={w.id} className="grid grid-cols-[auto_1fr_auto_auto] gap-2 items-center text-xs rounded-lg px-2 py-1.5 bg-muted/30">
-                      <span className="text-muted-foreground w-14 flex-shrink-0">{format(parseISO(w.scheduledDate), 'd/M')}</span>
-                      <span className="font-medium text-navy truncate" dir="rtl">{w.workout?.title || 'אימון'}</span>
-                      <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 h-5',
-                        w.status === 'completed' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
-                        w.status === 'skipped' ? 'bg-red-100 text-red-600 border-red-200' :
-                        'bg-amber-100 text-amber-700 border-amber-200'
-                      )}>
-                        {w.status === 'completed' ? '✓' : w.status === 'skipped' ? '✗' : '⏳'}
-                      </Badge>
-                      <span className="text-muted-foreground w-12 text-right">
-                        {matchLog?.effort ? `${matchLog.effort}/10` : w.workout?.distance ? `${w.workout.distance}k` : ''}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
         {/* AI Coaching Report — collapsed by default, opens on demand */}
         <Card>
@@ -1662,6 +1644,24 @@ export function AthletePlanner({ athleteId }: Props) {
                   </select>
                 </div>
                 <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-muted-foreground">שבועות פתוחים לספורטאי</span>
+                  <select
+                    value={athlete?.visibleWeeksAhead ?? 2}
+                    onChange={async e => {
+                      const v = Number(e.target.value)
+                      setAthlete(prev => prev ? { ...prev, visibleWeeksAhead: v } : prev)
+                      const { updateDoc: ud, doc: dc } = await import('firebase/firestore')
+                      await ud(dc(db, 'users', athleteId), { visibleWeeksAhead: v })
+                      toast.success(v === 0 ? 'הספורטאי רואה את כל התכנית' : `הספורטאי רואה ${v} שבועות קדימה (מתגלגל בשבת)`)
+                    }}
+                    className="h-7 text-xs rounded-lg border border-border bg-white px-1.5 font-semibold text-navy">
+                    <option value={2}>2 שבועות</option>
+                    <option value={3}>3 שבועות</option>
+                    <option value={4}>4 שבועות</option>
+                    <option value={0}>הכל</option>
+                  </select>
+                </div>
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-xs text-muted-foreground">ספירת ק&quot;מ שבועית מ־</span>
                   <select
                     value={kmWeekStartsOn}
@@ -1675,6 +1675,117 @@ export function AthletePlanner({ athleteId }: Props) {
                     <option value={0}>ראשון</option>
                     <option value={1}>שני</option>
                   </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Goals & athlete data — everything editable in place */}
+            <div className="border-t pt-3">
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">מטרות ונתונים</p>
+                <Link href={`/coach/athletes/${athleteId}/journey`}
+                  className="text-[10px] font-semibold text-gold hover:underline underline-offset-2">
+                  עריכת מסע מלאה ←
+                </Link>
+              </div>
+              <div className="space-y-1.5">
+                {/* Goal race (journey) */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-muted-foreground flex-shrink-0">🎯 תחרות מטרה</span>
+                  <Input
+                    className="h-7 text-xs font-bold text-navy text-right"
+                    value={activeJourney?.goalRaceEvent || ''}
+                    placeholder="מרתון ת״א"
+                    disabled={!activeJourney}
+                    onChange={e => setActiveJourney(prev => prev ? { ...prev, goalRaceEvent: e.target.value } : prev)}
+                    onBlur={() => activeJourney && saveJourney(athleteId, activeJourney).catch(() => toast.error(t.toastSaveJourneyFailed))}
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-muted-foreground flex-shrink-0">📅 תאריך</span>
+                  <Input
+                    type="date"
+                    className="h-7 text-xs font-bold text-navy"
+                    value={activeJourney?.goalRaceDate || ''}
+                    disabled={!activeJourney}
+                    onChange={e => setActiveJourney(prev => prev ? { ...prev, goalRaceDate: e.target.value } : prev)}
+                    onBlur={() => activeJourney && saveJourney(athleteId, activeJourney).catch(() => toast.error(t.toastSaveJourneyFailed))}
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-muted-foreground flex-shrink-0">⏱ יעד זמן</span>
+                  <Input
+                    className="h-7 text-xs font-bold text-navy text-center"
+                    value={activeJourney?.goalRaceTarget || ''}
+                    placeholder="2:59:00"
+                    dir="ltr"
+                    disabled={!activeJourney}
+                    onChange={e => setActiveJourney(prev => prev ? { ...prev, goalRaceTarget: e.target.value } : prev)}
+                    onBlur={() => activeJourney && saveJourney(athleteId, activeJourney).catch(() => toast.error(t.toastSaveJourneyFailed))}
+                  />
+                </div>
+                {!activeJourney && (
+                  <p className="text-[10px] text-amber-600">אין מסע פעיל — צור אחד בעריכת מסע מלאה</p>
+                )}
+                {/* Weekly km range */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-muted-foreground flex-shrink-0">ק"מ שבועי</span>
+                  <div className="flex items-center gap-1" dir="ltr">
+                    <Input type="number" className="h-7 w-14 text-xs font-bold text-navy text-center"
+                      value={athlete?.weeklyKmRange?.min ?? ''}
+                      placeholder="40"
+                      onChange={async e => {
+                        const min = Number(e.target.value) || 0
+                        const range = { min, max: athlete?.weeklyKmRange?.max ?? min }
+                        setAthlete(prev => prev ? { ...prev, weeklyKmRange: range } : prev)
+                        const { updateDoc: ud, doc: dc } = await import('firebase/firestore')
+                        await ud(dc(db, 'users', athleteId), { weeklyKmRange: range })
+                      }}/>
+                    <span className="text-xs text-muted-foreground">–</span>
+                    <Input type="number" className="h-7 w-14 text-xs font-bold text-navy text-center"
+                      value={athlete?.weeklyKmRange?.max ?? ''}
+                      placeholder="60"
+                      onChange={async e => {
+                        const max = Number(e.target.value) || 0
+                        const range = { min: athlete?.weeklyKmRange?.min ?? 0, max }
+                        setAthlete(prev => prev ? { ...prev, weeklyKmRange: range } : prev)
+                        const { updateDoc: ud, doc: dc } = await import('firebase/firestore')
+                        await ud(dc(db, 'users', athleteId), { weeklyKmRange: range })
+                      }}/>
+                  </div>
+                </div>
+                {/* Down-week interval */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-muted-foreground flex-shrink-0">שבוע ירידה כל</span>
+                  <select
+                    value={athlete?.offWeekInterval ?? 4}
+                    onChange={async e => {
+                      const v = Number(e.target.value)
+                      setAthlete(prev => prev ? { ...prev, offWeekInterval: v } : prev)
+                      const { updateDoc: ud, doc: dc } = await import('firebase/firestore')
+                      await ud(dc(db, 'users', athleteId), { offWeekInterval: v })
+                    }}
+                    className="h-7 text-xs rounded-lg border border-border bg-white px-1.5 font-semibold text-navy">
+                    <option value={3}>3 שבועות</option>
+                    <option value={4}>4 שבועות</option>
+                    <option value={5}>5 שבועות</option>
+                    <option value={0}>ללא</option>
+                  </select>
+                </div>
+                {/* Target race pace */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-muted-foreground flex-shrink-0">קצב מטרה</span>
+                  <Input
+                    className="h-7 w-24 text-xs font-bold text-navy text-center"
+                    value={athlete?.targetPaceKm || ''}
+                    placeholder="4:15/km"
+                    dir="ltr"
+                    onChange={e => setAthlete(prev => prev ? { ...prev, targetPaceKm: e.target.value } : prev)}
+                    onBlur={async e => {
+                      const { updateDoc: ud, doc: dc } = await import('firebase/firestore')
+                      await ud(dc(db, 'users', athleteId), { targetPaceKm: e.target.value.trim() || null })
+                    }}
+                  />
                 </div>
               </div>
             </div>
@@ -1753,7 +1864,6 @@ export function AthletePlanner({ athleteId }: Props) {
           {quickAssignDate && (() => {
             const qaDateStr = format(quickAssignDate, 'yyyy-MM-dd')
             const existingWs = getWorkoutsForDate2(qaDateStr)
-            const qaLibrary = workoutLibrary.filter(w => w.title?.toLowerCase().includes(qaSearch.toLowerCase())).slice(0, 12)
             return (
               <div className="space-y-4">
                 {/* Existing workouts that day */}
@@ -1778,91 +1888,101 @@ export function AthletePlanner({ athleteId }: Props) {
                   </div>
                 )}
 
-                {/* Type picker grid */}
+                {/* Type chips — tap a type to browse that part of the library */}
                 <div>
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">אימון חדש — בחר סוג</p>
-                  <div className="grid grid-cols-4 gap-1.5">
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">בחר סוג אימון</p>
+                  <div className="flex flex-wrap gap-1.5">
                     {QUICK_TYPES.map(ty => (
-                      <button key={ty} onClick={() => setQaType(prev => prev === ty ? null : ty)}
-                        className={cn('flex flex-col items-center gap-0.5 rounded-xl border px-1 py-2 transition-all active:scale-95',
-                          qaType === ty ? 'border-gold bg-gold/10 ring-1 ring-gold/50' : 'border-border bg-white hover:bg-muted/30')}>
-                        <span className="text-lg leading-none">{TYPE_EMOJI[ty]}</span>
-                        <span className={cn('text-[10px] font-semibold leading-tight text-center', qaType === ty ? 'text-navy' : 'text-gray-500')}>
-                          {workoutTypeLabels[ty]}
-                        </span>
+                      <button key={ty} onClick={() => { setQaType(prev => prev === ty ? null : ty); setQaShowCreate(false) }}
+                        className={cn('text-xs font-semibold px-3 py-1.5 rounded-full border transition-all active:scale-95',
+                          TYPE_COLORS[ty] || TYPE_COLORS.easy,
+                          qaType === ty ? 'ring-2 ring-navy/60' : 'opacity-80 hover:opacity-100')}>
+                        {workoutTypeLabels[ty]}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Details for the chosen type */}
-                {qaType && (
-                  <div className="space-y-2.5 rounded-2xl border border-gold/30 bg-gold/5 p-3">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-[10px] text-muted-foreground block mb-1">ק"מ</label>
-                        <Input type="number" step="0.5" min="0" inputMode="decimal" value={qaDistance}
-                          onChange={e => setQaDistance(e.target.value)}
-                          className="h-11 text-base text-center font-bold rounded-xl bg-white" placeholder="10"/>
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-muted-foreground block mb-1">{t.durationMinLabel}</label>
-                        <Input type="number" min="0" inputMode="numeric" value={qaDuration}
-                          onChange={e => setQaDuration(e.target.value)}
-                          className="h-11 text-base text-center font-bold rounded-xl bg-white" placeholder="60"/>
-                      </div>
-                    </div>
-                    <Input value={qaTitle} onChange={e => setQaTitle(e.target.value)}
-                      placeholder={`שם (לא חובה) — "${autoWorkoutTitle(workoutTypeLabels, qaType, { distance: qaDistance, duration: qaDuration })}"`}
-                      className="h-10 text-sm rounded-xl bg-white" dir="rtl"/>
-                    <Textarea value={qaDesc} onChange={e => setQaDesc(e.target.value)}
-                      placeholder="הוראות לספורטאי (לא חובה)" dir="rtl"
-                      className="text-sm rounded-xl bg-white resize-none h-16"/>
-                    <Button onClick={handleQuickCreateAssign} disabled={qaSaving}
-                      className="w-full h-12 bg-navy hover:bg-navy/90 text-white font-bold rounded-xl text-base">
-                      {qaSaving ? <Loader2 className="h-4 w-4 animate-spin"/> : `שבץ ל-${format(quickAssignDate, 'd/M')} ✓`}
-                    </Button>
-                  </div>
-                )}
+                {/* Library workouts of the chosen type — tap to assign, ✕ deletes from library */}
+                {qaType && (() => {
+                  const typeWorkouts = workoutLibrary.filter(w => w.type === qaType)
+                  return (
+                    <div className="space-y-2">
+                      {typeWorkouts.length > 0 ? (
+                        <div className="max-h-56 overflow-y-auto space-y-1 rounded-xl border border-border p-1.5 bg-muted/10">
+                          {typeWorkouts.map(w => (
+                            <div key={w.id} className="flex items-center gap-1">
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await assignWorkoutToDate(w, qaDateStr)
+                                    toast.success(`✓ ${w.title} — ${format(quickAssignDate, 'd/M')}`)
+                                    setQuickAssignDate(null); resetQuickAssign()
+                                  } catch { toast.error(t.tryAgainLaterText) }
+                                }}
+                                className="flex-1 min-w-0 text-right rounded-xl border border-border hover:border-gold/60 bg-white px-3 py-2.5 transition-all active:scale-[0.99]">
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm font-bold text-navy truncate flex-1">{w.title}</p>
+                                  {w.distance ? <span className="text-[11px] text-muted-foreground flex-shrink-0">{w.distance} ק"מ</span> : null}
+                                  {w.duration ? <span className="text-[11px] text-muted-foreground flex-shrink-0">{w.duration}'</span> : null}
+                                </div>
+                                {w.description ? <p className="text-[11px] text-gray-400 truncate mt-0.5">{w.description}</p> : null}
+                              </button>
+                              <button
+                                onClick={() => handleDeleteLibraryWorkout(w)}
+                                title="מחק מהספרייה"
+                                className="w-7 h-7 rounded-full flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 flex-shrink-0 text-sm">✕</button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground text-center py-2">אין אימוני {workoutTypeLabels[qaType]} בספרייה — צור חדש למטה</p>
+                      )}
 
-                {/* From library / full builder */}
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => setQaShowLibrary(p => !p)}
-                    className="flex-1 h-10 text-xs rounded-xl">
-                    📚 מהספרייה
-                  </Button>
-                  <Button variant="outline"
-                    onClick={() => { setBuilderWorkoutId(undefined); setShowBuilderDialog(true) }}
-                    className="flex-1 h-10 text-xs rounded-xl border-gold/40 text-gold hover:bg-gold/10">
-                    <Plus className="h-3.5 w-3.5 ml-1"/>אימון מפורט (סטים)
-                  </Button>
-                </div>
-                {qaShowLibrary && (
-                  <div className="space-y-1.5">
-                    <Input value={qaSearch} onChange={e => setQaSearch(e.target.value)}
-                      placeholder={t.searchWorkoutsPh} className="h-9 text-sm rounded-xl" dir="rtl"/>
-                    <div className="max-h-44 overflow-y-auto space-y-1">
-                      {qaLibrary.map(w => (
-                        <button key={w.id}
-                          onClick={async () => {
-                            try {
-                              await assignWorkoutToDate(w, qaDateStr)
-                              toast.success(`✓ ${w.title} — ${format(quickAssignDate, 'd/M')}`)
-                              setQuickAssignDate(null); resetQuickAssign()
-                            } catch { toast.error(t.tryAgainLaterText) }
-                          }}
-                          className="w-full text-right rounded-xl border border-border hover:border-gold/50 bg-white px-3 py-2 transition-all active:scale-[0.99]">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm">{TYPE_EMOJI[w.type] || '🏃'}</span>
-                            <p className="text-xs font-bold text-navy truncate flex-1">{w.title}</p>
-                            {w.distance && <span className="text-[10px] text-muted-foreground">{w.distance} ק"מ</span>}
+                      {/* Create a new workout of this type */}
+                      {!qaShowCreate ? (
+                        <Button variant="outline" onClick={() => setQaShowCreate(true)}
+                          className="w-full h-10 text-xs rounded-xl border-gold/40 text-gold hover:bg-gold/10">
+                          <Plus className="h-3.5 w-3.5 ml-1"/>אימון {workoutTypeLabels[qaType]} חדש
+                        </Button>
+                      ) : (
+                        <div className="space-y-2.5 rounded-2xl border border-gold/30 bg-gold/5 p-3">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-[10px] text-muted-foreground block mb-1">ק"מ</label>
+                              <Input type="number" step="0.5" min="0" inputMode="decimal" value={qaDistance}
+                                onChange={e => setQaDistance(e.target.value)}
+                                className="h-11 text-base text-center font-bold rounded-xl bg-white" placeholder="10"/>
+                            </div>
+                            <div>
+                              <label className="text-[10px] text-muted-foreground block mb-1">{t.durationMinLabel}</label>
+                              <Input type="number" min="0" inputMode="numeric" value={qaDuration}
+                                onChange={e => setQaDuration(e.target.value)}
+                                className="h-11 text-base text-center font-bold rounded-xl bg-white" placeholder="60"/>
+                            </div>
                           </div>
-                        </button>
-                      ))}
-                      {qaLibrary.length === 0 && <p className="text-xs text-muted-foreground text-center py-2">לא נמצאו אימונים</p>}
+                          <Input value={qaTitle} onChange={e => setQaTitle(e.target.value)}
+                            placeholder={`שם (לא חובה) — "${autoWorkoutTitle(workoutTypeLabels, qaType, { distance: qaDistance, duration: qaDuration })}"`}
+                            className="h-10 text-sm rounded-xl bg-white" dir="rtl"/>
+                          <Textarea value={qaDesc} onChange={e => setQaDesc(e.target.value)}
+                            placeholder="הוראות לספורטאי (לא חובה)" dir="rtl"
+                            className="text-sm rounded-xl bg-white resize-none h-16"/>
+                          <Button onClick={handleQuickCreateAssign} disabled={qaSaving}
+                            className="w-full h-12 bg-navy hover:bg-navy/90 text-white font-bold rounded-xl text-base">
+                            {qaSaving ? <Loader2 className="h-4 w-4 animate-spin"/> : `שבץ ל-${format(quickAssignDate, 'd/M')} ✓`}
+                          </Button>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
+                  )
+                })()}
+
+                {/* Full builder for interval workouts */}
+                <Button variant="outline"
+                  onClick={() => { setBuilderWorkoutId(undefined); setShowBuilderDialog(true) }}
+                  className="w-full h-10 text-xs rounded-xl">
+                  <Plus className="h-3.5 w-3.5 ml-1"/>אימון מפורט (סטים ואינטרוולים)
+                </Button>
               </div>
             )
           })()}

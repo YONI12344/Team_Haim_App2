@@ -68,6 +68,9 @@ export interface AthleteProfile {
   weekStartDay?: 0 | 1
   // Day the weekly-km count resets (0 = Sunday, 1 = Monday)
   kmWeekStartDay?: 0 | 1
+  // How many weeks ahead of the plan the athlete can see (rolls every
+  // Saturday; 0 = no limit, default 2)
+  visibleWeeksAhead?: number
   // Target weekly km range, e.g. { min: 40, max: 60 }
   weeklyKmRange?: { min: number; max: number }
   // Recovery week interval: every Nth week is an off/recovery week (default 4)

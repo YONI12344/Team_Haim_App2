@@ -192,6 +192,7 @@ export function AthleteDashboard() {
             goals: Array.isArray(data.goals) ? data.goals : [],
             onboardingComplete: data.onboardingComplete === true,
             kmWeekStartDay: data.kmWeekStartDay === 0 ? 0 : 1,
+            visibleWeeksAhead: typeof data.visibleWeeksAhead === 'number' ? data.visibleWeeksAhead : 2,
           })
         } else {
           setProfile({ name: user.name, events: [], personalRecords: [], goals: [] })
@@ -286,8 +287,13 @@ export function AthleteDashboard() {
     )
   }
 
+  // Rolling visibility window — athlete sees only N weeks ahead (Saturday roll)
+  const visibleWeeks = profile?.visibleWeeksAhead ?? 2
+  const visCutoff = visibleWeeks > 0
+    ? format(addDays(startOfWeek(new Date(), { weekStartsOn: 6 }), visibleWeeks * 7), 'yyyy-MM-dd')
+    : null
   const upcomingWorkouts = assigned
-    .filter((w) => w.status === 'scheduled')
+    .filter((w) => w.status === 'scheduled' && (!visCutoff || w.scheduledDate < visCutoff))
     .sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate))
     .slice(0, 5)
 

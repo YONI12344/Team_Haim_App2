@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils'
 import { db } from '@/lib/firebase'
 import { collection, doc, getDoc, getDocs, query, where, updateDoc } from 'firebase/firestore'
 import type { AthleteProfile, AssignedWorkout, TrainingDayType } from '@/lib/types'
-import { listJourneys, computeJourneyProgress } from '@/lib/journey'
+import { listJourneys, computeJourneyProgress, stageDisplayName } from '@/lib/journey'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
 import { useWorkoutTypeLabels } from '@/lib/workout-labels'
@@ -226,7 +226,7 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
               const total = Math.max(1, Math.ceil((e.getTime()-s.getTime())/(7*86400000)))
               const cur = Math.max(1, Math.ceil((today.getTime()-s.getTime())/(7*86400000)))
               setJourney({
-                stageName: stage.name, weekInStage: cur, totalWeeksInStage: total,
+                stageName: stageDisplayName(stage), weekInStage: cur, totalWeeksInStage: total,
                 isOffWeek: cur % (d.offWeekInterval ?? 4) === 0,
                 goalRaceDate: active.goalRaceDate, goalRaceEvent: active.goalRaceEvent,
               })
@@ -270,7 +270,22 @@ export function AthletePlannerView({ overrideAthleteId }: { overrideAthleteId?: 
     if (!athleteId) return
     getDocs(query(collection(db, 'assignedWorkouts'), where('athleteId', '==', athleteId)))
       .then(async snap => {
-        setAssignedWorkouts(snap.docs.map(d => ({ ...(d.data() as AssignedWorkout), id: d.id })))
+        // Rolling visibility window: athlete sees only N weeks ahead
+        // (rolls every Saturday; coach sets N per athlete, 0 = unlimited)
+        let visibleWeeks = 2
+        try {
+          const uSnap = await getDoc(doc(db, 'users', athleteId))
+          const v = uSnap.data()?.visibleWeeksAhead
+          if (typeof v === 'number') visibleWeeks = v
+        } catch {}
+        const cutoffStr = visibleWeeks > 0
+          ? format(addWeeks(startOfWeek(new Date(), { weekStartsOn: 6 }), visibleWeeks), 'yyyy-MM-dd')
+          : null
+        setAssignedWorkouts(
+          snap.docs
+            .map(d => ({ ...(d.data() as AssignedWorkout), id: d.id }))
+            .filter(w => !cutoffStr || w.scheduledDate < cutoffStr)
+        )
         const { getDocs: gd, query: q, collection: col, where: wh } = await import('firebase/firestore')
         const from = format(startOfWeek(new Date(),{weekStartsOn:1}), 'yyyy-MM-dd')
         const to = format(endOfWeek(new Date(),{weekStartsOn:1}), 'yyyy-MM-dd')

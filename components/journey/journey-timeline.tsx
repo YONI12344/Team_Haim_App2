@@ -7,7 +7,7 @@ import { Progress } from '@/components/ui/progress'
 import { Calendar, Flag, MapPin, Target, Trophy } from 'lucide-react'
 import { format, isValid, parseISO } from 'date-fns'
 import { cn } from '@/lib/utils'
-import { computeJourneyProgress, computeStageProgress } from '@/lib/journey'
+import { computeJourneyProgress, computeStageProgress, journeyDisplayTitle, stageDisplayName } from '@/lib/journey'
 import type { JourneyDoc, JourneyStage, JourneyStageType } from '@/lib/types'
 import { useLanguage } from '@/contexts/language-context'
 
@@ -34,7 +34,7 @@ interface Props {
 }
 
 export function JourneyTimeline({ journey, renderStageActions, className }: Props) {
-  const { t, language } = useLanguage()
+  const { t, language, isRTL } = useLanguage()
   const progress = useMemo(() => computeJourneyProgress(journey), [journey])
   const stageTypeLabel: Record<JourneyStageType, string> = language === 'he'
     ? {
@@ -66,7 +66,7 @@ export function JourneyTimeline({ journey, renderStageActions, className }: Prop
                 {t.seasonJourneyUpper}
               </p>
               <h2 className="font-serif text-2xl font-semibold text-navy">
-                {journey.title || t.mySeasonDefault}
+                {journeyDisplayTitle(journey, isRTL)}
               </h2>
               <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1">
@@ -150,7 +150,7 @@ export function JourneyTimeline({ journey, renderStageActions, className }: Prop
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-base font-semibold text-navy">{stage.name}</h3>
+                          <h3 className="text-base font-semibold text-navy">{stageDisplayName(stage, isRTL)}</h3>
                           <Badge
                             variant="outline"
                             className={cn(stageColors[stage.type])}

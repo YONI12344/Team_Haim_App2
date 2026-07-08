@@ -383,3 +383,38 @@ export function computeStageProgress(stage: JourneyStage, today: Date = new Date
   if (t >= b) return 100
   return Math.round(((t - a) / (b - a)) * 100)
 }
+
+// ── Display helpers ──────────────────────────────────────────────────────────
+
+const STAGE_NAME_HE: Record<string, string> = {
+  base: 'בסיס', build: 'בנייה', peak: 'שיא', taper: 'חידוד',
+  race_week: 'שבוע תחרות', 'race week': 'שבוע תחרות', recovery: 'התאוששות',
+}
+
+/**
+ * Stage name for display — journey templates ship with English stage names
+ * ("Build", "Base"...), which look broken inside the Hebrew UI. Translate
+ * known names/types; keep custom names the coach typed.
+ */
+export function stageDisplayName(stage: { name?: string; type?: string }, hebrew = true): string {
+  const name = (stage.name || '').trim()
+  if (!hebrew) return name || stage.type || ''
+  const key = name.toLowerCase()
+  if (STAGE_NAME_HE[key]) return STAGE_NAME_HE[key]
+  if (!name && stage.type) return STAGE_NAME_HE[stage.type] || stage.type
+  return name || STAGE_NAME_HE[stage.type || ''] || ''
+}
+
+/** Journey title for display — replaces generic/mixed-language titles. */
+export function journeyDisplayTitle(
+  j: { title?: string; goalRaceEvent?: string },
+  hebrew = true,
+): string {
+  const raw = (j.title || '').trim()
+  const generic =
+    /^(season journey|road to .*|untitled|build|base|peak|taper|my season)$/i.test(raw) ||
+    /^המסע\s+[A-Za-z]/.test(raw)
+  if (raw && !generic) return raw
+  if (j.goalRaceEvent) return hebrew ? `בדרך ל־${j.goalRaceEvent}` : `Road to ${j.goalRaceEvent}`
+  return hebrew ? 'מסע העונה' : 'Season Journey'
+}

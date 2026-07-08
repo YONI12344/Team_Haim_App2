@@ -199,6 +199,9 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
         })),
         updatedAt: serverTimestamp(),
         updatedBy: user?.id || null,
+        // Editing a copied (hidden) workout makes it a real library workout —
+        // "minor edits are saved as an additional workout in the library"
+        libraryHidden: false,
       }
 
       let savedId = workoutId
