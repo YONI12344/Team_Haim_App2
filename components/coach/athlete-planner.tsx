@@ -12,14 +12,14 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   ArrowLeft, ChevronLeft, ChevronRight, Plus, X,
-  Loader2, MapPin, Clock, Check, Calendar, Search, Copy, Pencil, Trash2, ClipboardPaste,
+  Loader2, Clock, Check, Calendar, Search, Copy, Pencil, Trash2, ClipboardPaste,
   BarChart2, Sparkles, Send,
 } from 'lucide-react'
 import Link from 'next/link'
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   addMonths, subMonths, addWeeks, subWeeks, addDays, eachDayOfInterval, eachWeekOfInterval, isSameMonth,
-  isSameDay, isToday, parseISO,
+  isSameDay, isToday,
 } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { db, realtimeDb } from '@/lib/firebase'
@@ -34,7 +34,6 @@ import { listJourneys, computeJourneyProgress, saveJourney, stageDisplayName } f
 import { useAuth } from '@/contexts/auth-context'
 import { useWorkoutTypeLabels, autoWorkoutTitle } from '@/lib/workout-labels'
 import { WorkoutBuilder } from '@/components/coach/workout-builder'
-import { ActivityDetailView } from '@/components/shared/activity-detail-view'
 import { AthletePlannerView } from '@/components/athlete/athlete-planner-view'
 import { useLanguage } from '@/contexts/language-context'
 import { toast } from 'sonner'
@@ -142,9 +141,6 @@ export function AthletePlanner({ athleteId }: Props) {
   const resetQuickAssign = () => {
     setQaType(null); setQaTitle(''); setQaDistance(''); setQaDuration(''); setQaDesc(''); setQaSearch(''); setQaShowCreate(false)
   }
-  // Coach messages
-  const [coachMessageText, setCoachMessageText] = useState('')
-  const [sendingCoachMessage, setSendingCoachMessage] = useState(false)
   // Message composer under the embedded "exactly as the athlete sees it" view
   const [dayMessageText, setDayMessageText] = useState('')
   const [sendingDayMessage, setSendingDayMessage] = useState(false)
@@ -692,7 +688,6 @@ export function AthletePlanner({ athleteId }: Props) {
   }
 
   const selectedAW = useMemo(() => assignedWorkouts.find(w => w.id === selectedAssignedId) || null, [assignedWorkouts, selectedAssignedId])
-  const selectedLog = useMemo(() => selectedAW ? (logs.find(l => l.assignedWorkoutId === selectedAW.id) || logs.find(l => l.workoutId === selectedAW.workoutId && l.date === selectedAW.scheduledDate) || logs.find((l: any) => l.date === selectedAW.scheduledDate && (l.source === 'strava' || l.source === 'manual'))) : null, [selectedAW, logs])
   const filteredLibrary = useMemo(() => workoutLibrary.filter(w => w.title?.toLowerCase().includes(librarySearch.toLowerCase())), [workoutLibrary, librarySearch])
 
   // Last-14-days analysis (computed from loaded state, no API call)
@@ -823,20 +818,6 @@ export function AthletePlanner({ athleteId }: Props) {
       } : null,
       timestamp: Date.now(),
     })
-  }
-
-  const handleSendCoachMessage = async () => {
-    if (!selectedAW || !coachMessageText.trim()) return
-    setSendingCoachMessage(true)
-    try {
-      await sendCoachMessage(coachMessageText, selectedAW)
-      setCoachMessageText('')
-      toast.success(t.toastUpdated)
-    } catch {
-      toast.error(t.tryAgainLaterText)
-    } finally {
-      setSendingCoachMessage(false)
-    }
   }
 
   const handleSendDayMessage = async () => {
@@ -1266,21 +1247,66 @@ export function AthletePlanner({ athleteId }: Props) {
         </Card>
 
         {/* Athlete's exact view — the same component the athlete sees, for
-            whichever date the coach last tapped on the calendar above */}
+            whichever date the coach last tapped on the calendar above.
+            This replaced the old separate "workout detail" card entirely;
+            its Copy/Edit/Delete actions now live in this card's header. */}
         {selectedDate && (
           <Card className="border-navy/15">
             <CardHeader className="pb-2 pt-4 px-4">
-              <CardTitle className="text-sm flex items-center gap-2">
-                👤 בדיוק כמו שהספורטאי רואה
-                <span className="text-xs font-normal text-muted-foreground">— {format(selectedDate, 'EEEE, d MMMM')}</span>
-              </CardTitle>
+              <div className="flex items-start justify-between gap-2 flex-wrap">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  👤 בדיוק כמו שהספורטאי רואה
+                  <span className="text-xs font-normal text-muted-foreground">— {format(selectedDate, 'EEEE, d MMMM')}</span>
+                </CardTitle>
+                {selectedAW && (
+                  <div className="flex gap-1 flex-shrink-0">
+                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setCopiedWorkout(selectedAW); setSelectedAssignedId(null); toast.success(t.toastAdded) }}>
+                      <Copy className="h-3 w-3 mr-1"/>{t.copyBtn}
+                    </Button>
+                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setBuilderWorkoutId(selectedAW.workoutId); setEditingAssignedId(selectedAW.id); setShowBuilderDialog(true) }}>
+                      <Pencil className="h-3 w-3 mr-1"/>{t.editBtn}
+                    </Button>
+                    <Button variant="outline" size="sm" className="h-7 text-xs text-destructive hover:text-destructive" onClick={() => handleDeleteWorkout(selectedAW)}>
+                      <Trash2 className="h-3 w-3 mr-1"/>{t.deleteBtn}
+                    </Button>
+                  </div>
+                )}
+              </div>
+              {/* Beyond the athlete's rolling visibility window — offer to show it early */}
+              {selectedAW && (() => {
+                const visW = athlete?.visibleWeeksAhead ?? 2
+                if (visW <= 0) return null
+                const cutoff = format(addWeeks(startOfWeek(new Date(), { weekStartsOn: 6 }), visW), 'yyyy-MM-dd')
+                const bypasses = selectedAW.showAheadOverride || selectedAW.workout?.type === 'race' || selectedAW.workout?.type === 'time_trial'
+                if (selectedAW.scheduledDate < cutoff || bypasses) return bypasses && selectedAW.scheduledDate >= cutoff ? (
+                  <button
+                    onClick={async () => {
+                      await updateDoc(doc(db, 'assignedWorkouts', selectedAW.id), { showAheadOverride: false })
+                      setAssignedWorkouts(prev => prev.map(w => w.id === selectedAW.id ? { ...w, showAheadOverride: false } : w))
+                    }}
+                    className="mt-1.5 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-1 w-fit">
+                    ✓ גלוי לספורטאי מראש — לחץ להסתרה
+                  </button>
+                ) : null
+                return (
+                  <button
+                    onClick={async () => {
+                      await updateDoc(doc(db, 'assignedWorkouts', selectedAW.id), { showAheadOverride: true })
+                      setAssignedWorkouts(prev => prev.map(w => w.id === selectedAW.id ? { ...w, showAheadOverride: true } : w))
+                      toast.success('הספורטאי יראה את האימון הזה כבר עכשיו')
+                    }}
+                    className="mt-1.5 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1 w-fit">
+                    👁 מעבר לחלון הרגיל — הצג לספורטאי מראש
+                  </button>
+                )
+              })()}
             </CardHeader>
             <CardContent className="px-4 pb-4">
               <AthletePlannerView overrideAthleteId={athleteId} initialDate={format(selectedDate, 'yyyy-MM-dd')} />
 
-              {/* Send a message tied to this day — same composer style as the workout panel */}
+              {/* Coach comments — write feedback on this day, sent straight to the athlete */}
               <div className="space-y-1.5 border-t pt-3 mt-4" dir="rtl">
-                <Label className="text-xs font-semibold text-navy">שלח הודעה לספורטאי על היום הזה</Label>
+                <Label className="text-xs font-semibold text-navy">הערות מאמן — שלח לספורטאי על היום הזה</Label>
                 <Textarea
                   value={dayMessageText}
                   onChange={e => setDayMessageText(e.target.value)}
@@ -1295,143 +1321,6 @@ export function AthletePlanner({ athleteId }: Props) {
                   disabled={sendingDayMessage || !dayMessageText.trim()}
                 >
                   {sendingDayMessage && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1"/>}
-                  <Send className="h-3.5 w-3.5 mr-1"/>
-                  שלח הערה
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Selected workout detail + log */}
-        {selectedAW && (
-          <Card className="border-gold/30">
-            <CardContent className="pt-4 space-y-3">
-              {/* Header */}
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="font-bold text-navy text-lg">{selectedAW.workout?.title}</p>
-                  <p className="text-xs text-muted-foreground">{format(parseISO(selectedAW.scheduledDate),'EEEE, d MMMM yyyy')}</p>
-                  <div className="flex gap-2 mt-1 flex-wrap">
-                    {selectedAW.workout?.distance && <Badge variant="outline" className="text-xs"><MapPin className="h-3 w-3 mr-1"/>{selectedAW.workout.distance} {t.km}</Badge>}
-                    {selectedAW.workout?.duration && <Badge variant="outline" className="text-xs"><Clock className="h-3 w-3 mr-1"/>{selectedAW.workout.duration} {t.min}</Badge>}
-                    <Badge variant="outline" className={cn('text-xs', selectedAW.status==='completed' ? 'bg-emerald-100 text-emerald-700' : selectedAW.status==='skipped' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-700')}>
-                      {selectedAW.status==='completed' ? t.completedBadge : selectedAW.status==='skipped' ? t.skippedBadge : t.scheduledBadge}
-                    </Badge>
-                  </div>
-                  {/* Beyond the athlete's rolling visibility window — offer to show it early */}
-                  {(() => {
-                    const visW = athlete?.visibleWeeksAhead ?? 2
-                    if (visW <= 0) return null
-                    const cutoff = format(addWeeks(startOfWeek(new Date(), { weekStartsOn: 6 }), visW), 'yyyy-MM-dd')
-                    const bypasses = selectedAW.showAheadOverride || selectedAW.workout?.type === 'race' || selectedAW.workout?.type === 'time_trial'
-                    if (selectedAW.scheduledDate < cutoff || bypasses) return bypasses && selectedAW.scheduledDate >= cutoff ? (
-                      <button
-                        onClick={async () => {
-                          await updateDoc(doc(db, 'assignedWorkouts', selectedAW.id), { showAheadOverride: false })
-                          setAssignedWorkouts(prev => prev.map(w => w.id === selectedAW.id ? { ...w, showAheadOverride: false } : w))
-                        }}
-                        className="mt-1.5 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-1 w-fit">
-                        ✓ גלוי לספורטאי מראש — לחץ להסתרה
-                      </button>
-                    ) : null
-                    return (
-                      <button
-                        onClick={async () => {
-                          await updateDoc(doc(db, 'assignedWorkouts', selectedAW.id), { showAheadOverride: true })
-                          setAssignedWorkouts(prev => prev.map(w => w.id === selectedAW.id ? { ...w, showAheadOverride: true } : w))
-                          toast.success('הספורטאי יראה את האימון הזה כבר עכשיו')
-                        }}
-                        className="mt-1.5 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1 w-fit">
-                        👁 מעבר לחלון הרגיל — הצג לספורטאי מראש
-                      </button>
-                    )
-                  })()}
-                </div>
-                <div className="flex gap-1 flex-shrink-0">
-                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setCopiedWorkout(selectedAW); setSelectedAssignedId(null); toast.success(t.toastAdded) }}>
-                    <Copy className="h-3 w-3 mr-1"/>{t.copyBtn}
-                  </Button>
-                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setBuilderWorkoutId(selectedAW.workoutId); setEditingAssignedId(selectedAW.id); setShowBuilderDialog(true) }}>
-                    <Pencil className="h-3 w-3 mr-1"/>{t.editBtn}
-                  </Button>
-                  <Button variant="outline" size="sm" className="h-7 text-xs text-destructive hover:text-destructive" onClick={() => handleDeleteWorkout(selectedAW)}>
-                    <Trash2 className="h-3 w-3 mr-1"/>{t.deleteBtn}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Workout details */}
-              {selectedAW.workout?.description && <p className="text-xs text-muted-foreground leading-relaxed">{selectedAW.workout.description}</p>}
-              {selectedAW.workout?.warmup && (
-                <div className="bg-emerald-50 rounded-lg p-2.5 border border-emerald-100">
-                  <p className="text-xs font-semibold text-emerald-700 mb-1">חימום</p>
-                  <p className="text-xs text-emerald-800">{selectedAW.workout.warmup}</p>
-                </div>
-              )}
-              {selectedAW.workout?.sets && selectedAW.workout.sets.length > 0 && (
-                <div className="space-y-1.5">
-                  <p className="text-xs font-semibold text-navy border-b pb-1">סטים</p>
-                  {selectedAW.workout.sets.map((set, si) => {
-                    const hasIntervals = (set as any).intervals?.length > 0
-                    return (
-                      <div key={si} className="rounded-lg border overflow-hidden">
-                        <div className="bg-navy/5 px-3 py-2 flex items-center justify-between">
-                          <span className="text-xs font-bold text-navy">סט {si+1}{set.reps>1?` · ${set.reps} חזרות`:''}
-                            {!hasIntervals && (set.distance||set.duration) && ` · ${set.distance||set.duration}`}
-                            {!hasIntervals && set.pace && <span className="font-normal text-muted-foreground"> @ {set.pace}</span>}
-                          </span>
-                          {set.rest && <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">מנוחה: {set.rest}</span>}
-                        </div>
-                        {hasIntervals && (
-                          <div className="px-3 py-2 space-y-1">
-                            {((set as any).intervals as any[]).map((iv:any, ii:number) => (
-                              <div key={ii} className="flex items-center gap-2 text-xs bg-white/70 rounded px-2 py-1.5 border border-border/50">
-                                <span className="w-5 h-5 rounded-full bg-navy text-white font-bold flex items-center justify-center text-[10px]">{ii+1}</span>
-                                <span className="font-bold text-navy">{iv.distance}</span>
-                                {iv.pace && <span className="text-muted-foreground">@ {iv.pace}</span>}
-                                {iv.rest && <span className="text-muted-foreground ml-auto">מנוחה: {iv.rest}</span>}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-              {selectedAW.workout?.cooldown && (
-                <div className="bg-blue-50 rounded-lg p-2.5 border border-blue-100">
-                  <p className="text-xs font-semibold text-blue-700 mb-1">שחרור</p>
-                  <p className="text-xs text-blue-800">{selectedAW.workout.cooldown}</p>
-                </div>
-              )}
-
-              {/* Athlete log — full detail, same view the athlete sees */}
-              {selectedLog && (
-                <div className="space-y-2">
-                  <p className="text-xs font-bold text-emerald-700">איך היה לו — תצוגת ספורטאי מלאה</p>
-                  <ActivityDetailView log={selectedLog as any} plannedDistance={selectedAW.workout?.distance ?? null} />
-                </div>
-              )}
-
-              {/* Coach message to athlete */}
-              <div className="space-y-1.5 border-t pt-3" dir="rtl">
-                <Label className="text-xs font-semibold text-navy">{t.coachNotesLabel}</Label>
-                <Textarea
-                  value={coachMessageText}
-                  onChange={e => setCoachMessageText(e.target.value)}
-                  placeholder={t.typeMessage}
-                  className="text-xs min-h-[60px]"
-                  dir="rtl"
-                />
-                <Button
-                  size="sm"
-                  className="w-full h-8 text-xs bg-navy text-white hover:bg-navy/90"
-                  onClick={handleSendCoachMessage}
-                  disabled={sendingCoachMessage || !coachMessageText.trim()}
-                >
-                  {sendingCoachMessage && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1"/>}
                   <Send className="h-3.5 w-3.5 mr-1"/>
                   שלח הערה
                 </Button>
