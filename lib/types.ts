@@ -172,6 +172,9 @@ export interface AssignedWorkout {
   assignedBy: string
   scheduledDate: string
   status: 'scheduled' | 'completed' | 'skipped' | 'modified'
+  // When a day has more than one workout (e.g. easy run AM + gym PM), this
+  // tells them apart and drives Strava/manual-log matching to the right one
+  session?: 'am' | 'pm' | 'other'
   // Set when the athlete moved this workout to a different day
   movedByAthlete?: boolean
   movedFromDate?: string

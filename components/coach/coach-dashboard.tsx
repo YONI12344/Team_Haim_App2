@@ -63,7 +63,20 @@ export function CoachDashboard() {
   const [composerText, setComposerText] = useState<Record<string, string>>({})
   const [sendingMessage, setSendingMessage] = useState<string | null>(null)
   const [messageSent, setMessageSent] = useState<string | null>(null)
-  const [expandedCard, setExpandedCard] = useState<string | null>(null)
+  // Which workout tiles are expanded — keyed by assignedWorkout id (or log
+  // id for unmatched activities), so multiple same-day tiles can each
+  // expand independently instead of only one per athlete
+  const [expandedTiles, setExpandedTiles] = useState<Set<string>>(new Set())
+  const toggleExpanded = (key: string) => setExpandedTiles(prev => {
+    const next = new Set(prev)
+    if (next.has(key)) next.delete(key); else next.add(key)
+    return next
+  })
+  const SESSION_BADGE: Record<string, { emoji: string; label: string }> = {
+    am: { emoji: '🌅', label: 'בוקר' },
+    pm: { emoji: '🌇', label: 'ערב' },
+    other: { emoji: '🕐', label: 'נוסף' },
+  }
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -229,35 +242,52 @@ export function CoachDashboard() {
       : -1
     const needsNewPlan = daysUntilPlanEnd < 7
 
-    // Today's workout + logs (Strava sync or manual athlete upload)
-    const todayWorkout = athleteAssignedWorkouts.find(w => w.scheduledDate === todayStr)
-    const todayLog = todayWorkout
-      ? (athleteLogs.find((l: any) => l.assignedWorkoutId === todayWorkout.id && l.source !== 'strava' && l.source !== 'manual') ||
-         athleteLogs.find((l: any) => l.date === todayStr && l.source !== 'strava' && l.source !== 'manual' && l.actualDistance))
-      : null
-    // All of today's activities (Strava + manual) — pending-feedback first
-    const todayActivityLogs: any[] = athleteLogs
-      .filter((l: any) => l.date === todayStr && (l.source === 'strava' || l.source === 'manual'))
-      .sort((a: any, b: any) =>
-        (a.feedbackStatus === 'pending' ? 0 : 1) - (b.feedbackStatus === 'pending' ? 0 : 1))
-    const todayStravaLog: any = todayActivityLogs[0] || null
-    const todayStravaPending = todayStravaLog?.feedbackStatus === 'pending'
+    // All of today's assigned workouts (there can be several — e.g. easy run
+    // AM + gym PM), ordered morning → evening → unspecified
+    const sessionOrder: Record<string, number> = { am: 0, pm: 1, other: 2 }
+    const todayWorkoutsAll = athleteAssignedWorkouts
+      .filter(w => w.scheduledDate === todayStr)
+      .sort((a, b) => (a.session ? sessionOrder[a.session] : 1.5) - (b.session ? sessionOrder[b.session] : 1.5))
+
+    /** The log matched to a specific workout — prefers the explicit link
+     *  (assignedWorkoutId, set correctly even for multi-workout days by the
+     *  Strava-sync matching), falling back to date-only matching only when
+     *  this is the day's single workout (safe — no ambiguity possible). */
+    const matchedLogFor = (w: AssignedWorkout): any =>
+      athleteLogs.find((l: any) => l.assignedWorkoutId === w.id) ||
+      (todayWorkoutsAll.length === 1
+        ? (athleteLogs.find((l: any) => l.date === todayStr && l.source !== 'strava' && l.source !== 'manual' && l.actualDistance) ||
+           athleteLogs.find((l: any) => l.date === todayStr && (l.source === 'strava' || l.source === 'manual')))
+        : null)
+
+    const todayTiles = todayWorkoutsAll.map(w => ({ workout: w, log: matchedLogFor(w) }))
+
+    // Activities (Strava/manual) that don't belong to any of today's
+    // assigned workouts — shown as their own generic boxes
+    const matchedLogIds = new Set(todayTiles.map(t => t.log?.id).filter(Boolean))
+    const unmatchedActivities: any[] = athleteLogs
+      .filter((l: any) => l.date === todayStr && (l.source === 'strava' || l.source === 'manual') && !matchedLogIds.has(l.id))
+      .sort((a: any, b: any) => (a.feedbackStatus === 'pending' ? 0 : 1) - (b.feedbackStatus === 'pending' ? 0 : 1))
+
+    const todayStravaPending = todayTiles.some(t => t.log?.feedbackStatus === 'pending') ||
+      unmatchedActivities.some(l => l.feedbackStatus === 'pending')
 
     // Yesterday missed
     const yesterdayMissed = athleteAssignedWorkouts.find(
       w => w.scheduledDate === yesterdayStr && w.status !== 'completed' && w.status !== 'skipped'
     )
 
-    // Status
+    // Aggregate status for the day (drives the top-right badge + summary strip)
     let todayStatus: 'done' | 'strava-pending' | 'scheduled' | 'skipped' | 'rest' = 'rest'
-    if (todayWorkout) {
-      if (todayWorkout.status === 'completed' && todayStravaPending) todayStatus = 'strava-pending'
-      else if (todayWorkout.status === 'completed') todayStatus = 'done'
-      else if (todayWorkout.status === 'skipped') todayStatus = 'skipped'
-      else todayStatus = 'scheduled'
-    } else if (todayStravaPending) {
+    if (todayStravaPending) {
       todayStatus = 'strava-pending'
-    } else if (todayStravaLog) {
+    } else if (todayTiles.length > 0) {
+      const doneCount = todayTiles.filter(t => t.workout.status === 'completed').length
+      const skippedCount = todayTiles.filter(t => t.workout.status === 'skipped').length
+      if (doneCount === todayTiles.length) todayStatus = 'done'
+      else if (todayTiles.some(t => t.workout.status !== 'completed' && t.workout.status !== 'skipped')) todayStatus = 'scheduled'
+      else if (skippedCount > 0) todayStatus = doneCount > 0 ? 'done' : 'skipped'
+    } else if (unmatchedActivities.length > 0) {
       todayStatus = 'done'
     }
 
@@ -270,7 +300,7 @@ export function CoachDashboard() {
 
     return {
       athlete, athleteLogs, athleteAssignedWorkouts, lastFutureDate, needsNewPlan,
-      todayWorkout, todayLog, todayStravaLog, todayActivityLogs, todayStravaPending,
+      todayTiles, unmatchedActivities, todayStravaPending,
       yesterdayMissed, todayStatus, attention,
     }
   }).sort((a, b) => b.attention - a.attention)
@@ -353,27 +383,17 @@ export function CoachDashboard() {
       {/* Per-athlete command center cards — sorted by attention */}
       <div className="space-y-4">
         {athleteData.map(({
-          athlete, lastFutureDate, needsNewPlan, todayWorkout, todayLog,
-          todayStravaLog, todayActivityLogs, yesterdayMissed, todayStatus,
+          athlete, lastFutureDate, needsNewPlan, todayTiles, unmatchedActivities,
+          yesterdayMissed, todayStatus,
         }) => {
           const planEndDisplay = lastFutureDate
             ? `${t.scheduledBadge} ${format(parseISO(lastFutureDate), 'd/M')}`
             : '—'
-          const effectiveLog: any = todayLog || todayStravaLog
-          const allSplits: any[] = todayStravaLog?.splitLogs || []
           const hasUnreadMsg = (unreadMessages[athlete.id] || 0) > 0
           const isSending = sendingMessage === athlete.id
           const isSent = messageSent === athlete.id
-          const isExpanded = expandedCard === athlete.id
-
-          // Workout sets for expanded view
-          const workoutSets = todayWorkout?.workout?.sets || []
-
-          // Activity (Strava / manual) type info
-          const actInfo = todayStravaLog ? getActivityInfo(todayStravaLog) : null
-          const isManualAct = todayStravaLog?.source === 'manual'
-          const actDuration = formatDurationMin(todayStravaLog?.durationMin, true)
-          const actName = todayStravaLog?.stravaName || (actInfo ? activityLabel(actInfo.kind, true) : '')
+          // First workout of the day — used only as context for the composer placeholder
+          const firstTodayWorkout = todayTiles[0]?.workout || null
 
           return (
             <div
@@ -481,474 +501,529 @@ export function CoachDashboard() {
               {/* ── DIVIDER ── */}
               <div className="mx-4 border-t border-border/20" />
 
-              {/* ── TODAY'S WORKOUT (clickable to expand) ── */}
+              {/* ── TODAY'S WORKOUT(S) — one tile per workout, smaller when several ── */}
               <div className="px-4 py-3 space-y-2">
                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-                  אימון היום
+                  אימון היום {todayTiles.length > 1 ? `(${todayTiles.length})` : ''}
                 </p>
 
-                {todayWorkout ? (
-                  <button
-                    type="button"
-                    className="w-full text-right"
-                    onClick={() => setExpandedCard(prev => prev === athlete.id ? null : athlete.id)}
-                  >
-                    <div className={cn(
-                      'rounded-2xl p-3.5 space-y-2.5 transition-all',
-                      isExpanded ? 'ring-2 ring-[#c9a84c]/40' : '',
-                      todayStatus === 'done'           ? 'bg-emerald-50/70 border border-emerald-200/60' :
-                      todayStatus === 'strava-pending' ? 'bg-amber-50/50 border border-amber-200/50' :
-                      todayStatus === 'skipped'        ? 'bg-red-50/50 border border-red-200/50' :
-                                                         'bg-[#0a1628]/[0.03] border border-[#0a1628]/10'
-                    )}>
-                      {/* Title + chevron */}
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1 text-right">
-                          <p className="text-sm font-bold text-[#0a1628]">
-                            {todayWorkout.workout?.title || 'אימון'}
-                          </p>
-                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                            {todayWorkout.workout?.type && (
-                              <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full border',
-                                workoutTypeColors[todayWorkout.workout.type] || 'bg-gray-100 text-gray-600 border-gray-200')}>
-                                {typeLabels[todayWorkout.workout.type] || todayWorkout.workout.type}
-                              </span>
-                            )}
-                            {todayWorkout.workout?.distance && (
-                              <span className="text-[11px] text-muted-foreground">
-                                {todayWorkout.workout.distance} {t.km}
-                              </span>
-                            )}
-                            {todayWorkout.movedByAthlete && (
-                              <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
-                                {t.movedByAthleteTag}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1.5 flex-shrink-0">
-                          {todayStravaLog && (
-                            isManualAct ? (
-                              <span className="flex items-center gap-1 text-[10px] font-bold text-[#0a1628] bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">
-                                {actInfo?.emoji} {t.manualActivityTag}
-                              </span>
-                            ) : (
-                              <span className="flex items-center gap-1 text-[10px] font-bold text-[#FC4C02] bg-[#FC4C02]/10 border border-[#FC4C02]/20 px-2 py-0.5 rounded-full">
-                                <Activity className="h-2.5 w-2.5" />Strava
-                              </span>
-                            )
-                          )}
-                          <ChevronDown className={cn(
-                            'h-4 w-4 text-muted-foreground transition-transform duration-200',
-                            isExpanded && 'rotate-180'
-                          )} />
-                        </div>
-                      </div>
-
-                      {/* Compact stats (always visible) */}
-                      {effectiveLog && (todayStatus === 'done' || todayStatus === 'strava-pending') && (
-                        <div className="flex flex-wrap gap-1.5">
-                          {actInfo && !actInfo.hasDistance && actDuration && (
-                            <span className="text-[11px] font-semibold bg-white border border-gray-200 px-2.5 py-1 rounded-full">
-                              {actInfo.emoji} {actDuration}
-                            </span>
-                          )}
-                          {effectiveLog.actualDistance && (
-                            <span className="text-[11px] font-semibold bg-white border border-gray-200 px-2.5 py-1 rounded-full">
-                              {effectiveLog.actualDistance} ק"מ
-                            </span>
-                          )}
-                          {effectiveLog.actualPace && (
-                            <span className="text-[11px] font-semibold bg-white border border-gray-200 px-2.5 py-1 rounded-full">
-                              {effectiveLog.actualPace}
-                            </span>
-                          )}
-                          {effectiveLog.effort != null && (
-                            <span className={cn(
-                              'text-[11px] font-semibold border px-2.5 py-1 rounded-full',
-                              effectiveLog.effort >= 8 ? 'bg-red-50 text-red-700 border-red-200' :
-                              effectiveLog.effort >= 6 ? 'bg-orange-50 text-orange-700 border-orange-200' :
-                              'bg-emerald-50 text-emerald-700 border-emerald-200'
-                            )}>
-                              מאמץ {effectiveLog.effort}/10
-                            </span>
-                          )}
-                          {todayStravaLog?.averageHeartRate && (
-                            <span className="text-[11px] font-semibold bg-red-50 text-red-600 border border-red-200 px-2.5 py-1 rounded-full">
-                              ♥ {todayStravaLog.averageHeartRate} bpm
-                            </span>
-                          )}
-                          {todayStravaLog?.elevationGain != null && todayStravaLog.elevationGain > 0 && (
-                            <span className="text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full">
-                              ↑ {todayStravaLog.elevationGain}m
-                            </span>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Comment preview */}
-                      {!isExpanded && effectiveLog?.comment && (
-                        <p className="text-[11px] text-gray-500 italic truncate">
-                          "{effectiveLog.comment}"
-                        </p>
-                      )}
-
-                      {!isExpanded && (
-                        <p className="text-[10px] text-muted-foreground/60 text-left">
-                          {todayStravaLog
-                            ? 'לחץ לפרטי Strava המלאים ↓'
-                            : 'לחץ לפרטי האימון ↓'}
-                        </p>
-                      )}
-                    </div>
-                  </button>
-                ) : todayStravaLog ? (
-                  /* Strava activity but no assigned workout */
-                  <button
-                    type="button"
-                    className="w-full text-right"
-                    onClick={() => setExpandedCard(prev => prev === athlete.id ? null : athlete.id)}
-                  >
-                    <div className={cn(
-                      'rounded-2xl p-3.5 bg-amber-50/50 border border-amber-200/50 space-y-2 transition-all',
-                      isExpanded && 'ring-2 ring-[#c9a84c]/40'
-                    )}>
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 flex-1 flex-wrap">
-                          {isManualAct
-                            ? <span className="text-sm">{actInfo?.emoji}</span>
-                            : <Activity className="h-3.5 w-3.5 text-[#FC4C02]" />}
-                          {actInfo && (
-                            <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full border', actInfo.badgeClass)}>
-                              {activityLabel(actInfo.kind, true)}
-                            </span>
-                          )}
-                          <p className="text-sm font-bold text-[#0a1628]">{actName}</p>
-                          {isManualAct && (
-                            <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">
-                              {t.manualActivityTag}
-                            </span>
-                          )}
-                        </div>
-                        <ChevronDown className={cn(
-                          'h-4 w-4 text-muted-foreground transition-transform duration-200',
-                          isExpanded && 'rotate-180'
-                        )} />
-                      </div>
-                      {!isExpanded && (
-                        <div className="flex flex-wrap gap-1.5">
-                          {actInfo && !actInfo.hasDistance && actDuration && (
-                            <span className="text-[11px] font-semibold bg-white border border-gray-200 px-2.5 py-1 rounded-full">
-                              {actDuration}
-                            </span>
-                          )}
-                          {todayStravaLog.actualDistance && (
-                            <span className="text-[11px] font-semibold bg-white border border-gray-200 px-2.5 py-1 rounded-full">
-                              {todayStravaLog.actualDistance} ק"מ
-                            </span>
-                          )}
-                          {todayStravaLog.actualPace && (
-                            <span className="text-[11px] font-semibold bg-white border border-gray-200 px-2.5 py-1 rounded-full">
-                              {todayStravaLog.actualPace}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                ) : (
+                {todayTiles.length === 0 && unmatchedActivities.length === 0 && (
                   <div className="rounded-2xl px-4 py-3.5 bg-muted/20 border border-border/30 text-center">
                     <p className="text-[11px] text-muted-foreground">{t.restDayLabel}</p>
                   </div>
                 )}
 
-                {/* Additional activities today — each in its own box */}
-                {todayActivityLogs.length > 1 && todayActivityLogs.slice(1).map((extra: any) => {
-                  const exInfo = getActivityInfo(extra)
-                  const exManual = extra.source === 'manual'
-                  const exDur = formatDurationMin(extra.durationMin, true)
+                {todayTiles.map((tile, tileIdx) => {
+                  const w = tile.workout
+                  const wLog: any = tile.log
+                  const isActivityLog = !!wLog && (wLog.source === 'strava' || wLog.source === 'manual')
+                  const todayStravaLog: any = isActivityLog ? wLog : null
+                  const todayLog: any = wLog && !isActivityLog ? wLog : null
+                  const effectiveLog: any = wLog
+                  const allSplits: any[] = todayStravaLog?.splitLogs || []
+                  const actInfo = todayStravaLog ? getActivityInfo(todayStravaLog) : null
+                  const isManualAct = todayStravaLog?.source === 'manual'
+                  const actDuration = formatDurationMin(todayStravaLog?.durationMin, true)
+                  const actName = todayStravaLog?.stravaName || (actInfo ? activityLabel(actInfo.kind, true) : '')
+                  const workoutSets = w.workout?.sets || []
+                  const tileKey = w.id
+                  const isExpanded = expandedTiles.has(tileKey)
+                  const compact = todayTiles.length > 1
+                  const wStatus: 'done' | 'strava-pending' | 'scheduled' | 'skipped' =
+                    w.status === 'completed' && todayStravaLog?.feedbackStatus === 'pending' ? 'strava-pending' :
+                    w.status === 'completed' ? 'done' :
+                    w.status === 'skipped' ? 'skipped' : 'scheduled'
+                  const sessionInfo = w.session ? SESSION_BADGE[w.session] : null
+
                   return (
-                    <div key={extra.id} className="rounded-2xl p-3 bg-white border border-border/40 flex items-center gap-2 flex-wrap">
-                      <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full border flex-shrink-0', exInfo.badgeClass)}>
-                        {exInfo.emoji} {activityLabel(exInfo.kind, true)}
-                      </span>
-                      <span className="text-xs font-bold text-[#0a1628] truncate flex-1 min-w-0">
-                        {extra.stravaName || activityLabel(exInfo.kind, true)}
-                      </span>
-                      {exInfo.hasDistance && extra.actualDistance ? (
-                        <span className="text-[11px] font-semibold bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-full flex-shrink-0">
-                          {extra.actualDistance} ק"מ
-                        </span>
-                      ) : exDur ? (
-                        <span className="text-[11px] font-semibold bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-full flex-shrink-0">
-                          {exDur}
-                        </span>
-                      ) : null}
-                      <span className={cn('text-[10px] font-bold flex-shrink-0',
-                        exManual ? 'text-gray-400' : 'text-[#FC4C02]')}>
-                        {exManual ? t.manualActivityTag : 'Strava'}
-                      </span>
+                    <div key={tileKey}>
+                      <button
+                        type="button"
+                        className="w-full text-right"
+                        onClick={() => toggleExpanded(tileKey)}
+                      >
+                        <div className={cn(
+                          'rounded-2xl space-y-2 transition-all',
+                          compact ? 'p-2.5' : 'p-3.5',
+                          isExpanded ? 'ring-2 ring-[#c9a84c]/40' : '',
+                          wStatus === 'done'           ? 'bg-emerald-50/70 border border-emerald-200/60' :
+                          wStatus === 'strava-pending' ? 'bg-amber-50/50 border border-amber-200/50' :
+                          wStatus === 'skipped'        ? 'bg-red-50/50 border border-red-200/50' :
+                                                         'bg-[#0a1628]/[0.03] border border-[#0a1628]/10'
+                        )}>
+                          {/* Title + chevron */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1 text-right">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {todayTiles.length > 1 && (
+                                  <span className="w-4 h-4 rounded-full bg-[#0a1628]/10 text-[9px] font-black text-[#0a1628] flex items-center justify-center flex-shrink-0">
+                                    {tileIdx + 1}
+                                  </span>
+                                )}
+                                {sessionInfo && (
+                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-white border border-gray-200 flex-shrink-0">
+                                    {sessionInfo.emoji} {sessionInfo.label}
+                                  </span>
+                                )}
+                                <p className={cn('font-bold text-[#0a1628]', compact ? 'text-xs' : 'text-sm')}>
+                                  {w.workout?.title || 'אימון'}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                {w.workout?.type && (
+                                  <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full border',
+                                    workoutTypeColors[w.workout.type] || 'bg-gray-100 text-gray-600 border-gray-200')}>
+                                    {typeLabels[w.workout.type] || w.workout.type}
+                                  </span>
+                                )}
+                                {w.workout?.distance && (
+                                  <span className="text-[11px] text-muted-foreground">
+                                    {w.workout.distance} {t.km}
+                                  </span>
+                                )}
+                                {w.movedByAthlete && (
+                                  <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
+                                    {t.movedByAthleteTag}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              {todayStravaLog && (
+                                isManualAct ? (
+                                  <span className="flex items-center gap-1 text-[10px] font-bold text-[#0a1628] bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">
+                                    {actInfo?.emoji} {t.manualActivityTag}
+                                  </span>
+                                ) : (
+                                  <span className="flex items-center gap-1 text-[10px] font-bold text-[#FC4C02] bg-[#FC4C02]/10 border border-[#FC4C02]/20 px-2 py-0.5 rounded-full">
+                                    <Activity className="h-2.5 w-2.5" />Strava
+                                  </span>
+                                )
+                              )}
+                              <ChevronDown className={cn(
+                                'h-4 w-4 text-muted-foreground transition-transform duration-200',
+                                isExpanded && 'rotate-180'
+                              )} />
+                            </div>
+                          </div>
+
+                          {/* Compact stats (always visible) */}
+                          {effectiveLog && (wStatus === 'done' || wStatus === 'strava-pending') && (
+                            <div className="flex flex-wrap gap-1.5">
+                              {actInfo && !actInfo.hasDistance && actDuration && (
+                                <span className="text-[11px] font-semibold bg-white border border-gray-200 px-2.5 py-1 rounded-full">
+                                  {actInfo.emoji} {actDuration}
+                                </span>
+                              )}
+                              {effectiveLog.actualDistance && (
+                                <span className="text-[11px] font-semibold bg-white border border-gray-200 px-2.5 py-1 rounded-full">
+                                  {effectiveLog.actualDistance} ק"מ
+                                </span>
+                              )}
+                              {effectiveLog.actualPace && (
+                                <span className="text-[11px] font-semibold bg-white border border-gray-200 px-2.5 py-1 rounded-full">
+                                  {effectiveLog.actualPace}
+                                </span>
+                              )}
+                              {effectiveLog.effort != null && (
+                                <span className={cn(
+                                  'text-[11px] font-semibold border px-2.5 py-1 rounded-full',
+                                  effectiveLog.effort >= 8 ? 'bg-red-50 text-red-700 border-red-200' :
+                                  effectiveLog.effort >= 6 ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                                  'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                )}>
+                                  מאמץ {effectiveLog.effort}/10
+                                </span>
+                              )}
+                              {todayStravaLog?.averageHeartRate && (
+                                <span className="text-[11px] font-semibold bg-red-50 text-red-600 border border-red-200 px-2.5 py-1 rounded-full">
+                                  ♥ {todayStravaLog.averageHeartRate} bpm
+                                </span>
+                              )}
+                              {todayStravaLog?.elevationGain != null && todayStravaLog.elevationGain > 0 && (
+                                <span className="text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full">
+                                  ↑ {todayStravaLog.elevationGain}m
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          {!isExpanded && effectiveLog?.comment && (
+                            <p className="text-[11px] text-gray-500 italic truncate">
+                              "{effectiveLog.comment}"
+                            </p>
+                          )}
+
+                          {!isExpanded && (
+                            <p className="text-[10px] text-muted-foreground/60 text-left">
+                              {todayStravaLog
+                                ? 'לחץ לפרטי Strava המלאים ↓'
+                                : 'לחץ לפרטי האימון ↓'}
+                            </p>
+                          )}
+                        </div>
+                      </button>
+
+                      {/* Expanded detail for this specific workout tile */}
+                      {isExpanded && (
+                        <div className="mt-2 rounded-2xl border border-border/20 bg-[#0a1628]/[0.015] overflow-hidden">
+
+                          {/* Full Strava card */}
+                          {todayStravaLog && (
+                            <div className="px-4 py-3 space-y-2">
+                              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
+                                {isManualAct ? 'פרטי פעילות' : 'פרטי Strava'}
+                              </p>
+
+                              <div className="rounded-2xl border border-border overflow-hidden bg-white shadow-sm" dir="rtl">
+                                <div className={cn('px-4 py-3 flex items-center gap-3 border-b border-border/50',
+                                  isManualAct ? 'bg-[#0a1628]/5' : 'bg-[#FC4C02]/5')}>
+                                  <div className={cn('h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0',
+                                    isManualAct ? 'bg-[#0a1628]' : 'bg-[#FC4C02]')}>
+                                    {isManualAct
+                                      ? <span className="text-lg">{actInfo?.emoji}</span>
+                                      : <Activity className="h-5 w-5 text-white" />}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      {actInfo && (
+                                        <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full border', actInfo.badgeClass)}>
+                                          {activityLabel(actInfo.kind, true)}
+                                        </span>
+                                      )}
+                                      <p className="text-sm font-bold text-[#0a1628] truncate">{actName}</p>
+                                    </div>
+                                    <p className="text-[11px] text-muted-foreground">
+                                      {todayStravaLog.feedbackStatus === 'pending'
+                                        ? t.pendingBadge
+                                        : isManualAct ? t.manualActivityTag : 'Strava ✓'}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="px-4 py-3 grid grid-cols-2 gap-x-6 gap-y-3">
+                                  {actDuration && (
+                                    <div>
+                                      <p className="text-[10px] text-muted-foreground mb-0.5">משך</p>
+                                      <p className="text-xl font-black text-[#0a1628]">{actDuration}</p>
+                                    </div>
+                                  )}
+                                  {todayStravaLog.actualDistance != null && todayStravaLog.actualDistance !== 0 && (
+                                    <div>
+                                      <p className="text-[10px] text-muted-foreground mb-0.5">מרחק</p>
+                                      <p className="text-xl font-black text-[#0a1628]">{todayStravaLog.actualDistance} ק"מ</p>
+                                    </div>
+                                  )}
+                                  {todayStravaLog.actualPace && (
+                                    <div>
+                                      <p className="text-[10px] text-muted-foreground mb-0.5">טמפו</p>
+                                      <p className="text-xl font-black text-[#0a1628]">{todayStravaLog.actualPace}</p>
+                                    </div>
+                                  )}
+                                  {todayStravaLog.averageHeartRate && (
+                                    <div>
+                                      <p className="text-[10px] text-muted-foreground mb-0.5">דופק ממוצע</p>
+                                      <p className="text-xl font-black text-red-500">{todayStravaLog.averageHeartRate} <span className="text-sm font-semibold">bpm</span></p>
+                                    </div>
+                                  )}
+                                  {todayStravaLog.elevationGain != null && todayStravaLog.elevationGain > 0 && (
+                                    <div>
+                                      <p className="text-[10px] text-muted-foreground mb-0.5">עלייה</p>
+                                      <p className="text-xl font-black text-emerald-600">+{todayStravaLog.elevationGain}<span className="text-sm font-semibold">m</span></p>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {allSplits.length > 0 && (
+                                  <div className="border-t border-border/30">
+                                    <div className="px-4 pt-3 pb-1.5 grid grid-cols-[2.5rem_1fr_1fr_1fr_1fr] gap-x-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                                      <span>{allSplits[0]?.lapIndex ? 'Lap' : t.km}</span>
+                                      <span>{t.tempoLabel}</span>
+                                      <span>{t.timeInputLabel}</span>
+                                      <span>{t.heartRateLabel}</span>
+                                      <span>{t.elevationShort}</span>
+                                    </div>
+                                    <div className="divide-y divide-border/20">
+                                      {allSplits.map((split: any, i: number) => (
+                                        <div
+                                          key={i}
+                                          className={cn(
+                                            'px-4 py-2.5 grid grid-cols-[2.5rem_1fr_1fr_1fr_1fr] gap-x-2 items-center text-xs',
+                                            i % 2 === 0 ? 'bg-white' : 'bg-muted/10'
+                                          )}
+                                        >
+                                          <span className="w-7 h-7 rounded-full bg-[#0a1628]/8 flex items-center justify-center text-[11px] font-black text-[#0a1628]">
+                                            {split.lapIndex || i + 1}
+                                          </span>
+                                          <span className="font-bold text-[#0a1628]">
+                                            {split.pace || '—'}
+                                          </span>
+                                          <span className="text-muted-foreground">
+                                            {split.time || '—'}
+                                          </span>
+                                          <span className={split.heartRate ? 'font-semibold text-red-500' : 'text-muted-foreground/40'}>
+                                            {split.heartRate ? `${split.heartRate}` : '—'}
+                                          </span>
+                                          <span className={
+                                            split.elevationDiff == null || split.elevationDiff === 0
+                                              ? 'text-muted-foreground/40'
+                                              : split.elevationDiff > 0
+                                              ? 'font-semibold text-emerald-600'
+                                              : 'font-semibold text-red-400'
+                                          }>
+                                            {split.elevationDiff != null && split.elevationDiff !== 0
+                                              ? `${split.elevationDiff > 0 ? '+' : ''}${split.elevationDiff}m`
+                                              : '—'}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {(effectiveLog?.effort != null || effectiveLog?.comment) && (
+                                  <div className="border-t border-border/30 px-4 py-3 space-y-1.5">
+                                    <p className="text-[10px] font-semibold text-muted-foreground">משוב ספורטאי</p>
+                                    {effectiveLog.effort != null && (
+                                      <div className="flex items-center gap-2">
+                                        <span className={cn(
+                                          'w-2.5 h-2.5 rounded-full flex-shrink-0',
+                                          effectiveLog.effort <= 4 ? 'bg-emerald-400' :
+                                          effectiveLog.effort <= 6 ? 'bg-amber-400' :
+                                          effectiveLog.effort <= 7 ? 'bg-orange-400' : 'bg-red-400'
+                                        )} />
+                                        <p className="text-sm font-bold text-[#0a1628]">מאמץ {effectiveLog.effort}/10</p>
+                                      </div>
+                                    )}
+                                    {effectiveLog.comment && (
+                                      <p className="text-sm text-gray-600 italic leading-snug">
+                                        "{effectiveLog.comment}"
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Workout description + sets */}
+                          {(w.workout?.description || workoutSets.length > 0 || w.workout?.warmup || w.workout?.cooldown) && (
+                            <div className="px-4 py-3 space-y-2">
+                              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
+                                מבנה האימון
+                              </p>
+                              <div className="rounded-2xl border border-border bg-white overflow-hidden">
+                                {w.workout?.description && (
+                                  <div className="px-4 py-3 border-b border-border/40">
+                                    <p className="text-sm text-gray-700 leading-relaxed">
+                                      {w.workout.description}
+                                    </p>
+                                  </div>
+                                )}
+                                {w.workout?.warmup && (
+                                  <div className="px-4 py-2 border-b border-border/30 flex gap-3">
+                                    <span className="text-[10px] font-semibold text-muted-foreground uppercase w-14 flex-shrink-0 mt-0.5">חימום</span>
+                                    <p className="text-xs text-gray-700">{w.workout.warmup}</p>
+                                  </div>
+                                )}
+                                {workoutSets.length > 0 && workoutSets.map((set: any, si: number) => (
+                                  <div key={set.id || si} className="px-4 py-2.5 border-b border-border/30 last:border-0">
+                                    <div className="flex items-center justify-between gap-2 mb-1">
+                                      <span className="text-xs font-bold text-[#0a1628]">
+                                        {t.setLabelPrefix} {si + 1}
+                                        {set.reps > 1 ? ` · ${set.reps}×` : ''}
+                                        {set.distance ? ` ${set.distance}` : ''}
+                                        {set.duration ? ` ${set.duration}` : ''}
+                                      </span>
+                                      {set.rest && (
+                                        <span className="text-[10px] text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-full">
+                                          {t.restLabel} {set.rest}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {set.pace && (
+                                      <p className="text-[11px] text-muted-foreground">{t.tempoLabel}: {set.pace}</p>
+                                    )}
+                                    {set.notes && (
+                                      <p className="text-[11px] text-gray-500 italic">{set.notes}</p>
+                                    )}
+                                    {set.intervals && set.intervals.length > 0 && (
+                                      <div className="mt-1.5 space-y-1">
+                                        {set.intervals.map((interval: any, ii: number) => (
+                                          <div key={interval.id || ii} className="flex items-center gap-2 text-[11px] text-gray-600">
+                                            <span className="w-5 h-5 rounded-full bg-[#0a1628]/10 flex items-center justify-center text-[9px] font-bold text-[#0a1628] flex-shrink-0">
+                                              {ii + 1}
+                                            </span>
+                                            <span>{interval.distance || interval.pace || ''}</span>
+                                            {interval.rest && <span className="text-muted-foreground">· {t.restLabel} {interval.rest}</span>}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                                {w.workout?.cooldown && (
+                                  <div className="px-4 py-2 flex gap-3 border-t border-border/30">
+                                    <span className="text-[10px] font-semibold text-muted-foreground uppercase w-14 flex-shrink-0 mt-0.5">שחרור</span>
+                                    <p className="text-xs text-gray-700">{w.workout.cooldown}</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Manual log feedback (non-Strava) */}
+                          {todayLog && !todayStravaLog && todayLog.effort != null && (
+                            <div className="px-4 py-3">
+                              <ManualLogCard
+                                distance={todayLog.actualDistance}
+                                pace={todayLog.actualPace}
+                                effort={todayLog.effort}
+                                comment={todayLog.comment}
+                                splitLogs={todayLog.splitLogs}
+                              />
+                            </div>
+                          )}
+
+                          {/* Action buttons */}
+                          <div className="px-4 py-3 flex gap-2">
+                            <Link
+                              href={`/coach/athletes/${athlete.id}/planner`}
+                              className="flex-1"
+                            >
+                              <Button
+                                size="sm"
+                                className="w-full h-9 text-xs bg-[#0a1628] text-white hover:bg-[#0a1628]/90 gap-1.5"
+                              >
+                                <ExternalLink className="h-3.5 w-3.5" />
+                                תצוגת ספורטאי מלאה
+                              </Button>
+                            </Link>
+                            {w?.workoutId && (
+                              <Link href={`/coach/workouts/${w.workoutId}/edit`}>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-9 px-3 text-xs border-[#0a1628]/20 hover:border-[#0a1628]/50 gap-1.5"
+                                >
+                                  <Edit3 className="h-3.5 w-3.5" />
+                                  ערוך אימון
+                                </Button>
+                              </Link>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+
+                {/* Activities with no matching assigned workout — own compact expandable box */}
+                {unmatchedActivities.map((log: any) => {
+                  const exInfo = getActivityInfo(log)
+                  const exManual = log.source === 'manual'
+                  const exDur = formatDurationMin(log.durationMin, true)
+                  const tileKey = log.id
+                  const isExpanded = expandedTiles.has(tileKey)
+                  return (
+                    <div key={tileKey}>
+                      <button
+                        type="button"
+                        className="w-full text-right"
+                        onClick={() => toggleExpanded(tileKey)}
+                      >
+                        <div className={cn(
+                          'rounded-2xl p-3 bg-amber-50/50 border border-amber-200/50 space-y-2 transition-all',
+                          isExpanded && 'ring-2 ring-[#c9a84c]/40'
+                        )}>
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 flex-1 flex-wrap">
+                              {exManual
+                                ? <span className="text-sm">{exInfo.emoji}</span>
+                                : <Activity className="h-3.5 w-3.5 text-[#FC4C02]" />}
+                              <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full border', exInfo.badgeClass)}>
+                                {activityLabel(exInfo.kind, true)}
+                              </span>
+                              <p className="text-sm font-bold text-[#0a1628] truncate">
+                                {log.stravaName || activityLabel(exInfo.kind, true)}
+                              </p>
+                              {exManual && (
+                                <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">
+                                  {t.manualActivityTag}
+                                </span>
+                              )}
+                            </div>
+                            <ChevronDown className={cn(
+                              'h-4 w-4 text-muted-foreground transition-transform duration-200',
+                              isExpanded && 'rotate-180'
+                            )} />
+                          </div>
+                          {!isExpanded && (
+                            <div className="flex flex-wrap gap-1.5">
+                              {exInfo && !exInfo.hasDistance && exDur ? (
+                                <span className="text-[11px] font-semibold bg-white border border-gray-200 px-2.5 py-1 rounded-full">{exDur}</span>
+                              ) : null}
+                              {log.actualDistance ? (
+                                <span className="text-[11px] font-semibold bg-white border border-gray-200 px-2.5 py-1 rounded-full">{log.actualDistance} ק"מ</span>
+                              ) : null}
+                              {log.actualPace ? (
+                                <span className="text-[11px] font-semibold bg-white border border-gray-200 px-2.5 py-1 rounded-full">{log.actualPace}</span>
+                              ) : null}
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                      {isExpanded && (
+                        <div className="mt-2 rounded-2xl border border-border overflow-hidden bg-white shadow-sm" dir="rtl">
+                          <div className={cn('px-4 py-3 flex items-center gap-3 border-b border-border/50', exManual ? 'bg-[#0a1628]/5' : 'bg-[#FC4C02]/5')}>
+                            <div className={cn('h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0', exManual ? 'bg-[#0a1628]' : 'bg-[#FC4C02]')}>
+                              {exManual ? <span className="text-lg">{exInfo.emoji}</span> : <Activity className="h-5 w-5 text-white" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-bold text-[#0a1628] truncate">{log.stravaName || activityLabel(exInfo.kind, true)}</p>
+                              <p className="text-[11px] text-muted-foreground">
+                                {log.feedbackStatus === 'pending' ? t.pendingBadge : exManual ? t.manualActivityTag : 'Strava ✓'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="px-4 py-3 grid grid-cols-2 gap-x-6 gap-y-3">
+                            {exDur && (
+                              <div>
+                                <p className="text-[10px] text-muted-foreground mb-0.5">משך</p>
+                                <p className="text-xl font-black text-[#0a1628]">{exDur}</p>
+                              </div>
+                            )}
+                            {log.actualDistance != null && log.actualDistance !== 0 && (
+                              <div>
+                                <p className="text-[10px] text-muted-foreground mb-0.5">מרחק</p>
+                                <p className="text-xl font-black text-[#0a1628]">{log.actualDistance} ק"מ</p>
+                              </div>
+                            )}
+                            {log.actualPace && (
+                              <div>
+                                <p className="text-[10px] text-muted-foreground mb-0.5">טמפו</p>
+                                <p className="text-xl font-black text-[#0a1628]">{log.actualPace}</p>
+                              </div>
+                            )}
+                            {log.averageHeartRate && (
+                              <div>
+                                <p className="text-[10px] text-muted-foreground mb-0.5">דופק ממוצע</p>
+                                <p className="text-xl font-black text-red-500">{log.averageHeartRate} <span className="text-sm font-semibold">bpm</span></p>
+                              </div>
+                            )}
+                          </div>
+                          {log.effort != null && (
+                            <div className="border-t border-border/30 px-4 py-3">
+                              <p className="text-sm font-bold text-[#0a1628]">מאמץ {log.effort}/10</p>
+                              {log.comment && <p className="text-sm text-gray-600 italic leading-snug mt-1">"{log.comment}"</p>}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )
                 })}
               </div>
-
-              {/* ── EXPANDED DETAIL (athlete-view style) ── */}
-              {isExpanded && (todayWorkout || todayStravaLog) && (
-                <div className="border-t border-border/20 bg-[#0a1628]/[0.015]">
-
-                  {/* Full Strava card */}
-                  {todayStravaLog && (
-                    <div className="px-4 py-3 space-y-2">
-                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-                        {isManualAct ? 'פרטי פעילות' : 'פרטי Strava'}
-                      </p>
-
-                      <div className="rounded-2xl border border-border overflow-hidden bg-white shadow-sm" dir="rtl">
-                        {/* Header */}
-                        <div className={cn('px-4 py-3 flex items-center gap-3 border-b border-border/50',
-                          isManualAct ? 'bg-[#0a1628]/5' : 'bg-[#FC4C02]/5')}>
-                          <div className={cn('h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0',
-                            isManualAct ? 'bg-[#0a1628]' : 'bg-[#FC4C02]')}>
-                            {isManualAct
-                              ? <span className="text-lg">{actInfo?.emoji}</span>
-                              : <Activity className="h-5 w-5 text-white" />}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              {actInfo && (
-                                <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full border', actInfo.badgeClass)}>
-                                  {activityLabel(actInfo.kind, true)}
-                                </span>
-                              )}
-                              <p className="text-sm font-bold text-[#0a1628] truncate">{actName}</p>
-                            </div>
-                            <p className="text-[11px] text-muted-foreground">
-                              {todayStravaLog.feedbackStatus === 'pending'
-                                ? t.pendingBadge
-                                : isManualAct ? t.manualActivityTag : 'Strava ✓'}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Stats grid 2×2 */}
-                        <div className="px-4 py-3 grid grid-cols-2 gap-x-6 gap-y-3">
-                          {actDuration && (
-                            <div>
-                              <p className="text-[10px] text-muted-foreground mb-0.5">משך</p>
-                              <p className="text-xl font-black text-[#0a1628]">{actDuration}</p>
-                            </div>
-                          )}
-                          {todayStravaLog.actualDistance != null && todayStravaLog.actualDistance !== 0 && (
-                            <div>
-                              <p className="text-[10px] text-muted-foreground mb-0.5">מרחק</p>
-                              <p className="text-xl font-black text-[#0a1628]">{todayStravaLog.actualDistance} ק"מ</p>
-                            </div>
-                          )}
-                          {todayStravaLog.actualPace && (
-                            <div>
-                              <p className="text-[10px] text-muted-foreground mb-0.5">טמפו</p>
-                              <p className="text-xl font-black text-[#0a1628]">{todayStravaLog.actualPace}</p>
-                            </div>
-                          )}
-                          {todayStravaLog.averageHeartRate && (
-                            <div>
-                              <p className="text-[10px] text-muted-foreground mb-0.5">דופק ממוצע</p>
-                              <p className="text-xl font-black text-red-500">{todayStravaLog.averageHeartRate} <span className="text-sm font-semibold">bpm</span></p>
-                            </div>
-                          )}
-                          {todayStravaLog.elevationGain != null && todayStravaLog.elevationGain > 0 && (
-                            <div>
-                              <p className="text-[10px] text-muted-foreground mb-0.5">עלייה</p>
-                              <p className="text-xl font-black text-emerald-600">+{todayStravaLog.elevationGain}<span className="text-sm font-semibold">m</span></p>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* All splits — vertical list */}
-                        {allSplits.length > 0 && (
-                          <div className="border-t border-border/30">
-                            {/* Header row */}
-                            <div className="px-4 pt-3 pb-1.5 grid grid-cols-[2.5rem_1fr_1fr_1fr_1fr] gap-x-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-                              <span>{allSplits[0]?.lapIndex ? 'Lap' : t.km}</span>
-                              <span>{t.tempoLabel}</span>
-                              <span>{t.timeInputLabel}</span>
-                              <span>{t.heartRateLabel}</span>
-                              <span>{t.elevationShort}</span>
-                            </div>
-                            <div className="divide-y divide-border/20">
-                              {allSplits.map((split: any, i: number) => (
-                                <div
-                                  key={i}
-                                  className={cn(
-                                    'px-4 py-2.5 grid grid-cols-[2.5rem_1fr_1fr_1fr_1fr] gap-x-2 items-center text-xs',
-                                    i % 2 === 0 ? 'bg-white' : 'bg-muted/10'
-                                  )}
-                                >
-                                  <span className="w-7 h-7 rounded-full bg-[#0a1628]/8 flex items-center justify-center text-[11px] font-black text-[#0a1628]">
-                                    {split.lapIndex || i + 1}
-                                  </span>
-                                  <span className="font-bold text-[#0a1628]">
-                                    {split.pace || '—'}
-                                  </span>
-                                  <span className="text-muted-foreground">
-                                    {split.time || '—'}
-                                  </span>
-                                  <span className={split.heartRate ? 'font-semibold text-red-500' : 'text-muted-foreground/40'}>
-                                    {split.heartRate ? `${split.heartRate}` : '—'}
-                                  </span>
-                                  <span className={
-                                    split.elevationDiff == null || split.elevationDiff === 0
-                                      ? 'text-muted-foreground/40'
-                                      : split.elevationDiff > 0
-                                      ? 'font-semibold text-emerald-600'
-                                      : 'font-semibold text-red-400'
-                                  }>
-                                    {split.elevationDiff != null && split.elevationDiff !== 0
-                                      ? `${split.elevationDiff > 0 ? '+' : ''}${split.elevationDiff}m`
-                                      : '—'}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Effort + comment from athlete */}
-                        {(effectiveLog?.effort != null || effectiveLog?.comment) && (
-                          <div className="border-t border-border/30 px-4 py-3 space-y-1.5">
-                            <p className="text-[10px] font-semibold text-muted-foreground">משוב ספורטאי</p>
-                            {effectiveLog.effort != null && (
-                              <div className="flex items-center gap-2">
-                                <span className={cn(
-                                  'w-2.5 h-2.5 rounded-full flex-shrink-0',
-                                  effectiveLog.effort <= 4 ? 'bg-emerald-400' :
-                                  effectiveLog.effort <= 6 ? 'bg-amber-400' :
-                                  effectiveLog.effort <= 7 ? 'bg-orange-400' : 'bg-red-400'
-                                )} />
-                                <p className="text-sm font-bold text-[#0a1628]">מאמץ {effectiveLog.effort}/10</p>
-                              </div>
-                            )}
-                            {effectiveLog.comment && (
-                              <p className="text-sm text-gray-600 italic leading-snug">
-                                "{effectiveLog.comment}"
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Workout description + sets */}
-                  {todayWorkout && (todayWorkout.workout?.description || workoutSets.length > 0) && (
-                    <div className="px-4 py-3 space-y-2">
-                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-                        מבנה האימון
-                      </p>
-                      <div className="rounded-2xl border border-border bg-white overflow-hidden">
-                        {todayWorkout.workout?.description && (
-                          <div className="px-4 py-3 border-b border-border/40">
-                            <p className="text-sm text-gray-700 leading-relaxed">
-                              {todayWorkout.workout.description}
-                            </p>
-                          </div>
-                        )}
-                        {todayWorkout.workout?.warmup && (
-                          <div className="px-4 py-2 border-b border-border/30 flex gap-3">
-                            <span className="text-[10px] font-semibold text-muted-foreground uppercase w-14 flex-shrink-0 mt-0.5">חימום</span>
-                            <p className="text-xs text-gray-700">{todayWorkout.workout.warmup}</p>
-                          </div>
-                        )}
-                        {workoutSets.length > 0 && workoutSets.map((set: any, si: number) => (
-                          <div key={set.id || si} className="px-4 py-2.5 border-b border-border/30 last:border-0">
-                            <div className="flex items-center justify-between gap-2 mb-1">
-                              <span className="text-xs font-bold text-[#0a1628]">
-                                {t.setLabelPrefix} {si + 1}
-                                {set.reps > 1 ? ` · ${set.reps}×` : ''}
-                                {set.distance ? ` ${set.distance}` : ''}
-                                {set.duration ? ` ${set.duration}` : ''}
-                              </span>
-                              {set.rest && (
-                                <span className="text-[10px] text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-full">
-                                  {t.restLabel} {set.rest}
-                                </span>
-                              )}
-                            </div>
-                            {set.pace && (
-                              <p className="text-[11px] text-muted-foreground">{t.tempoLabel}: {set.pace}</p>
-                            )}
-                            {set.notes && (
-                              <p className="text-[11px] text-gray-500 italic">{set.notes}</p>
-                            )}
-                            {/* Sub-intervals */}
-                            {set.intervals && set.intervals.length > 0 && (
-                              <div className="mt-1.5 space-y-1">
-                                {set.intervals.map((interval: any, ii: number) => (
-                                  <div key={interval.id || ii} className="flex items-center gap-2 text-[11px] text-gray-600">
-                                    <span className="w-5 h-5 rounded-full bg-[#0a1628]/10 flex items-center justify-center text-[9px] font-bold text-[#0a1628] flex-shrink-0">
-                                      {ii + 1}
-                                    </span>
-                                    <span>{interval.distance || interval.pace || ''}</span>
-                                    {interval.rest && <span className="text-muted-foreground">· {t.restLabel} {interval.rest}</span>}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                        {todayWorkout.workout?.cooldown && (
-                          <div className="px-4 py-2 flex gap-3 border-t border-border/30">
-                            <span className="text-[10px] font-semibold text-muted-foreground uppercase w-14 flex-shrink-0 mt-0.5">שחרור</span>
-                            <p className="text-xs text-gray-700">{todayWorkout.workout.cooldown}</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Manual log feedback (non-Strava) */}
-                  {todayLog && !todayStravaLog && todayLog.effort != null && (
-                    <div className="px-4 py-3">
-                      <ManualLogCard
-                        distance={todayLog.actualDistance}
-                        pace={todayLog.actualPace}
-                        effort={todayLog.effort}
-                        comment={todayLog.comment}
-                        splitLogs={todayLog.splitLogs}
-                      />
-                    </div>
-                  )}
-
-                  {/* Action buttons */}
-                  <div className="px-4 py-3 flex gap-2">
-                    <Link
-                      href={`/coach/athletes/${athlete.id}/planner`}
-                      className="flex-1"
-                    >
-                      <Button
-                        size="sm"
-                        className="w-full h-9 text-xs bg-[#0a1628] text-white hover:bg-[#0a1628]/90 gap-1.5"
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                        תצוגת ספורטאי מלאה
-                      </Button>
-                    </Link>
-                    {todayWorkout?.workoutId && (
-                      <Link href={`/coach/workouts/${todayWorkout.workoutId}/edit`}>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-9 px-3 text-xs border-[#0a1628]/20 hover:border-[#0a1628]/50 gap-1.5"
-                        >
-                          <Edit3 className="h-3.5 w-3.5" />
-                          ערוך אימון
-                        </Button>
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              )}
 
               {/* ── DIVIDER ── */}
               <div className="mx-4 border-t border-border/20" />
@@ -965,8 +1040,8 @@ export function CoachDashboard() {
                       value={composerText[athlete.id] || ''}
                       onChange={e => setComposerText(prev => ({ ...prev, [athlete.id]: e.target.value }))}
                       placeholder={
-                        todayWorkout
-                          ? `כתוב הערה על "${todayWorkout.workout?.title || 'האימון'}"...`
+                        firstTodayWorkout
+                          ? `כתוב הערה על "${firstTodayWorkout.workout?.title || 'האימון'}"...`
                           : 'שלח הודעה לספורטאי...'
                       }
                       className="text-xs min-h-[44px] max-h-[88px] bg-white border-border/50 resize-none flex-1 rounded-2xl"
@@ -974,14 +1049,14 @@ export function CoachDashboard() {
                       onKeyDown={e => {
                         if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                           e.preventDefault()
-                          handleSendMessage(athlete.id, todayWorkout?.id)
+                          handleSendMessage(athlete.id, firstTodayWorkout?.id)
                         }
                       }}
                     />
                     <Button
                       size="sm"
                       className="h-11 w-11 p-0 bg-[#0a1628] text-white hover:bg-[#0a1628]/90 rounded-2xl flex-shrink-0"
-                      onClick={() => handleSendMessage(athlete.id, todayWorkout?.id)}
+                      onClick={() => handleSendMessage(athlete.id, firstTodayWorkout?.id)}
                       disabled={!!isSending || !composerText[athlete.id]?.trim()}
                     >
                       {isSending

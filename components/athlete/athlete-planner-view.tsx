@@ -89,6 +89,13 @@ const TYPE_DOT_COLORS: Record<string, string> = {
   bike: 'bg-indigo-400',
 }
 
+// Session labels for days with more than one workout (e.g. easy run AM, gym PM)
+const SESSION_BADGE: Record<string, { emoji: string; label: string }> = {
+  am: { emoji: '🌅', label: 'בוקר' },
+  pm: { emoji: '🌇', label: 'ערב' },
+  other: { emoji: '🕐', label: 'נוסף' },
+}
+
 interface JourneySummary {
   stageName: string; weekInStage: number; totalWeeksInStage: number
   isOffWeek: boolean; goalRaceDate: string; goalRaceEvent: string
@@ -554,7 +561,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
         for (const activity of data.activities) {
           const existing = await getDocs(query(collection(db, 'logs'), where('stravaActivityId', '==', activity.stravaActivityId), where('athleteId', '==', athleteId)))
           if (!existing.empty) continue
-          await addDoc(collection(db, 'logs'), {
+          const logRef = await addDoc(collection(db, 'logs'), {
             athleteId,
             workoutId: `strava_${activity.stravaActivityId}`,
             stravaActivityId: activity.stravaActivityId,
@@ -595,38 +602,74 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               }
             } catch {}
           })()
-          // Smart auto-complete: aggregate running distance for the day, then match
+          // Smart auto-complete: match this activity to the RIGHT workout when
+          // the day has more than one (e.g. easy run AM + gym PM) — using the
+          // workout's session (am/pm) vs. this activity's actual start time,
+          // and linking the log to that specific workout via assignedWorkoutId
+          // so the dashboard never has to guess which one it belongs to.
           try {
             const isRunAct = STRAVA_RUNNING_TYPES.includes(activity.stravaType || 'Run')
             const isGymAct = STRAVA_GYM_TYPES.includes(activity.stravaType || '')
+            const isSwimAct = activity.stravaType === 'Swim'
+            const isBikeAct = ['Ride', 'VirtualRide', 'MountainBikeRide', 'GravelRide', 'EBikeRide'].includes(activity.stravaType || '')
             const awSnap = await getDocs(query(
               collection(db, 'assignedWorkouts'),
               where('athleteId', '==', athleteId),
               where('scheduledDate', '==', activity.date)
             ))
             if (!awSnap.empty) {
-              const dateLogsSnap = await getDocs(query(
-                collection(db, 'logs'),
-                where('athleteId', '==', athleteId),
-                where('date', '==', activity.date),
-                where('source', '==', 'strava')
-              ))
-              const totalRunKm = dateLogsSnap.docs
-                .filter(d => { const t = d.data().stravaType; return !t || STRAVA_RUNNING_TYPES.includes(t) })
-                .reduce((s, d) => s + (d.data().actualDistance || 0), 0)
-              for (const aw of awSnap.docs) {
-                if (aw.data().status === 'completed') continue
+              // This activity's session, from its actual local start time
+              let activitySession: 'am' | 'pm' | null = null
+              if (activity.startTime) {
+                const hourPart = String(activity.startTime).split('T')[1]
+                const hour = hourPart ? parseInt(hourPart.split(':')[0], 10) : NaN
+                if (!isNaN(hour)) activitySession = hour < 14 ? 'am' : 'pm'
+              }
+
+              // Candidates matching this activity's discipline, not yet completed
+              const candidates = awSnap.docs.filter(aw => {
+                if (aw.data().status === 'completed') return false
                 const wType = aw.data().workout?.type || ''
                 const isStrengthW = ['strength', 'cross_training'].includes(wType)
-                const plannedDist = aw.data().workout?.distance ?? 0
+                if (isStrengthW) return isGymAct
+                if (wType === 'swim') return isSwimAct
+                if (wType === 'bike') return isBikeAct
+                return isRunAct
+              })
+
+              if (candidates.length > 0) {
+                // Prefer a same-session match; otherwise take the first candidate
+                const match = (activitySession && candidates.find(aw => aw.data().session === activitySession)) || candidates[0]
+                const wType = match.data().workout?.type || ''
+                const isStrengthW = ['strength', 'cross_training'].includes(wType)
+                const plannedDist = match.data().workout?.distance ?? 0
+
                 let shouldComplete = false
-                if (isStrengthW) { shouldComplete = isGymAct }
-                else if (wType === 'swim') { shouldComplete = activity.stravaType === 'Swim' }
-                else if (wType === 'bike') { shouldComplete = ['Ride', 'VirtualRide', 'MountainBikeRide', 'GravelRide', 'EBikeRide'].includes(activity.stravaType || '') }
-                else if (isRunAct) { shouldComplete = plannedDist === 0 || totalRunKm >= plannedDist * 0.7 }
+                if (isStrengthW || wType === 'swim' || wType === 'bike') {
+                  shouldComplete = true // discipline already confirmed via candidates filter
+                } else if (candidates.length > 1) {
+                  // Several run-type workouts today — judge this single activity
+                  // against the one it's matched to, not the day's total
+                  shouldComplete = plannedDist === 0 || activity.distanceKm >= plannedDist * 0.7
+                } else {
+                  // Only one run-type workout today — use the day's aggregate
+                  // (handles a single run split across two Strava activities)
+                  const dateLogsSnap = await getDocs(query(
+                    collection(db, 'logs'),
+                    where('athleteId', '==', athleteId),
+                    where('date', '==', activity.date),
+                    where('source', '==', 'strava')
+                  ))
+                  const totalRunKm = dateLogsSnap.docs
+                    .filter(d => { const t = d.data().stravaType; return !t || STRAVA_RUNNING_TYPES.includes(t) })
+                    .reduce((s, d) => s + (d.data().actualDistance || 0), 0)
+                  shouldComplete = plannedDist === 0 || totalRunKm >= plannedDist * 0.7
+                }
+
                 if (shouldComplete) {
-                  await updateDoc(doc(db, 'assignedWorkouts', aw.id), { status: 'completed', completedAt: serverTimestamp() })
-                  setAssignedWorkouts(prev => prev.map(w => w.id === aw.id ? { ...w, status: 'completed' } : w))
+                  await updateDoc(doc(db, 'assignedWorkouts', match.id), { status: 'completed', completedAt: serverTimestamp() })
+                  await updateDoc(logRef, { assignedWorkoutId: match.id })
+                  setAssignedWorkouts(prev => prev.map(w => w.id === match.id ? { ...w, status: 'completed' } : w))
                 }
               }
             }
@@ -1108,8 +1151,13 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
         )}>
           {/* Multi-workout index label */}
           {cardIndex != null && cardIndex > 1 && (
-            <div className="px-4 pt-2.5 pb-0">
+            <div className="px-4 pt-2.5 pb-0 flex items-center gap-1.5">
               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.workoutCardPrefix} {cardIndex}</span>
+              {w.session && SESSION_BADGE[w.session] && (
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 border border-gray-200">
+                  {SESSION_BADGE[w.session].emoji} {SESSION_BADGE[w.session].label}
+                </span>
+              )}
             </div>
           )}
 
@@ -1212,7 +1260,14 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
     return (
       <div key={w.id} className="space-y-2">
         {isMulti && (
-          <p className="text-[10px] font-bold text-[#c9a84c] uppercase tracking-widest px-1">{t.workoutCardPrefix} {idx + 1}</p>
+          <div className="flex items-center gap-1.5 px-1">
+            <p className="text-[10px] font-bold text-[#c9a84c] uppercase tracking-widest">{t.workoutCardPrefix} {idx + 1}</p>
+            {w.session && SESSION_BADGE[w.session] && (
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[#c9a84c]/15 text-[#c9a84c]">
+                {SESSION_BADGE[w.session].emoji} {SESSION_BADGE[w.session].label}
+              </span>
+            )}
+          </div>
         )}
         <div className={cn('rounded-3xl transition-all',
           isEffectivelyDone ? 'bg-gradient-to-br from-emerald-700 to-emerald-800' : 'bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85')}>
