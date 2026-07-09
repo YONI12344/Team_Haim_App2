@@ -1,6 +1,6 @@
 'use client'
 
-import { AssignedWorkout } from '@/lib/types'
+import { AssignedWorkout, setRestAfter, setRestBetweenReps } from '@/lib/types'
 import { useLanguage } from '@/contexts/language-context'
 import { cn } from '@/lib/utils'
 
@@ -27,6 +27,8 @@ export function WorkoutDetailCard({ w, showLog, log }: Props) {
       {w.workout.sets && w.workout.sets.length > 0 && (w.workout.sets as any[]).map((set: any, si: number) => {
         const hasIntervals = set.intervals && set.intervals.length > 0
         const isLast = si === (w.workout.sets as any[]).length - 1
+        const restBetweenReps = setRestBetweenReps(set)
+        const restAfterSet = setRestAfter(set)
         return (
           <div key={set.id || si} className={cn('border-r-4 border-navy', !isLast && 'border-b border-border/60')}>
             {/* Set header */}
@@ -70,10 +72,17 @@ export function WorkoutDetailCard({ w, showLog, log }: Props) {
               </div>
             )}
 
-            {/* Between-sets rest — always at the bottom of the set card */}
-            {set.rest && (
+            {/* Rest between reps of THIS set (only when reps > 1) and rest
+                before moving to the next set — two distinct lines, never
+                conflated into one ambiguous value. */}
+            {(set.reps || 1) > 1 && restBetweenReps && (
               <div className="px-5 py-2 bg-muted/30 border-t border-border/40">
-                <p className="text-[11px] text-muted-foreground text-center">{t.restBetweenSets}: {set.rest}</p>
+                <p className="text-[11px] text-muted-foreground text-center">{t.restBetweenReps}: {restBetweenReps}</p>
+              </div>
+            )}
+            {restAfterSet && (
+              <div className="px-5 py-2 bg-muted/30 border-t border-border/40">
+                <p className="text-[11px] text-muted-foreground text-center">{t.restBetweenSets}: {restAfterSet}</p>
               </div>
             )}
           </div>

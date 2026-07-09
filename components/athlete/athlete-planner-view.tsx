@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils'
 import { db } from '@/lib/firebase'
 import { collection, doc, getDoc, getDocs, query, where, updateDoc } from 'firebase/firestore'
 import type { AthleteProfile, AssignedWorkout, TrainingDayType } from '@/lib/types'
-import { sortBySession } from '@/lib/types'
+import { sortBySession, setRestAfter, setRestBetweenReps } from '@/lib/types'
 import { listJourneys, computeJourneyProgress, stageDisplayName } from '@/lib/journey'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
@@ -427,25 +427,20 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
           <p className="text-sm text-muted-foreground text-right">{t.warmupLabel}: {w.workout.warmup}</p>
         </div>
       )}
-      {/* Sets */}
+      {/* Sets — three distinct, never-ambiguous rest concepts:
+          1. restBetweenReps: shown once under THIS set, only when reps > 1
+             ("3× 2km" → "── מנוחה בין חזרות: X ──")
+          2. restAfterSet: shown as the separator BEFORE the next set
+             ("── מנוחה בין סטים: Y ──"), using THIS set's own field —
+             no more "peek at the previous set" indirection
+          3. interval.rest: already shown between each interval, unaffected */}
       {w.workout.sets && w.workout.sets.length > 0 && w.workout.sets.map((set: any, si: number) => {
         const hasIntervals = set.intervals && set.intervals.length > 0
+        const restBetweenReps = setRestBetweenReps(set)
+        const restAfterSet = setRestAfter(set)
+        const isLastSet = si === (w.workout.sets as any[]).length - 1
         return (
           <div key={set.id||si}>
-            {/* Rest between sets separator — use PREVIOUS set's rest. When the
-                previous set had reps > 1 its rest was already shown as
-                "מנוחה בין חזרות" below it, so don't repeat the same value here. */}
-            {si > 0 && (
-              <div className="flex items-center gap-3 px-4" style={{height:'28px'}}>
-                <div className="flex-1 h-px bg-border"/>
-                <span className="text-xs text-muted-foreground whitespace-nowrap">
-                  {(w.workout.sets as any[])[si - 1]?.rest && ((w.workout.sets as any[])[si - 1]?.reps || 1) <= 1
-                    ? `${t.restBetweenSets}: ${(w.workout.sets as any[])[si - 1].rest}`
-                    : t.continueToNext}
-                </span>
-                <div className="flex-1 h-px bg-border"/>
-              </div>
-            )}
             {/* Set header */}
             <div className="px-4 py-3 border-t border-border">
               <p className="text-sm font-bold text-navy text-right">
@@ -477,14 +472,24 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                 )}
               </div>
             ))}
-            {/* Rest between the reps of this set — a lone set like "3× 2 ק"מ"
-                never reaches the between-sets separator above, so its rest was
-                invisible to the athlete. Same separator-line style. */}
-            {(set.reps || 1) > 1 && set.rest && (
+            {/* Rest between the reps of THIS set — e.g. "3× 2 ק"מ" always has
+                a place to show its rest now, lone set or not. */}
+            {(set.reps || 1) > 1 && restBetweenReps && (
               <div className="flex items-center gap-3 px-4" style={{height:'28px'}}>
                 <div className="flex-1 h-px bg-border"/>
                 <span className="text-xs text-muted-foreground whitespace-nowrap">
-                  {t.restBetweenReps}: {set.rest}
+                  {t.restBetweenReps}: {restBetweenReps}
+                </span>
+                <div className="flex-1 h-px bg-border"/>
+              </div>
+            )}
+            {/* Rest before the NEXT set — this set's own restAfterSet, shown
+                only when there is a next set to transition into. */}
+            {!isLastSet && (
+              <div className="flex items-center gap-3 px-4" style={{height:'28px'}}>
+                <div className="flex-1 h-px bg-border"/>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  {restAfterSet ? `${t.restBetweenSets}: ${restAfterSet}` : t.continueToNext}
                 </span>
                 <div className="flex-1 h-px bg-border"/>
               </div>

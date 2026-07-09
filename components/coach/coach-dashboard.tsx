@@ -23,7 +23,7 @@ import { useLanguage } from '@/contexts/language-context'
 import { useWorkoutTypeLabels, workoutTypeColors } from '@/lib/workout-labels'
 import { getActivityInfo, activityLabel, formatDurationMin } from '@/lib/activity-types'
 import type { AthleteProfile, AssignedWorkout } from '@/lib/types'
-import { sortBySession } from '@/lib/types'
+import { sortBySession, setRestAfter, setRestBetweenReps } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 function mapDocToAthlete(d: QueryDocumentSnapshot<DocumentData>): AthleteProfile {
@@ -825,20 +825,30 @@ export function CoachDashboard() {
                                     <p className="text-xs text-gray-700">{w.workout.warmup}</p>
                                   </div>
                                 )}
-                                {workoutSets.length > 0 && workoutSets.map((set: any, si: number) => (
+                                {workoutSets.length > 0 && workoutSets.map((set: any, si: number) => {
+                                  const restBetweenReps = setRestBetweenReps(set)
+                                  const restAfterSet = setRestAfter(set)
+                                  return (
                                   <div key={set.id || si} className="px-4 py-2.5 border-b border-border/30 last:border-0">
-                                    <div className="flex items-center justify-between gap-2 mb-1">
+                                    <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
                                       <span className="text-xs font-bold text-[#0a1628]">
                                         {t.setLabelPrefix} {si + 1}
                                         {set.reps > 1 ? ` · ${set.reps}×` : ''}
                                         {set.distance ? ` ${set.distance}` : ''}
                                         {set.duration ? ` ${set.duration}` : ''}
                                       </span>
-                                      {set.rest && (
-                                        <span className="text-[10px] text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-full">
-                                          {t.restLabel} {set.rest}
-                                        </span>
-                                      )}
+                                      <div className="flex items-center gap-1 flex-wrap">
+                                        {(set.reps || 1) > 1 && restBetweenReps && (
+                                          <span className="text-[10px] text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-full whitespace-nowrap">
+                                            {t.restBetweenReps}: {restBetweenReps}
+                                          </span>
+                                        )}
+                                        {restAfterSet && (
+                                          <span className="text-[10px] text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-full whitespace-nowrap">
+                                            {t.restBetweenSets}: {restAfterSet}
+                                          </span>
+                                        )}
+                                      </div>
                                     </div>
                                     {set.pace && (
                                       <p className="text-[11px] text-muted-foreground">{t.tempoLabel}: {set.pace}</p>
@@ -860,7 +870,8 @@ export function CoachDashboard() {
                                       </div>
                                     )}
                                   </div>
-                                ))}
+                                  )
+                                })}
                                 {w.workout?.cooldown && (
                                   <div className="px-4 py-2 flex gap-3 border-t border-border/30">
                                     <span className="text-[10px] font-semibold text-muted-foreground uppercase w-14 flex-shrink-0 mt-0.5">שחרור</span>

@@ -161,9 +161,30 @@ export interface WorkoutSet {
   distance?: string
   duration?: string
   pace?: string
+  /** @deprecated ambiguous legacy field — read as a restAfterSet fallback for
+   *  old workouts; new workouts should set restBetweenReps/restAfterSet
+   *  instead, since "rest" meant two different things depending on context. */
   rest?: string
+  /** Rest between each repetition within this set — only meaningful when reps > 1
+   *  (e.g. "3× 2km" with 90s between each 2km). */
+  restBetweenReps?: string
+  /** Rest after finishing this whole set, before starting the next set block. */
+  restAfterSet?: string
   notes?: string
   intervals?: WorkoutInterval[]
+}
+
+/** Resolve a set's "rest after this set" value, falling back to the legacy
+ *  ambiguous `rest` field for workouts saved before the split. */
+export function setRestAfter(set: Pick<WorkoutSet, 'rest' | 'restAfterSet'>): string | undefined {
+  return set.restAfterSet || set.rest || undefined
+}
+
+/** Resolve a set's "rest between reps" value. No legacy fallback — the old
+ *  `rest` field's separator-only display meant it never represented this
+ *  case for existing data, so there's nothing safe to infer for reps>1. */
+export function setRestBetweenReps(set: Pick<WorkoutSet, 'restBetweenReps'>): string | undefined {
+  return set.restBetweenReps || undefined
 }
 
 // Assigned Workout

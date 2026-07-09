@@ -94,7 +94,14 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
           setWarmup(data.warmup || '')
           setCooldown(data.cooldown || '')
           setNotes(data.notes || '')
-          setSets(Array.isArray(data.sets) ? data.sets.map((s: any) => ({ ...s, intervals: s.intervals || [] })) : [])
+          setSets(Array.isArray(data.sets) ? data.sets.map((s: any) => ({
+            ...s,
+            // Migrate the old ambiguous "rest" field: it was only ever shown
+            // as the gap before the NEXT set, so that's what it means here.
+            restAfterSet: s.restAfterSet || s.rest || '',
+            restBetweenReps: s.restBetweenReps || '',
+            intervals: s.intervals || [],
+          })) : [])
         } else {
           toast.error('Workout not found')
           if (onDone) onDone(); else router.push('/coach/workouts')
@@ -117,7 +124,8 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
         reps: 1,
         distance: '',
         pace: '',
-        rest: '',
+        restBetweenReps: '',
+        restAfterSet: '',
         intervals: [],
       } as any,
     ])
@@ -189,7 +197,8 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
           distance: s.distance || '',
           duration: s.duration || '',
           pace: s.pace || '',
-          rest: s.rest || '',
+          restBetweenReps: s.restBetweenReps || '',
+          restAfterSet: s.restAfterSet || '',
           intervals: (s.intervals || []).map((iv: any, j: number) => ({
             id: iv.id || `int-${i}-${j}`,
             distance: iv.distance || '',
@@ -390,48 +399,62 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
                       </div>
 
                       <div className="p-4 space-y-3">
-                        {/* Reps + rest between sets */}
+                        {/* Reps + rest-between-reps (only relevant when reps > 1) */}
                         <div className="grid gap-3 grid-cols-2">
                           <div className="space-y-1">
-                            <Label className="text-xs">Repeat (reps)</Label>
+                            <Label className="text-xs">חזרות (כמה פעמים)</Label>
                             <Input
                               type="number" min="1"
-                              placeholder="e.g. 3"
+                              placeholder="לדוגמה: 3"
                               value={set.reps || ''}
                               onChange={(e) => updateSet(index, 'reps', parseInt(e.target.value) || 1)}
                             />
                           </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">Rest between sets</Label>
-                            <Input
-                              placeholder="e.g. 5 min jog"
-                              value={set.rest || ''}
-                              onChange={(e) => updateSet(index, 'rest', e.target.value)}
-                            />
-                          </div>
+                          {(set.reps || 1) > 1 && (
+                            <div className="space-y-1">
+                              <Label className="text-xs">מנוחה בין חזרות</Label>
+                              <Input
+                                placeholder="לדוגמה: 90 שנ׳"
+                                value={set.restBetweenReps || ''}
+                                onChange={(e) => updateSet(index, 'restBetweenReps', e.target.value)}
+                              />
+                            </div>
+                          )}
                         </div>
 
                         {/* Simple mode: single distance/pace */}
                         {!hasIntervals && (
                           <div className="grid gap-3 grid-cols-2">
                             <div className="space-y-1">
-                              <Label className="text-xs">Distance / Duration</Label>
+                              <Label className="text-xs">מרחק / משך</Label>
                               <Input
-                                placeholder="e.g. 1000m or 5 min"
+                                placeholder="לדוגמה: 1000 מ' או 5 דק'"
                                 value={set.distance || ''}
                                 onChange={(e) => updateSet(index, 'distance', e.target.value)}
                               />
                             </div>
                             <div className="space-y-1">
-                              <Label className="text-xs">Pace / Effort</Label>
+                              <Label className="text-xs">קצב / מאמץ</Label>
                               <Input
-                                placeholder="e.g. 4:00/km or Z4"
+                                placeholder="לדוגמה: 4:00/ק״מ או Z4"
                                 value={set.pace || ''}
                                 onChange={(e) => updateSet(index, 'pace', e.target.value)}
                               />
                             </div>
                           </div>
                         )}
+
+                        {/* Rest before moving to the next set — always relevant,
+                            distinct from rest-between-reps above (which repeats
+                            within this same set). */}
+                        <div className="space-y-1">
+                          <Label className="text-xs">מנוחה לפני הסט הבא</Label>
+                          <Input
+                            placeholder="לדוגמה: 5 דק' ריצה קלה"
+                            value={set.restAfterSet || ''}
+                            onChange={(e) => updateSet(index, 'restAfterSet', e.target.value)}
+                          />
+                        </div>
 
                         {/* Complex mode: multiple intervals */}
                         {hasIntervals && (
