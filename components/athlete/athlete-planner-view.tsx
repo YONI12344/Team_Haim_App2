@@ -432,12 +432,14 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
         const hasIntervals = set.intervals && set.intervals.length > 0
         return (
           <div key={set.id||si}>
-            {/* Rest between sets separator — use PREVIOUS set's rest */}
+            {/* Rest between sets separator — use PREVIOUS set's rest. When the
+                previous set had reps > 1 its rest was already shown as
+                "מנוחה בין חזרות" below it, so don't repeat the same value here. */}
             {si > 0 && (
               <div className="flex items-center gap-3 px-4" style={{height:'28px'}}>
                 <div className="flex-1 h-px bg-border"/>
                 <span className="text-xs text-muted-foreground whitespace-nowrap">
-                  {(w.workout.sets as any[])[si - 1]?.rest
+                  {(w.workout.sets as any[])[si - 1]?.rest && ((w.workout.sets as any[])[si - 1]?.reps || 1) <= 1
                     ? `${t.restBetweenSets}: ${(w.workout.sets as any[])[si - 1].rest}`
                     : t.continueToNext}
                 </span>
@@ -475,6 +477,18 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                 )}
               </div>
             ))}
+            {/* Rest between the reps of this set — a lone set like "3× 2 ק"מ"
+                never reaches the between-sets separator above, so its rest was
+                invisible to the athlete. Same separator-line style. */}
+            {(set.reps || 1) > 1 && set.rest && (
+              <div className="flex items-center gap-3 px-4" style={{height:'28px'}}>
+                <div className="flex-1 h-px bg-border"/>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  {t.restBetweenReps}: {set.rest}
+                </span>
+                <div className="flex-1 h-px bg-border"/>
+              </div>
+            )}
           </div>
         )
       })}
