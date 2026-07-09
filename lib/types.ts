@@ -62,6 +62,9 @@ export interface AthleteProfile {
   coachId?: string
   mutedByCoach?: boolean
   onboardingComplete?: boolean
+  // Private free-text notes — visible only to the coach, never sent to the
+  // athlete (e.g. shoe model, injury history, quirks to remember)
+  coachPrivateNotes?: string
   // Weekly training template — which type of session each day of the week
   weekSchedule?: WeekSchedule
   // First day of the calendar week for this athlete (0 = Sunday, 1 = Monday)

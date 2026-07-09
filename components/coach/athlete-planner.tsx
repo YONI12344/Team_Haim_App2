@@ -185,6 +185,7 @@ export function AthletePlanner({ athleteId }: Props) {
             weeklyKmRange: d.weeklyKmRange,
             offWeekInterval: d.offWeekInterval,
             targetPaceKm: d.targetPaceKm,
+            coachPrivateNotes: d.coachPrivateNotes || '',
             visibleWeeksAhead: typeof d.visibleWeeksAhead === 'number' ? d.visibleWeeksAhead : 2,
             weekStartDay: d.weekStartDay === 1 ? 1 : 0,
             kmWeekStartDay: d.kmWeekStartDay === 0 ? 0 : 1,
@@ -1748,6 +1749,24 @@ export function AthletePlanner({ athleteId }: Props) {
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Private coach notes — never shown to the athlete */}
+            <div className="border-t pt-3">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+                📝 הערות פרטיות <span className="normal-case font-normal">(רק אתה רואה)</span>
+              </p>
+              <Textarea
+                value={athlete?.coachPrivateNotes || ''}
+                onChange={e => setAthlete(prev => prev ? { ...prev, coachPrivateNotes: e.target.value } : prev)}
+                onBlur={async e => {
+                  const { updateDoc: ud, doc: dc } = await import('firebase/firestore')
+                  await ud(dc(db, 'users', athleteId), { coachPrivateNotes: e.target.value })
+                }}
+                placeholder="נעלי ריצה, פציעות עבר, הרגלים, מה שכדאי לזכור..."
+                className="text-xs min-h-[70px] resize-none bg-amber-50/40 border-amber-200/60"
+                dir="rtl"
+              />
             </div>
 
             {/* Training paces - editable */}
