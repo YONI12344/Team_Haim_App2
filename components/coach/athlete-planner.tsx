@@ -1136,7 +1136,7 @@ export function AthletePlanner({ athleteId }: Props) {
                               const isCompleted = w.status === 'completed' || !!matchLog?.actualDistance
                               return (
                                 <button key={w.id}
-                                  onClick={e => { e.stopPropagation(); setSelectedAssignedId(prev => prev === w.id ? null : w.id) }}
+                                  onClick={e => { e.stopPropagation(); setSelectedAssignedId(prev => prev === w.id ? null : w.id); setSelectedDate(day) }}
                                   className={cn('w-full text-left text-[10px] rounded-lg px-1.5 py-1.5 border transition-all hover:opacity-80',
                                     TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy,
                                     isCompleted ? 'opacity-70' : '',
@@ -1206,7 +1206,7 @@ export function AthletePlanner({ athleteId }: Props) {
                                     const isDone = w.status === 'completed' || !!mLog?.actualDistance
                                     return (
                                       <button key={w.id}
-                                        onClick={e => { e.stopPropagation(); setSelectedAssignedId(prev => prev === w.id ? null : w.id) }}
+                                        onClick={e => { e.stopPropagation(); setSelectedAssignedId(prev => prev === w.id ? null : w.id); if (inMonth) setSelectedDate(day) }}
                                         className={cn('w-full text-left text-[8px] rounded px-0.5 py-0.5 border truncate hover:opacity-75',
                                           TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy,
                                           isDone ? 'opacity-60' : '',
