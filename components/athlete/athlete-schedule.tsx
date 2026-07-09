@@ -24,7 +24,7 @@ import { ChevronLeft, ChevronRight, Clock, Activity, Check, X, CheckCircle2 } fr
 import { cn } from '@/lib/utils'
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { AssignedWorkout, Workout, WorkoutLog, WorkoutType } from '@/lib/types'
-import { legacyEffortToNumber } from '@/lib/types'
+import { legacyEffortToNumber, setRestBetweenReps, setRestAfter } from '@/lib/types'
 import {
   Dialog,
   DialogContent,
@@ -582,8 +582,11 @@ export function AthleteSchedule({ athleteId: propAthleteId, readOnly = false }: 
                   <div>
                     <h4 className="font-medium text-navy mb-2">{t.workoutHeading}</h4>
                     <div className="space-y-2">
-                      {(selectedWorkout.workout.sets as any[]).map((set) => {
+                      {(selectedWorkout.workout.sets as any[]).map((set, si, allSets) => {
                         const hasIntervals = set.intervals && set.intervals.length > 0
+                        const restBetweenReps = setRestBetweenReps(set)
+                        const restAfterSet = setRestAfter(set)
+                        const isLastSet = si === allSets.length - 1
                         return (
                           <div key={set.id} className="rounded-lg bg-muted/50 text-sm overflow-hidden mb-2">
                             <div className="px-3 py-2 flex items-center justify-between">
@@ -601,9 +604,16 @@ export function AthleteSchedule({ athleteId: propAthleteId, readOnly = false }: 
                                 ))}
                               </div>
                             )}
-                            {set.rest && (
+                            {(set.reps || 1) > 1 && restBetweenReps && (
                               <div className="px-3 py-1.5 bg-muted/40 border-t border-border/30 text-center">
-                                <span className="text-xs text-muted-foreground">{t.restBetweenSets}: {set.rest}</span>
+                                <span className="text-xs text-muted-foreground">{t.restBetweenReps}: {restBetweenReps}</span>
+                              </div>
+                            )}
+                            {!isLastSet && (
+                              <div className="px-3 py-1.5 bg-muted/40 border-t border-border/30 text-center">
+                                <span className="text-xs text-muted-foreground">
+                                  {restAfterSet ? `${t.restBetweenSets}: ${restAfterSet}` : t.continueToNext}
+                                </span>
                               </div>
                             )}
                           </div>
