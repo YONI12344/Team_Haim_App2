@@ -445,7 +445,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               </div>
             )}
             {/* Set header */}
-            <div className="px-4 py-3 border-t border-border flex items-center justify-between gap-2">
+            <div className="px-4 py-3 border-t border-border">
               <p className="text-sm font-bold text-navy text-right">
                 {t.setLabelPrefix} {si+1}
                 {set.reps > 1 && !hasIntervals
@@ -457,15 +457,6 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                 }
                 {hasIntervals && set.reps > 1 && <span className="font-normal text-muted-foreground"> · {set.reps}×</span>}
               </p>
-              {/* Rest set on this set (top-level "rest" field in the builder,
-                  entered regardless of whether the set also has sub-intervals)
-                  — was only shown via the between-different-sets separator
-                  before, so it never appeared here at all */}
-              {set.rest && (
-                <span className="text-[10px] text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-full flex-shrink-0 whitespace-nowrap">
-                  {t.restLabel} {set.rest}
-                </span>
-              )}
             </div>
             {/* Intervals */}
             {hasIntervals && set.intervals.map((iv: any, ii: number) => (
