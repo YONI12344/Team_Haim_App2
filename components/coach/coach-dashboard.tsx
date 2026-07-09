@@ -533,7 +533,8 @@ export function CoachDashboard() {
                     w.status === 'completed' && todayStravaLog?.feedbackStatus === 'pending' ? 'strava-pending' :
                     w.status === 'completed' ? 'done' :
                     w.status === 'skipped' ? 'skipped' : 'scheduled'
-                  const sessionInfo = w.session ? SESSION_BADGE[w.session] : null
+                  // Only show AM/PM when it's actually meaningful (2+ workouts today)
+                  const sessionInfo = todayTiles.length > 1 && w.session ? SESSION_BADGE[w.session] : null
 
                   return (
                     <div key={tileKey}>

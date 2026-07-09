@@ -488,6 +488,10 @@ export function AthletePlanner({ athleteId }: Props) {
   /** Assign an existing library workout to a specific date (used by the quick-assign sheet) */
   const assignWorkoutToDate = async (workout: Workout, dateStr: string, session?: 'am' | 'pm' | 'other') => {
     if (!user) return
+    // Session only matters once the day ends up with more than one workout —
+    // a lone workout can happen any time, no need to tag it AM/PM
+    const willBeMultiWorkoutDay = assignedWorkouts.some(w => w.scheduledDate === dateStr)
+    const finalSession = willBeMultiWorkoutDay ? session : undefined
     const ref = await addDoc(collection(db, 'assignedWorkouts'), {
       workoutId: workout.id,
       workout,
@@ -495,13 +499,13 @@ export function AthletePlanner({ athleteId }: Props) {
       assignedBy: user.id || null,
       scheduledDate: dateStr,
       status: 'scheduled',
-      session: session || null,
+      session: finalSession || null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     })
     setAssignedWorkouts(prev => [...prev, {
       id: ref.id, workoutId: workout.id, workout, athleteId,
-      assignedBy: user.id || '', scheduledDate: dateStr, status: 'scheduled', session,
+      assignedBy: user.id || '', scheduledDate: dateStr, status: 'scheduled', session: finalSession,
       createdAt: new Date(), updatedAt: new Date(),
     } as AssignedWorkout])
   }
@@ -1869,19 +1873,22 @@ export function AthletePlanner({ athleteId }: Props) {
                             </div>
                             {w.workout?.distance && <p className="text-[10px] opacity-70">{w.workout.distance} ק"מ</p>}
                           </div>
-                          <select
-                            value={w.session || ''}
-                            onChange={async e => {
-                              const v = (e.target.value || null) as 'am' | 'pm' | 'other' | null
-                              await updateDoc(doc(db, 'assignedWorkouts', w.id), { session: v })
-                              setAssignedWorkouts(prev => prev.map(x => x.id === w.id ? { ...x, session: v ?? undefined } : x))
-                            }}
-                            className="h-6 text-[10px] rounded-full border border-black/10 bg-white/80 px-1 font-semibold flex-shrink-0">
-                            <option value="">—</option>
-                            <option value="am">🌅 בוקר</option>
-                            <option value="pm">🌇 ערב</option>
-                            <option value="other">🕐 נוסף</option>
-                          </select>
+                          {/* Session only matters once there's more than one workout that day */}
+                          {existingWs.length > 1 && (
+                            <select
+                              value={w.session || ''}
+                              onChange={async e => {
+                                const v = (e.target.value || null) as 'am' | 'pm' | 'other' | null
+                                await updateDoc(doc(db, 'assignedWorkouts', w.id), { session: v })
+                                setAssignedWorkouts(prev => prev.map(x => x.id === w.id ? { ...x, session: v ?? undefined } : x))
+                              }}
+                              className="h-6 text-[10px] rounded-full border border-black/10 bg-white/80 px-1 font-semibold flex-shrink-0">
+                              <option value="">—</option>
+                              <option value="am">🌅 בוקר</option>
+                              <option value="pm">🌇 ערב</option>
+                              <option value="other">🕐 נוסף</option>
+                            </select>
+                          )}
                           <button
                             onClick={() => { setBuilderWorkoutId(w.workoutId); setEditingAssignedId(w.id); setQuickAssignDate(null); setShowBuilderDialog(true) }}
                             className="text-[10px] font-semibold bg-white/70 border border-black/10 rounded-full px-2 py-0.5 flex-shrink-0">
@@ -1895,19 +1902,22 @@ export function AthletePlanner({ athleteId }: Props) {
                   </div>
                 )}
 
-                {/* Session for the NEW workout being added */}
-                <div>
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">מתי ביום (לאימון החדש)</p>
-                  <div className="flex gap-1.5">
-                    {(['am', 'pm', 'other'] as const).map(s => (
-                      <button key={s} onClick={() => setQaSession(s)}
-                        className={cn('flex-1 text-xs font-semibold px-2 py-1.5 rounded-xl border transition-all active:scale-95',
-                          qaSession === s ? 'bg-navy text-white border-navy' : 'bg-white text-gray-500 border-border')}>
-                        {SESSION_LABELS[s].emoji} {SESSION_LABELS[s].label}
-                      </button>
-                    ))}
+                {/* Session for the NEW workout — only relevant once the day has
+                    more than one workout; a single workout can happen anytime */}
+                {existingWs.length > 0 && (
+                  <div>
+                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">מתי ביום (לאימון החדש)</p>
+                    <div className="flex gap-1.5">
+                      {(['am', 'pm', 'other'] as const).map(s => (
+                        <button key={s} onClick={() => setQaSession(s)}
+                          className={cn('flex-1 text-xs font-semibold px-2 py-1.5 rounded-xl border transition-all active:scale-95',
+                            qaSession === s ? 'bg-navy text-white border-navy' : 'bg-white text-gray-500 border-border')}>
+                          {SESSION_LABELS[s].emoji} {SESSION_LABELS[s].label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Type chips — tap a type to browse that part of the library */}
                 <div>
