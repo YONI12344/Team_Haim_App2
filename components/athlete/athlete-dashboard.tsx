@@ -430,7 +430,6 @@ export function AthleteDashboard() {
 
       {/* Hero Section — navy gradient (green when done), greeting + today workout */}
       {(() => {
-        const mainTw = todayWorkouts[0] || null
         const allDone = todayWorkouts.length > 0 && todayWorkouts.every(w => w.status === 'completed')
         return (
           <div className={cn('rounded-3xl p-6 transition-all',
@@ -445,8 +444,8 @@ export function AthleteDashboard() {
 
             {todayWorkouts.length > 0 ? (
               <>
-                {todayWorkouts.slice(0, 1).map((tw) => (
-                  <div key={tw.id}>
+                {todayWorkouts.map((tw, i) => (
+                  <div key={tw.id} className={i > 0 ? 'mt-4 pt-4 border-t border-white/10' : undefined}>
                     <p className="text-2xl font-bold text-white leading-tight mt-2 mb-3">{tw.workout.title}</p>
                     <div className="flex items-center gap-2 flex-wrap mb-4">
                       <span className={cn('rounded-full px-3 py-1 text-xs font-bold',
@@ -463,9 +462,6 @@ export function AthleteDashboard() {
                     </Link>
                   </div>
                 ))}
-                {todayWorkouts.length > 1 && (
-                  <p className="text-xs text-white/40 text-center mt-2">+{todayWorkouts.length - 1} {t.moreWorkoutsSuffix}</p>
-                )}
               </>
             ) : (
               <div className="mt-2">

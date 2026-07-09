@@ -9,9 +9,8 @@ import {
   format, 
   startOfWeek, 
   endOfWeek, 
-  eachDayOfInterval, 
-  isSameDay, 
-  addWeeks, 
+  eachDayOfInterval,
+  addWeeks,
   subWeeks,
   startOfMonth,
   endOfMonth,
@@ -214,9 +213,8 @@ export function AthleteSchedule({ athleteId: propAthleteId, readOnly = false }: 
   }
 
   const getWorkoutsForDate = (date: Date): AssignedWorkout[] => {
-    return assigned.filter(w => 
-      w.scheduledDate && isSameDay(parseISO(w.scheduledDate), date)
-    )
+    const key = format(date, 'yyyy-MM-dd')
+    return assigned.filter(w => w.scheduledDate && w.scheduledDate.slice(0, 10) === key)
   }
 
   // Week view dates
