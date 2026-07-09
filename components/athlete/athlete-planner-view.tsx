@@ -457,10 +457,11 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                 }
                 {hasIntervals && set.reps > 1 && <span className="font-normal text-muted-foreground"> · {set.reps}×</span>}
               </p>
-              {/* Rest within/after this set — was only shown between different
-                  set blocks before, so it never appeared for the common
-                  "reps>1, no sub-intervals" case (e.g. 6×800m rest 90s) */}
-              {!hasIntervals && set.rest && (
+              {/* Rest set on this set (top-level "rest" field in the builder,
+                  entered regardless of whether the set also has sub-intervals)
+                  — was only shown via the between-different-sets separator
+                  before, so it never appeared here at all */}
+              {set.rest && (
                 <span className="text-[10px] text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-full flex-shrink-0 whitespace-nowrap">
                   {t.restLabel} {set.rest}
                 </span>

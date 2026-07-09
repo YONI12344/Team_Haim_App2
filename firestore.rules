@@ -97,5 +97,23 @@ service cloud.firestore {
             && request.resource.data.diff(resource.data).affectedKeys()
                .hasOnly(['read', 'readAt']));
     }
+
+    // Push notification tokens — doc id is the user's own uid. Every
+    // athlete and the coach write their own token here when enabling
+    // notifications; there was no rule for this collection at all before,
+    // so every registration was silently denied (default-deny) and no one
+    // could receive pushes.
+    match /fcmTokens/{userId} {
+      allow read, write: if isSelf(userId) || isCoach();
+    }
+
+    // Scheduled reminder notifications (morning/evening cron jobs etc.)
+    match /scheduledNotifications/{docId} {
+      allow read: if request.auth != null
+        && (isCoach() || resource.data.userId == request.auth.uid);
+      allow create: if request.auth != null
+        && (isCoach() || request.resource.data.userId == request.auth.uid);
+      allow update, delete: if isCoach();
+    }
   }
 }
