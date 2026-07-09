@@ -420,7 +420,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
   )
 
   const renderWorkoutDetail = (w: AssignedWorkout) => (
-    <div className="rounded-2xl overflow-hidden border border-gray-100 bg-white">
+    <div className="rounded-2xl overflow-hidden border border-gray-100 bg-white" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Warmup */}
       {w.workout.warmup && (
         <div className="px-4 py-3 border-b border-border">
