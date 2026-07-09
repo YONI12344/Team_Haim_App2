@@ -15,6 +15,20 @@ export function useNotifications() {
 
     if ('Notification' in window) {
       setPermission(Notification.permission)
+
+      // Self-heal: if the browser permission was already granted in the
+      // past (the common case — most people already said yes once), the
+      // "enable notifications" banner never shows again since it's gated
+      // on permission === 'default'. That left no way to recover from the
+      // Firestore token write silently failing (e.g. the fcmTokens rules
+      // gap). Re-registering here is a safe no-op from the user's POV —
+      // Notification.requestPermission() resolves immediately with
+      // 'granted' and shows no prompt — but it re-fetches the FCM token
+      // and re-writes it to Firestore, quietly fixing a missing/stale
+      // token without requiring the user to do anything.
+      if (Notification.permission === 'granted') {
+        requestNotificationPermission(user.id).catch(() => {})
+      }
     }
 
     const unsubscribe = listenForForegroundMessages((payload) => {
