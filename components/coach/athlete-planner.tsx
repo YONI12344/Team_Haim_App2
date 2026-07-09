@@ -29,6 +29,7 @@ import {
   where, addDoc, serverTimestamp, deleteDoc, updateDoc,
 } from 'firebase/firestore'
 import type { AthleteProfile, Workout, AssignedWorkout, TrainingDayType, WorkoutLog, WorkoutType, JourneyDoc, JourneyStage } from '@/lib/types'
+import { sortBySession } from '@/lib/types'
 import { legacyEffortToNumber } from '@/lib/types'
 import { listJourneys, computeJourneyProgress, saveJourney, stageDisplayName } from '@/lib/journey'
 import { useAuth } from '@/contexts/auth-context'
@@ -332,7 +333,7 @@ export function AthletePlanner({ athleteId }: Props) {
 
   const getWorkoutsForDay = useCallback((date: Date) => {
     const s = format(date, 'yyyy-MM-dd')
-    return assignedWorkouts.filter(w => w.scheduledDate === s)
+    return sortBySession(assignedWorkouts.filter(w => w.scheduledDate === s))
   }, [assignedWorkouts])
 
   const getWeekKm = useCallback((week: Date[]) =>
@@ -608,7 +609,7 @@ export function AthletePlanner({ athleteId }: Props) {
   }
 
   const getWorkoutsForDate2 = useCallback((dateStr: string) =>
-    assignedWorkouts.filter(w => w.scheduledDate === dateStr)
+    sortBySession(assignedWorkouts.filter(w => w.scheduledDate === dateStr))
   , [assignedWorkouts])
 
   const getWeekKm2 = useCallback((days: Date[]) =>

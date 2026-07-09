@@ -315,3 +315,13 @@ export function legacyEffortToNumber(
   if (v === 'hard') return 9
   return 5
 }
+
+/** Sort order for same-day workouts: morning before evening before unspecified/other. */
+const SESSION_SORT_ORDER: Record<string, number> = { am: 0, pm: 1, other: 2 }
+
+/** Sort a same-day list of assigned workouts so morning always comes before evening. */
+export function sortBySession<T extends { session?: 'am' | 'pm' | 'other' }>(workouts: T[]): T[] {
+  return [...workouts].sort((a, b) =>
+    (a.session ? SESSION_SORT_ORDER[a.session] : 1.5) - (b.session ? SESSION_SORT_ORDER[b.session] : 1.5)
+  )
+}

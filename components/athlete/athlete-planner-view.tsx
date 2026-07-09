@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils'
 import { db } from '@/lib/firebase'
 import { collection, doc, getDoc, getDocs, query, where, updateDoc } from 'firebase/firestore'
 import type { AthleteProfile, AssignedWorkout, TrainingDayType } from '@/lib/types'
+import { sortBySession } from '@/lib/types'
 import { listJourneys, computeJourneyProgress, stageDisplayName } from '@/lib/journey'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
@@ -341,7 +342,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
   const monthWeeks = useMemo(() => eachWeekOfInterval({ start: monthStart, end: monthEnd }, { weekStartsOn: calWeekStartsOn }), [currentDate, calWeekStartsOn])
 
   const getWorkoutsForDate = useCallback((dateStr: string) =>
-    assignedWorkouts.filter(w => w.scheduledDate === dateStr)
+    sortBySession(assignedWorkouts.filter(w => w.scheduledDate === dateStr))
   , [assignedWorkouts])
 
   const getWorkoutsForDay = useCallback((date: Date) =>

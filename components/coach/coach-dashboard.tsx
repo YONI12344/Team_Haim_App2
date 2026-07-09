@@ -23,6 +23,7 @@ import { useLanguage } from '@/contexts/language-context'
 import { useWorkoutTypeLabels, workoutTypeColors } from '@/lib/workout-labels'
 import { getActivityInfo, activityLabel, formatDurationMin } from '@/lib/activity-types'
 import type { AthleteProfile, AssignedWorkout } from '@/lib/types'
+import { sortBySession } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 function mapDocToAthlete(d: QueryDocumentSnapshot<DocumentData>): AthleteProfile {
@@ -244,10 +245,7 @@ export function CoachDashboard() {
 
     // All of today's assigned workouts (there can be several — e.g. easy run
     // AM + gym PM), ordered morning → evening → unspecified
-    const sessionOrder: Record<string, number> = { am: 0, pm: 1, other: 2 }
-    const todayWorkoutsAll = athleteAssignedWorkouts
-      .filter(w => w.scheduledDate === todayStr)
-      .sort((a, b) => (a.session ? sessionOrder[a.session] : 1.5) - (b.session ? sessionOrder[b.session] : 1.5))
+    const todayWorkoutsAll = sortBySession(athleteAssignedWorkouts.filter(w => w.scheduledDate === todayStr))
 
     /** The log matched to a specific workout — prefers the explicit link
      *  (assignedWorkoutId, set correctly even for multi-workout days by the
