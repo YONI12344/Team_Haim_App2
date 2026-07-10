@@ -86,9 +86,8 @@ function NewAthleteRedirect() {
 
 export function AthleteDashboard() {
   const router = useRouter()
-  const { permission, enableNotifications, sendTestNotification } = useNotifications()
+  const { permission, enableNotifications } = useNotifications()
   const [notifBannerDismissed, setNotifBannerDismissed] = useState(false)
-  const [testingNotif, setTestingNotif] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle')
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -417,44 +416,6 @@ export function AthleteDashboard() {
             className="bg-[#0a1628] text-white rounded-xl px-4 h-9 text-sm font-semibold flex-shrink-0 active:scale-95 transition-transform"
           >
             {t.enableBtn}
-          </button>
-          <button
-            onClick={() => {
-              localStorage.setItem('notifBannerDismissed', '1')
-              setNotifBannerDismissed(true)
-            }}
-            className="text-gray-400 hover:text-gray-600 flex-shrink-0"
-            aria-label={t.close}
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      )}
-
-      {/* Test notification — confirms push actually reaches this device */}
-      {permission === 'granted' && !notifBannerDismissed && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#0a1628]/5 flex items-center justify-center flex-shrink-0">
-            <Bell className="h-5 w-5 text-[#0a1628]" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-[#0a1628] leading-tight">בדיקת התראות</p>
-            <p className="text-xs text-gray-500 mt-0.5">
-              {testingNotif === 'sent' ? 'נשלח — אמור להגיע תוך כמה שניות'
-                : testingNotif === 'failed' ? 'השליחה נכשלה — נסה לרענן את הדף'
-                : 'שלח לעצמך התראת בדיקה כדי לוודא שזה עובד'}
-            </p>
-          </div>
-          <button
-            onClick={async () => {
-              setTestingNotif('sending')
-              const ok = await sendTestNotification()
-              setTestingNotif(ok ? 'sent' : 'failed')
-            }}
-            disabled={testingNotif === 'sending'}
-            className="bg-[#0a1628] text-white rounded-xl px-4 h-9 text-sm font-semibold flex-shrink-0 active:scale-95 transition-transform disabled:opacity-50"
-          >
-            {testingNotif === 'sending' ? <Loader2 className="h-4 w-4 animate-spin" /> : 'שלח בדיקה'}
           </button>
           <button
             onClick={() => {

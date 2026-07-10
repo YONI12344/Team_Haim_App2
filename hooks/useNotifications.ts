@@ -52,29 +52,5 @@ export function useNotifications() {
     }
   }
 
-  /** Sends a real push to this same logged-in user, end to end through the
-   *  production API — the same path every other notification uses — so a
-   *  user can confirm for themselves that push actually reaches their
-   *  device, without anyone needing to inspect tokens or wait for a cron. */
-  const sendTestNotification = async (): Promise<boolean> => {
-    if (!user?.id) return false
-    try {
-      const res = await fetch('/api/send-notification', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user.id,
-          title: 'בדיקת התראות',
-          body: 'אם ההתראה הזו הגיעה — ההתראות עובדות ✓',
-          data: { type: 'test' },
-          url: '/',
-        }),
-      })
-      return res.ok
-    } catch {
-      return false
-    }
-  }
-
-  return { permission, token, enableNotifications, sendTestNotification }
+  return { permission, token, enableNotifications }
 }
