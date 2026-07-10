@@ -56,6 +56,7 @@ export async function GET(request: NextRequest) {
 
     const results: string[] = []
     const missedAlerts: string[] = []
+    const debug: any[] = []
     for (const athleteId of athleteIds) {
       const userDoc = await fsGetDoc('users', athleteId, accessToken)
       const tz: string = userDoc?.timezone || 'Asia/Jerusalem'
@@ -66,6 +67,14 @@ export async function GET(request: NextRequest) {
       if (!forceTest && (hour < 7 || hour > 9)) continue
 
       const today = localDate(tz)
+      if (forceTest) {
+        debug.push({
+          athleteId,
+          tz,
+          today,
+          scheduledDates: workouts.filter((w) => w.data.athleteId === athleteId).map((w) => w.data.scheduledDate),
+        })
+      }
 
       // Coach alert: did the athlete leave yesterday's workout unfinished
       // with nothing logged? (skipped explicitly is not alerted — that's
@@ -102,9 +111,11 @@ export async function GET(request: NextRequest) {
       const todayWorkout = workouts.find(
         (w) => w.data.athleteId === athleteId && w.data.scheduledDate === today,
       )
+      if (forceTest) debug[debug.length - 1].hasTodayWorkout = !!todayWorkout
       if (!todayWorkout) continue
 
       const tokenDoc = await fsGetDoc('fcmTokens', athleteId, accessToken)
+      if (forceTest) debug[debug.length - 1].hasToken = !!tokenDoc?.token
       if (!tokenDoc?.token) continue
 
       const title = todayWorkout.data.workout?.title || 'אימון'
@@ -124,7 +135,12 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ sent: results.length, athletes: results, missedAlerts: missedAlerts.length })
+    return NextResponse.json({
+      sent: results.length,
+      athletes: results,
+      missedAlerts: missedAlerts.length,
+      ...(forceTest ? { debug } : {}),
+    })
   } catch (error) {
     console.error('Morning reminders error:', error)
     return NextResponse.json({ error: String(error) }, { status: 500 })
