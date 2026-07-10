@@ -78,7 +78,7 @@ export function AthleteOnboarding() {
     const params = new URLSearchParams({
       client_id: '255142',
       response_type: 'code',
-      redirect_uri: 'https://team-haim-app2.vercel.app/api/strava/callback',
+      redirect_uri: 'https://app.teamhaim.com/api/strava/callback',
       scope: 'read,activity:read_all',
       approval_prompt: 'force',
     })
