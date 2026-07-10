@@ -35,28 +35,14 @@ function localYesterday(timezone: string): string {
 
 export async function GET(request: NextRequest) {
   try {
-    // TEMPORARY: manual test trigger to confirm the reminder fires
-    // end-to-end without waiting for the 7-9am window. Remove after
-    // confirming — see conversation dated 2026-07-10.
-    const forceTest = request.nextUrl.searchParams.get('forceTest') === '1'
-    // Scope a forceTest run to one account so repeated testing doesn't
-    // re-fire real alerts (missed-workout, reminders) at every other
-    // athlete and the coach each time.
-    const onlyEmail = request.nextUrl.searchParams.get('onlyEmail')
-
     const accessToken = await getGoogleAccessToken()
 
     const workouts = await fsQuery('assignedWorkouts', [], accessToken)
     const logs = await fsQuery('logs', [], accessToken)
 
-    let athleteIds = new Set(
+    const athleteIds = new Set(
       workouts.map((w) => w.data.athleteId as string).filter(Boolean),
     )
-
-    if (forceTest && onlyEmail) {
-      const rows = await fsQuery('users', [{ field: 'email', op: 'EQUAL', value: onlyEmail }], accessToken)
-      athleteIds = new Set(rows[0] ? [rows[0].id] : [])
-    }
 
     // The single coach account — fetched once, reused for every missed-workout alert below
     const coachRows = await fsQuery('users', [{ field: 'email', op: 'EQUAL', value: 'info.teamhaim@gmail.com' }], accessToken)
@@ -65,7 +51,6 @@ export async function GET(request: NextRequest) {
 
     const results: string[] = []
     const missedAlerts: string[] = []
-    const debug: any[] = []
     for (const athleteId of athleteIds) {
       const userDoc = await fsGetDoc('users', athleteId, accessToken)
       const tz: string = userDoc?.timezone || 'Asia/Jerusalem'
@@ -73,18 +58,9 @@ export async function GET(request: NextRequest) {
       // Send if athlete's local time is between 7–9 AM
       // Two crons cover different regions: eu runs at 05:00 UTC, us at 13:00 UTC
       const hour = localHour(tz)
-      if (!forceTest && (hour < 7 || hour > 9)) continue
+      if (hour < 7 || hour > 9) continue
 
       const today = localDate(tz)
-      if (forceTest) {
-        debug.push({
-          athleteId,
-          email: userDoc?.email,
-          tz,
-          today,
-          scheduledDates: workouts.filter((w) => w.data.athleteId === athleteId).map((w) => w.data.scheduledDate),
-        })
-      }
 
       // Coach alert: did the athlete leave yesterday's workout unfinished
       // with nothing logged? (skipped explicitly is not alerted — that's
@@ -121,11 +97,9 @@ export async function GET(request: NextRequest) {
       const todayWorkout = workouts.find(
         (w) => w.data.athleteId === athleteId && w.data.scheduledDate === today,
       )
-      if (forceTest) debug[debug.length - 1].hasTodayWorkout = !!todayWorkout
       if (!todayWorkout) continue
 
       const tokenDoc = await fsGetDoc('fcmTokens', athleteId, accessToken)
-      if (forceTest) debug[debug.length - 1].hasToken = !!tokenDoc?.token
       if (!tokenDoc?.token) continue
 
       const title = todayWorkout.data.workout?.title || 'אימון'
@@ -145,12 +119,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
-      sent: results.length,
-      athletes: results,
-      missedAlerts: missedAlerts.length,
-      ...(forceTest ? { debug } : {}),
-    })
+    return NextResponse.json({ sent: results.length, athletes: results, missedAlerts: missedAlerts.length })
   } catch (error) {
     console.error('Morning reminders error:', error)
     return NextResponse.json({ error: String(error) }, { status: 500 })
