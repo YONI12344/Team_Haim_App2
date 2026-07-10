@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   ArrowLeft, ChevronLeft, ChevronRight, Plus, X,
   Loader2, Clock, Check, Calendar, Search, Copy, Pencil, Trash2, ClipboardPaste,
-  BarChart2, Sparkles, Send,
+  BarChart2, Sparkles, Send, FlaskConical,
 } from 'lucide-react'
 import Link from 'next/link'
 import {
@@ -34,6 +34,7 @@ import { legacyEffortToNumber } from '@/lib/types'
 import { listJourneys, computeJourneyProgress, saveJourney, stageDisplayName } from '@/lib/journey'
 import { useAuth } from '@/contexts/auth-context'
 import { useWorkoutTypeLabels, autoWorkoutTitle } from '@/lib/workout-labels'
+import { secToPace } from '@/lib/physiology'
 import { WorkoutBuilder } from '@/components/coach/workout-builder'
 import { AthletePlannerView } from '@/components/athlete/athlete-planner-view'
 import { useLanguage } from '@/contexts/language-context'
@@ -186,6 +187,7 @@ export function AthletePlanner({ athleteId }: Props) {
             weeklyKmRange: d.weeklyKmRange,
             offWeekInterval: d.offWeekInterval,
             targetPaceKm: d.targetPaceKm,
+            physiology: d.physiology,
             coachPrivateNotes: d.coachPrivateNotes || '',
             visibleWeeksAhead: typeof d.visibleWeeksAhead === 'number' ? d.visibleWeeksAhead : 2,
             weekStartDay: d.weekStartDay === 1 ? 1 : 0,
@@ -1539,7 +1541,7 @@ export function AthletePlanner({ athleteId }: Props) {
       </Dialog>
 
       {/* Right sidebar */}
-      <div className="w-full lg:w-72 lg:flex-shrink-0 space-y-4">
+      <div className="w-full lg:w-80 lg:flex-shrink-0 space-y-4">
 
         {/* Assign workout panel */}
         <Card className="lg:sticky lg:top-4">
@@ -1583,6 +1585,51 @@ export function AthletePlanner({ athleteId }: Props) {
           </CardContent>
         </Card>
 
+        {/* Lab summary — thresholds at a glance; full test entry lives in the Lab tab */}
+        <Card>
+          <CardHeader className="pb-2 pt-4 px-4">
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-sm flex items-center gap-1.5">
+                <FlaskConical className="h-4 w-4 text-gold"/>
+                ספים מהמעבדה
+              </CardTitle>
+              <Link href={`/coach/athletes/${athleteId}/planner?tab=lab`}
+                className="text-[11px] font-semibold text-gold hover:underline underline-offset-2 flex-shrink-0">
+                {athlete?.physiology?.lt2PaceSec ? 'בדיקה חדשה ←' : 'הוסף בדיקה ←'}
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            {athlete?.physiology?.lt2PaceSec ? (
+              <>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-2.5 text-center">
+                    <p className="text-[10px] text-muted-foreground mb-0.5">T1 · אירובי</p>
+                    <p className="text-lg font-black text-emerald-700" dir="ltr">{secToPace(athlete.physiology.lt1PaceSec)}</p>
+                  </div>
+                  <div className="rounded-xl bg-amber-50 border border-amber-100 p-2.5 text-center">
+                    <p className="text-[10px] text-muted-foreground mb-0.5">T2 · אנאירובי</p>
+                    <p className="text-lg font-black text-amber-700" dir="ltr">{secToPace(athlete.physiology.lt2PaceSec)}</p>
+                  </div>
+                  <div className="rounded-xl bg-navy/5 border border-navy/10 p-2.5 text-center">
+                    <p className="text-[10px] text-muted-foreground mb-0.5">VO2max</p>
+                    <p className="text-lg font-black text-navy">{athlete.physiology.vo2maxEst ?? '—'}</p>
+                  </div>
+                </div>
+                <p className="text-[10px] text-muted-foreground text-center mt-2">
+                  {athlete.physiology.source === 'test'
+                    ? `מבדיקת לקטט ${athlete.physiology.testDate ? format(new Date(athlete.physiology.testDate), 'd/M/yy') : ''}`
+                    : 'הערכה ידנית'}
+                </p>
+              </>
+            ) : (
+              <p className="text-xs text-muted-foreground text-center py-2">
+                אין עדיין נתוני מעבדה — הוסף בדיקת לקטט כדי לראות ספי T1/T2
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Athlete data */}
         <Card>
           <CardHeader className="pb-2 pt-4 px-4">
@@ -1603,7 +1650,7 @@ export function AthletePlanner({ athleteId }: Props) {
                       const { updateDoc: ud, doc: dc } = await import('firebase/firestore')
                       await ud(dc(db, 'users', athleteId), { weekStartDay: v })
                     }}
-                    className="h-7 text-xs rounded-lg border border-border bg-white px-1.5 font-semibold text-navy">
+                    className="h-8 text-xs rounded-lg border border-border bg-white px-1.5 font-semibold text-navy">
                     <option value={0}>ראשון</option>
                     <option value={1}>שני</option>
                   </select>
@@ -1619,7 +1666,7 @@ export function AthletePlanner({ athleteId }: Props) {
                       await ud(dc(db, 'users', athleteId), { visibleWeeksAhead: v })
                       toast.success(v === 0 ? 'הספורטאי רואה את כל התכנית' : `הספורטאי רואה ${v} שבועות קדימה (מתגלגל בשבת)`)
                     }}
-                    className="h-7 text-xs rounded-lg border border-border bg-white px-1.5 font-semibold text-navy">
+                    className="h-8 text-xs rounded-lg border border-border bg-white px-1.5 font-semibold text-navy">
                     <option value={2}>2 שבועות</option>
                     <option value={3}>3 שבועות</option>
                     <option value={4}>4 שבועות</option>
@@ -1636,7 +1683,7 @@ export function AthletePlanner({ athleteId }: Props) {
                       const { updateDoc: ud, doc: dc } = await import('firebase/firestore')
                       await ud(dc(db, 'users', athleteId), { kmWeekStartDay: v })
                     }}
-                    className="h-7 text-xs rounded-lg border border-border bg-white px-1.5 font-semibold text-navy">
+                    className="h-8 text-xs rounded-lg border border-border bg-white px-1.5 font-semibold text-navy">
                     <option value={0}>ראשון</option>
                     <option value={1}>שני</option>
                   </select>
@@ -1658,7 +1705,7 @@ export function AthletePlanner({ athleteId }: Props) {
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs text-muted-foreground flex-shrink-0">🎯 תחרות מטרה</span>
                   <Input
-                    className="h-7 text-xs font-bold text-navy text-right"
+                    className="h-8 text-xs font-bold text-navy text-right"
                     value={activeJourney?.goalRaceEvent || ''}
                     placeholder="מרתון ת״א"
                     disabled={!activeJourney}
@@ -1670,7 +1717,7 @@ export function AthletePlanner({ athleteId }: Props) {
                   <span className="text-xs text-muted-foreground flex-shrink-0">📅 תאריך</span>
                   <Input
                     type="date"
-                    className="h-7 text-xs font-bold text-navy"
+                    className="h-8 text-xs font-bold text-navy"
                     value={activeJourney?.goalRaceDate || ''}
                     disabled={!activeJourney}
                     onChange={e => setActiveJourney(prev => prev ? { ...prev, goalRaceDate: e.target.value } : prev)}
@@ -1680,7 +1727,7 @@ export function AthletePlanner({ athleteId }: Props) {
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs text-muted-foreground flex-shrink-0">⏱ יעד זמן</span>
                   <Input
-                    className="h-7 text-xs font-bold text-navy text-center"
+                    className="h-8 text-xs font-bold text-navy text-center"
                     value={activeJourney?.goalRaceTarget || ''}
                     placeholder="2:59:00"
                     dir="ltr"
@@ -1696,7 +1743,7 @@ export function AthletePlanner({ athleteId }: Props) {
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs text-muted-foreground flex-shrink-0">ק"מ שבועי</span>
                   <div className="flex items-center gap-1" dir="ltr">
-                    <Input type="number" className="h-7 w-14 text-xs font-bold text-navy text-center"
+                    <Input type="number" className="h-8 w-14 text-xs font-bold text-navy text-center"
                       value={athlete?.weeklyKmRange?.min ?? ''}
                       placeholder="40"
                       onChange={async e => {
@@ -1707,7 +1754,7 @@ export function AthletePlanner({ athleteId }: Props) {
                         await ud(dc(db, 'users', athleteId), { weeklyKmRange: range })
                       }}/>
                     <span className="text-xs text-muted-foreground">–</span>
-                    <Input type="number" className="h-7 w-14 text-xs font-bold text-navy text-center"
+                    <Input type="number" className="h-8 w-14 text-xs font-bold text-navy text-center"
                       value={athlete?.weeklyKmRange?.max ?? ''}
                       placeholder="60"
                       onChange={async e => {
@@ -1730,7 +1777,7 @@ export function AthletePlanner({ athleteId }: Props) {
                       const { updateDoc: ud, doc: dc } = await import('firebase/firestore')
                       await ud(dc(db, 'users', athleteId), { offWeekInterval: v })
                     }}
-                    className="h-7 text-xs rounded-lg border border-border bg-white px-1.5 font-semibold text-navy">
+                    className="h-8 text-xs rounded-lg border border-border bg-white px-1.5 font-semibold text-navy">
                     <option value={2}>2 שבועות</option>
                     <option value={3}>3 שבועות</option>
                     <option value={4}>4 שבועות</option>
@@ -1742,7 +1789,7 @@ export function AthletePlanner({ athleteId }: Props) {
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs text-muted-foreground flex-shrink-0">קצב מטרה</span>
                   <Input
-                    className="h-7 w-24 text-xs font-bold text-navy text-center"
+                    className="h-8 w-24 text-xs font-bold text-navy text-center"
                     value={athlete?.targetPaceKm || ''}
                     placeholder="4:15/km"
                     dir="ltr"
@@ -1783,7 +1830,7 @@ export function AthletePlanner({ athleteId }: Props) {
                     <div key={i} className="flex items-center justify-between gap-2">
                       <span className="text-xs text-muted-foreground capitalize w-20 flex-shrink-0">{p.type}</span>
                       <Input
-                        className="h-6 text-xs font-bold text-navy text-right w-20"
+                        className="h-7 text-xs font-bold text-navy text-right w-20"
                         value={p.pace}
                         onChange={async (e) => {
                           if (!athlete) return

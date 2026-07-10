@@ -1,3 +1,5 @@
+import type { PhysiologySummary } from './physiology'
+
 // User roles
 export type UserRole = 'athlete' | 'coach' | 'admin'
 
@@ -52,6 +54,7 @@ export interface AthleteProfile {
   currentHR?: number // bpm – most recent measured / typical training HR
   targetHR?: number // bpm – target average HR for key efforts
   targetPaceKm?: string // target race pace, e.g. "4:30/km"
+  physiology?: PhysiologySummary // latest lactate-test thresholds (T1/T2, VO2max)
   goalRaceDate?: string // ISO date
   goalRaceEvent?: string
   goalRaceTarget?: string // free-text target time
