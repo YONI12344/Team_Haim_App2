@@ -12,8 +12,8 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   ArrowLeft, ChevronLeft, ChevronRight, Plus, X,
-  Loader2, Clock, Check, Calendar, Search, Copy, Pencil, Trash2, ClipboardPaste,
-  BarChart2, Sparkles, Send, FlaskConical,
+  Loader2, Clock, Check, Calendar, Copy, Pencil, Trash2, ClipboardPaste,
+  BarChart2, Sparkles, Send, FlaskConical, Target, NotebookPen, User, Eye, AlertTriangle,
 } from 'lucide-react'
 import Link from 'next/link'
 import {
@@ -44,27 +44,10 @@ const WEEKDAY_KEYS = [
   'sunday','monday','tuesday','wednesday','thursday','friday','saturday',
 ] as const
 
-const DAY_BG: Record<string, string> = {
-  rest:     'bg-muted/30',
-  off:      'bg-muted/10',
-  easy:     'bg-emerald-50',
-  workout:  'bg-blue-50',
-  long_run: 'bg-orange-50',
-}
-
-const DAY_DOT: Record<string, string> = {
-  rest: 'bg-gray-300', off: 'bg-gray-200',
-  easy: 'bg-emerald-400', workout: 'bg-blue-400', long_run: 'bg-orange-400',
-}
-
-const DAY_BADGE: Record<string, string> = {
-  rest: 'bg-muted text-muted-foreground',
-  off:  'bg-muted/50 text-muted-foreground',
-  easy: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  workout: 'bg-blue-100 text-blue-700 border-blue-200',
-  long_run: 'bg-orange-100 text-orange-700 border-orange-200',
-}
-
+// No single running session realistically exceeds this — catches obvious
+// data-entry typos (e.g. 150 instead of 15) so they jump out while scanning.
+const SUSPICIOUS_DISTANCE_KM = 60
+const isSuspiciousDistance = (d?: number | null) => d != null && d > SUSPICIOUS_DISTANCE_KM
 
 interface JourneySummary {
   stageName: string
@@ -105,8 +88,6 @@ export function AthletePlanner({ athleteId }: Props) {
   const [loading, setLoading] = useState(true)
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
-  const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null)
-  const [assigning, setAssigning] = useState(false)
   const [showCreateWorkout, setShowCreateWorkout] = useState(false)
   const [creatingWorkout, setCreatingWorkout] = useState(false)
   const [showBuilderDialog, setShowBuilderDialog] = useState(false)
@@ -122,7 +103,6 @@ export function AthletePlanner({ athleteId }: Props) {
   const [copiedWorkout, setCopiedWorkout] = useState<AssignedWorkout | null>(null)
   // Copy-week paste mode: source week start while choosing a target week
   const [copiedWeekStart, setCopiedWeekStart] = useState<Date | null>(null)
-  const [librarySearch, setLibrarySearch] = useState('')
 
   // AI coaching report — collapsed by default to keep the screen clean
   const [aiReport, setAiReport] = useState<any>(null)
@@ -323,6 +303,20 @@ export function AthletePlanner({ athleteId }: Props) {
     return { stage, meta, weeksToRace, isDownWeek, targetKm }
   }, [activeJourney, athlete])
 
+  /**
+   * Weekly km target for coloring the KM total, even without an active
+   * journey — falls back to the athlete's plain weeklyKmRange average so
+   * every athlete gets on-track feedback, not just ones with a full season
+   * plan configured.
+   */
+  const getWeekTargetKm = useCallback((wkStart: Date): number | null => {
+    const info = getWeekSeasonInfo(wkStart)
+    if (info?.targetKm != null) return info.targetKm
+    return athlete?.weeklyKmRange
+      ? Math.round((athlete.weeklyKmRange.min + athlete.weeklyKmRange.max) / 2)
+      : null
+  }, [getWeekSeasonInfo, athlete])
+
   // ── Calendar helpers ──────────────────────────────────────────────────────
   const calendarWeeks = useMemo(() => {
     const start = startOfWeek(startOfMonth(currentMonth), { weekStartsOn: calWeekStartsOn })
@@ -443,41 +437,6 @@ export function AthletePlanner({ athleteId }: Props) {
     finally { setSavingEdit(false) }
   }
 
-  const handleAssign = async () => {
-    if (!selectedWorkout || !selectedDate || !user) return
-    setAssigning(true)
-    try {
-      const dateStr = format(selectedDate, 'yyyy-MM-dd')
-      const ref = await addDoc(collection(db, 'assignedWorkouts'), {
-        workoutId: selectedWorkout.id,
-        workout: selectedWorkout,
-        athleteId,
-        assignedBy: user.id || null,
-        scheduledDate: dateStr,
-        status: 'scheduled',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      })
-      setAssignedWorkouts(prev => [...prev, {
-        id: ref.id,
-        workoutId: selectedWorkout.id,
-        workout: selectedWorkout,
-        athleteId,
-        assignedBy: user.id || '',
-        scheduledDate: dateStr,
-        status: 'scheduled',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }])
-      setSelectedWorkout(null)
-      toast.success(`✓ ${selectedWorkout.title} assigned`)
-    } catch (err) {
-      toast.error('Failed to assign workout')
-    } finally {
-      setAssigning(false)
-    }
-  }
-
   const handleRemove = async (id: string) => {
     try {
       await deleteDoc(doc(db, 'assignedWorkouts', id))
@@ -575,21 +534,25 @@ export function AthletePlanner({ athleteId }: Props) {
   const DAY_LABELS_BASE = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
   // Rotate labels so the header matches the athlete's week start day
   const DAY_LABELS = [...DAY_LABELS_BASE.slice(calWeekStartsOn), ...DAY_LABELS_BASE.slice(0, calWeekStartsOn)]
+  // Grouped into a handful of meaningful colors instead of one hue per type,
+  // so color signals something (effort level / day type) at a glance:
+  // easy & recovery = calm green, long run = orange, hard efforts = amber,
+  // race day = brand gold, everything supplementary = neutral slate.
   const TYPE_COLORS: Record<string, string> = {
     easy: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+    recovery: 'bg-emerald-100 text-emerald-700 border-emerald-200',
     long_run: 'bg-orange-100 text-orange-700 border-orange-200',
-    tempo: 'bg-purple-100 text-purple-700 border-purple-200',
-    intervals: 'bg-blue-100 text-blue-700 border-blue-200',
+    tempo: 'bg-amber-100 text-amber-700 border-amber-200',
+    intervals: 'bg-amber-100 text-amber-700 border-amber-200',
     hill_repeats: 'bg-amber-100 text-amber-700 border-amber-200',
-    fartlek: 'bg-cyan-100 text-cyan-700 border-cyan-200',
-    recovery: 'bg-gray-100 text-gray-600 border-gray-200',
+    fartlek: 'bg-amber-100 text-amber-700 border-amber-200',
+    race: 'bg-gold/15 text-navy border-gold/40',
+    time_trial: 'bg-gold/15 text-navy border-gold/40',
+    strength: 'bg-slate-100 text-slate-600 border-slate-200',
+    cross_training: 'bg-slate-100 text-slate-600 border-slate-200',
+    swim: 'bg-slate-100 text-slate-600 border-slate-200',
+    bike: 'bg-slate-100 text-slate-600 border-slate-200',
     rest: 'bg-muted text-muted-foreground',
-    race: 'bg-red-100 text-red-700 border-red-200',
-    strength: 'bg-violet-100 text-violet-700 border-violet-200',
-    cross_training: 'bg-teal-100 text-teal-700 border-teal-200',
-    swim: 'bg-sky-100 text-sky-700 border-sky-200',
-    bike: 'bg-indigo-100 text-indigo-700 border-indigo-200',
-    time_trial: 'bg-rose-100 text-rose-700 border-rose-200',
   }
 
   // Quick-assign sheet: type picker order + emoji
@@ -714,7 +677,6 @@ export function AthletePlanner({ athleteId }: Props) {
   }
 
   const selectedAW = useMemo(() => assignedWorkouts.find(w => w.id === selectedAssignedId) || null, [assignedWorkouts, selectedAssignedId])
-  const filteredLibrary = useMemo(() => workoutLibrary.filter(w => w.title?.toLowerCase().includes(librarySearch.toLowerCase())), [workoutLibrary, librarySearch])
 
   // Last-14-days analysis (computed from loaded state, no API call)
   const analysisData = useMemo(() => {
@@ -1023,7 +985,10 @@ export function AthletePlanner({ athleteId }: Props) {
           return (
             <div className="rounded-2xl border border-navy/15 bg-gradient-to-l from-navy/[0.04] to-transparent px-4 py-3 space-y-1.5">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-black text-navy">🎯 {activeJourney.goalRaceEvent || 'תחרות מטרה'}</span>
+                <span className="flex items-center gap-1.5 text-sm font-black text-navy">
+                  <Target className="h-3.5 w-3.5 text-gold"/>
+                  {activeJourney.goalRaceEvent || 'תחרות מטרה'}
+                </span>
                 <span className="text-xs text-muted-foreground">{format(race, 'd/M/yyyy')}</span>
                 <span className="text-xs font-bold bg-navy text-white px-2.5 py-0.5 rounded-full">
                   עוד {weeksOut} שבועות
@@ -1035,11 +1000,11 @@ export function AthletePlanner({ athleteId }: Props) {
                 )}
                 {todayInfo?.isDownWeek && (
                   <span className="text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300 px-2.5 py-0.5 rounded-full">
-                    ⬇ שבוע ירידה
+                    שבוע ירידה
                   </span>
                 )}
                 {goalPaceHint && (
-                  <span className="text-xs font-semibold text-navy" dir="ltr">🏁 {goalPaceHint}</span>
+                  <span className="text-xs font-semibold text-navy" dir="ltr">{goalPaceHint}</span>
                 )}
               </div>
               {todayInfo?.meta && todayInfo.meta.guide(todayInfo.weeksToRace, goalPaceHint) && (
@@ -1131,7 +1096,6 @@ export function AthletePlanner({ athleteId }: Props) {
                           }}
                           className={cn('min-h-[130px] rounded-xl border transition-all cursor-pointer',
                             todayFlag ? 'border-gold bg-gold/5' : 'border-border hover:border-gold/40',
-                            selectedDate && isSameDay(day, selectedDate) && selectedWorkout ? 'ring-2 ring-gold border-gold bg-gold/5' : '',
                             copiedWorkout ? 'hover:border-gold hover:bg-gold/5' : ''
                           )}>
                           <div className="p-1.5 border-b border-border/40 text-center">
@@ -1141,16 +1105,22 @@ export function AthletePlanner({ athleteId }: Props) {
                             {dayWorkouts.map(w => {
                               const matchLog = logs.find((l: any) => l.assignedWorkoutId === w.id || (l.workoutId === w.workoutId && l.date === dateStr))
                               const isCompleted = w.status === 'completed' || !!matchLog?.actualDistance
+                              const suspicious = isSuspiciousDistance(w.workout?.distance)
                               return (
                                 <button key={w.id}
                                   onClick={e => { e.stopPropagation(); setSelectedAssignedId(prev => prev === w.id ? null : w.id); setSelectedDate(day) }}
                                   className={cn('w-full text-left text-[10px] rounded-lg px-1.5 py-1.5 border transition-all hover:opacity-80',
-                                    TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy,
+                                    suspicious ? 'bg-red-100 text-red-700 border-red-300' : (TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy),
                                     isCompleted ? 'opacity-70' : '',
                                     selectedAssignedId === w.id ? 'ring-2 ring-navy' : ''
                                   )}>
                                   <p className="font-semibold truncate">{w.workout?.title}</p>
-                                  {w.workout?.distance && <p className="opacity-70">{w.workout.distance}k</p>}
+                                  {w.workout?.distance && (
+                                    <p className={cn('flex items-center gap-0.5', suspicious ? 'font-bold' : 'opacity-70')}>
+                                      {suspicious && <AlertTriangle className="h-2.5 w-2.5"/>}
+                                      {w.workout.distance}k
+                                    </p>
+                                  )}
                                   {matchLog?.actualDistance && (
                                     <p className="text-emerald-700 font-bold text-[9px]">{matchLog.actualDistance}k בוצע</p>
                                   )}
@@ -1167,10 +1137,21 @@ export function AthletePlanner({ athleteId }: Props) {
                         </div>
                       )
                     })}
-                    <div className="flex flex-col items-center justify-center rounded-xl bg-muted/30 border border-border/30 min-h-[130px]">
-                      <p className="text-lg font-bold text-navy">{getWeekKm2(weekDays)}</p>
-                      <p className="text-[10px] text-muted-foreground">ק"מ</p>
-                    </div>
+                    {(() => {
+                      const wkKm = getWeekKm2(weekDays)
+                      const targetKm = getWeekTargetKm(weekStart)
+                      const kmOk = targetKm ? Math.abs(wkKm - targetKm) <= targetKm * 0.1 : null
+                      return (
+                        <div className="flex flex-col items-center justify-center rounded-xl bg-muted/30 border border-border/30 min-h-[130px]">
+                          <p className={cn('text-lg font-bold',
+                            kmOk == null ? 'text-navy' : kmOk ? 'text-emerald-700' : wkKm < (targetKm || 0) ? 'text-amber-700' : 'text-red-600')}>
+                            {wkKm}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">ק"מ</p>
+                          {targetKm != null && <p className="text-[9px] text-muted-foreground">יעד {targetKm}</p>}
+                        </div>
+                      )
+                    })()}
                   </div>
                 </div>
               </div>
@@ -1211,14 +1192,16 @@ export function AthletePlanner({ athleteId }: Props) {
                                   {dayWorkouts.slice(0,3).map(w => {
                                     const mLog = logs.find((l: any) => l.assignedWorkoutId === w.id || (l.workoutId === w.workoutId && l.date === dateStr))
                                     const isDone = w.status === 'completed' || !!mLog?.actualDistance
+                                    const suspicious = isSuspiciousDistance(w.workout?.distance)
                                     return (
                                       <button key={w.id}
                                         onClick={e => { e.stopPropagation(); setSelectedAssignedId(prev => prev === w.id ? null : w.id); if (inMonth) setSelectedDate(day) }}
-                                        className={cn('w-full text-left text-[8px] rounded px-0.5 py-0.5 border truncate hover:opacity-75',
-                                          TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy,
+                                        className={cn('w-full text-left text-[8px] rounded px-0.5 py-0.5 border truncate hover:opacity-75 flex items-center gap-0.5',
+                                          suspicious ? 'bg-red-100 text-red-700 border-red-300 font-bold' : (TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy),
                                           isDone ? 'opacity-60' : '',
                                           selectedAssignedId === w.id ? 'ring-1 ring-navy font-bold' : ''
                                         )}>
+                                        {suspicious && <AlertTriangle className="h-2 w-2 flex-shrink-0"/>}
                                         {isDone ? '✓ ' : ''}{w.workout?.title}
                                       </button>
                                     )
@@ -1230,7 +1213,8 @@ export function AthletePlanner({ athleteId }: Props) {
                           })}
                           {(() => {
                             const si = getWeekSeasonInfo(weekStartDay)
-                            const kmOk = si?.targetKm ? Math.abs(wKm - si.targetKm) <= si.targetKm * 0.1 : null
+                            const targetKm = getWeekTargetKm(weekStartDay)
+                            const kmOk = targetKm ? Math.abs(wKm - targetKm) <= targetKm * 0.1 : null
                             return (
                           <div className={cn('flex flex-col items-center justify-center gap-0.5 rounded-lg py-1',
                             si?.isDownWeek ? 'bg-amber-100/80 ring-1 ring-amber-300' : si?.meta ? si.meta.cell : 'bg-muted/30')}>
@@ -1239,9 +1223,9 @@ export function AthletePlanner({ athleteId }: Props) {
                                 {si.isDownWeek ? '⬇ ירידה' : si.meta.he}{si.weeksToRace != null && si.weeksToRace >= 0 ? ` · ‑${si.weeksToRace}` : ''}
                               </span>
                             )}
-                            {wKm > 0 ? <><p className={cn('text-xs font-bold', kmOk == null ? 'text-navy' : kmOk ? 'text-emerald-700' : wKm < (si?.targetKm || 0) ? 'text-amber-700' : 'text-red-600')}>{wKm}</p></> : <p className="text-[9px] text-muted-foreground">—</p>}
-                            {si?.targetKm != null && (
-                              <p className="text-[8px] text-muted-foreground leading-none">יעד {si.targetKm}</p>
+                            {wKm > 0 ? <><p className={cn('text-xs font-bold', kmOk == null ? 'text-navy' : kmOk ? 'text-emerald-700' : wKm < (targetKm || 0) ? 'text-amber-700' : 'text-red-600')}>{wKm}</p></> : <p className="text-[9px] text-muted-foreground">—</p>}
+                            {targetKm != null && (
+                              <p className="text-[8px] text-muted-foreground leading-none">יעד {targetKm}</p>
                             )}
                             {/* Copy / paste this week (paste mode when a week is copied) */}
                             {copiedWeekStart && !isSameDay(weekStartDay, copiedWeekStart) ? (
@@ -1280,8 +1264,9 @@ export function AthletePlanner({ athleteId }: Props) {
           <Card className="border-navy/15">
             <CardHeader className="pb-2 pt-4 px-4">
               <div className="flex items-start justify-between gap-2 flex-wrap">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  👤 בדיוק כמו שהספורטאי רואה
+                <CardTitle className="text-sm flex items-center gap-1.5">
+                  <User className="h-3.5 w-3.5 text-muted-foreground"/>
+                  בדיוק כמו שהספורטאי רואה
                   <span className="text-xs font-normal text-muted-foreground">— {format(selectedDate, 'EEEE, d MMMM')}</span>
                 </CardTitle>
                 {selectedAW && (
@@ -1321,8 +1306,9 @@ export function AthletePlanner({ athleteId }: Props) {
                       setAssignedWorkouts(prev => prev.map(w => w.id === selectedAW.id ? { ...w, showAheadOverride: true } : w))
                       toast.success('הספורטאי יראה את האימון הזה כבר עכשיו')
                     }}
-                    className="mt-1.5 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1 w-fit">
-                    👁 מעבר לחלון הרגיל — הצג לספורטאי מראש
+                    className="mt-1.5 flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1 w-fit">
+                    <Eye className="h-3 w-3"/>
+                    מעבר לחלון הרגיל — הצג לספורטאי מראש
                   </button>
                 )
               })()}
@@ -1543,48 +1529,6 @@ export function AthletePlanner({ athleteId }: Props) {
       {/* Right sidebar */}
       <div className="w-full lg:w-80 lg:flex-shrink-0 space-y-4">
 
-        {/* Assign workout panel */}
-        <Card className="lg:sticky lg:top-4">
-          <CardHeader className="pb-2 pt-4 px-4">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm">שיבוץ אימון</CardTitle>
-              <Button size="sm" variant="outline" className="h-7 text-xs border-gold/40 text-gold hover:bg-gold/10"
-                onClick={() => { setBuilderWorkoutId(undefined); setShowBuilderDialog(true) }}>
-                <Plus className="h-3 w-3 mr-1"/>{t.createWorkoutTitle}
-              </Button>
-            </div>
-            {selectedDate && <p className="text-xs text-muted-foreground mt-1">{format(selectedDate,'EEEE, d MMMM')}</p>}
-            <div className="relative mt-2">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground"/>
-              <Input value={librarySearch} onChange={e => setLibrarySearch(e.target.value)} placeholder={t.searchWorkoutsPh} className="pl-7 h-7 text-xs" dir="auto"/>
-            </div>
-          </CardHeader>
-          <CardContent className="px-3 pb-3">
-            <div className="space-y-1 max-h-48 overflow-y-auto">
-              {filteredLibrary.map(workout => (
-                <button key={workout.id}
-                  onClick={() => setSelectedWorkout(selectedWorkout?.id === workout.id ? null : workout)}
-                  className={cn('w-full text-left rounded-lg border p-2 text-xs transition-all',
-                    selectedWorkout?.id === workout.id ? 'border-gold bg-gold/5' : 'border-border hover:border-gold/40'
-                  )}>
-                  <p className="font-semibold truncate text-navy">{workout.title}</p>
-                  <div className="flex gap-2 text-muted-foreground mt-0.5">
-                    {workout.distance && <span>{workout.distance}k</span>}
-                    {workout.duration && <span>{workout.duration}'</span>}
-                  </div>
-                </button>
-              ))}
-            </div>
-            {selectedWorkout && selectedDate && (
-              <Button onClick={handleAssign} disabled={assigning} className="w-full mt-2 bg-gold hover:bg-gold/90 text-navy h-8 text-sm">
-                {assigning ? <Loader2 className="h-4 w-4 animate-spin mr-1"/> : <Plus className="h-4 w-4 mr-1"/>}
-                שבץ ל-{format(selectedDate,'d/M')}
-              </Button>
-            )}
-            {!selectedDate && <p className="text-xs text-muted-foreground text-center mt-2">לחץ על יום בלוח לשיבוץ</p>}
-          </CardContent>
-        </Card>
-
         {/* Lab summary — thresholds at a glance; full test entry lives in the Lab tab */}
         <Card>
           <CardHeader className="pb-2 pt-4 px-4">
@@ -1703,7 +1647,7 @@ export function AthletePlanner({ athleteId }: Props) {
               <div className="space-y-1.5">
                 {/* Goal race (journey) */}
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs text-muted-foreground flex-shrink-0">🎯 תחרות מטרה</span>
+                  <span className="text-xs text-muted-foreground flex-shrink-0">תחרות מטרה</span>
                   <Input
                     className="h-8 text-xs font-bold text-navy text-right"
                     value={activeJourney?.goalRaceEvent || ''}
@@ -1714,7 +1658,7 @@ export function AthletePlanner({ athleteId }: Props) {
                   />
                 </div>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs text-muted-foreground flex-shrink-0">📅 תאריך</span>
+                  <span className="text-xs text-muted-foreground flex-shrink-0">תאריך</span>
                   <Input
                     type="date"
                     className="h-8 text-xs font-bold text-navy"
@@ -1725,7 +1669,7 @@ export function AthletePlanner({ athleteId }: Props) {
                   />
                 </div>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs text-muted-foreground flex-shrink-0">⏱ יעד זמן</span>
+                  <span className="text-xs text-muted-foreground flex-shrink-0">יעד זמן</span>
                   <Input
                     className="h-8 text-xs font-bold text-navy text-center"
                     value={activeJourney?.goalRaceTarget || ''}
@@ -1805,8 +1749,9 @@ export function AthletePlanner({ athleteId }: Props) {
 
             {/* Private coach notes — never shown to the athlete */}
             <div className="border-t pt-3">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
-                📝 הערות פרטיות <span className="normal-case font-normal">(רק אתה רואה)</span>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 flex items-center gap-1">
+                <NotebookPen className="h-3 w-3"/>
+                הערות פרטיות <span className="normal-case font-normal">(רק אתה רואה)</span>
               </p>
               <Textarea
                 value={athlete?.coachPrivateNotes || ''}
@@ -1907,8 +1852,10 @@ export function AthletePlanner({ athleteId }: Props) {
                     )}
                     {existingWs.map(w => {
                       const sInfo = w.session ? SESSION_LABELS[w.session] : null
+                      const suspicious = isSuspiciousDistance(w.workout?.distance)
                       return (
-                        <div key={w.id} className={cn('rounded-xl border px-3 py-2 flex items-center gap-2', TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy)}>
+                        <div key={w.id} className={cn('rounded-xl border px-3 py-2 flex items-center gap-2',
+                          suspicious ? 'bg-red-100 text-red-700 border-red-300' : (TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy))}>
                           <span className="text-sm">{TYPE_EMOJI[w.workout?.type] || '🏃'}</span>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5">
@@ -1919,7 +1866,12 @@ export function AthletePlanner({ athleteId }: Props) {
                                 </span>
                               )}
                             </div>
-                            {w.workout?.distance && <p className="text-[10px] opacity-70">{w.workout.distance} ק"מ</p>}
+                            {w.workout?.distance && (
+                              <p className={cn('text-[10px] flex items-center gap-0.5', suspicious ? 'font-bold' : 'opacity-70')}>
+                                {suspicious && <AlertTriangle className="h-2.5 w-2.5"/>}
+                                {w.workout.distance} ק"מ
+                              </p>
+                            )}
                           </div>
                           {/* Session only matters once there's more than one workout that day */}
                           {existingWs.length > 1 && (
