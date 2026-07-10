@@ -710,6 +710,10 @@ interface Translations {
   newMessagesSuffix: string
   messageYourCoach: string
   newMessageNotifTitle: string
+
+  // Lab card on dashboard
+  labLabel: string
+  labDesc: string
   theCoachFallback: string
 
   // Planner / chat read states
@@ -1410,6 +1414,8 @@ const translations: Record<Language, Translations> = {
 
     chatWithCoachLabel: 'Chat with Coach',
     newMessagesSuffix: 'new messages',
+    labLabel: 'Lab',
+    labDesc: 'Lactate tests, thresholds & paces',
     messageYourCoach: 'Message your coach',
     newMessageNotifTitle: 'New message from your coach',
     theCoachFallback: 'The Coach',
@@ -2101,6 +2107,8 @@ const translations: Record<Language, Translations> = {
 
     chatWithCoachLabel: 'צ׳אט עם המאמן',
     newMessagesSuffix: 'הודעות חדשות',
+    labLabel: 'מעבדה',
+    labDesc: 'בדיקות לקטט, ספים וקצבים',
     messageYourCoach: 'שלח הודעה למאמן שלך',
     newMessageNotifTitle: 'הודעה חדשה מהמאמן',
     theCoachFallback: 'המאמן',

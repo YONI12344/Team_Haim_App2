@@ -4,7 +4,8 @@ import { useEffect, useState, useMemo, useCallback } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ChevronLeft, ChevronRight, Loader2, MapPin, Clock, ChevronDown, ChevronUp, RefreshCw, CheckCircle2, Plus, CalendarClock } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2, MapPin, Clock, ChevronDown, ChevronUp, RefreshCw, CheckCircle2, Plus, CalendarClock, FlaskConical } from 'lucide-react'
+import Link from 'next/link'
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   addMonths, subMonths, addWeeks, subWeeks, eachDayOfInterval, isSameMonth,
@@ -1472,6 +1473,14 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             )}
             <span className="text-xs font-bold text-[#FC4C02]">Strava</span>
           </button>
+          {!overrideAthleteId && (
+            <Link href="/athlete/lab"
+              className="h-10 px-3 rounded-2xl bg-[#0a1628]/5 flex items-center gap-1.5 active:scale-95 transition-all flex-shrink-0"
+              title={t.labLabel}>
+              <FlaskConical className="h-4 w-4 text-[#0a1628]" />
+              <span className="text-xs font-bold text-[#0a1628]">{t.labLabel}</span>
+            </Link>
+          )}
         </div>
       </div>
 
@@ -1676,11 +1685,14 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                         <div key={di}
                           onClick={() => {
                             if (!clickable) return
-                            if (dayWs.length > 0) {
-                              const first = dayWs[0]
-                              setSelectedWorkoutId(prev => prev === first.id ? null : first.id)
+                            if (dayWs.length === 1) {
+                              const only = dayWs[0]
+                              setSelectedWorkoutId(prev => prev === only.id ? null : only.id)
                             } else {
-                              // Activity-only day → jump to its day view
+                              // Multiple workouts (or activity-only) — the
+                              // month grid can only ever preview one workout
+                              // below it, so jump to day view where all of
+                              // them render in full.
                               setCurrentDate(day)
                               setViewMode('day')
                             }

@@ -39,7 +39,8 @@ interface LactateTestDoc {
 const emptyStep = (): LactateStep => ({ pace: '', hr: null, lactate: 0 })
 
 /**
- * מעבדה — the coach's physiology hub for one athlete:
+ * מעבדה — the physiology hub for one athlete, shared by the coach's planner
+ * tab and the athlete's own self-serve lab page (components/athlete/athlete-lab-view.tsx):
  * lactate tests (T1/T2), threshold paces (measured or manual estimate),
  * VO2max estimate, derived training paces, and smart HR zones.
  */

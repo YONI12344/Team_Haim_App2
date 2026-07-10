@@ -84,7 +84,12 @@ service cloud.firestore {
     match /lactateTests/{docId} {
       allow read: if request.auth != null
         && (isCoach() || resource.data.athleteId == request.auth.uid);
-      allow create, update, delete: if isCoach();
+      // Athletes can log/edit their own tests (lab is now self-serve, not
+      // just coach-entered); coach can do the same for any athlete.
+      allow create: if isCoach()
+        || (request.auth != null && request.resource.data.athleteId == request.auth.uid);
+      allow update, delete: if isCoach()
+        || (request.auth != null && resource.data.athleteId == request.auth.uid);
     }
 
     match /coachMessages/{docId} {
