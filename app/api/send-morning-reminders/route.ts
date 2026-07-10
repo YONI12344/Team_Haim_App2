@@ -35,6 +35,11 @@ function localYesterday(timezone: string): string {
 
 export async function GET(request: NextRequest) {
   try {
+    // TEMPORARY: manual test trigger to confirm the reminder fires
+    // end-to-end without waiting for the 7-9am window. Remove after
+    // confirming — see conversation dated 2026-07-10.
+    const forceTest = request.nextUrl.searchParams.get('forceTest') === '1'
+
     const accessToken = await getGoogleAccessToken()
 
     const workouts = await fsQuery('assignedWorkouts', [], accessToken)
@@ -58,7 +63,7 @@ export async function GET(request: NextRequest) {
       // Send if athlete's local time is between 7–9 AM
       // Two crons cover different regions: eu runs at 05:00 UTC, us at 13:00 UTC
       const hour = localHour(tz)
-      if (hour < 7 || hour > 9) continue
+      if (!forceTest && (hour < 7 || hour > 9)) continue
 
       const today = localDate(tz)
 
