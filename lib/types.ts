@@ -64,6 +64,10 @@ export interface AthleteProfile {
   goals: Goal[]
   coachId?: string
   mutedByCoach?: boolean
+  // Coach turns this on per athlete once they're actually being
+  // lactate-tested — hidden from the athlete's dashboard/training-plan
+  // page and the /athlete/lab route itself until then.
+  labVisibleToAthlete?: boolean
   onboardingComplete?: boolean
   // Private free-text notes — visible only to the coach, never sent to the
   // athlete (e.g. shoe model, injury history, quirks to remember)

@@ -195,6 +195,7 @@ export function AthleteDashboard() {
             onboardingComplete: data.onboardingComplete === true,
             kmWeekStartDay: data.kmWeekStartDay === 0 ? 0 : 1,
             visibleWeeksAhead: typeof data.visibleWeeksAhead === 'number' ? data.visibleWeeksAhead : 2,
+            labVisibleToAthlete: data.labVisibleToAthlete === true,
           })
         } else {
           setProfile({ name: user.name, events: [], personalRecords: [], goals: [] })
@@ -670,21 +671,23 @@ export function AthleteDashboard() {
         </div>
       </Link>
 
-      {/* Lab — lactate tests, thresholds, derived paces */}
-      <Link href="/athlete/lab" className="block">
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex items-center justify-between active:scale-[0.98] transition-transform">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-[#0a1628] flex items-center justify-center flex-shrink-0">
-              <FlaskConical className="h-6 w-6 text-white" />
+      {/* Lab — lactate tests, thresholds, derived paces; coach-gated per athlete */}
+      {profile?.labVisibleToAthlete && (
+        <Link href="/athlete/lab" className="block">
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex items-center justify-between active:scale-[0.98] transition-transform">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-[#0a1628] flex items-center justify-center flex-shrink-0">
+                <FlaskConical className="h-6 w-6 text-white" />
+              </div>
+              <div dir={isRTL ? 'rtl' : 'ltr'}>
+                <p className="font-bold text-[#0a1628] text-base leading-tight">{t.labLabel}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{t.labDesc}</p>
+              </div>
             </div>
-            <div dir={isRTL ? 'rtl' : 'ltr'}>
-              <p className="font-bold text-[#0a1628] text-base leading-tight">{t.labLabel}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{t.labDesc}</p>
-            </div>
+            <ChevronRight className={cn('h-5 w-5 text-gray-300 flex-shrink-0', isRTL && 'rotate-180')} />
           </div>
-          <ChevronRight className={cn('h-5 w-5 text-gray-300 flex-shrink-0', isRTL && 'rotate-180')} />
-        </div>
-      </Link>
+        </Link>
+      )}
 
     </div>
   )

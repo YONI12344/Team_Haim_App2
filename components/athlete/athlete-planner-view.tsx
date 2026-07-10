@@ -240,6 +240,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             offWeekInterval: d.offWeekInterval,
             weekStartDay: d.weekStartDay === 1 ? 1 : 0,
             kmWeekStartDay: d.kmWeekStartDay === 0 ? 0 : 1,
+            labVisibleToAthlete: d.labVisibleToAthlete === true,
             createdAt: d.createdAt?.toDate?.() || new Date(),
             updatedAt: d.updatedAt?.toDate?.() || new Date(),
           })
@@ -1473,7 +1474,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             )}
             <span className="text-xs font-bold text-[#FC4C02]">Strava</span>
           </button>
-          {!overrideAthleteId && (
+          {!overrideAthleteId && athlete?.labVisibleToAthlete && (
             <Link href="/athlete/lab"
               className="h-10 px-3 rounded-2xl bg-[#0a1628]/5 flex items-center gap-1.5 active:scale-95 transition-all flex-shrink-0"
               title={t.labLabel}>

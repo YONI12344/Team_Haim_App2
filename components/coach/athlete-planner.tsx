@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   ArrowLeft, ChevronLeft, ChevronRight, Plus, X,
@@ -168,6 +169,7 @@ export function AthletePlanner({ athleteId }: Props) {
             offWeekInterval: d.offWeekInterval,
             targetPaceKm: d.targetPaceKm,
             physiology: d.physiology,
+            labVisibleToAthlete: d.labVisibleToAthlete === true,
             coachPrivateNotes: d.coachPrivateNotes || '',
             visibleWeeksAhead: typeof d.visibleWeeksAhead === 'number' ? d.visibleWeeksAhead : 2,
             weekStartDay: d.weekStartDay === 1 ? 1 : 0,
@@ -1571,6 +1573,17 @@ export function AthletePlanner({ athleteId }: Props) {
                 אין עדיין נתוני מעבדה — הוסף בדיקת לקטט כדי לראות ספי T1/T2
               </p>
             )}
+            <div className="flex items-center justify-between gap-2 border-t pt-3 mt-3">
+              <span className="text-xs text-muted-foreground">גלוי לספורטאי</span>
+              <Switch
+                checked={!!athlete?.labVisibleToAthlete}
+                onCheckedChange={async (checked) => {
+                  setAthlete(prev => prev ? { ...prev, labVisibleToAthlete: checked } : prev)
+                  const { updateDoc: ud, doc: dc } = await import('firebase/firestore')
+                  await ud(dc(db, 'users', athleteId), { labVisibleToAthlete: checked })
+                }}
+              />
+            </div>
           </CardContent>
         </Card>
 
