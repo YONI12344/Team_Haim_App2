@@ -40,15 +40,9 @@ export async function GET(request: NextRequest) {
     const workouts = await fsQuery('assignedWorkouts', [], accessToken)
     const logs = await fsQuery('logs', [], accessToken)
 
-    const byAthlete = new Map<string, { title: string; distance?: number; scheduledDate: string }>()
-    for (const { data } of workouts) {
-      if (!data.athleteId || byAthlete.has(data.athleteId)) continue
-      byAthlete.set(data.athleteId, {
-        title: data.workout?.title || 'אימון',
-        distance: data.workout?.distance ?? undefined,
-        scheduledDate: data.scheduledDate || '',
-      })
-    }
+    const athleteIds = new Set(
+      workouts.map((w) => w.data.athleteId as string).filter(Boolean),
+    )
 
     // The single coach account — fetched once, reused for every missed-workout alert below
     const coachRows = await fsQuery('users', [{ field: 'email', op: 'EQUAL', value: 'info.teamhaim@gmail.com' }], accessToken)
@@ -57,7 +51,7 @@ export async function GET(request: NextRequest) {
 
     const results: string[] = []
     const missedAlerts: string[] = []
-    for (const [athleteId, workout] of byAthlete.entries()) {
+    for (const athleteId of athleteIds) {
       const userDoc = await fsGetDoc('users', athleteId, accessToken)
       const tz: string = userDoc?.timezone || 'Asia/Jerusalem'
 
@@ -100,14 +94,17 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      if (workout.scheduledDate !== today) continue
+      const todayWorkout = workouts.find(
+        (w) => w.data.athleteId === athleteId && w.data.scheduledDate === today,
+      )
+      if (!todayWorkout) continue
 
       const tokenDoc = await fsGetDoc('fcmTokens', athleteId, accessToken)
       if (!tokenDoc?.token) continue
 
-      const body = workout.distance
-        ? `${workout.title} · ${workout.distance} ק״מ`
-        : workout.title
+      const title = todayWorkout.data.workout?.title || 'אימון'
+      const distance = todayWorkout.data.workout?.distance
+      const body = distance ? `${title} · ${distance} ק״מ` : title
 
       try {
         await sendFCM(
