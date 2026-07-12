@@ -64,15 +64,26 @@ export function curveThresholds(points: CurvePoint[]) {
 function paceVsLactateData(points: CurvePoint[]) {
   return points
     .filter(p => p.pace && paceToSec(p.pace) != null)
-    .map(p => ({ paceSec: paceToSec(p.pace), lactate: p.lactate }))
+    .map(p => ({ paceSec: paceToSec(p.pace), lactate: p.lactate, hr: p.hr ?? null }))
     .sort((a, b) => a.paceSec! - b.paceSec!)
 }
 
 function hrVsLactateData(points: CurvePoint[]) {
   return points
     .filter(p => p.hr != null)
-    .map(p => ({ hr: p.hr, lactate: p.lactate }))
+    .map(p => ({ hr: p.hr, lactate: p.lactate, pace: p.pace ?? null }))
     .sort((a, b) => (a.hr! - b.hr!))
+}
+
+/** Pace delta between this curve's T-level and the previous (chronologically
+ *  earlier) session's same level — a small ▲/▼ chip so a coach can see at a
+ *  glance whether the athlete got faster at the same lactate level from one
+ *  session of this workout to the next. */
+function paceDelta(curSec: number, prevSec: number): { label: string; improved: boolean } | null {
+  const diff = curSec - prevSec
+  if (Math.abs(diff) < 1) return null
+  const abs = Math.round(Math.abs(diff))
+  return { label: `${diff < 0 ? '-' : '+'}${Math.floor(abs / 60)}:${String(abs % 60).padStart(2, '0')}`, improved: diff < 0 }
 }
 
 function dualAxisData(points: CurvePoint[]) {
@@ -124,6 +135,24 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
     formatter: (v: number) => (v == null ? '' : dataKey === 'lactate' ? v : Math.round(v)),
   })
 
+  /** Rep-level label showing lactate PLUS whichever of pace/HR isn't already
+   *  on an axis, so a point on the pace/lactate chart still shows that rep's
+   *  HR (and vice versa) instead of only the plotted value. */
+  const richPointLabel = (mode: 'paceVsLactate' | 'hrVsLactate', data: { hr?: number | null; pace?: string | null }[]) =>
+    (props: any) => {
+      const { x, y, value, index } = props
+      if (value == null) return <></>
+      const point = data[index]
+      const extra = mode === 'paceVsLactate'
+        ? (point?.hr != null ? `♥${point.hr}` : '')
+        : (point?.pace || '')
+      return (
+        <text x={x} y={y - 8} fontSize={9} textAnchor="middle" fill="#6b7280">
+          {value}{extra ? ` · ${extra}` : ''}
+        </text>
+      )
+    }
+
   return (
     <div className="space-y-3">
       {!hideChart && (
@@ -169,13 +198,16 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
             <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #f0f0f0', borderRadius: '12px' }}
               labelFormatter={(v: any) => axisMode === 'paceVsLactate' ? secToPace(v) : String(v)} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
-            {axisMode !== 'dual' && usable.map(c => (
-              <Line key={c.id}
-                name={c.label}
-                data={axisMode === 'paceVsLactate' ? paceVsLactateData(c.points) : hrVsLactateData(c.points)}
-                dataKey="lactate" stroke={c.color} strokeWidth={2} dot={{ r: 3 }}
-                label={pointLabel('lactate')} />
-            ))}
+            {axisMode !== 'dual' && usable.map(c => {
+              const data = axisMode === 'paceVsLactate' ? paceVsLactateData(c.points) : hrVsLactateData(c.points)
+              return (
+                <Line key={c.id}
+                  name={c.label}
+                  data={data}
+                  dataKey="lactate" stroke={c.color} strokeWidth={2} dot={{ r: 3 }}
+                  label={richPointLabel(axisMode, data)} />
+              )
+            })}
             {axisMode === 'dual' && usable.flatMap(c => ([
               <Line key={`${c.id}-lac`} yAxisId="lac" name={`${c.label} · לקטט`} data={dualAxisData(c.points)}
                 dataKey="lactate" stroke={c.color} strokeWidth={2} dot={{ r: 3 }} connectNulls
@@ -229,15 +261,27 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
         <div className="grid grid-cols-4 gap-1 bg-navy/5 px-2 py-1.5 text-[10px] font-bold text-navy text-center">
           <span>עקומה</span><span>T1 (2.0)</span><span>T2 (4.0)</span><span>T3 (4.5)</span>
         </div>
-        {usable.map(c => {
+        {usable.map((c, i) => {
           const { lt1, lt2, lt3 } = curveThresholds(c.points)
-          const cell = (t: { paceSecPerKm: number; hr: number | null } | null) => {
+          const prevC = usable[i - 1]
+          const prev = prevC && prevC.sourceType === 'workout' && c.sourceType === 'workout' ? curveThresholds(prevC.points) : null
+          const cell = (t: { paceSecPerKm: number; hr: number | null } | null, prevT: { paceSecPerKm: number; hr: number | null } | null) => {
             if (!t) return <span className="text-muted-foreground">—</span>
-            if (metricDisplay === 'pace') return <span dir="ltr" className="font-mono">{secToPace(t.paceSecPerKm)}</span>
+            const trend = metricDisplay !== 'hr' && prevT ? paceDelta(t.paceSecPerKm, prevT.paceSecPerKm) : null
+            const trendChip = trend && (
+              <span className={cn('text-[9px] font-bold', trend.improved ? 'text-green-600' : 'text-red-500')}>
+                {trend.improved ? '▲' : '▼'}{trend.label}
+              </span>
+            )
+            if (metricDisplay === 'pace') return (
+              <span dir="ltr" className="font-mono inline-flex items-center gap-1 justify-center flex-wrap">
+                {secToPace(t.paceSecPerKm)}{trendChip}
+              </span>
+            )
             if (metricDisplay === 'hr') return <span dir="ltr" className="font-mono">{t.hr ? `♥${t.hr}` : '—'}</span>
             return (
-              <span dir="ltr" className="font-mono">
-                {secToPace(t.paceSecPerKm)}{t.hr ? ` · ♥${t.hr}` : ''}
+              <span dir="ltr" className="font-mono inline-flex items-center gap-1 justify-center flex-wrap">
+                {secToPace(t.paceSecPerKm)}{t.hr ? ` · ♥${t.hr}` : ''}{trendChip}
               </span>
             )
           }
@@ -246,16 +290,22 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
               <span className="font-semibold flex items-center justify-center gap-1" style={{ color: c.color }}>
                 {c.label}
               </span>
-              {cell(lt1)}
-              {cell(lt2)}
-              {cell(lt3)}
+              {cell(lt1, prev?.lt1 ?? null)}
+              {cell(lt2, prev?.lt2 ?? null)}
+              {cell(lt3, prev?.lt3 ?? null)}
             </div>
           )
         })}
         {usable.some(c => c.sourceType === 'workout') && (
-          <p className="text-[10px] text-muted-foreground px-2 py-1.5 border-t border-border/40">
-            ⚠️ עקומות מאימונים הן הערכה מתוך היסטוריית האימון — לא בדיקת מדרגות רשמית
-          </p>
+          <div className="border-t border-border/40 px-2 py-1.5 space-y-0.5">
+            <p className="text-[10px] text-muted-foreground">
+              ⚠️ עקומות מאימונים הן הערכה מתוך היסטוריית האימון — לא בדיקת מדרגות רשמית
+            </p>
+            <p className="text-[10px] text-muted-foreground">
+              <span className="text-green-600 font-bold">▲</span> קצב מהיר יותר מהמפגש הקודם באותה רמת לקטט ·{' '}
+              <span className="text-red-500 font-bold">▼</span> איטי יותר
+            </p>
+          </div>
         )}
       </div>
 
