@@ -100,7 +100,7 @@ function summarizeCurve(points: CurvePoint[]) {
   return { lactate, hr, paceSec }
 }
 
-type MetricDisplay = 'both' | 'lactate' | 'hr'
+type MetricDisplay = 'both' | 'pace' | 'hr'
 
 const T_LEVELS = [
   { key: 'lt1' as const, target: LT1_TARGET, name: 'T1' },
@@ -214,11 +214,11 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
         <div className="flex gap-1 bg-muted rounded-xl p-0.5">
           {([
             ['both', 'קצב + דופק'],
-            ['lactate', 'קצב בלבד'],
+            ['pace', 'קצב בלבד'],
             ['hr', 'דופק בלבד'],
           ] as const).map(([m, label]) => (
             <button key={m} onClick={() => setMetricDisplay(m)}
-              className={cn('text-[10px] px-2.5 py-1 rounded-lg font-semibold transition-all',
+              className={cn('text-[10px] px-2 py-1 rounded-lg font-semibold transition-all whitespace-nowrap',
                 metricDisplay === m ? 'bg-white text-navy shadow-sm' : 'text-muted-foreground')}>
               {label}
             </button>
@@ -233,7 +233,7 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
           const { lt1, lt2, lt3 } = curveThresholds(c.points)
           const cell = (t: { paceSecPerKm: number; hr: number | null } | null) => {
             if (!t) return <span className="text-muted-foreground">—</span>
-            if (metricDisplay === 'lactate') return <span dir="ltr" className="font-mono">{secToPace(t.paceSecPerKm)}</span>
+            if (metricDisplay === 'pace') return <span dir="ltr" className="font-mono">{secToPace(t.paceSecPerKm)}</span>
             if (metricDisplay === 'hr') return <span dir="ltr" className="font-mono">{t.hr ? `♥${t.hr}` : '—'}</span>
             return (
               <span dir="ltr" className="font-mono">
@@ -277,11 +277,11 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
               return (
                 <div className="border-t border-border/40">
                   {(s.lactate || s.hr || s.paceSec) && (
-                    <div className="grid grid-cols-4 gap-px bg-border text-[10px] text-center">
+                    <div className="grid grid-cols-4 gap-px bg-border text-[10px] text-center overflow-x-auto">
                       <div className="bg-navy/5 font-bold text-navy px-1.5 py-1">סטטיסטיקה</div>
-                      <div className="bg-navy/5 font-bold text-navy px-1.5 py-1">מהיר/נמוך</div>
+                      <div className="bg-navy/5 font-bold text-navy px-1.5 py-1">מינימום</div>
                       <div className="bg-navy/5 font-bold text-navy px-1.5 py-1">ממוצע</div>
-                      <div className="bg-navy/5 font-bold text-navy px-1.5 py-1">איטי/גבוה</div>
+                      <div className="bg-navy/5 font-bold text-navy px-1.5 py-1">מקסימום</div>
                       <div className="bg-white px-1.5 py-1 text-navy">קצב</div>
                       <div className="bg-white px-1.5 py-1 font-mono text-navy" dir="ltr">{s.paceSec ? secToPace(s.paceSec.min) : '—'}</div>
                       <div className="bg-white px-1.5 py-1 font-mono text-navy" dir="ltr">{s.paceSec ? secToPace(s.paceSec.avg) : '—'}</div>

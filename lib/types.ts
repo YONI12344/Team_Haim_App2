@@ -227,6 +227,13 @@ export interface AssignedWorkout {
   showAheadOverride?: boolean
   athleteNotes?: string
   coachFeedback?: string
+  // Coach's manual adjustment of this specific assignment's personalized
+  // threshold target (see lib/physiology.ts personalTargetRangeForLevel) —
+  // e.g. "this athlete should go faster than their lab data suggests."
+  // Present only when the coach has explicitly overridden the auto-computed
+  // range; otherwise the target is computed live from the athlete's own
+  // step-test data every time.
+  targetOverride?: { paceMinSec: number; paceMaxSec: number; hrMin?: number; hrMax?: number }
   completedAt?: Date
   actualDuration?: number
   actualDistance?: number

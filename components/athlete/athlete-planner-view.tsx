@@ -4,7 +4,8 @@ import { useEffect, useState, useMemo, useCallback } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ChevronLeft, ChevronRight, Loader2, MapPin, Clock, ChevronDown, ChevronUp, RefreshCw, CheckCircle2, Plus, CalendarClock, FlaskConical } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2, MapPin, Clock, ChevronDown, ChevronUp, RefreshCw, CheckCircle2, Plus, CalendarClock, FlaskConical, Pencil, X as XIcon } from 'lucide-react'
+import { Input } from '@/components/ui/input'
 import Link from 'next/link'
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
@@ -22,7 +23,9 @@ import { useLanguage } from '@/contexts/language-context'
 import { useWorkoutTypeLabels } from '@/lib/workout-labels'
 import { toast } from 'sonner'
 import { WorkoutLogForm } from '@/components/athlete/workout-log-form'
-import { personalTargetForLevel, secToPace } from '@/lib/physiology'
+import { personalTargetRangeForLevel, formatTargetRange, paceToSec, secToPace } from '@/lib/physiology'
+import { useLatestStepTest } from '@/hooks/useLatestStepTest'
+import { isCoachEmail } from '@/lib/constants'
 import { ManualLogCard } from '@/components/shared/manual-log-card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { AddActivityDialog } from '@/components/athlete/add-activity-dialog'
@@ -169,6 +172,11 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
   const dayEN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
   const formatHeDateLong = (d: Date) => d.toLocaleDateString(isRTL ? 'he-IL' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   const athleteId = overrideAthleteId || user?.id || ''
+  const isCoachViewer = isCoachEmail(user?.email)
+  const { steps: latestSteps } = useLatestStepTest(athleteId)
+  const [editingTargetId, setEditingTargetId] = useState<string | null>(null)
+  const [targetEditFields, setTargetEditFields] = useState({ paceMin: '', paceMax: '', hrMin: '', hrMax: '' })
+  const [savingTargetOverride, setSavingTargetOverride] = useState(false)
   const [athlete, setAthlete] = useState<AthleteProfile | null>(null)
   const [journey, setJourney] = useState<JourneySummary | null>(null)
   const [assignedWorkouts, setAssignedWorkouts] = useState<AssignedWorkout[]>([])
@@ -423,26 +431,110 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
     </div>
   )
 
+  const startEditingTarget = (w: AssignedWorkout, current: { paceRangeSec: [number, number]; hrRange: [number, number] | null } | null) => {
+    setEditingTargetId(w.id)
+    setTargetEditFields({
+      paceMin: current ? secToPace(current.paceRangeSec[0]) : '',
+      paceMax: current ? secToPace(current.paceRangeSec[1]) : '',
+      hrMin: current?.hrRange ? String(current.hrRange[0]) : '',
+      hrMax: current?.hrRange ? String(current.hrRange[1]) : '',
+    })
+  }
+
+  const saveTargetOverride = async (w: AssignedWorkout) => {
+    const paceMinSec = paceToSec(targetEditFields.paceMin)
+    const paceMaxSec = paceToSec(targetEditFields.paceMax)
+    if (!paceMinSec || !paceMaxSec) { toast.error('נדרש טווח קצב תקין (למשל 3:55 ו-4:15)'); return }
+    const targetOverride = {
+      paceMinSec: Math.min(paceMinSec, paceMaxSec),
+      paceMaxSec: Math.max(paceMinSec, paceMaxSec),
+      ...(targetEditFields.hrMin && targetEditFields.hrMax ? {
+        hrMin: Math.min(Number(targetEditFields.hrMin), Number(targetEditFields.hrMax)),
+        hrMax: Math.max(Number(targetEditFields.hrMin), Number(targetEditFields.hrMax)),
+      } : {}),
+    }
+    setSavingTargetOverride(true)
+    try {
+      await updateDoc(doc(db, 'assignedWorkouts', w.id), { targetOverride })
+      setAssignedWorkouts(prev => prev.map(aw => aw.id === w.id ? { ...aw, targetOverride } : aw))
+      setEditingTargetId(null)
+      toast.success('היעד עודכן')
+    } catch (err) {
+      console.error(err)
+      toast.error('העדכון נכשל')
+    } finally {
+      setSavingTargetOverride(false)
+    }
+  }
+
+  const clearTargetOverride = async (w: AssignedWorkout) => {
+    try {
+      await updateDoc(doc(db, 'assignedWorkouts', w.id), { targetOverride: null })
+      setAssignedWorkouts(prev => prev.map(aw => aw.id === w.id ? { ...aw, targetOverride: undefined } : aw))
+      toast.success('חזר לחישוב אוטומטי')
+    } catch (err) { console.error(err); toast.error('העדכון נכשל') }
+  }
+
   const renderWorkoutDetail = (w: AssignedWorkout) => (
     <div className="rounded-2xl overflow-hidden border border-gray-100 bg-white" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Personalized threshold target — computed from THIS athlete's own
-          physiology, so the same workout template shows different numbers
-          per athlete instead of one fixed value. */}
+          step-test data (a range, not one fixed point), so the same workout
+          template shows different numbers per athlete. The coach can
+          manually override it for this specific assignment. */}
       {w.workout.targetThresholdLevel && (() => {
-        const target = personalTargetForLevel(athlete?.physiology, w.workout.targetThresholdLevel)
-        const metrics = w.workout.targetMetrics?.length ? w.workout.targetMetrics : ['pace', 'hr', 'lactate']
-        const parts: string[] = []
-        if (target) {
-          if (metrics.includes('pace')) parts.push(secToPace(target.paceSec))
-          if (metrics.includes('hr') && target.hr) parts.push(`♥${target.hr}`)
-          if (metrics.includes('lactate')) parts.push(`${target.lactateTarget} mmol/L`)
+        const metrics: ('pace' | 'hr' | 'lactate')[] = w.workout.targetMetrics?.length ? w.workout.targetMetrics : ['pace', 'hr', 'lactate']
+        const auto = personalTargetRangeForLevel(latestSteps, w.workout.targetThresholdLevel)
+        const range = w.targetOverride
+          ? { paceRangeSec: [w.targetOverride.paceMinSec, w.targetOverride.paceMaxSec] as [number, number],
+              hrRange: w.targetOverride.hrMin != null && w.targetOverride.hrMax != null ? [w.targetOverride.hrMin, w.targetOverride.hrMax] as [number, number] : null }
+          : auto
+        const isEditing = editingTargetId === w.id
+
+        if (isEditing) {
+          return (
+            <div className="px-4 py-3 border-b border-border bg-navy/5 space-y-2" dir="rtl">
+              <p className="text-xs font-semibold text-navy">התאמת יעד ({w.workout.targetThresholdLevel}) לספורטאי זה</p>
+              <div className="grid grid-cols-2 gap-2">
+                <Input placeholder="קצב מינ' (4:15)" value={targetEditFields.paceMin} dir="ltr" className="h-9 text-sm"
+                  onChange={e => setTargetEditFields(f => ({ ...f, paceMin: e.target.value }))} />
+                <Input placeholder="קצב מקס' (3:55)" value={targetEditFields.paceMax} dir="ltr" className="h-9 text-sm"
+                  onChange={e => setTargetEditFields(f => ({ ...f, paceMax: e.target.value }))} />
+                <Input placeholder="דופק מינ'" type="number" value={targetEditFields.hrMin} className="h-9 text-sm"
+                  onChange={e => setTargetEditFields(f => ({ ...f, hrMin: e.target.value }))} />
+                <Input placeholder="דופק מקס'" type="number" value={targetEditFields.hrMax} className="h-9 text-sm"
+                  onChange={e => setTargetEditFields(f => ({ ...f, hrMax: e.target.value }))} />
+              </div>
+              <div className="flex gap-2">
+                <Button type="button" size="sm" className="h-8 bg-navy text-white" disabled={savingTargetOverride}
+                  onClick={() => saveTargetOverride(w)}>
+                  {savingTargetOverride ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'שמור'}
+                </Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => setEditingTargetId(null)}>ביטול</Button>
+              </div>
+            </div>
+          )
         }
+
         return (
-          <div className="px-4 py-2.5 border-b border-border bg-navy/5 flex items-center justify-end">
+          <div className="px-4 py-2.5 border-b border-border bg-navy/5 flex items-center justify-end gap-1.5 flex-wrap">
             <span className={cn('text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap',
-              target ? 'bg-white border border-navy/10 text-navy' : 'bg-amber-50 border border-amber-200 text-amber-700')} dir="ltr">
-              {target ? `🎯 ${w.workout.targetThresholdLevel} · ${parts.join(' · ')}` : `🎯 ${w.workout.targetThresholdLevel} — אין עדיין נתוני מעבדה`}
+              range ? 'bg-white border border-navy/10 text-navy' : 'bg-amber-50 border border-amber-200 text-amber-700')} dir="ltr">
+              {range
+                ? `🎯 ${w.workout.targetThresholdLevel} · ${formatTargetRange(range, metrics, w.targetOverride ? undefined : auto?.lactateMid)}${w.targetOverride ? ' · ✏️' : ''}`
+                : `🎯 ${w.workout.targetThresholdLevel} — אין עדיין נתוני מעבדה`}
             </span>
+            {isCoachViewer && (
+              <button type="button" onClick={() => startEditingTarget(w, range)}
+                className="text-muted-foreground hover:text-navy p-1" aria-label="ערוך יעד">
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {isCoachViewer && w.targetOverride && (
+              <button type="button" onClick={() => clearTargetOverride(w)}
+                className="text-muted-foreground hover:text-red-500 p-1" aria-label="בטל התאמה">
+                <XIcon className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
         )
       })()}

@@ -27,8 +27,8 @@ import { toast } from 'sonner'
 import { useLanguage } from '@/contexts/language-context'
 import { useAuth } from '@/contexts/auth-context'
 import { getCoachInfo } from '@/lib/coach'
-import { usePhysiology } from '@/hooks/usePhysiology'
-import { personalTargetForLevel, secToPace } from '@/lib/physiology'
+import { useLatestStepTest } from '@/hooks/useLatestStepTest'
+import { personalTargetRangeForLevel, formatTargetRange } from '@/lib/physiology'
 
 interface WorkoutLogFormProps {
   workoutId: string
@@ -41,7 +41,8 @@ interface WorkoutLogFormProps {
 export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, scheduledDate, workout }: WorkoutLogFormProps) {
   const { t } = useLanguage()
   const { user } = useAuth()
-  const { physiology } = usePhysiology(workout?.targetThresholdLevel ? athleteId : undefined)
+  const { steps: latestSteps } = useLatestStepTest(workout?.targetThresholdLevel ? athleteId : undefined)
+  const [targetOverride, setTargetOverride] = useState<{ paceMinSec: number; paceMaxSec: number; hrMin?: number; hrMax?: number } | null>(null)
   const [existingLog, setExistingLog] = useState<WorkoutLog | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -208,6 +209,15 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
     }
     loadLog()
   }, [workoutId, athleteId, scheduledDate])
+
+  // Coach's manual override of this specific assignment's target, if any —
+  // takes precedence over the auto-computed range (see the target badge below).
+  useEffect(() => {
+    if (!assignedWorkoutId || !workout?.targetThresholdLevel) { setTargetOverride(null); return }
+    getDoc(doc(db, 'assignedWorkouts', assignedWorkoutId))
+      .then(snap => setTargetOverride(snap.data()?.targetOverride ?? null))
+      .catch(err => { console.error(err); setTargetOverride(null) })
+  }, [assignedWorkoutId, workout?.targetThresholdLevel])
 
   // Pre-fill (still editable) pace/HR per rep from matched Strava laps, by
   // order — lap N is assumed to correspond to rep N (the athlete lapping
@@ -440,22 +450,23 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.intervalLogTitle}</p>
             {workout?.targetThresholdLevel && (() => {
-              const target = personalTargetForLevel(physiology, workout.targetThresholdLevel)
-              const metrics = workout.targetMetrics?.length ? workout.targetMetrics : ['pace', 'hr', 'lactate']
-              if (!target) {
+              const metrics: ('pace' | 'hr' | 'lactate')[] = workout.targetMetrics?.length ? workout.targetMetrics : ['pace', 'hr', 'lactate']
+              const range = targetOverride
+                ? { paceRangeSec: [targetOverride.paceMinSec, targetOverride.paceMaxSec] as [number, number],
+                    hrRange: targetOverride.hrMin != null && targetOverride.hrMax != null ? [targetOverride.hrMin, targetOverride.hrMax] as [number, number] : null }
+                : personalTargetRangeForLevel(latestSteps, workout.targetThresholdLevel)
+              if (!range) {
                 return (
                   <span className="text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full whitespace-nowrap">
                     🎯 {workout.targetThresholdLevel} — אין עדיין נתוני מעבדה
                   </span>
                 )
               }
-              const parts: string[] = []
-              if (metrics.includes('pace')) parts.push(secToPace(target.paceSec))
-              if (metrics.includes('hr') && target.hr) parts.push(`♥${target.hr}`)
-              if (metrics.includes('lactate')) parts.push(`${target.lactateTarget} mmol/L`)
+              const lactateMid = targetOverride ? undefined : (range as any).lactateMid
               return (
                 <span className="text-[11px] font-semibold bg-navy/5 border border-navy/10 px-2 py-0.5 rounded-full whitespace-nowrap" dir="ltr">
-                  🎯 {workout.targetThresholdLevel} · {parts.join(' · ')}
+                  🎯 {workout.targetThresholdLevel} · {formatTargetRange(range, metrics, lactateMid)}
+                  {targetOverride && ' · ✏️'}
                 </span>
               )
             })()}

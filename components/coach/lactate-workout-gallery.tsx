@@ -65,7 +65,15 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
     })),
   ]
 
-  if (cards.length === 0) return null
+  if (cards.length === 0) return (
+    <div className="rounded-2xl border border-dashed border-border p-4 text-center" dir="rtl">
+      <p className="text-sm font-semibold text-navy">📊 עדיין אין גרפים להצגה</p>
+      <p className="text-xs text-muted-foreground mt-1">
+        ברגע שתתווסף בדיקת מעבדה, או שהאתלט ידווח לקטט באימון (בכל אימון עם חזרות —
+        בשדה 🧪 ליד כל חזרה), הגרף שלו יופיע כאן אוטומטית.
+      </p>
+    </div>
+  )
 
   return (
     <div className="space-y-3" dir="rtl">

@@ -44,33 +44,90 @@ export interface PhysiologySummary {
   updatedAt?: unknown
 }
 
-/** Fixed lactate anchors (mmol/L) for the three markers used throughout the app. */
+/** Fixed lactate anchors (mmol/L) for the three markers used throughout the
+ *  Lab (real step-test analysis: "Current thresholds" card, chart reference
+ *  lines/dots) — unaffected by the workout-target ranges below. */
 export const LT1_TARGET = 2.0
 export const LT2_TARGET = 4.0
 export const LT3_TARGET = 4.5
 
-export interface PersonalTarget {
-  paceSec: number | null
-  hr: number | null
-  lactateTarget: number
+/**
+ * Deliberately different, wider mmol ranges used only for a 'threshold'
+ * workout's target (not the Lab's single-point thresholds above) — a
+ * workout target is a training zone to hold, not a precise lab marker.
+ */
+export const WORKOUT_TARGET_RANGES: Record<'T1' | 'T2' | 'T3', { min: number; max: number }> = {
+  T1: { min: 2.0, max: 2.5 },
+  T2: { min: 3.0, max: 4.0 },
+  T3: { min: 4.0, max: 5.0 },
+}
+
+export interface PersonalTargetRange {
+  /** [fast, slow] seconds/km — fast (lower sec) corresponds to the range's higher mmol end. */
+  paceRangeSec: [number, number]
+  /** [low, high] bpm, or null when the test steps didn't record HR. */
+  hrRange: [number, number] | null
+  lactateRange: [number, number]
+  /** Midpoint mmol — the "primary" reference value within the range. */
+  lactateMid: number
 }
 
 /**
- * The athlete's own pace/HR for a given threshold level, so a 'threshold'
- * workout can show each assigned athlete their personal target instead of
- * one fixed number baked into the template — copying the same workout to a
- * different athlete then just shows *their* numbers.
- * Returns null when this athlete has no data for that level yet (e.g.
- * never took a step test) rather than a misleading empty target.
+ * The athlete's own pace/HR *range* for a given threshold level, interpolated
+ * from their real step-test steps at both ends of that level's mmol range
+ * (WORKOUT_TARGET_RANGES) — so a 'threshold' workout shows each assigned
+ * athlete their personal range instead of one fixed number baked into the
+ * template. Returns null when the athlete's tested lactate range doesn't
+ * cover both ends (e.g. never took a step test, or the test didn't reach
+ * that intensity) rather than a misleading partial range.
  */
-export function personalTargetForLevel(
-  phys: PhysiologySummary | null | undefined,
+export function personalTargetRangeForLevel(
+  steps: LactateStep[] | null | undefined,
   level: 'T1' | 'T2' | 'T3',
-): PersonalTarget | null {
-  if (!phys) return null
-  if (level === 'T1') return phys.lt1PaceSec ? { paceSec: phys.lt1PaceSec, hr: phys.lt1Hr ?? null, lactateTarget: LT1_TARGET } : null
-  if (level === 'T2') return phys.lt2PaceSec ? { paceSec: phys.lt2PaceSec, hr: phys.lt2Hr ?? null, lactateTarget: LT2_TARGET } : null
-  return phys.lt3PaceSec ? { paceSec: phys.lt3PaceSec, hr: phys.lt3Hr ?? null, lactateTarget: LT3_TARGET } : null
+): PersonalTargetRange | null {
+  if (!steps || steps.length < 2) return null
+  const { min, max } = WORKOUT_TARGET_RANGES[level]
+  const atLow = interpolateAtLactate(steps, min)
+  const atHigh = interpolateAtLactate(steps, max)
+  if (!atLow || !atHigh) return null
+  // Higher mmol ⇒ faster pace (lower sec/km) — order the pair fast→slow regardless.
+  const paceRangeSec: [number, number] = atHigh.paceSecPerKm <= atLow.paceSecPerKm
+    ? [atHigh.paceSecPerKm, atLow.paceSecPerKm]
+    : [atLow.paceSecPerKm, atHigh.paceSecPerKm]
+  const hrRange: [number, number] | null = atLow.hr != null && atHigh.hr != null
+    ? [Math.min(atLow.hr, atHigh.hr), Math.max(atLow.hr, atHigh.hr)]
+    : null
+  return {
+    paceRangeSec,
+    hrRange,
+    lactateRange: [min, max],
+    lactateMid: Math.round((min + max) * 10 / 2) / 10,
+  }
+}
+
+/**
+ * "🎯 4:05 (3:55–4:15) · ♥170 (165–178) · 3.5 mmol/L" — shared rendering for
+ * a personalized (or coach-overridden) workout target range, filtered to
+ * whichever metrics the coach picked for that workout.
+ */
+export function formatTargetRange(
+  range: { paceRangeSec: [number, number]; hrRange: [number, number] | null },
+  metrics: ('pace' | 'hr' | 'lactate')[],
+  lactateMid?: number,
+): string {
+  const parts: string[] = []
+  if (metrics.includes('pace')) {
+    const mid = Math.round((range.paceRangeSec[0] + range.paceRangeSec[1]) / 2)
+    parts.push(`${secToPace(mid)} (${secToPace(range.paceRangeSec[0])}–${secToPace(range.paceRangeSec[1])})`)
+  }
+  if (metrics.includes('hr') && range.hrRange) {
+    const mid = Math.round((range.hrRange[0] + range.hrRange[1]) / 2)
+    parts.push(`♥${mid} (${range.hrRange[0]}–${range.hrRange[1]})`)
+  }
+  if (metrics.includes('lactate') && lactateMid != null) {
+    parts.push(`${lactateMid} mmol/L`)
+  }
+  return parts.join(' · ')
 }
 
 /** "4:30" → 270 (sec/km). Returns null when unparseable. */
