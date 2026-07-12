@@ -9,32 +9,8 @@
 
 'use client'
 
-import { useLanguage, type Translations } from '@/contexts/language-context'
+import { useLanguage } from '@/contexts/language-context'
 import type { WorkoutType } from '@/lib/types'
-
-/** Ordered phase types for a 'threshold' workout — shared between the coach
- *  phase builder and the athlete execution form so both agree on order,
- *  icons, and defaults. */
-export const PHASE_TYPES = ['warmup', 'rep', 'recovery', 'cooldown'] as const
-export type PhaseType = (typeof PHASE_TYPES)[number]
-
-export const PHASE_ICON: Record<PhaseType, string> = {
-  warmup: '🔥',
-  rep: '💪',
-  recovery: '😮‍💨',
-  cooldown: '❄️',
-}
-
-const PHASE_LABEL_KEY: Record<PhaseType, keyof Translations> = {
-  warmup: 'phaseWarmup',
-  rep: 'phaseRep',
-  recovery: 'phaseRecovery',
-  cooldown: 'phaseCooldown',
-}
-
-export function phaseLabel(t: Translations, phase: PhaseType): string {
-  return t[PHASE_LABEL_KEY[phase]]
-}
 
 export const workoutTypeColors: Record<WorkoutType, string> = {
   easy: 'bg-emerald-100 text-emerald-700 border-emerald-200',
@@ -51,7 +27,6 @@ export const workoutTypeColors: Record<WorkoutType, string> = {
   rest: 'bg-gray-100 text-gray-600 border-gray-200',
   race: 'bg-gold/20 text-gold border-gold/30',
   time_trial: 'bg-rose-100 text-rose-700 border-rose-200',
-  threshold: 'bg-pink-100 text-pink-700 border-pink-200',
 }
 
 /**
@@ -93,6 +68,5 @@ export function useWorkoutTypeLabels(): Record<WorkoutType, string> {
     rest: t.rest,
     race: t.race,
     time_trial: t.timeTrial,
-    threshold: t.thresholdWorkoutType,
   }
 }

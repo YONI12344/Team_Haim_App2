@@ -27,9 +27,6 @@ import { toast } from 'sonner'
 import { useLanguage } from '@/contexts/language-context'
 import { useAuth } from '@/contexts/auth-context'
 import { getCoachInfo } from '@/lib/coach'
-import { PHASE_ICON, phaseLabel, type PhaseType } from '@/lib/workout-labels'
-import { Progress } from '@/components/ui/progress'
-import { computeThresholds, estimateVo2max, stepsFromThresholdReps } from '@/lib/physiology'
 
 interface WorkoutLogFormProps {
   workoutId: string
@@ -92,7 +89,6 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
   }
 
   const hasSets = workout?.sets && workout.sets.length > 0
-  const isThreshold = workout?.type === 'threshold'
 
   // Build initial split logs from workout sets
   useEffect(() => {
@@ -120,16 +116,34 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
   useEffect(() => {
     const loadLog = async () => {
       try {
-        // First try to find a log by the assigned workout's workoutId
-        const q = query(
-          collection(db, 'logs'),
-          where('workoutId', '==', workoutId),
-          where('athleteId', '==', athleteId),
-          limit(1)
-        )
-        let snapshot = await getDocs(q)
+        // Prefer matching by assignedWorkoutId — unique per assignment, so
+        // reassigning the same recurring workout template to a new date
+        // doesn't collide with a previous occurrence's log (workoutId alone
+        // is reused across dates for recurring sessions, e.g. "20x400").
+        let snapshot = assignedWorkoutId
+          ? await getDocs(query(
+              collection(db, 'logs'),
+              where('assignedWorkoutId', '==', assignedWorkoutId),
+              where('athleteId', '==', athleteId),
+              limit(1)
+            ))
+          : null
 
-        // If no match by workoutId, fall back to a Strava log for the same date.
+        // Fall back to workoutId+athleteId+date (legacy logs saved before
+        // assignedWorkoutId was tracked, or call sites without it) — scoped
+        // to this exact date so it can't pick up a different occurrence of
+        // the same recurring template.
+        if (!snapshot || snapshot.empty) {
+          snapshot = await getDocs(query(
+            collection(db, 'logs'),
+            where('workoutId', '==', workoutId),
+            where('athleteId', '==', athleteId),
+            where('date', '==', scheduledDate),
+            limit(1)
+          ))
+        }
+
+        // If still nothing, fall back to a Strava log for the same date.
         // This prevents workout-log-form from creating a second document alongside
         // an existing Strava log (which has workoutId 'strava_<id>', not the template id).
         if (snapshot.empty && scheduledDate) {
@@ -192,6 +206,24 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
     loadLog()
   }, [workoutId, athleteId, scheduledDate])
 
+  // Pre-fill (still editable) pace/HR per rep from matched Strava laps, by
+  // order — lap N is assumed to correspond to rep N (the athlete lapping
+  // their watch each rep). Not distance/time-verified, just a default the
+  // athlete can correct. Uses the functional setSplitLogs form so it's safe
+  // regardless of whether this runs before or after the sets-seeding effect.
+  useEffect(() => {
+    if (!stravaSource?.splitLogs?.length) return
+    setSplitLogs(prev => prev.map((s, i) => {
+      const lap = stravaSource.splitLogs[i]
+      if (!lap) return s
+      return {
+        ...s,
+        pace: s.pace || lap.pace || '',
+        avgHr: s.avgHr || lap.heartRate || undefined,
+      }
+    }))
+  }, [stravaSource])
+
   const updateSplit = useCallback((index: number, field: keyof SplitLog, value: string) => {
     // Numeric SplitLog fields (avgHr, lactate, ...) are edited as plain text
     // in the inputs below and only parsed to Number() at save time — the
@@ -216,18 +248,17 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
     setSaving(true)
     const isUpdate = !!existingLog?.id
     try {
-      const finalSplitLogs = isThreshold
-        ? splitLogs
-            .filter(s => s.durationActualMin || s.avgHr || s.avgPace || s.lactate || s.notes)
-            .map(s => ({
-              ...s,
-              durationActualMin: s.durationActualMin ? Number(s.durationActualMin) : undefined,
-              avgHr: s.avgHr ? Number(s.avgHr) : undefined,
-              maxHr: s.maxHr ? Number(s.maxHr) : undefined,
-              lactate: s.lactate ? Number(s.lactate) : undefined,
-              lactateHr: s.lactateHr ? Number(s.lactateHr) : undefined,
-            }))
-        : splitLogs.filter(s => s.time || s.pace || s.notes)
+      const finalSplitLogs = splitLogs
+        .filter(s => s.time || s.pace || s.notes || s.avgHr || s.lactate)
+        .map(s => ({
+          ...s,
+          avgHr: s.avgHr ? Number(s.avgHr) : undefined,
+          lactate: s.lactate ? Number(s.lactate) : undefined,
+        }))
+      // Denormalized so the Lab's per-workout progress view
+      // (components/coach/athlete-workout-progress.tsx) can group/label
+      // logs and query cheaply without extra reads or fetching every log.
+      const hasLactate = finalSplitLogs.some(s => s.lactate)
       const baseData = {
         athleteId,
         workoutId,
@@ -238,17 +269,16 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
         effort,
         comment,
         splitLogs: finalSplitLogs,
+        workoutTitle: workout?.title || null,
+        hasLactate,
       }
-      let savedLogId: string
       if (isUpdate) {
         const updatePayload: any = { ...baseData, updatedAt: serverTimestamp() }
         if (stravaSource) updatePayload.feedbackStatus = 'completed'
         await updateDoc(doc(db, 'logs', existingLog!.id), updatePayload)
-        savedLogId = existingLog!.id
         setExistingLog({ ...existingLog!, actualDistance: parsedDistance ?? undefined, actualPace: baseData.actualPace ?? undefined, effort, comment, splitLogs: baseData.splitLogs })
       } else {
         const docRef = await addDoc(collection(db, 'logs'), { ...baseData, createdAt: serverTimestamp() })
-        savedLogId = docRef.id
         setExistingLog({ id: docRef.id, athleteId, workoutId, date: scheduledDate, actualDistance: parsedDistance ?? undefined, actualPace: baseData.actualPace ?? undefined, effort, comment, splitLogs: baseData.splitLogs, createdAt: new Date() })
       }
       try {
@@ -261,51 +291,6 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
           }
         }
       } catch (e) { console.error(e) }
-
-      // Threshold workouts feed their rep-level lactate readings into the
-      // same lactateTests/LactateStep[] pipeline formal step tests use, so
-      // LT1/LT2 recompute automatically and the reading shows up in the Lab.
-      if (isThreshold) {
-        try {
-          const steps = stepsFromThresholdReps(finalSplitLogs.filter(s => (s as any).phase === 'rep'))
-          if (steps.length >= 2) {
-            const { lt1, lt2 } = computeThresholds(steps)
-            const testQuery = await getDocs(query(collection(db, 'lactateTests'), where('workoutLogId', '==', savedLogId)))
-            const testDoc = {
-              athleteId,
-              kind: 'workout' as const,
-              date: scheduledDate,
-              workoutLogId: savedLogId,
-              workoutTitle: workout?.title || '',
-              steps,
-              notes: comment.trim(),
-              lt1PaceSec: lt1?.paceSecPerKm ?? null,
-              lt1Hr: lt1?.hr ?? null,
-              lt2PaceSec: lt2?.paceSecPerKm ?? null,
-              lt2Hr: lt2?.hr ?? null,
-            }
-            if (!testQuery.empty) {
-              await updateDoc(doc(db, 'lactateTests', testQuery.docs[0].id), { ...testDoc, updatedAt: serverTimestamp() })
-            } else {
-              await addDoc(collection(db, 'lactateTests'), { ...testDoc, createdAt: serverTimestamp() })
-            }
-            if (lt2) {
-              await updateDoc(doc(db, 'users', athleteId), {
-                physiology: {
-                  lt1PaceSec: lt1?.paceSecPerKm ?? null,
-                  lt1Hr: lt1?.hr ?? null,
-                  lt2PaceSec: lt2.paceSecPerKm,
-                  lt2Hr: lt2.hr,
-                  vo2maxEst: estimateVo2max(lt2.paceSecPerKm),
-                  source: 'test',
-                  testDate: scheduledDate,
-                  updatedAt: serverTimestamp(),
-                },
-              })
-            }
-          }
-        } catch (e) { console.error('[workout-log-form] lactate curve upsert failed:', e) }
-      }
 
       setSaved(true)
       setCollapsed(true)
@@ -412,7 +397,10 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
               <span className="text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 px-3 py-1.5 rounded-full">+{stravaSource.elevationGain}m</span>
             )}
           </div>
-          {stravaSource.splitLogs && stravaSource.splitLogs.length > 0 && (
+          {/* Raw lap scroller — only when there's no coach-planned structure
+              to show the same data against (see the structured splits
+              section below, which reuses this same lap data per rep). */}
+          {!hasSets && stravaSource.splitLogs && stravaSource.splitLogs.length > 0 && (
             <div className="px-4 pb-3 overflow-x-auto" dir="ltr">
               <div className="flex gap-2 w-max">
                 {stravaSource.splitLogs.slice(0, 20).map((split: any, i: number) => (
@@ -432,163 +420,55 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
         </div>
       )}
 
-      {/* Threshold workout execution — per-phase duration/HR/pace + rep-level lactate */}
-      {isThreshold && !stravaSource && (() => {
-        const phases = (workout?.sets || []) as any[]
-        const findSplit = (si: number) => {
-          const idx = splitLogs.findIndex(s => s.setIndex === si)
-          return { idx, split: idx >= 0 ? splitLogs[idx] : undefined }
-        }
-        const isPhaseDone = (phase: any, split?: SplitLog) => {
-          if (!split) return false
-          if (phase.phase !== 'rep') return !!split.durationActualMin
-          return !!(split.avgHr && split.avgPace)
-        }
-        const doneStates = phases.map((p, si) => isPhaseDone(p, findSplit(si).split))
-        const completedCount = doneStates.filter(Boolean).length
-        const currentIndex = doneStates.findIndex(d => !d)
-        let repCounter = 0
-        const repOrdinal: Record<number, number> = {}
-        phases.forEach((p, si) => { if (p.phase === 'rep') repOrdinal[si] = ++repCounter })
-        const lactateRows = phases
-          .map((p, si) => ({ si, split: findSplit(si).split }))
-          .filter(x => phases[x.si].phase === 'rep' && x.split?.lactate)
-
-        return (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.thresholdExecutionTitle}</p>
-              {workout?.targetLactate != null && (
-                <span className="text-[11px] font-semibold bg-navy/5 border border-navy/10 px-2 py-0.5 rounded-full whitespace-nowrap">
-                  🎯 {workout.targetLactate} mmol/L
-                </span>
-              )}
-            </div>
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                <span>{t.phaseProgressLabel}</span>
-                <span>{completedCount}/{phases.length}</span>
-              </div>
-              <Progress value={phases.length ? (completedCount / phases.length) * 100 : 0} className="h-2" />
-            </div>
-
-            <div className="space-y-3">
-              {phases.map((phase, si) => {
-                const { idx, split } = findSplit(si)
-                const pt: PhaseType = phase.phase || 'warmup'
-                const isRep = pt === 'rep'
-                const isCurrent = si === currentIndex
-                const set = (field: keyof SplitLog, value: string) => idx >= 0 && updateSplit(idx, field, value)
-                return (
-                  <div key={si} className={cn(
-                    'rounded-2xl border overflow-hidden shadow-sm transition-colors',
-                    isCurrent ? 'border-gold' : doneStates[si] ? 'border-emerald-200' : 'border-border',
-                  )}>
-                    <div className={cn('px-4 py-2.5 flex items-center justify-between gap-2 flex-wrap',
-                      isCurrent ? 'bg-gold/10' : 'bg-navy/5')}>
-                      <span className="text-sm font-bold text-navy flex items-center gap-2">
-                        <span>{PHASE_ICON[pt]}</span>
-                        {isRep && repOrdinal[si] ? `${phaseLabel(t, pt)} ${repOrdinal[si]}` : phaseLabel(t, pt)}
-                        {phase.zone && <span className="text-[10px] font-semibold text-muted-foreground">Z{phase.zone}</span>}
-                      </span>
-                      {doneStates[si] && <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0" />}
-                    </div>
-                    <div className="p-4 space-y-3">
-                      {(phase.duration || phase.pace || phase.notes) && (
-                        <p className="text-[11px] text-muted-foreground">
-                          {[phase.duration && `${phase.duration} min`, phase.pace, phase.notes].filter(Boolean).join(' · ')}
-                        </p>
-                      )}
-                      {!isRep ? (
-                        <div className="space-y-1.5">
-                          <Label className="text-[11px] text-muted-foreground">{t.actualDurationLabel}</Label>
-                          <Input type="number" step="0.5" min="0" className="h-10 rounded-xl"
-                            value={split?.durationActualMin ?? ''}
-                            onChange={e => set('durationActualMin', e.target.value)} />
-                        </div>
-                      ) : (
-                        <>
-                          <div className="grid grid-cols-3 gap-2">
-                            <div className="space-y-1.5">
-                              <Label className="text-[11px] text-muted-foreground">{t.avgHrLabel}</Label>
-                              <Input type="number" className="h-10 rounded-xl text-center"
-                                value={split?.avgHr ?? ''} onChange={e => set('avgHr', e.target.value)} />
-                            </div>
-                            <div className="space-y-1.5">
-                              <Label className="text-[11px] text-muted-foreground">{t.maxHrLabel}</Label>
-                              <Input type="number" className="h-10 rounded-xl text-center"
-                                value={split?.maxHr ?? ''} onChange={e => set('maxHr', e.target.value)} />
-                            </div>
-                            <div className="space-y-1.5">
-                              <Label className="text-[11px] text-muted-foreground">{t.avgPaceLabel}</Label>
-                              <Input type="text" placeholder="4:30" dir="ltr" className="h-10 rounded-xl text-center"
-                                value={split?.avgPace ?? ''} onChange={e => set('avgPace', e.target.value)} />
-                            </div>
-                          </div>
-
-                          <div className="rounded-xl border border-dashed border-border p-3 space-y-2">
-                            <Label className="text-[11px] font-semibold text-muted-foreground">🧪 {t.lactateTestSectionTitle}</Label>
-                            <div className="grid grid-cols-3 gap-2">
-                              <div className="space-y-1">
-                                <Label className="text-[10px] text-muted-foreground">{t.lactateValueLabel}</Label>
-                                <Input type="number" step="0.1" className="h-9 rounded-lg text-center"
-                                  value={split?.lactate ?? ''} onChange={e => set('lactate', e.target.value)} />
-                              </div>
-                              <div className="space-y-1">
-                                <Label className="text-[10px] text-muted-foreground">{t.hrAtTestLabel}</Label>
-                                <Input type="number" placeholder={split?.avgHr ? String(split.avgHr) : ''} className="h-9 rounded-lg text-center"
-                                  value={split?.lactateHr ?? ''} onChange={e => set('lactateHr', e.target.value)} />
-                              </div>
-                              <div className="space-y-1">
-                                <Label className="text-[10px] text-muted-foreground">{t.paceAtTestLabel}</Label>
-                                <Input type="text" dir="ltr" placeholder={split?.avgPace || ''} className="h-9 rounded-lg text-center"
-                                  value={split?.lactatePace ?? ''} onChange={e => set('lactatePace', e.target.value)} />
-                              </div>
-                            </div>
-                            {!!split?.lactate && !(split?.lactateHr && split?.lactatePace) && (
-                              <p className="text-[10px] text-muted-foreground">{t.autoFilledHint}</p>
-                            )}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-
-            {lactateRows.length > 0 && (
-              <div className="rounded-2xl border border-border overflow-hidden">
-                <div className="bg-navy/5 px-4 py-2">
-                  <p className="text-xs font-bold text-navy">📈 {t.lactateHistoryTitle}</p>
-                </div>
-                <div className="divide-y divide-border/60">
-                  <div className="grid grid-cols-4 gap-2 px-4 py-1.5 text-[10px] font-semibold text-muted-foreground text-center">
-                    <span>{t.repNumberLabel}</span><span>{t.lactateValueLabel}</span><span>{t.hrAtTestLabel}</span><span>{t.paceAtTestLabel}</span>
-                  </div>
-                  {lactateRows.map(({ si, split }) => (
-                    <div key={si} className="grid grid-cols-4 gap-2 px-4 py-1.5 text-xs text-center text-navy font-mono" dir="ltr">
-                      <span>{repOrdinal[si]}</span>
-                      <span className="font-bold">{split?.lactate}</span>
-                      <span>{split?.lactateHr || split?.avgHr || '—'}</span>
-                      <span>{split?.lactatePace || split?.avgPace || '—'}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+      {/* Structured splits — one row per rep, with time + pace/HR (pre-filled,
+          editable, from a matched Strava lap when available) + an optional
+          lactate reading. Shown whenever the workout has planned reps,
+          Strava-sourced or not. */}
+      {hasSets && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.intervalLogTitle}</p>
+            {workout?.targetLactate != null && (
+              <span className="text-[11px] font-semibold bg-navy/5 border border-navy/10 px-2 py-0.5 rounded-full whitespace-nowrap">
+                🎯 {workout.targetLactate} mmol/L
+              </span>
             )}
           </div>
-        )
-      })()}
-
-      {/* Structured splits — only for non-Strava logs */}
-      {hasSets && !stravaSource && !isThreshold && (
-        <div className="space-y-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.intervalLogTitle}</p>
           {workout!.sets!.map((set, si) => {
             const intervals = (set as any).intervals
             const hasIntervals = intervals && intervals.length > 0
             const reps = set.reps || 1
+            const renderRepInputs = (globalIndex: number) => {
+              const split = splitLogs[globalIndex]
+              return (
+                <div className="flex-1 grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] text-muted-foreground block mb-1">{t.timeInputLabel}</label>
+                    <Input type="text" placeholder={t.mmssPlaceholder} value={split?.time || ''}
+                      onChange={e => globalIndex >= 0 && updateSplit(globalIndex, 'time', e.target.value)}
+                      className="h-9 text-sm rounded-xl" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-muted-foreground block mb-1">{t.avgPaceLabel}</label>
+                    <Input type="text" dir="ltr" placeholder="4:30" value={split?.pace || ''}
+                      onChange={e => globalIndex >= 0 && updateSplit(globalIndex, 'pace', e.target.value)}
+                      className="h-9 text-sm rounded-xl" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-muted-foreground block mb-1">{t.avgHrLabel}</label>
+                    <Input type="number" value={split?.avgHr ?? ''}
+                      onChange={e => globalIndex >= 0 && updateSplit(globalIndex, 'avgHr', e.target.value)}
+                      className="h-9 text-sm rounded-xl text-center" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-muted-foreground block mb-1">🧪 {t.lactateValueLabel}</label>
+                    <Input type="number" step="0.1" value={split?.lactate ?? ''}
+                      onChange={e => globalIndex >= 0 && updateSplit(globalIndex, 'lactate', e.target.value)}
+                      className="h-9 text-sm rounded-xl text-center" />
+                  </div>
+                </div>
+              )
+            }
             return (
               <div key={set.id} className="rounded-2xl border border-border overflow-hidden shadow-sm">
                 <div className="bg-navy/5 px-4 py-3 flex items-center justify-between">
@@ -608,19 +488,12 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
                         )}
                         {intervals.map((interval: any, ii: number) => {
                           const globalIndex = splitLogs.findIndex(s => s.setIndex === si && s.repIndex === r * 1000 + ii)
-                          const split = splitLogs[globalIndex]
                           return (
-                            <div key={ii} className="px-4 py-3 flex items-center gap-3">
-                              <div className="flex items-center gap-2.5 w-28 flex-shrink-0">
+                            <div key={ii} className="px-4 py-3 flex items-start gap-3">
+                              <div className="flex items-center gap-2.5 w-8 flex-shrink-0 pt-6">
                                 <span className="w-6 h-6 rounded-full bg-navy text-white font-bold flex items-center justify-center text-[10px] flex-shrink-0">{ii + 1}</span>
-                                <span className="text-sm font-bold text-navy">{interval.distance || interval.duration || ''}</span>
                               </div>
-                              <div className="flex-1">
-                                <label className="text-[10px] text-muted-foreground block mb-1">{t.timeInputLabel}</label>
-                                <Input type="text" placeholder={t.mmssPlaceholder} value={split?.time || ''}
-                                  onChange={e => globalIndex >= 0 && updateSplit(globalIndex, 'time', e.target.value)}
-                                  className="h-10 text-sm rounded-xl" />
-                              </div>
+                              {renderRepInputs(globalIndex)}
                             </div>
                           )
                         })}
@@ -629,20 +502,14 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
                   ) : (
                     Array.from({ length: reps }, (_, r) => {
                       const globalIndex = splitLogs.findIndex(s => s.setIndex === si && s.repIndex === r)
-                      const split = splitLogs[globalIndex]
                       return (
-                        <div key={r} className="px-4 py-3 flex items-center gap-3">
-                          <div className="w-28 flex-shrink-0">
+                        <div key={r} className="px-4 py-3 flex items-start gap-3">
+                          <div className="w-20 flex-shrink-0 pt-6">
                             <span className="text-xs font-bold text-navy">
-                              {reps > 1 ? `${t.repLabelPrefix} ${r + 1}` : (set.distance || set.duration || t.timeInputLabel)}
+                              {reps > 1 ? `${t.repLabelPrefix} ${r + 1}` : (set.distance || set.duration || '')}
                             </span>
                           </div>
-                          <div className="flex-1">
-                            <label className="text-[10px] text-muted-foreground block mb-1">{t.timeInputLabel}</label>
-                            <Input type="text" placeholder={t.mmssPlaceholder} value={split?.time || ''}
-                              onChange={e => globalIndex >= 0 && updateSplit(globalIndex, 'time', e.target.value)}
-                              className="h-10 text-sm rounded-xl" />
-                          </div>
+                          {renderRepInputs(globalIndex)}
                         </div>
                       )
                     })

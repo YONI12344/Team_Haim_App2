@@ -119,37 +119,6 @@ export function interpolateAtHr(steps: LactateStep[], targetHr: number): number 
   return null
 }
 
-/** One rep's worth of threshold-workout data, as captured by the athlete
- *  execution form (a subset of SplitLog — kept decoupled from the Firestore
- *  type so this stays a pure function). */
-export interface ThresholdRepReading {
-  lactate?: number | null
-  lactateHr?: number | null
-  avgHr?: number | null
-  lactatePace?: string | null
-  avgPace?: string | null
-}
-
-/**
- * Build LactateStep[] from the reps of a completed threshold workout that
- * have a lactate reading, so the same computeThresholds/interpolate*
- * pipeline used for formal step tests can also process workout-sourced
- * data. HR/pace "at the test" default to the rep's overall avg HR/pace when
- * not entered separately (the caller should surface that as an
- * auto-filled hint). Sorted by lactate ascending, matching step-test steps.
- */
-export function stepsFromThresholdReps(reps: ThresholdRepReading[]): LactateStep[] {
-  return reps
-    .filter(r => Number(r.lactate) > 0)
-    .map(r => ({
-      pace: (r.lactatePace || r.avgPace || '').trim(),
-      hr: r.lactateHr ?? r.avgHr ?? null,
-      lactate: Number(r.lactate),
-    }))
-    .filter(s => paceToSec(s.pace) != null)
-    .sort((a, b) => a.lactate - b.lactate)
-}
-
 /**
  * Rough VO2max estimate from LT2 pace: threshold velocity ≈ 88% of vVO2max,
  * and VO2max ≈ vVO2max (km/h) × 3.5. Clearly an estimate — label it so.

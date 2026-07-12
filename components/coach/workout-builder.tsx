@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { ArrowLeft, Plus, Trash2, Loader2, ChevronUp, ChevronDown } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -29,7 +29,7 @@ import {
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/auth-context'
 import { isCoachEmail } from '@/lib/constants'
-import { useWorkoutTypeLabels, autoWorkoutTitle, PHASE_TYPES, PHASE_ICON, phaseLabel, type PhaseType } from '@/lib/workout-labels'
+import { useWorkoutTypeLabels, autoWorkoutTitle } from '@/lib/workout-labels'
 import { useLanguage } from '@/contexts/language-context'
 
 const workoutTypeOrder: WorkoutType[] = [
@@ -47,16 +47,7 @@ const workoutTypeOrder: WorkoutType[] = [
   'rest',
   'race',
   'time_trial',
-  'threshold',
 ]
-
-/** Sensible defaults per phase type, so the coach barely has to type. */
-const PHASE_DEFAULTS: Record<PhaseType, Partial<WorkoutSet>> = {
-  warmup: { duration: '10', zone: 1, pace: '' },
-  rep: { duration: '4', zone: 4, pace: '' },
-  recovery: { duration: '3', zone: 1, pace: '' },
-  cooldown: { duration: '10', zone: 1, pace: '' },
-}
 
 interface WorkoutBuilderProps {
   workoutId?: string
@@ -179,35 +170,6 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
     setSets(newSets)
   }
 
-  // --- Threshold-workout phase builder (sets used as ordered phases) ---
-  const addPhase = (phase: PhaseType) => {
-    setSets([
-      ...sets,
-      {
-        id: `phase-${Date.now()}`,
-        reps: 1,
-        phase,
-        notes: '',
-        intervals: [],
-        ...PHASE_DEFAULTS[phase],
-      } as any,
-    ])
-  }
-
-  const updatePhase = (index: number, field: string, value: string | number) => {
-    updateSet(index, field, value)
-  }
-
-  const movePhase = (index: number, dir: -1 | 1) => {
-    const target = index + dir
-    if (target < 0 || target >= sets.length) return
-    const newSets = [...sets]
-    ;[newSets[index], newSets[target]] = [newSets[target], newSets[index]]
-    setSets(newSets)
-  }
-
-  const totalPhaseDuration = (sets as any[]).reduce((sum, s) => sum + (Number(s.duration) || 0), 0)
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -218,15 +180,6 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
     if (!isCoach) {
       toast.error('Only the coach account can save workouts')
       return
-    }
-
-    if (type === 'threshold') {
-      const phases = (sets as any[]).map(s => s.phase)
-      const hasAll = ['warmup', 'rep', 'recovery'].every(p => phases.includes(p))
-      if (!hasAll) {
-        toast.error(t.thresholdValidationError)
-        return
-      }
     }
 
     setIsSubmitting(true)
@@ -240,7 +193,7 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
         warmup: warmup.trim() || null,
         cooldown: cooldown.trim() || null,
         notes: notes.trim() || null,
-        targetLactate: type === 'threshold' && targetLactate ? Number(targetLactate) : null,
+        targetLactate: targetLactate ? Number(targetLactate) : null,
         sets: (sets as any[]).map((s, i) => ({
           id: s.id || `set-${i}`,
           reps: s.reps || 1,
@@ -255,7 +208,6 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
             pace: iv.pace || '',
             rest: iv.rest || '',
           })),
-          ...(s.phase ? { phase: s.phase, zone: s.zone || null, notes: s.notes || '' } : {}),
         })),
         updatedAt: serverTimestamp(),
         updatedBy: user?.id || null,
@@ -390,151 +342,50 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
               </div>
             </div>
 
-            {type === 'threshold' && (
-              <div className="space-y-2 md:w-1/2">
-                <Label htmlFor="targetLactate">{t.targetLactateLabel}</Label>
-                <Input
-                  id="targetLactate"
-                  type="number"
-                  step="0.1"
-                  placeholder={t.targetLactatePh}
-                  value={targetLactate}
-                  onChange={(e) => setTargetLactate(e.target.value)}
-                />
-              </div>
-            )}
+            <div className="space-y-2 md:w-1/2">
+              <Label htmlFor="targetLactate">{t.targetLactateLabel}</Label>
+              <Input
+                id="targetLactate"
+                type="number"
+                step="0.1"
+                placeholder={t.targetLactatePh}
+                value={targetLactate}
+                onChange={(e) => setTargetLactate(e.target.value)}
+              />
+            </div>
           </CardContent>
         </Card>
 
-        {/* Warmup & Cooldown — replaced by structured phases for threshold workouts */}
-        {type !== 'threshold' && (
-          <Card>
-            <CardHeader>
-              <CardTitle>{t.warmupCooldownTitle}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="warmup">{t.warmupLabel}</Label>
-                <Textarea
-                  id="warmup"
-                  placeholder={t.warmupPh}
-                  value={warmup}
-                  onChange={(e) => setWarmup(e.target.value)}
-                  rows={2}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="cooldown">{t.cooldownLabel}</Label>
-                <Textarea
-                  id="cooldown"
-                  placeholder={t.cooldownPh}
-                  value={cooldown}
-                  onChange={(e) => setCooldown(e.target.value)}
-                  rows={2}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Threshold workout: structured phase builder (warmup → rep → recovery → cooldown) */}
-        {type === 'threshold' && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
-              <CardTitle>{t.phaseBuilderTitle}</CardTitle>
-              {sets.length > 0 && (
-                <span className="text-sm font-semibold text-muted-foreground">
-                  {t.totalDurationLabel}: {totalPhaseDuration} min
-                </span>
-              )}
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {sets.length === 0 ? (
-                <p className="text-muted-foreground text-center py-6">{t.noPhasesAdded}</p>
-              ) : (
-                <div className="space-y-3">
-                  {(sets as any[]).map((phase, index) => {
-                    const pt: PhaseType = phase.phase || 'warmup'
-                    return (
-                      <div key={phase.id || index} className="rounded-lg border border-border overflow-hidden">
-                        <div className="flex items-center justify-between bg-muted/40 px-4 py-2">
-                          <span className="font-semibold text-navy text-sm flex items-center gap-2">
-                            <span>{PHASE_ICON[pt]}</span>
-                            {index + 1}. {phaseLabel(t, pt)}
-                          </span>
-                          <div className="flex items-center gap-1">
-                            <Button type="button" variant="ghost" size="sm" onClick={() => movePhase(index, -1)} disabled={index === 0} className="h-7 w-7 p-0">
-                              <ChevronUp className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button type="button" variant="ghost" size="sm" onClick={() => movePhase(index, 1)} disabled={index === sets.length - 1} className="h-7 w-7 p-0">
-                              <ChevronDown className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button type="button" variant="ghost" size="sm" onClick={() => removeSet(index)} className="text-destructive hover:text-destructive h-7 w-7 p-0">
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </div>
-                        <div className="p-4 space-y-3">
-                          <div className="grid gap-3 grid-cols-2">
-                            <div className="space-y-1">
-                              <Label className="text-xs">{t.phaseDurationLabel}</Label>
-                              <Input
-                                type="number" min="0"
-                                value={phase.duration || ''}
-                                onChange={(e) => updatePhase(index, 'duration', e.target.value)}
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs">{t.phaseZoneLabel}</Label>
-                              <Select value={String(phase.zone || 1)} onValueChange={(v) => updatePhase(index, 'zone', Number(v))}>
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {[1, 2, 3, 4, 5].map((z) => (
-                                    <SelectItem key={z} value={String(z)}>Z{z}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-                          {pt === 'rep' && (
-                            <div className="space-y-1">
-                              <Label className="text-xs">{t.phaseIntensityLabel}</Label>
-                              <Input
-                                placeholder={t.phaseIntensityPh}
-                                value={phase.pace || ''}
-                                onChange={(e) => updatePhase(index, 'pace', e.target.value)}
-                              />
-                            </div>
-                          )}
-                          <div className="space-y-1">
-                            <Label className="text-xs">{t.phaseNotesLabel}</Label>
-                            <Input
-                              value={phase.notes || ''}
-                              onChange={(e) => updatePhase(index, 'notes', e.target.value)}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-              <div className="flex flex-wrap gap-2 pt-1">
-                {PHASE_TYPES.map((pt) => (
-                  <Button key={pt} type="button" variant="outline" size="sm" onClick={() => addPhase(pt)}>
-                    <Plus className="h-3.5 w-3.5 mr-1" />
-                    {PHASE_ICON[pt]} {phaseLabel(t, pt)}
-                  </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        {/* Warmup & Cooldown */}
+        <Card>
+          <CardHeader>
+            <CardTitle>{t.warmupCooldownTitle}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="warmup">{t.warmupLabel}</Label>
+              <Textarea
+                id="warmup"
+                placeholder={t.warmupPh}
+                value={warmup}
+                onChange={(e) => setWarmup(e.target.value)}
+                rows={2}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cooldown">{t.cooldownLabel}</Label>
+              <Textarea
+                id="cooldown"
+                placeholder={t.cooldownPh}
+                value={cooldown}
+                onChange={(e) => setCooldown(e.target.value)}
+                rows={2}
+              />
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Workout Sets */}
-        {type !== 'threshold' && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>{t.workoutSetsTitle}</CardTitle>
@@ -690,7 +541,6 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
             )}
           </CardContent>
         </Card>
-        )}
 
         {/* Notes */}
         <Card>

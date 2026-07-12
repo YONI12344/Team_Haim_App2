@@ -22,6 +22,7 @@ import {
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
+import { AthleteWorkoutProgress } from '@/components/coach/athlete-workout-progress'
 
 // Matches the app's --gold/--coral theme tokens (recharts needs literal
 // color strings, not CSS vars) — same gold hex already used in athlete-stats.tsx.
@@ -40,16 +41,11 @@ interface LactateTestDoc {
   athleteId: string
   date: string
   notes?: string
-  /** 'step' = full incremental test (default); 'spot' = in-workout quick
-   *  check; 'workout' = auto-generated from a completed threshold workout's
-   *  rep-level lactate readings (see components/athlete/workout-log-form.tsx) */
-  kind?: 'step' | 'spot' | 'workout'
+  /** 'step' = full incremental test (default); 'spot' = in-workout quick check */
+  kind?: 'step' | 'spot'
   /** spot checks: session context, e.g. "20×400" + morning/evening */
   workoutLabel?: string
   session?: 'am' | 'pm'
-  /** 'workout' kind only: source logs/{id} doc and the workout's title. */
-  workoutLogId?: string
-  workoutTitle?: string
   targetLactate?: number | null
   readings?: SpotReading[]
   steps: LactateStep[]
@@ -458,12 +454,11 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
         </CardContent>
       </Card>
 
-      {/* ── Lactate curve chart (compare any two step tests / threshold workouts) ── */}
+      {/* ── Lactate curve chart (compare any two real step tests) ── */}
       {fullTests.length >= 1 && (() => {
         const testA = fullTests.find(t => t.id === curveAId) || null
         const testB = fullTests.find(t => t.id === curveBId) || null
-        const curveLabel = (t: LactateTestDoc) =>
-          `${format(new Date(t.date), 'd/M/yy')}${t.kind === 'workout' ? ` · 💪 ${t.workoutTitle || ''}` : ' · 🧪'}`
+        const curveLabel = (t: LactateTestDoc) => `${format(new Date(t.date), 'd/M/yy')} · 🧪`
         const curveData = (t: LactateTestDoc) =>
           t.steps.filter(s => s.hr != null).map(s => ({ hr: s.hr, lactate: s.lactate, pace: s.pace })).sort((a, b) => (a.hr! - b.hr!))
 
@@ -815,7 +810,7 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
       {fullTests.length > 0 && (
         <Card>
           <CardHeader className="pb-2 pt-4 px-4">
-            <CardTitle className="text-sm">היסטוריית בדיקות ({fullTests.length})</CardTitle>
+            <CardTitle className="text-sm">היסטוריית בדיקות מדרגות ({fullTests.length})</CardTitle>
           </CardHeader>
           <CardContent className="px-4 pb-4 space-y-1.5">
             {fullTests.map(test => (
@@ -824,11 +819,6 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
                   className="w-full px-3 py-2 flex items-center justify-between hover:bg-muted/20">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs font-bold text-navy">{format(new Date(test.date), 'd/M/yyyy')}</span>
-                    {test.kind === 'workout' && (
-                      <span className="text-[10px] font-semibold bg-pink-50 text-pink-700 border border-pink-200 px-1.5 py-0.5 rounded-full">
-                        💪 {test.workoutTitle || 'אימון סף'}
-                      </span>
-                    )}
                     {test.lt2PaceSec && (
                       <span className="text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-full" dir="ltr">
                         T2 {secToPace(test.lt2PaceSec)}
@@ -871,6 +861,10 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
           </CardContent>
         </Card>
       )}
+
+      {/* ── Per-workout progress over time (separate from real T1/T2 above —
+          see components/coach/athlete-workout-progress.tsx for why) ── */}
+      <AthleteWorkoutProgress athleteId={athleteId} />
     </div>
   )
 }

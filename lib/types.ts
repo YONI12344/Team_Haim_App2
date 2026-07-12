@@ -136,7 +136,6 @@ export type WorkoutType =
   | 'rest'
   | 'race'
   | 'time_trial'
-  | 'threshold'
 
 // Workout
 export interface Workout {
@@ -150,8 +149,9 @@ export interface Workout {
   warmup?: string
   cooldown?: string
   notes?: string
-  // Target blood-lactate level (mmol/L) for a 'threshold' workout — shown to
-  // the athlete during execution as the session's goal.
+  // Optional target blood-lactate level (mmol/L) for this session — shown to
+  // the athlete during execution as a goal. Available on any workout type;
+  // the athlete logs actual lactate per rep in SplitLog.lactate.
   targetLactate?: number
   createdBy: string
   createdAt: Date
@@ -183,13 +183,6 @@ export interface WorkoutSet {
   restAfterSet?: string
   notes?: string
   intervals?: WorkoutInterval[]
-  /** Only set on 'threshold'-type workouts: which phase of the session this
-   *  block represents. Ordered warmup → rep → recovery → cooldown. `duration`
-   *  above holds the planned minutes for the phase, `pace` holds the target
-   *  intensity text (e.g. "80-90% LTHR"), `notes` the coach's phase notes. */
-  phase?: 'warmup' | 'rep' | 'recovery' | 'cooldown'
-  /** Training zone 1-5 for this phase (threshold workouts only). */
-  zone?: 1 | 2 | 3 | 4 | 5
 }
 
 /** Resolve a set's "rest after this set" value, falling back to the legacy
@@ -320,6 +313,13 @@ export interface WorkoutLog {
   effort: number | null
   comment: string
   splitLogs?: SplitLog[]
+  // Denormalized from the workout template at save time so the Lab's
+  // per-workout progress view (components/coach/athlete-workout-progress.tsx)
+  // can group/label logs without extra reads.
+  workoutTitle?: string
+  // true when any splitLogs entry has a lactate reading — lets that same
+  // view query logs cheaply instead of fetching everything.
+  hasLactate?: boolean
   source?: string
   feedbackStatus?: string
   // Manual uploads: activity kind from lib/activity-types (run, gym, yoga, ...)
@@ -338,24 +338,15 @@ export interface SplitLog {
   repIndex: number
   distance?: string
   time?: string
+  /** Pace for this rep, e.g. "4:30" (min/km) — manually entered, or
+   *  pre-filled (editable) from a matched Strava lap. */
   pace?: string
   notes?: string
-  // --- threshold-workout execution fields (only set when the parent
-  // workout's WorkoutSet has a `phase`; see lib/physiology.ts) ---
-  phase?: 'warmup' | 'rep' | 'recovery' | 'cooldown'
-  /** Actual minutes spent in a non-rep phase (warmup/recovery/cooldown). */
-  durationActualMin?: number
-  /** Average / max heart rate during a rep phase. */
+  /** Heart rate for this rep — manually entered, or pre-filled (editable)
+   *  from a matched Strava lap. */
   avgHr?: number
-  maxHr?: number
-  /** Average pace during a rep phase, e.g. "4:30" (min/km). */
-  avgPace?: string
-  /** Blood-lactate reading (mmol/L) taken during/after this rep, if any. */
+  /** Optional blood-lactate reading (mmol/L) the athlete adds for this rep. */
   lactate?: number
-  /** HR and pace at the moment of the lactate reading — defaults to
-   *  avgHr/avgPace when not entered separately. */
-  lactateHr?: number
-  lactatePace?: string
 }
 
 /** Map a legacy string effort label to its numeric (1–10) equivalent. */
