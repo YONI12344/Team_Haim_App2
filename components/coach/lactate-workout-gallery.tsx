@@ -24,9 +24,15 @@ import { formatTargetRange } from '@/lib/physiology'
 
 const CURVE_COLOR_BASELINE = '#0a1628'
 
+const AXIS_OPTIONS = [
+  ['paceVsLactate', 'קצב/לקטט'],
+  ['hrVsLactate', 'דופק/לקטט'],
+  ['dual', 'זמן'],
+] as const
+
 export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
   const { loading, grouped, workoutOptions } = useWorkoutLactateGroups(athleteId)
-  const [axisMode, setAxisMode] = useState<AxisMode>('paceVsLactate')
+  const [axisModeById, setAxisModeById] = useState<Record<string, AxisMode>>({})
   const [baselineSteps, setBaselineSteps] = useState<LactateStep[] | null>(null)
   const [baselineLoading, setBaselineLoading] = useState(true)
 
@@ -53,15 +59,15 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
   )
 
   const baselineCurve: CurveInput | null = baselineSteps?.length ? {
-    id: 'baseline', label: '🧪 בדיקת מעבדה', color: CURVE_COLOR_BASELINE, sourceType: 'test',
+    id: 'baseline', label: 'בדיקת מעבדה', color: CURVE_COLOR_BASELINE, sourceType: 'test',
     points: baselineSteps.map(s => ({ pace: s.pace, hr: s.hr, lactate: s.lactate })),
   } : null
 
   const cards: { id: string; title: string; curves: CurveInput[]; thresholds?: ReturnType<typeof currentWorkoutThresholds> }[] = [
-    ...(baselineCurve ? [{ id: 'baseline', title: '🧪 בדיקת מעבדה (בסיס)', curves: [baselineCurve] }] : []),
+    ...(baselineCurve ? [{ id: 'baseline', title: 'בדיקת מעבדה (בסיס)', curves: [baselineCurve] }] : []),
     ...workoutOptions.map(o => ({
       id: o.id,
-      title: `💪 ${o.title}`,
+      title: o.title,
       curves: buildSessionCurves(grouped.get(o.id)!),
       thresholds: currentWorkoutThresholds(grouped.get(o.id)),
     })),
@@ -69,60 +75,59 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
 
   if (cards.length === 0) return (
     <div className="rounded-2xl border border-dashed border-border p-4 text-center" dir="rtl">
-      <p className="text-sm font-semibold text-navy">📊 עדיין אין גרפים להצגה</p>
+      <p className="text-sm font-semibold text-navy">עדיין אין גרפים להצגה</p>
       <p className="text-xs text-muted-foreground mt-1">
-        ברגע שתתווסף בדיקת מעבדה, או שהאתלט ידווח לקטט באימון (בכל אימון עם חזרות —
-        בשדה 🧪 ליד כל חזרה), הגרף שלו יופיע כאן אוטומטית.
+        ברגע שתתווסף בדיקת מעבדה, או שהאתלט ידווח לקטט באימון (באימוני סף בלבד —
+        בשדה ליד כל חזרה), הגרף שלו יופיע כאן אוטומטית.
       </p>
     </div>
   )
 
   return (
     <div className="space-y-3" dir="rtl">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h3 className="text-sm font-bold text-navy">📊 השוואת אימונים — כל סוגי האימונים</h3>
-        <div className="flex gap-1 bg-muted rounded-xl p-0.5">
-          {([
-            ['paceVsLactate', 'קצב/לקטט'],
-            ['hrVsLactate', 'דופק/לקטט'],
-            ['dual', 'זמן'],
-          ] as const).map(([m, label]) => (
-            <button key={m} onClick={() => setAxisMode(m)}
-              className={cn('text-[11px] px-3 py-1 rounded-lg font-semibold transition-all',
-                axisMode === m ? 'bg-white text-navy shadow-sm' : 'text-muted-foreground')}>
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <h3 className="text-sm font-bold text-navy">השוואת אימונים — כל סוגי האימונים</h3>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {cards.map(card => (
-          <Card key={card.id}>
-            <CardHeader className="pb-2 pt-3 px-3 space-y-1.5">
-              <CardTitle className="text-xs">{card.title}</CardTitle>
-              {/* Current T1/T2/T3 for THIS workout — from the athlete's most
-                  recent session of it (same source that drives the dynamic
-                  target shown when logging), not the real Lab thresholds. */}
-              {card.thresholds && (card.thresholds.T1 || card.thresholds.T2 || card.thresholds.T3) && (
-                <div className="flex flex-wrap gap-1">
-                  {(['T1', 'T2', 'T3'] as const).map(level => {
-                    const r = card.thresholds![level]
-                    if (!r) return null
-                    return (
-                      <span key={level} className="text-[10px] font-semibold bg-navy/5 border border-navy/10 text-navy px-1.5 py-0.5 rounded-full whitespace-nowrap" dir="ltr">
-                        {level} · {formatTargetRange(r, ['pace', 'hr'])}
-                      </span>
-                    )
-                  })}
+        {cards.map(card => {
+          const axisMode = axisModeById[card.id] ?? 'paceVsLactate'
+          return (
+            <Card key={card.id}>
+              <CardHeader className="pb-2 pt-3 px-3 space-y-1.5">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <CardTitle className="text-xs">{card.title}</CardTitle>
+                  <div className="flex gap-1 bg-muted rounded-xl p-0.5">
+                    {AXIS_OPTIONS.map(([m, label]) => (
+                      <button key={m} onClick={() => setAxisModeById(prev => ({ ...prev, [card.id]: m }))}
+                        className={cn('text-[10px] px-2 py-1 rounded-lg font-semibold transition-all',
+                          axisMode === m ? 'bg-white text-navy shadow-sm' : 'text-muted-foreground')}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              )}
-            </CardHeader>
-            <CardContent className="px-3 pb-3">
-              <LactateMultiCurveChart curves={card.curves} axisMode={axisMode} size="compact" />
-            </CardContent>
-          </Card>
-        ))}
+                {/* Current T1/T2/T3 for THIS workout — from the athlete's most
+                    recent session of it (same source that drives the dynamic
+                    target shown when logging), not the real Lab thresholds. */}
+                {card.thresholds && (card.thresholds.T1 || card.thresholds.T2 || card.thresholds.T3) && (
+                  <div className="flex flex-wrap gap-1">
+                    {(['T1', 'T2', 'T3'] as const).map(level => {
+                      const r = card.thresholds![level]
+                      if (!r) return null
+                      return (
+                        <span key={level} className="text-[10px] font-semibold bg-navy/5 border border-navy/10 text-navy px-1.5 py-0.5 rounded-full whitespace-nowrap" dir="ltr">
+                          {level} · {formatTargetRange(r, ['pace', 'hr'])}
+                        </span>
+                      )
+                    })}
+                  </div>
+                )}
+              </CardHeader>
+              <CardContent className="px-3 pb-3">
+                <LactateMultiCurveChart curves={card.curves} axisMode={axisMode} size="compact" />
+              </CardContent>
+            </Card>
+          )
+        })}
       </div>
     </div>
   )

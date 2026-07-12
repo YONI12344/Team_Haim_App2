@@ -160,7 +160,7 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
         <p className="text-[10px] font-semibold text-muted-foreground text-center" dir="rtl">{AXIS_CAPTION[axisMode]}</p>
         <div style={{ width: '100%', height: size === 'compact' ? 220 : 360 }} dir="ltr">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart margin={{ top: 16, right: 15, left: -10, bottom: 5 }}>
+          <LineChart margin={{ top: 16, right: 8, left: -10, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             {axisMode === 'paceVsLactate' && (
               <>
@@ -193,7 +193,7 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
                 actually sit on the Y-axis, regardless of any curve. */}
             {axisMode !== 'dual' && [LT1_TARGET, LT2_TARGET, LT3_TARGET].map(v => (
               <ReferenceLine key={v} y={v} stroke="#c7c7c7" strokeDasharray="4 4"
-                label={{ value: v.toFixed(1), position: 'right', fontSize: 9, fill: '#9ca3af' }} />
+                label={{ value: v.toFixed(1), position: 'insideRight', fontSize: 9, fill: '#9ca3af' }} />
             ))}
             <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #f0f0f0', borderRadius: '12px' }}
               labelFormatter={(v: any) => axisMode === 'paceVsLactate' ? secToPace(v) : String(v)} />

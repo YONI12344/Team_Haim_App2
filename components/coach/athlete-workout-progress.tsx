@@ -81,7 +81,7 @@ export function AthleteWorkoutProgress({ athleteId }: { athleteId: string }) {
   if (workoutOptions.length === 0) return null
 
   const baselineCurve: CurveInput | null = baselineSteps?.length ? {
-    id: 'baseline', label: 'בסיס (בדיקת מעבדה)', color: CURVE_COLOR_BASELINE, sourceType: 'test',
+    id: 'baseline', label: 'בדיקת מעבדה', color: CURVE_COLOR_BASELINE, sourceType: 'test',
     points: baselineSteps.map(s => ({ pace: s.pace, hr: s.hr, lactate: s.lactate })),
   } : null
 
@@ -119,7 +119,7 @@ export function AthleteWorkoutProgress({ athleteId }: { athleteId: string }) {
                 <button key={v} onClick={() => setView(v)}
                   className={cn('text-[11px] px-3 py-1 rounded-lg font-semibold transition-all',
                     view === v ? 'bg-white text-navy shadow-sm' : 'text-muted-foreground')}>
-                  {v === 'graph' ? '📈 גרף' : '📋 טבלה'}
+                  {v === 'graph' ? 'גרף' : 'טבלה'}
                 </button>
               ))}
             </div>
@@ -173,7 +173,7 @@ export function AthleteWorkoutProgress({ athleteId }: { athleteId: string }) {
                   !hiddenIds.has('baseline') ? 'text-navy' : 'text-muted-foreground border-border/50 opacity-50')}
                 style={!hiddenIds.has('baseline') ? { borderColor: CURVE_COLOR_BASELINE, backgroundColor: `${CURVE_COLOR_BASELINE}1a` } : undefined}>
                 <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: !hiddenIds.has('baseline') ? CURVE_COLOR_BASELINE : '#d1d5db' }} />
-                🧪 בסיס
+                בסיס
               </button>
             )}
           </div>
