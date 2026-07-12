@@ -4,7 +4,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 
 type Language = 'en' | 'he'
 
-interface Translations {
+export interface Translations {
   // Common
   teamHaim: string
   eliteAthletic: string
@@ -151,6 +151,24 @@ interface Translations {
   addSetBtn: string
   noSetsAdded: string
   setLabel: string
+  // Threshold workout phase builder
+  thresholdWorkoutType: string
+  phaseBuilderTitle: string
+  addPhaseBtn: string
+  phaseWarmup: string
+  phaseRep: string
+  phaseRecovery: string
+  phaseCooldown: string
+  phaseDurationLabel: string
+  phaseZoneLabel: string
+  phaseIntensityLabel: string
+  phaseIntensityPh: string
+  phaseNotesLabel: string
+  totalDurationLabel: string
+  targetLactateLabel: string
+  targetLactatePh: string
+  noPhasesAdded: string
+  thresholdValidationError: string
   repsLabel: string
   distanceDurationLabel: string
   distanceDurationPh: string
@@ -615,6 +633,20 @@ interface Translations {
   totalKmLabel: string
   avgTempoLabel: string
   intervalLogTitle: string
+  // Threshold workout execution (athlete logging)
+  thresholdExecutionTitle: string
+  phaseProgressLabel: string
+  actualDurationLabel: string
+  avgHrLabel: string
+  maxHrLabel: string
+  avgPaceLabel: string
+  lactateTestSectionTitle: string
+  lactateValueLabel: string
+  hrAtTestLabel: string
+  paceAtTestLabel: string
+  autoFilledHint: string
+  lactateHistoryTitle: string
+  repNumberLabel: string
   sendFeedbackToCoach: string
   updateFeedback: string
   workoutDefault: string
@@ -887,6 +919,23 @@ const translations: Record<Language, Translations> = {
     addSetBtn: 'Add Set',
     noSetsAdded: 'No sets added. Click "Add Set" to build interval or structured workouts.',
     setLabel: 'Set',
+    thresholdWorkoutType: 'Threshold (Lactate)',
+    phaseBuilderTitle: 'Workout Phases',
+    addPhaseBtn: 'Add Phase',
+    phaseWarmup: 'Warmup',
+    phaseRep: 'Rep (Threshold)',
+    phaseRecovery: 'Recovery',
+    phaseCooldown: 'Cooldown',
+    phaseDurationLabel: 'Duration (min)',
+    phaseZoneLabel: 'Zone',
+    phaseIntensityLabel: 'Intensity',
+    phaseIntensityPh: 'e.g. 80-90% LTHR',
+    phaseNotesLabel: 'Notes',
+    totalDurationLabel: 'Total duration',
+    targetLactateLabel: 'Target lactate (mmol/L)',
+    targetLactatePh: '4.0',
+    noPhasesAdded: 'No phases added yet. Add a warmup, at least one rep, and a recovery.',
+    thresholdValidationError: 'A threshold workout needs at least one warmup, one rep, and one recovery phase.',
     repsLabel: 'Reps',
     distanceDurationLabel: 'Distance/Duration',
     distanceDurationPh: 'e.g., 400m or 2:00',
@@ -1329,6 +1378,19 @@ const translations: Record<Language, Translations> = {
     totalKmLabel: 'Total km',
     avgTempoLabel: 'Avg tempo',
     intervalLogTitle: 'Log by interval',
+    thresholdExecutionTitle: 'Log threshold workout',
+    phaseProgressLabel: 'Phases completed',
+    actualDurationLabel: 'Actual duration (min)',
+    avgHrLabel: 'Avg HR (bpm)',
+    maxHrLabel: 'Max HR (bpm)',
+    avgPaceLabel: 'Avg pace (/km)',
+    lactateTestSectionTitle: 'Lactate test (optional)',
+    lactateValueLabel: 'Lactate (mmol/L)',
+    hrAtTestLabel: 'HR at test',
+    paceAtTestLabel: 'Pace at test',
+    autoFilledHint: 'Auto-filled from avg HR/pace — edit if the test was measured differently',
+    lactateHistoryTitle: 'Lactate readings this session',
+    repNumberLabel: 'Rep',
     sendFeedbackToCoach: 'Send feedback to coach ✓',
     updateFeedback: 'Update feedback',
     workoutDefault: 'Workout',
@@ -1585,6 +1647,23 @@ const translations: Record<Language, Translations> = {
     addSetBtn: 'הוסף סט',
     noSetsAdded: 'לא נוספו סטים. לחץ "הוסף סט" כדי לבנות אימוני אינטרוולים או אימונים מובנים.',
     setLabel: 'סט',
+    thresholdWorkoutType: 'אימון סף (לקטט)',
+    phaseBuilderTitle: 'שלבי האימון',
+    addPhaseBtn: 'הוסף שלב',
+    phaseWarmup: 'חימום',
+    phaseRep: 'חזרה (סף)',
+    phaseRecovery: 'התאוששות',
+    phaseCooldown: 'שחרור',
+    phaseDurationLabel: 'משך (דק׳)',
+    phaseZoneLabel: 'אזור',
+    phaseIntensityLabel: 'עצימות',
+    phaseIntensityPh: 'לדוגמה: 80-90% LTHR',
+    phaseNotesLabel: 'הערות',
+    totalDurationLabel: 'משך כולל',
+    targetLactateLabel: 'יעד לקטט (mmol/L)',
+    targetLactatePh: '4.0',
+    noPhasesAdded: 'עדיין לא נוספו שלבים. הוסף חימום, לפחות חזרה אחת, והתאוששות.',
+    thresholdValidationError: 'אימון סף חייב לכלול לפחות שלב חימום אחד, חזרה אחת, והתאוששות אחת.',
     repsLabel: 'חזרות',
     distanceDurationLabel: 'מרחק/משך',
     distanceDurationPh: 'לדוגמה: 400 מ\' או 2:00',
@@ -2022,6 +2101,19 @@ const translations: Record<Language, Translations> = {
     totalKmLabel: 'סה"כ ק"מ',
     avgTempoLabel: 'טמפו ממוצע',
     intervalLogTitle: 'תיעוד לפי אינטרוול',
+    thresholdExecutionTitle: 'תיעוד אימון סף',
+    phaseProgressLabel: 'שלבים שהושלמו',
+    actualDurationLabel: 'משך בפועל (דק׳)',
+    avgHrLabel: 'דופק ממוצע (bpm)',
+    maxHrLabel: 'דופק מקסימלי (bpm)',
+    avgPaceLabel: 'קצב ממוצע (/ק"מ)',
+    lactateTestSectionTitle: 'בדיקת לקטט (אופציונלי)',
+    lactateValueLabel: 'לקטט (mmol/L)',
+    hrAtTestLabel: 'דופק בבדיקה',
+    paceAtTestLabel: 'קצב בבדיקה',
+    autoFilledHint: 'מולא אוטומטית מהדופק/קצב הממוצע — ניתן לערוך אם נמדד אחרת',
+    lactateHistoryTitle: 'קריאות לקטט באימון זה',
+    repNumberLabel: 'חזרה',
     sendFeedbackToCoach: 'שלח משוב למאמן ✓',
     updateFeedback: 'עדכן משוב',
     workoutDefault: 'אימון',

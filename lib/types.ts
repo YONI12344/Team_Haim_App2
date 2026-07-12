@@ -136,6 +136,7 @@ export type WorkoutType =
   | 'rest'
   | 'race'
   | 'time_trial'
+  | 'threshold'
 
 // Workout
 export interface Workout {
@@ -149,6 +150,9 @@ export interface Workout {
   warmup?: string
   cooldown?: string
   notes?: string
+  // Target blood-lactate level (mmol/L) for a 'threshold' workout — shown to
+  // the athlete during execution as the session's goal.
+  targetLactate?: number
   createdBy: string
   createdAt: Date
   updatedAt: Date
@@ -179,6 +183,13 @@ export interface WorkoutSet {
   restAfterSet?: string
   notes?: string
   intervals?: WorkoutInterval[]
+  /** Only set on 'threshold'-type workouts: which phase of the session this
+   *  block represents. Ordered warmup → rep → recovery → cooldown. `duration`
+   *  above holds the planned minutes for the phase, `pace` holds the target
+   *  intensity text (e.g. "80-90% LTHR"), `notes` the coach's phase notes. */
+  phase?: 'warmup' | 'rep' | 'recovery' | 'cooldown'
+  /** Training zone 1-5 for this phase (threshold workouts only). */
+  zone?: 1 | 2 | 3 | 4 | 5
 }
 
 /** Resolve a set's "rest after this set" value, falling back to the legacy
@@ -329,6 +340,22 @@ export interface SplitLog {
   time?: string
   pace?: string
   notes?: string
+  // --- threshold-workout execution fields (only set when the parent
+  // workout's WorkoutSet has a `phase`; see lib/physiology.ts) ---
+  phase?: 'warmup' | 'rep' | 'recovery' | 'cooldown'
+  /** Actual minutes spent in a non-rep phase (warmup/recovery/cooldown). */
+  durationActualMin?: number
+  /** Average / max heart rate during a rep phase. */
+  avgHr?: number
+  maxHr?: number
+  /** Average pace during a rep phase, e.g. "4:30" (min/km). */
+  avgPace?: string
+  /** Blood-lactate reading (mmol/L) taken during/after this rep, if any. */
+  lactate?: number
+  /** HR and pace at the moment of the lactate reading — defaults to
+   *  avgHr/avgPace when not entered separately. */
+  lactateHr?: number
+  lactatePace?: string
 }
 
 /** Map a legacy string effort label to its numeric (1–10) equivalent. */

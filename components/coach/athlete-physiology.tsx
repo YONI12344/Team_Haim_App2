@@ -14,19 +14,42 @@ import { format } from 'date-fns'
 import {
   type LactateStep, type PhysiologySummary, type SpotReading,
   computeThresholds, estimateVo2max, derivePaceBands, physiologyHrZones,
-  analyzeSpotReading, paceToSec, secToPace,
+  analyzeSpotReading, paceToSec, secToPace, interpolateAtHr,
 } from '@/lib/physiology'
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select'
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+} from 'recharts'
+
+// Matches the app's --gold/--coral theme tokens (recharts needs literal
+// color strings, not CSS vars) — same gold hex already used in athlete-stats.tsx.
+const CURVE_COLOR_OLD = '#c9a84c'
+const CURVE_COLOR_NEW = '#e8826b'
+
+/** Min/max HR covered by a curve's steps, or null if no step has an HR. */
+function hrRange(steps: LactateStep[]): [number, number] | null {
+  const hrs = steps.map(s => s.hr).filter((h): h is number => h != null)
+  if (!hrs.length) return null
+  return [Math.min(...hrs), Math.max(...hrs)]
+}
 
 interface LactateTestDoc {
   id: string
   athleteId: string
   date: string
   notes?: string
-  /** 'step' = full incremental test (default); 'spot' = in-workout quick check */
-  kind?: 'step' | 'spot'
+  /** 'step' = full incremental test (default); 'spot' = in-workout quick
+   *  check; 'workout' = auto-generated from a completed threshold workout's
+   *  rep-level lactate readings (see components/athlete/workout-log-form.tsx) */
+  kind?: 'step' | 'spot' | 'workout'
   /** spot checks: session context, e.g. "20×400" + morning/evening */
   workoutLabel?: string
   session?: 'am' | 'pm'
+  /** 'workout' kind only: source logs/{id} doc and the workout's title. */
+  workoutLogId?: string
+  workoutTitle?: string
   targetLactate?: number | null
   readings?: SpotReading[]
   steps: LactateStep[]
@@ -78,6 +101,11 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
   const [spotReadings, setSpotReadings] = useState<SpotReading[]>([emptyReading()])
   const [savingSpot, setSavingSpot] = useState(false)
 
+  // Lactate-curve comparison (step tests + threshold-workout readings share
+  // the same LactateStep[] shape, so both are selectable here)
+  const [curveAId, setCurveAId] = useState('')
+  const [curveBId, setCurveBId] = useState('')
+
   useEffect(() => {
     const load = async () => {
       setLoading(true)
@@ -106,6 +134,13 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
     }
     load()
   }, [athleteId])
+
+  // Default the curve comparison to oldest-vs-newest full test once loaded
+  useEffect(() => {
+    const full = tests.filter(t => t.kind !== 'spot')
+    if (full.length >= 1 && !curveBId) setCurveBId(full[0].id)
+    if (full.length >= 2 && !curveAId) setCurveAId(full[full.length - 1].id)
+  }, [tests])
 
   // Live preview of thresholds while typing the new test
   const livePreview = useMemo(() => computeThresholds(steps), [steps])
@@ -423,6 +458,138 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
         </CardContent>
       </Card>
 
+      {/* ── Lactate curve chart (compare any two step tests / threshold workouts) ── */}
+      {fullTests.length >= 1 && (() => {
+        const testA = fullTests.find(t => t.id === curveAId) || null
+        const testB = fullTests.find(t => t.id === curveBId) || null
+        const curveLabel = (t: LactateTestDoc) =>
+          `${format(new Date(t.date), 'd/M/yy')}${t.kind === 'workout' ? ` · 💪 ${t.workoutTitle || ''}` : ' · 🧪'}`
+        const curveData = (t: LactateTestDoc) =>
+          t.steps.filter(s => s.hr != null).map(s => ({ hr: s.hr, lactate: s.lactate, pace: s.pace })).sort((a, b) => (a.hr! - b.hr!))
+
+        return (
+          <Card>
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-sm flex items-center gap-2">📈 עקומת לקטט</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] text-muted-foreground block mb-1">עקומה ישנה</label>
+                  <Select value={curveAId} onValueChange={setCurveAId}>
+                    <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="בחר בדיקה" /></SelectTrigger>
+                    <SelectContent>
+                      {fullTests.map(t => <SelectItem key={t.id} value={t.id} className="text-xs">{curveLabel(t)}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-[10px] text-muted-foreground block mb-1">עקומה חדשה</label>
+                  <Select value={curveBId} onValueChange={setCurveBId}>
+                    <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="בחר בדיקה" /></SelectTrigger>
+                    <SelectContent>
+                      {fullTests.map(t => <SelectItem key={t.id} value={t.id} className="text-xs">{curveLabel(t)}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {testA && testB ? (
+                <>
+                  <div style={{ width: '100%', height: 260 }} dir="ltr">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart margin={{ top: 10, right: 15, left: -15, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis dataKey="hr" type="number" domain={['dataMin - 5', 'dataMax + 5']}
+                          tick={{ fontSize: 11, fill: '#9ca3af' }}
+                          label={{ value: 'HR (bpm)', position: 'insideBottom', offset: -3, fontSize: 11, fill: '#9ca3af' }} />
+                        <YAxis dataKey="lactate" type="number" tick={{ fontSize: 11, fill: '#9ca3af' }}
+                          label={{ value: 'mmol/L', angle: -90, position: 'insideLeft', fontSize: 11, fill: '#9ca3af' }} />
+                        <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #f0f0f0', borderRadius: '12px' }}
+                          formatter={(v: any) => [`${v} mmol/L`, '']} labelFormatter={(v: any) => `${v} bpm`} />
+                        <Legend wrapperStyle={{ fontSize: 11 }} />
+                        <Line name={curveLabel(testA)} data={curveData(testA)} dataKey="lactate"
+                          stroke={CURVE_COLOR_OLD} strokeWidth={2} dot={{ r: 3 }} />
+                        <Line name={curveLabel(testB)} data={curveData(testB)} dataKey="lactate"
+                          stroke={CURVE_COLOR_NEW} strokeWidth={2} dot={{ r: 3 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  <div className="rounded-xl border border-border overflow-hidden">
+                    <div className="grid grid-cols-4 gap-1 bg-navy/5 px-2 py-1.5 text-[10px] font-bold text-navy text-center">
+                      <span>עקומה</span><span>דופק</span><span>לקטט</span><span>קצב</span>
+                    </div>
+                    {[{ t: testA, color: CURVE_COLOR_OLD, label: 'ישנה' }, { t: testB, color: CURVE_COLOR_NEW, label: 'חדשה' }]
+                      .flatMap(({ t, color, label }) => curveData(t).map((p, i) => (
+                        <div key={`${t.id}-${i}`} className="grid grid-cols-4 gap-1 items-center px-2 py-1 border-t border-border/40 text-[11px] text-center text-navy">
+                          <span className="font-semibold" style={{ color }}>{label}</span>
+                          <span>{p.hr}</span>
+                          <span className="font-bold">{p.lactate}</span>
+                          <span dir="ltr" className="font-mono">{p.pace || '—'}</span>
+                        </div>
+                      )))}
+                  </div>
+                </>
+              ) : (
+                <p className="text-xs text-muted-foreground text-center py-2">בחר שתי בדיקות להשוואה (נדרשות לפחות שתי בדיקות עם דופק)</p>
+              )}
+            </CardContent>
+          </Card>
+        )
+      })()}
+
+      {/* ── Fitness improvement: lactate at the same HR, old vs new ── */}
+      {fullTests.length >= 2 && curveAId && curveBId && curveAId !== curveBId && (() => {
+        const testA = fullTests.find(t => t.id === curveAId)
+        const testB = fullTests.find(t => t.id === curveBId)
+        if (!testA || !testB) return null
+        const rangeA = hrRange(testA.steps)
+        const rangeB = hrRange(testB.steps)
+        if (!rangeA || !rangeB) return null
+        const lo = Math.max(rangeA[0], rangeB[0])
+        const hi = Math.min(rangeA[1], rangeB[1])
+        // Whichever of the two selected tests is actually earlier in time —
+        // independent of which dropdown ("old"/"new") it was picked in.
+        const older = testA.date <= testB.date ? testA : testB
+        const newer = testA.date <= testB.date ? testB : testA
+        const checkpoints = lo < hi ? [0, 1, 2, 3].map(i => Math.round(lo + (hi - lo) * (i / 3))) : []
+        const uniqueCheckpoints = Array.from(new Set(checkpoints))
+        const rows = uniqueCheckpoints
+          .map(hr => ({ hr, oldLac: interpolateAtHr(older.steps, hr), newLac: interpolateAtHr(newer.steps, hr) }))
+          .filter(r => r.oldLac != null && r.newLac != null) as { hr: number; oldLac: number; newLac: number }[]
+
+        return (
+          <Card>
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-sm">💡 שיפור כושר — לקטט באותו דופק</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              {rows.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-2">אין טווח דופק חופף מספיק בין שתי הבדיקות להשוואה</p>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  {rows.map(r => {
+                    const delta = Math.round((r.newLac - r.oldLac) * 100) / 100
+                    const pct = Math.round((delta / r.oldLac) * 1000) / 10
+                    const better = delta < 0
+                    return (
+                      <div key={r.hr} className={cn('rounded-xl border p-3', better ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200')}>
+                        <p className="text-[10px] text-muted-foreground mb-1">דופק {r.hr} bpm</p>
+                        <p className="text-xs font-mono" dir="ltr">{r.oldLac} → <span className="font-bold">{r.newLac}</span> mmol/L</p>
+                        <p className={cn('text-[11px] font-bold mt-1', better ? 'text-emerald-700' : 'text-red-600')} dir="ltr">
+                          {better ? '✓ ' : '⚠ '}{pct > 0 ? '+' : ''}{pct}%
+                        </p>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )
+      })()}
+
       {/* ── New lactate test ── */}
       <Card className={showNewTest ? 'border-gold/40' : ''}>
         <CardHeader className="pb-2 pt-4 px-4">
@@ -648,15 +815,20 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
       {fullTests.length > 0 && (
         <Card>
           <CardHeader className="pb-2 pt-4 px-4">
-            <CardTitle className="text-sm">היסטוריית בדיקות מדרגות ({fullTests.length})</CardTitle>
+            <CardTitle className="text-sm">היסטוריית בדיקות ({fullTests.length})</CardTitle>
           </CardHeader>
           <CardContent className="px-4 pb-4 space-y-1.5">
             {fullTests.map(test => (
               <div key={test.id} className="rounded-xl border border-border overflow-hidden">
                 <button onClick={() => setExpandedTest(p => p === test.id ? null : test.id)}
                   className="w-full px-3 py-2 flex items-center justify-between hover:bg-muted/20">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs font-bold text-navy">{format(new Date(test.date), 'd/M/yyyy')}</span>
+                    {test.kind === 'workout' && (
+                      <span className="text-[10px] font-semibold bg-pink-50 text-pink-700 border border-pink-200 px-1.5 py-0.5 rounded-full">
+                        💪 {test.workoutTitle || 'אימון סף'}
+                      </span>
+                    )}
                     {test.lt2PaceSec && (
                       <span className="text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-full" dir="ltr">
                         T2 {secToPace(test.lt2PaceSec)}

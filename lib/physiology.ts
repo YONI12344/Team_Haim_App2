@@ -94,6 +94,63 @@ export function computeThresholds(steps: LactateStep[]): {
 }
 
 /**
+ * Inverse of interpolateAtLactate: linear interpolation of lactate at a
+ * target heart rate. Used to compare two curves "at the same effort" (HR)
+ * rather than at the same lactate value — e.g. "at 165 bpm, lactate went
+ * from 2.4 to 2.0". Steps without an `hr` are ignored; returns null when
+ * fewer than two usable points or the target HR falls outside the tested
+ * range.
+ */
+export function interpolateAtHr(steps: LactateStep[], targetHr: number): number | null {
+  const pts = steps
+    .map(s => ({ hr: s.hr ?? null, lac: Number(s.lactate) }))
+    .filter((p): p is { hr: number; lac: number } => p.hr != null && isFinite(p.lac) && p.lac > 0)
+    .sort((a, b) => a.hr - b.hr)
+  if (pts.length < 2) return null
+  if (targetHr < pts[0].hr || targetHr > pts[pts.length - 1].hr) return null
+
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i], b = pts[i + 1]
+    if (targetHr >= a.hr && targetHr <= b.hr) {
+      const f = b.hr === a.hr ? 0 : (targetHr - a.hr) / (b.hr - a.hr)
+      return Math.round((a.lac + (b.lac - a.lac) * f) * 100) / 100
+    }
+  }
+  return null
+}
+
+/** One rep's worth of threshold-workout data, as captured by the athlete
+ *  execution form (a subset of SplitLog — kept decoupled from the Firestore
+ *  type so this stays a pure function). */
+export interface ThresholdRepReading {
+  lactate?: number | null
+  lactateHr?: number | null
+  avgHr?: number | null
+  lactatePace?: string | null
+  avgPace?: string | null
+}
+
+/**
+ * Build LactateStep[] from the reps of a completed threshold workout that
+ * have a lactate reading, so the same computeThresholds/interpolate*
+ * pipeline used for formal step tests can also process workout-sourced
+ * data. HR/pace "at the test" default to the rep's overall avg HR/pace when
+ * not entered separately (the caller should surface that as an
+ * auto-filled hint). Sorted by lactate ascending, matching step-test steps.
+ */
+export function stepsFromThresholdReps(reps: ThresholdRepReading[]): LactateStep[] {
+  return reps
+    .filter(r => Number(r.lactate) > 0)
+    .map(r => ({
+      pace: (r.lactatePace || r.avgPace || '').trim(),
+      hr: r.lactateHr ?? r.avgHr ?? null,
+      lactate: Number(r.lactate),
+    }))
+    .filter(s => paceToSec(s.pace) != null)
+    .sort((a, b) => a.lactate - b.lactate)
+}
+
+/**
  * Rough VO2max estimate from LT2 pace: threshold velocity ≈ 88% of vVO2max,
  * and VO2max ≈ vVO2max (km/h) × 3.5. Clearly an estimate — label it so.
  */
