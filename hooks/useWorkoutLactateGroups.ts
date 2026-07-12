@@ -15,7 +15,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { collection, getDocs, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { format } from 'date-fns'
-import { paceToSec, secToPace } from '@/lib/physiology'
+import { paceToSec, secToPace, personalTargetRangeForLevel, type LactateStep, type PersonalTargetRange } from '@/lib/physiology'
 import type { CurveInput } from '@/components/coach/lactate-multi-curve-chart'
 
 export interface WorkoutRepEntry {
@@ -69,6 +69,39 @@ export function buildSessionCurves(group: WorkoutLactateGroup): CurveInput[] {
         .map(r => ({ pace: r.pace ?? null, hr: r.avgHr ?? null, lactate: r.lactate ?? 0, label: format(new Date(log.date), 'd/M') })),
     }))
     .filter(c => c.points.length > 0)
+}
+
+/**
+ * The athlete's most recent *past* session of this same workout, as raw
+ * {pace, hr, lactate} steps — so a workout's target can be recomputed from
+ * "how did I do last time on this exact workout" instead of only a lab
+ * test. `excludeLogId` drops the session currently being edited (so it
+ * never references itself as "the previous one"). Returns [] when there's
+ * no qualifying prior session.
+ */
+export function latestSessionSteps(group: WorkoutLactateGroup | undefined, excludeLogId?: string): LactateStep[] {
+  if (!group) return []
+  const candidates = group.logs.filter(l => l.id !== excludeLogId)
+  const last = candidates[candidates.length - 1]
+  if (!last) return []
+  return (last.splitLogs || []).map(r => ({ pace: r.pace ?? '', hr: r.avgHr ?? null, lactate: r.lactate ?? 0 }))
+}
+
+/**
+ * The athlete's *current* T1/T2/T3 for this specific workout — i.e. the
+ * same "last session" data that now drives the dynamic workout target (see
+ * workout-log-form.tsx / athlete-planner-view.tsx), surfaced here so the
+ * Lab can show it as a headline per workout instead of only implicitly, by
+ * reading the most-recent row of the per-session table. Each level is
+ * null when the athlete's last session didn't span that mmol range.
+ */
+export function currentWorkoutThresholds(group: WorkoutLactateGroup | undefined): Record<'T1' | 'T2' | 'T3', PersonalTargetRange | null> {
+  const steps = latestSessionSteps(group)
+  return {
+    T1: personalTargetRangeForLevel(steps, 'T1'),
+    T2: personalTargetRangeForLevel(steps, 'T2'),
+    T3: personalTargetRangeForLevel(steps, 'T3'),
+  }
 }
 
 export function useWorkoutLactateGroups(athleteId: string) {

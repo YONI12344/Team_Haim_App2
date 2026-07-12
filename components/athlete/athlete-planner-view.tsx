@@ -25,6 +25,7 @@ import { toast } from 'sonner'
 import { WorkoutLogForm } from '@/components/athlete/workout-log-form'
 import { personalTargetRangeForLevel, formatTargetRange, paceToSec, secToPace } from '@/lib/physiology'
 import { useLatestStepTest } from '@/hooks/useLatestStepTest'
+import { useWorkoutLactateGroups, latestSessionSteps } from '@/hooks/useWorkoutLactateGroups'
 import { isCoachEmail } from '@/lib/constants'
 import { ManualLogCard } from '@/components/shared/manual-log-card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -174,6 +175,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
   const athleteId = overrideAthleteId || user?.id || ''
   const isCoachViewer = isCoachEmail(user?.email)
   const { steps: latestSteps } = useLatestStepTest(athleteId)
+  const { grouped: workoutGroups } = useWorkoutLactateGroups(athleteId)
   const [editingTargetId, setEditingTargetId] = useState<string | null>(null)
   const [targetEditFields, setTargetEditFields] = useState({ paceMin: '', paceMax: '', hrMin: '', hrMax: '' })
   const [savingTargetOverride, setSavingTargetOverride] = useState(false)
@@ -483,7 +485,14 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
           manually override it for this specific assignment. */}
       {w.workout.targetThresholdLevel && (() => {
         const metrics: ('pace' | 'hr' | 'lactate')[] = w.workout.targetMetrics?.length ? w.workout.targetMetrics : ['pace', 'hr', 'lactate']
-        const auto = personalTargetRangeForLevel(latestSteps, w.workout.targetThresholdLevel)
+        // Prefer the athlete's own last completed session of this exact
+        // workout over the (possibly months-old) lab test — the target
+        // self-adapts session to session.
+        const recent = !w.targetOverride
+          ? personalTargetRangeForLevel(latestSessionSteps(workoutGroups.get(w.workoutId)), w.workout.targetThresholdLevel)
+          : null
+        const source: 'override' | 'recent' | 'lab' = w.targetOverride ? 'override' : recent ? 'recent' : 'lab'
+        const auto = recent || personalTargetRangeForLevel(latestSteps, w.workout.targetThresholdLevel)
         const range = w.targetOverride
           ? { paceRangeSec: [w.targetOverride.paceMinSec, w.targetOverride.paceMaxSec] as [number, number],
               hrRange: w.targetOverride.hrMin != null && w.targetOverride.hrMax != null ? [w.targetOverride.hrMin, w.targetOverride.hrMax] as [number, number] : null }
@@ -520,7 +529,9 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             <span className={cn('text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap',
               range ? 'bg-white border border-navy/10 text-navy' : 'bg-amber-50 border border-amber-200 text-amber-700')} dir="ltr">
               {range
-                ? `🎯 ${w.workout.targetThresholdLevel} · ${formatTargetRange(range, metrics, w.targetOverride ? undefined : auto?.lactateMid)}${w.targetOverride ? ' · ✏️' : ''}`
+                ? `🎯 ${w.workout.targetThresholdLevel} · ${formatTargetRange(range, metrics, source === 'override' ? undefined : auto?.lactateMid)}${
+                    source === 'override' ? ' · ✏️' : source === 'recent' ? ' · מהאימון הקודם' : ' · מבדיקת מעבדה'
+                  }`
                 : `🎯 ${w.workout.targetThresholdLevel} — אין עדיין נתוני מעבדה`}
             </span>
             {isCoachViewer && (

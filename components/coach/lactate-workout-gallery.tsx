@@ -18,8 +18,9 @@ import { collection, getDocs, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { cn } from '@/lib/utils'
 import { type LactateStep } from '@/lib/physiology'
-import { useWorkoutLactateGroups, buildSessionCurves } from '@/hooks/useWorkoutLactateGroups'
+import { useWorkoutLactateGroups, buildSessionCurves, currentWorkoutThresholds } from '@/hooks/useWorkoutLactateGroups'
 import { LactateMultiCurveChart, type CurveInput, type AxisMode } from '@/components/coach/lactate-multi-curve-chart'
+import { formatTargetRange } from '@/lib/physiology'
 
 const CURVE_COLOR_BASELINE = '#0a1628'
 
@@ -56,12 +57,13 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
     points: baselineSteps.map(s => ({ pace: s.pace, hr: s.hr, lactate: s.lactate })),
   } : null
 
-  const cards: { id: string; title: string; curves: CurveInput[] }[] = [
+  const cards: { id: string; title: string; curves: CurveInput[]; thresholds?: ReturnType<typeof currentWorkoutThresholds> }[] = [
     ...(baselineCurve ? [{ id: 'baseline', title: '🧪 בדיקת מעבדה (בסיס)', curves: [baselineCurve] }] : []),
     ...workoutOptions.map(o => ({
       id: o.id,
       title: `💪 ${o.title}`,
       curves: buildSessionCurves(grouped.get(o.id)!),
+      thresholds: currentWorkoutThresholds(grouped.get(o.id)),
     })),
   ]
 
@@ -97,8 +99,24 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {cards.map(card => (
           <Card key={card.id}>
-            <CardHeader className="pb-2 pt-3 px-3">
+            <CardHeader className="pb-2 pt-3 px-3 space-y-1.5">
               <CardTitle className="text-xs">{card.title}</CardTitle>
+              {/* Current T1/T2/T3 for THIS workout — from the athlete's most
+                  recent session of it (same source that drives the dynamic
+                  target shown when logging), not the real Lab thresholds. */}
+              {card.thresholds && (card.thresholds.T1 || card.thresholds.T2 || card.thresholds.T3) && (
+                <div className="flex flex-wrap gap-1">
+                  {(['T1', 'T2', 'T3'] as const).map(level => {
+                    const r = card.thresholds![level]
+                    if (!r) return null
+                    return (
+                      <span key={level} className="text-[10px] font-semibold bg-navy/5 border border-navy/10 text-navy px-1.5 py-0.5 rounded-full whitespace-nowrap" dir="ltr">
+                        {level} · {formatTargetRange(r, ['pace', 'hr'])}
+                      </span>
+                    )
+                  })}
+                </div>
+              )}
             </CardHeader>
             <CardContent className="px-3 pb-3">
               <LactateMultiCurveChart curves={card.curves} axisMode={axisMode} size="compact" />

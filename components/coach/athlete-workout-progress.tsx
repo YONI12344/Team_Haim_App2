@@ -24,8 +24,9 @@ import { collection, getDocs, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { cn } from '@/lib/utils'
 import { type LactateStep } from '@/lib/physiology'
-import { useWorkoutLactateGroups, buildSessionCurves } from '@/hooks/useWorkoutLactateGroups'
+import { useWorkoutLactateGroups, buildSessionCurves, currentWorkoutThresholds } from '@/hooks/useWorkoutLactateGroups'
 import { LactateMultiCurveChart, type CurveInput, type AxisMode } from '@/components/coach/lactate-multi-curve-chart'
+import { formatTargetRange } from '@/lib/physiology'
 
 const CURVE_COLOR_BASELINE = '#0a1628'
 
@@ -64,6 +65,12 @@ export function AthleteWorkoutProgress({ athleteId }: { athleteId: string }) {
     const group = grouped.get(selectedWorkoutId)
     return group ? buildSessionCurves(group) : []
   }, [grouped, selectedWorkoutId])
+
+  // Current T1/T2/T3 for the SELECTED workout — from the athlete's most
+  // recent session of it (same source driving the dynamic target shown
+  // when logging), surfaced as a headline instead of only implicit in the
+  // per-session table below.
+  const thresholds = useMemo(() => currentWorkoutThresholds(grouped.get(selectedWorkoutId)), [grouped, selectedWorkoutId])
 
   if (loading) return (
     <div className="flex items-center justify-center py-6">
@@ -117,6 +124,20 @@ export function AthleteWorkoutProgress({ athleteId }: { athleteId: string }) {
               ))}
             </div>
           </div>
+
+          {(thresholds.T1 || thresholds.T2 || thresholds.T3) && (
+            <div className="flex flex-wrap gap-1">
+              {(['T1', 'T2', 'T3'] as const).map(level => {
+                const r = thresholds[level]
+                if (!r) return null
+                return (
+                  <span key={level} className="text-[10px] font-semibold bg-navy/5 border border-navy/10 text-navy px-1.5 py-0.5 rounded-full whitespace-nowrap" dir="ltr">
+                    {level} · {formatTargetRange(r, ['pace', 'hr'])}
+                  </span>
+                )
+              })}
+            </div>
+          )}
 
           <div className="flex gap-1 bg-muted rounded-xl p-0.5 w-fit">
             {([

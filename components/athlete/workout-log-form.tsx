@@ -18,7 +18,7 @@ import {
   limit,
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { CheckCircle2, Loader2, Activity, ChevronLeft } from 'lucide-react'
+import { CheckCircle2, Loader2, Activity, ChevronLeft, Plus, X as XIcon } from 'lucide-react'
 import { ManualLogCard } from '@/components/shared/manual-log-card'
 import type { WorkoutLog, Workout, SplitLog } from '@/lib/types'
 import { legacyEffortToNumber } from '@/lib/types'
@@ -28,6 +28,7 @@ import { useLanguage } from '@/contexts/language-context'
 import { useAuth } from '@/contexts/auth-context'
 import { getCoachInfo } from '@/lib/coach'
 import { useLatestStepTest } from '@/hooks/useLatestStepTest'
+import { useWorkoutLactateGroups, latestSessionSteps } from '@/hooks/useWorkoutLactateGroups'
 import { personalTargetRangeForLevel, formatTargetRange } from '@/lib/physiology'
 
 interface WorkoutLogFormProps {
@@ -42,6 +43,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
   const { t } = useLanguage()
   const { user } = useAuth()
   const { steps: latestSteps } = useLatestStepTest(workout?.targetThresholdLevel ? athleteId : undefined)
+  const { grouped: workoutGroups } = useWorkoutLactateGroups(workout?.targetThresholdLevel ? athleteId : '')
   const [targetOverride, setTargetOverride] = useState<{ paceMinSec: number; paceMaxSec: number; hrMin?: number; hrMax?: number } | null>(null)
   const [existingLog, setExistingLog] = useState<WorkoutLog | null>(null)
   const [loading, setLoading] = useState(true)
@@ -54,6 +56,12 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
   const [effort, setEffort] = useState<number | null>(null)
   const [comment, setComment] = useState('')
   const [splitLogs, setSplitLogs] = useState<SplitLog[]>([])
+  // Lactate is asked about once for the whole session (not a box on every
+  // single rep, which gets noisy for a 20-rep workout) — "yes" reveals a
+  // small add-a-reading list keyed by rep number, so the athlete only fills
+  // in the reps they actually tested.
+  const [testedLactate, setTestedLactate] = useState(false)
+  const [lactateReadings, setLactateReadings] = useState<{ repNumber: string; value: string }[]>([])
   const [stravaFilling, setStravaFilling] = useState(false)
   const [stravaFilled, setStravaFilled] = useState(false)
   const [stravaSource, setStravaSource] = useState<null | {
@@ -196,6 +204,13 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
           } else {
             if (log.splitLogs && log.splitLogs.length > 0) {
               setSplitLogs(log.splitLogs)
+              const readings = log.splitLogs
+                .map((s, i) => ({ repNumber: String(i + 1), value: s.lactate ? String(s.lactate) : '' }))
+                .filter(r => r.value !== '')
+              if (readings.length > 0) {
+                setTestedLactate(true)
+                setLactateReadings(readings)
+              }
             }
             setSaved(true)
             setCollapsed(true)
@@ -261,7 +276,22 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
     setSaving(true)
     const isUpdate = !!existingLog?.id
     try {
-      const finalSplitLogs = splitLogs
+      // Apply the "which reps did you test" answers onto the matching
+      // splitLogs entries (1-based rep number → array index) instead of a
+      // lactate box sitting on every single rep.
+      const lactateByRep = new Map<number, number>()
+      if (testedLactate) {
+        for (const r of lactateReadings) {
+          const repNum = parseInt(r.repNumber, 10)
+          const value = parseFloat(r.value)
+          if (repNum >= 1 && repNum <= splitLogs.length && Number.isFinite(value) && value > 0) {
+            lactateByRep.set(repNum, value)
+          }
+        }
+      }
+      const splitLogsWithLactate = splitLogs.map((s, i) => ({ ...s, lactate: lactateByRep.get(i + 1) }))
+
+      const finalSplitLogs = splitLogsWithLactate
         .filter(s => s.time || s.pace || s.notes || s.avgHr || s.lactate)
         .map(s => ({
           ...s,
@@ -451,10 +481,17 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.intervalLogTitle}</p>
             {workout?.targetThresholdLevel && (() => {
               const metrics: ('pace' | 'hr' | 'lactate')[] = workout.targetMetrics?.length ? workout.targetMetrics : ['pace', 'hr', 'lactate']
+              // Prefer the athlete's own last completed session of this exact
+              // workout over the (possibly months-old) lab test — the target
+              // should self-adapt session to session.
+              const recentRange = !targetOverride
+                ? personalTargetRangeForLevel(latestSessionSteps(workoutGroups.get(workoutId), existingLog?.id), workout.targetThresholdLevel)
+                : null
+              const source: 'override' | 'recent' | 'lab' = targetOverride ? 'override' : recentRange ? 'recent' : 'lab'
               const range = targetOverride
                 ? { paceRangeSec: [targetOverride.paceMinSec, targetOverride.paceMaxSec] as [number, number],
                     hrRange: targetOverride.hrMin != null && targetOverride.hrMax != null ? [targetOverride.hrMin, targetOverride.hrMax] as [number, number] : null }
-                : personalTargetRangeForLevel(latestSteps, workout.targetThresholdLevel)
+                : recentRange || personalTargetRangeForLevel(latestSteps, workout.targetThresholdLevel)
               if (!range) {
                 return (
                   <span className="text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full whitespace-nowrap">
@@ -462,11 +499,11 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
                   </span>
                 )
               }
-              const lactateMid = targetOverride ? undefined : (range as any).lactateMid
+              const lactateMid = source === 'lab' || source === 'recent' ? (range as any).lactateMid : undefined
+              const sourceTag = source === 'recent' ? ' · מהאימון הקודם' : source === 'lab' ? ' · מבדיקת מעבדה' : ' · ✏️'
               return (
                 <span className="text-[11px] font-semibold bg-navy/5 border border-navy/10 px-2 py-0.5 rounded-full whitespace-nowrap" dir="ltr">
-                  🎯 {workout.targetThresholdLevel} · {formatTargetRange(range, metrics, lactateMid)}
-                  {targetOverride && ' · ✏️'}
+                  🎯 {workout.targetThresholdLevel} · {formatTargetRange(range, metrics, lactateMid)}{sourceTag}
                 </span>
               )
             })()}
@@ -478,7 +515,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
             const renderRepInputs = (globalIndex: number) => {
               const split = splitLogs[globalIndex]
               return (
-                <div className="flex-1 grid grid-cols-2 gap-2">
+                <div className="flex-1 grid grid-cols-3 gap-2">
                   <div>
                     <label className="text-[10px] text-muted-foreground block mb-1">{t.timeInputLabel}</label>
                     <Input type="text" placeholder={t.mmssPlaceholder} value={split?.time || ''}
@@ -495,12 +532,6 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
                     <label className="text-[10px] text-muted-foreground block mb-1">{t.avgHrLabel}</label>
                     <Input type="number" value={split?.avgHr ?? ''}
                       onChange={e => globalIndex >= 0 && updateSplit(globalIndex, 'avgHr', e.target.value)}
-                      className="h-9 text-sm rounded-xl text-center" />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-muted-foreground block mb-1">🧪 {t.lactateValueLabel}</label>
-                    <Input type="number" step="0.1" value={split?.lactate ?? ''}
-                      onChange={e => globalIndex >= 0 && updateSplit(globalIndex, 'lactate', e.target.value)}
                       className="h-9 text-sm rounded-xl text-center" />
                   </div>
                 </div>
@@ -555,6 +586,61 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
               </div>
             )
           })}
+
+          {/* Threshold workouts only — asked once for the whole session, not
+              a box on every rep (which gets noisy for a 20-rep workout).
+              "Yes" reveals a small add-a-reading list keyed by rep number. */}
+          {workout?.type === 'threshold' && (
+          <div className="rounded-2xl border border-border p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <p className="text-sm font-semibold text-navy">🧪 {t.testedLactateQuestion}</p>
+              <div className="flex gap-1 bg-muted rounded-xl p-0.5">
+                <button type="button" onClick={() => setTestedLactate(false)}
+                  className={cn('text-xs px-3 py-1 rounded-lg font-semibold transition-all',
+                    !testedLactate ? 'bg-white text-navy shadow-sm' : 'text-muted-foreground')}>
+                  {t.no}
+                </button>
+                <button type="button" onClick={() => {
+                    setTestedLactate(true)
+                    if (lactateReadings.length === 0) setLactateReadings([{ repNumber: '', value: '' }])
+                  }}
+                  className={cn('text-xs px-3 py-1 rounded-lg font-semibold transition-all',
+                    testedLactate ? 'bg-white text-navy shadow-sm' : 'text-muted-foreground')}>
+                  {t.yes}
+                </button>
+              </div>
+            </div>
+            {testedLactate && (
+              <div className="space-y-2">
+                <p className="text-[10px] text-muted-foreground">{t.repNumberHint} (1–{splitLogs.length})</p>
+                {lactateReadings.map((r, i) => (
+                  <div key={i} className="grid grid-cols-[1fr_1fr_2rem] gap-2 items-end">
+                    <div>
+                      <label className="text-[10px] text-muted-foreground block mb-1">{t.repNumberLabel}</label>
+                      <Input type="number" min="1" max={splitLogs.length} placeholder="1" value={r.repNumber}
+                        onChange={e => setLactateReadings(prev => prev.map((x, xi) => xi === i ? { ...x, repNumber: e.target.value } : x))}
+                        className="h-9 text-sm text-center" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-muted-foreground block mb-1">{t.lactateValueLabel}</label>
+                      <Input type="number" step="0.1" placeholder="3.5" value={r.value}
+                        onChange={e => setLactateReadings(prev => prev.map((x, xi) => xi === i ? { ...x, value: e.target.value } : x))}
+                        className="h-9 text-sm text-center" />
+                    </div>
+                    <button type="button" onClick={() => setLactateReadings(prev => prev.filter((_, xi) => xi !== i))}
+                      className="h-9 flex items-center justify-center text-gray-300 hover:text-red-400">
+                      <XIcon className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+                <Button type="button" variant="outline" size="sm" className="h-8 text-xs"
+                  onClick={() => setLactateReadings(prev => [...prev, { repNumber: '', value: '' }])}>
+                  <Plus className="h-3.5 w-3.5 mr-1" />{t.addReadingBtn}
+                </Button>
+              </div>
+            )}
+          </div>
+          )}
         </div>
       )}
 

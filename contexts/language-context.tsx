@@ -629,6 +629,12 @@ export interface Translations {
   avgPaceLabel: string
   lactateValueLabel: string
   autoFilledHint: string
+  testedLactateQuestion: string
+  no: string
+  yes: string
+  repNumberHint: string
+  repNumberLabel: string
+  addReadingBtn: string
   sendFeedbackToCoach: string
   updateFeedback: string
   workoutDefault: string
@@ -1357,6 +1363,12 @@ const translations: Record<Language, Translations> = {
     avgPaceLabel: 'Pace (/km)',
     lactateValueLabel: 'Lactate (mmol/L)',
     autoFilledHint: 'Auto-filled from Strava — edit if needed',
+    testedLactateQuestion: 'Did you test lactate during this workout?',
+    no: 'No',
+    yes: 'Yes',
+    repNumberHint: 'Which rep number',
+    repNumberLabel: 'Rep #',
+    addReadingBtn: 'Add reading',
     sendFeedbackToCoach: 'Send feedback to coach ✓',
     updateFeedback: 'Update feedback',
     workoutDefault: 'Workout',
@@ -2064,6 +2076,12 @@ const translations: Record<Language, Translations> = {
     avgPaceLabel: 'קצב (/ק"מ)',
     lactateValueLabel: 'לקטט (mmol/L)',
     autoFilledHint: 'מולא אוטומטית מ-Strava — ניתן לערוך במידת הצורך',
+    testedLactateQuestion: 'בדקת לקטט באימון הזה?',
+    no: 'לא',
+    yes: 'כן',
+    repNumberHint: 'איזה מספר חזרה',
+    repNumberLabel: 'חזרה מס\'',
+    addReadingBtn: 'הוסף קריאה',
     sendFeedbackToCoach: 'שלח משוב למאמן ✓',
     updateFeedback: 'עדכן משוב',
     workoutDefault: 'אימון',
