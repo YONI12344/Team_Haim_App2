@@ -323,6 +323,14 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
               data: { type: 'workout_update' },
               url: `/coach/athletes/${athleteId}/planner`,
             }),
+          }).then(async res => {
+            // A non-2xx (e.g. 404 "no FCM token for user") was previously
+            // indistinguishable from success — this send is fire-and-forget
+            // by design (shouldn't block the athlete's save), but failures
+            // should at least be visible in logs instead of silent.
+            if (!res.ok) {
+              console.error('[workout-log-form] Coach notification failed:', res.status, await res.text().catch(() => ''))
+            }
           }).catch(err => console.error('[workout-log-form] Failed to send coach notification:', err))
         } catch (err) {
           console.error('[workout-log-form] Notification IIFE error:', err)

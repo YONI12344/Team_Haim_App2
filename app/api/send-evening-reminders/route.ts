@@ -27,13 +27,6 @@ export async function GET(request: NextRequest) {
     const workouts = await fsQuery('assignedWorkouts', [], accessToken)
     const logs = await fsQuery('logs', [], accessToken)
 
-    const loggedAthletes = new Set(
-      logs
-        .filter((l) => l.data.source !== 'strava')
-        .map((l) => l.data.athleteId as string)
-        .filter(Boolean),
-    )
-
     const athleteIds = new Set(
       workouts
         .filter((w) => w.data.status !== 'completed' && w.data.status !== 'skipped')
@@ -43,8 +36,6 @@ export async function GET(request: NextRequest) {
 
     const results: string[] = []
     for (const athleteId of athleteIds) {
-      if (loggedAthletes.has(athleteId)) continue
-
       const userDoc = await fsGetDoc('users', athleteId, accessToken)
       const tz: string = userDoc?.timezone || 'Asia/Jerusalem'
 
@@ -62,6 +53,14 @@ export async function GET(request: NextRequest) {
           w.data.status !== 'skipped',
       )
       if (!hasTodayWorkout) continue
+
+      // Skip only if they already logged something *today* — scoped by date
+      // so logging once doesn't silence this reminder forever (the previous
+      // check here had no date filter at all).
+      const hasLoggedToday = logs.some(
+        (l) => l.data.athleteId === athleteId && l.data.date === today && l.data.source !== 'strava',
+      )
+      if (hasLoggedToday) continue
 
       const tokenDoc = await fsGetDoc('fcmTokens', athleteId, accessToken)
       if (!tokenDoc?.token) continue

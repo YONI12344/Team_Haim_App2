@@ -3,12 +3,15 @@
  * 1. Firebase Console → Project Settings → Cloud Messaging
  *    → Generate a Web Push certificate → copy the VAPID key
  *    → Add to Vercel env vars as NEXT_PUBLIC_FIREBASE_VAPID_KEY
- * 2. Firebase Console → Project Settings → Service Accounts
- *    → Generate new private key → download the JSON
- *    → Add values to Vercel env vars:
- *       FIREBASE_ADMIN_PROJECT_ID   (project_id from JSON)
- *       FIREBASE_ADMIN_CLIENT_EMAIL (client_email from JSON)
- *       FIREBASE_ADMIN_PRIVATE_KEY  (private_key from JSON — keep \n as-is)
+ * 2. Server-side sending (app/api/send-notification, send-morning-reminders,
+ *    send-evening-reminders) goes through lib/google-auth.ts's OAuth
+ *    refresh-token flow, NOT the Firebase Admin SDK — the env vars that
+ *    actually matter are:
+ *       GOOGLE_OAUTH_CLIENT_ID
+ *       GOOGLE_OAUTH_CLIENT_SECRET
+ *       GOOGLE_OAUTH_REFRESH_TOKEN
+ *    (previously this comment referenced FIREBASE_ADMIN_* vars, which
+ *    nothing in the codebase reads — that was stale/misleading.)
  */
 
 import { getMessaging, getToken, onMessage } from 'firebase/messaging'

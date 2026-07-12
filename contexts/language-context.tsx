@@ -697,6 +697,8 @@ export interface Translations {
   notificationsTitle: string
   notificationsDesc: string
   enableBtn: string
+  notificationsPillLabel: string
+  notificationsDeniedHint: string
 
   // Dashboard hero / weekly card
   helloGreeting: string
@@ -1413,6 +1415,8 @@ const translations: Record<Language, Translations> = {
     notificationsTitle: 'Enable Notifications',
     notificationsDesc: 'Get workout reminders and messages from your coach',
     enableBtn: 'Enable',
+    notificationsPillLabel: 'Notifications off',
+    notificationsDeniedHint: 'Blocked in your browser — enable notifications for this site in your browser/device settings',
 
     helloGreeting: 'Hello',
     workoutDoneDetails: '✓ Done — View Details',
@@ -2113,6 +2117,8 @@ const translations: Record<Language, Translations> = {
     notificationsTitle: 'הפעל התראות',
     notificationsDesc: 'קבל תזכורות לאימונים והודעות מהמאמן',
     enableBtn: 'הפעל',
+    notificationsPillLabel: 'התראות כבויות',
+    notificationsDeniedHint: 'חסום בדפדפן — יש להפעיל התראות לאתר הזה בהגדרות הדפדפן/המכשיר',
 
     helloGreeting: 'שלום',
     workoutDoneDetails: '✓ הושלם — צפה בפרטים',

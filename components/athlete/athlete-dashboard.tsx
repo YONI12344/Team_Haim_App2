@@ -26,6 +26,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 import {
   collection,
   doc,
@@ -169,10 +170,11 @@ export function AthleteDashboard() {
       } catch {}
     }
     setupChat()
-    // Request notification permission
-    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission()
-    }
+    // Notification permission is only ever requested from the explained
+    // "enable notifications" banner (see useNotifications()) — an
+    // unprompted, unexplained request here risked the browser auto-denying
+    // it, which permanently blocks the real push-notification flow since a
+    // denial can't be re-prompted in-app.
     return () => { if (unsubChat) unsubChat() }
   }, [user?.id])
 
@@ -401,33 +403,45 @@ export function AthleteDashboard() {
   return (
     <div className="space-y-4 pb-24" dir={isRTL ? 'rtl' : 'ltr'}>
 
-      {/* Notification permission banner — only when not yet asked and not dismissed */}
-      {permission === 'default' && !notifBannerDismissed && (
-        <div className="bg-white rounded-2xl border border-[#c9a84c]/30 shadow-sm p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#c9a84c]/10 flex items-center justify-center flex-shrink-0">
-            <Bell className="h-5 w-5 text-[#c9a84c]" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-[#0a1628] leading-tight">{t.notificationsTitle}</p>
-            <p className="text-xs text-gray-500 mt-0.5">{t.notificationsDesc}</p>
-          </div>
+      {/* Notification permission — full banner until dismissed/answered, then
+          shrinks to a small persistent pill (never fully disappears) so
+          there's always a way to recover if the token/permission is lost. */}
+      {permission !== 'granted' && (
+        (notifBannerDismissed || permission === 'denied') ? (
           <button
-            onClick={enableNotifications}
-            className="bg-[#0a1628] text-white rounded-xl px-4 h-9 text-sm font-semibold flex-shrink-0 active:scale-95 transition-transform"
+            onClick={() => permission === 'denied' ? toast.error(t.notificationsDeniedHint) : enableNotifications()}
+            className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-navy bg-white border border-border rounded-full px-3 py-1.5 w-fit"
           >
-            {t.enableBtn}
+            <Bell className="h-3.5 w-3.5" />
+            {t.notificationsPillLabel}
           </button>
-          <button
-            onClick={() => {
-              localStorage.setItem('notifBannerDismissed', '1')
-              setNotifBannerDismissed(true)
-            }}
-            className="text-gray-400 hover:text-gray-600 flex-shrink-0"
-            aria-label={t.close}
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+        ) : (
+          <div className="bg-white rounded-2xl border border-[#c9a84c]/30 shadow-sm p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#c9a84c]/10 flex items-center justify-center flex-shrink-0">
+              <Bell className="h-5 w-5 text-[#c9a84c]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-[#0a1628] leading-tight">{t.notificationsTitle}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{t.notificationsDesc}</p>
+            </div>
+            <button
+              onClick={enableNotifications}
+              className="bg-[#0a1628] text-white rounded-xl px-4 h-9 text-sm font-semibold flex-shrink-0 active:scale-95 transition-transform"
+            >
+              {t.enableBtn}
+            </button>
+            <button
+              onClick={() => {
+                localStorage.setItem('notifBannerDismissed', '1')
+                setNotifBannerDismissed(true)
+              }}
+              className="text-gray-400 hover:text-gray-600 flex-shrink-0"
+              aria-label={t.close}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )
       )}
 
       {/* Hero Section — navy gradient (green when done), greeting + today workout */}

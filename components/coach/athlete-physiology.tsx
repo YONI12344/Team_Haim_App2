@@ -14,27 +14,20 @@ import { format } from 'date-fns'
 import {
   type LactateStep, type PhysiologySummary, type SpotReading,
   computeThresholds, estimateVo2max, derivePaceBands, physiologyHrZones,
-  analyzeSpotReading, paceToSec, secToPace, interpolateAtHr,
+  analyzeSpotReading, paceToSec, secToPace,
 } from '@/lib/physiology'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-} from 'recharts'
 import { AthleteWorkoutProgress } from '@/components/coach/athlete-workout-progress'
+import { LactateMultiCurveChart, type CurveInput, type AxisMode } from '@/components/coach/lactate-multi-curve-chart'
+import { useWorkoutLactateGroups, averageRepMetrics } from '@/hooks/useWorkoutLactateGroups'
 
 // Matches the app's --gold/--coral theme tokens (recharts needs literal
 // color strings, not CSS vars) — same gold hex already used in athlete-stats.tsx.
 const CURVE_COLOR_OLD = '#c9a84c'
 const CURVE_COLOR_NEW = '#e8826b'
-
-/** Min/max HR covered by a curve's steps, or null if no step has an HR. */
-function hrRange(steps: LactateStep[]): [number, number] | null {
-  const hrs = steps.map(s => s.hr).filter((h): h is number => h != null)
-  if (!hrs.length) return null
-  return [Math.min(...hrs), Math.max(...hrs)]
-}
+const CURVE_COLOR_WORKOUT = '#7c9a4c'
 
 interface LactateTestDoc {
   id: string
@@ -53,6 +46,8 @@ interface LactateTestDoc {
   lt1Hr?: number | null
   lt2PaceSec?: number | null
   lt2Hr?: number | null
+  lt3PaceSec?: number | null
+  lt3Hr?: number | null
 }
 
 const emptyStep = (): LactateStep => ({ pace: '', hr: null, lactate: 0 })
@@ -75,6 +70,8 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
   const [mT1Hr, setMT1Hr] = useState('')
   const [mT2Pace, setMT2Pace] = useState('')
   const [mT2Hr, setMT2Hr] = useState('')
+  const [mT3Pace, setMT3Pace] = useState('')
+  const [mT3Hr, setMT3Hr] = useState('')
   const [savingManual, setSavingManual] = useState(false)
   const [showManual, setShowManual] = useState(false)
 
@@ -97,10 +94,13 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
   const [spotReadings, setSpotReadings] = useState<SpotReading[]>([emptyReading()])
   const [savingSpot, setSavingSpot] = useState(false)
 
-  // Lactate-curve comparison (step tests + threshold-workout readings share
-  // the same LactateStep[] shape, so both are selectable here)
+  // Lactate-curve comparison — either curve slot can be a real step test or
+  // a workout type's session history (ids are prefixed 'test:'/'workout:'
+  // to disambiguate, see resolveCurve below).
   const [curveAId, setCurveAId] = useState('')
   const [curveBId, setCurveBId] = useState('')
+  const [axisMode, setAxisMode] = useState<AxisMode>('hrVsLactate')
+  const { grouped: workoutGroups, workoutOptions } = useWorkoutLactateGroups(athleteId)
 
   useEffect(() => {
     const load = async () => {
@@ -117,6 +117,8 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
           setMT1Hr(u.physiology.lt1Hr ? String(u.physiology.lt1Hr) : '')
           setMT2Pace(u.physiology.lt2PaceSec ? secToPace(u.physiology.lt2PaceSec) : '')
           setMT2Hr(u.physiology.lt2Hr ? String(u.physiology.lt2Hr) : '')
+          setMT3Pace(u.physiology.lt3PaceSec ? secToPace(u.physiology.lt3PaceSec) : '')
+          setMT3Hr(u.physiology.lt3Hr ? String(u.physiology.lt3Hr) : '')
         }
         if (u.maxHR) setMaxHr(String(u.maxHR))
         if (u.restingHR) setRestingHr(String(u.restingHR))
@@ -134,8 +136,8 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
   // Default the curve comparison to oldest-vs-newest full test once loaded
   useEffect(() => {
     const full = tests.filter(t => t.kind !== 'spot')
-    if (full.length >= 1 && !curveBId) setCurveBId(full[0].id)
-    if (full.length >= 2 && !curveAId) setCurveAId(full[full.length - 1].id)
+    if (full.length >= 1 && !curveBId) setCurveBId(`test:${full[0].id}`)
+    if (full.length >= 2 && !curveAId) setCurveAId(`test:${full[full.length - 1].id}`)
   }, [tests])
 
   // Live preview of thresholds while typing the new test
@@ -149,12 +151,14 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
   const handleSaveManual = async () => {
     const lt1 = paceToSec(mT1Pace)
     const lt2 = paceToSec(mT2Pace)
+    const lt3 = paceToSec(mT3Pace)
     if (!lt2) { toast.error('נדרש לפחות קצב סף T2 (למשל 4:10)'); return }
     setSavingManual(true)
     try {
       await savePhysiology({
         lt1PaceSec: lt1, lt1Hr: mT1Hr ? Number(mT1Hr) : null,
         lt2PaceSec: lt2, lt2Hr: mT2Hr ? Number(mT2Hr) : null,
+        lt3PaceSec: lt3, lt3Hr: mT3Hr ? Number(mT3Hr) : null,
         vo2maxEst: estimateVo2max(lt2),
         source: 'manual',
       })
@@ -166,7 +170,7 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
   const handleSaveTest = async () => {
     const validSteps = steps.filter(s => paceToSec(s.pace) != null && Number(s.lactate) > 0)
     if (validSteps.length < 3) { toast.error('נדרשות לפחות 3 מדרגות עם קצב ולקטט'); return }
-    const { lt1, lt2 } = computeThresholds(validSteps)
+    const { lt1, lt2, lt3 } = computeThresholds(validSteps)
     setSavingTest(true)
     try {
       const testDoc = {
@@ -178,6 +182,8 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
         lt1Hr: lt1?.hr ?? null,
         lt2PaceSec: lt2?.paceSecPerKm ?? null,
         lt2Hr: lt2?.hr ?? null,
+        lt3PaceSec: lt3?.paceSecPerKm ?? null,
+        lt3Hr: lt3?.hr ?? null,
         createdAt: serverTimestamp(),
       }
       const ref = await addDoc(collection(db, 'lactateTests'), testDoc)
@@ -186,6 +192,7 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
         await savePhysiology({
           lt1PaceSec: lt1?.paceSecPerKm ?? null, lt1Hr: lt1?.hr ?? null,
           lt2PaceSec: lt2.paceSecPerKm, lt2Hr: lt2.hr,
+          lt3PaceSec: lt3?.paceSecPerKm ?? null, lt3Hr: lt3?.hr ?? null,
           vo2maxEst: estimateVo2max(lt2.paceSecPerKm),
           source: 'test', testDate,
         })
@@ -202,6 +209,7 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
     await savePhysiology({
       lt1PaceSec: test.lt1PaceSec ?? null, lt1Hr: test.lt1Hr ?? null,
       lt2PaceSec: test.lt2PaceSec, lt2Hr: test.lt2Hr ?? null,
+      lt3PaceSec: test.lt3PaceSec ?? null, lt3Hr: test.lt3Hr ?? null,
       vo2maxEst: estimateVo2max(test.lt2PaceSec),
       source: 'test', testDate: test.date,
     })
@@ -322,20 +330,25 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
         </CardHeader>
         <CardContent className="px-4 pb-4 space-y-3">
           {phys?.lt2PaceSec ? (
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-3 text-center">
                 <p className="text-[10px] text-muted-foreground mb-0.5">T1 · סף אירובי</p>
-                <p className="text-xl font-black text-emerald-700">{secToPace(phys.lt1PaceSec)}</p>
+                <p className="text-lg font-black text-emerald-700">{secToPace(phys.lt1PaceSec)}</p>
                 <p className="text-[10px] text-muted-foreground">{phys.lt1Hr ? `♥ ${phys.lt1Hr} bpm` : '/km'}</p>
               </div>
               <div className="rounded-xl bg-amber-50 border border-amber-100 p-3 text-center">
                 <p className="text-[10px] text-muted-foreground mb-0.5">T2 · סף אנאירובי</p>
-                <p className="text-xl font-black text-amber-700">{secToPace(phys.lt2PaceSec)}</p>
+                <p className="text-lg font-black text-amber-700">{secToPace(phys.lt2PaceSec)}</p>
                 <p className="text-[10px] text-muted-foreground">{phys.lt2Hr ? `♥ ${phys.lt2Hr} bpm` : '/km'}</p>
+              </div>
+              <div className="rounded-xl bg-rose-50 border border-rose-100 p-3 text-center">
+                <p className="text-[10px] text-muted-foreground mb-0.5">T3 · אנאירובי עמוק</p>
+                <p className="text-lg font-black text-rose-700">{secToPace(phys.lt3PaceSec)}</p>
+                <p className="text-[10px] text-muted-foreground">{phys.lt3Hr ? `♥ ${phys.lt3Hr} bpm` : '/km'}</p>
               </div>
               <div className="rounded-xl bg-navy/5 border border-navy/10 p-3 text-center">
                 <p className="text-[10px] text-muted-foreground mb-0.5">VO2max (הערכה)</p>
-                <p className="text-xl font-black text-navy">{phys.vo2maxEst ?? '—'}</p>
+                <p className="text-lg font-black text-navy">{phys.vo2maxEst ?? '—'}</p>
                 <p className="text-[10px] text-muted-foreground">ml/kg/min</p>
               </div>
             </div>
@@ -369,6 +382,14 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
                 <div>
                   <label className="text-[10px] text-muted-foreground block mb-1">T2 דופק</label>
                   <Input value={mT2Hr} onChange={e => setMT2Hr(e.target.value)} placeholder="172" type="number" className="h-9 text-sm text-center"/>
+                </div>
+                <div>
+                  <label className="text-[10px] text-muted-foreground block mb-1">T3 קצב</label>
+                  <Input value={mT3Pace} onChange={e => setMT3Pace(e.target.value)} placeholder="4:00" className="h-9 text-sm text-center" dir="ltr"/>
+                </div>
+                <div>
+                  <label className="text-[10px] text-muted-foreground block mb-1">T3 דופק</label>
+                  <Input value={mT3Hr} onChange={e => setMT3Hr(e.target.value)} placeholder="178" type="number" className="h-9 text-sm text-center"/>
                 </div>
               </div>
               <Button onClick={handleSaveManual} disabled={savingManual} size="sm" className="w-full h-9 bg-navy text-white">
@@ -454,13 +475,43 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
         </CardContent>
       </Card>
 
-      {/* ── Lactate curve chart (compare any two real step tests) ── */}
-      {fullTests.length >= 1 && (() => {
-        const testA = fullTests.find(t => t.id === curveAId) || null
-        const testB = fullTests.find(t => t.id === curveBId) || null
-        const curveLabel = (t: LactateTestDoc) => `${format(new Date(t.date), 'd/M/yy')} · 🧪`
-        const curveData = (t: LactateTestDoc) =>
-          t.steps.filter(s => s.hr != null).map(s => ({ hr: s.hr, lactate: s.lactate, pace: s.pace })).sort((a, b) => (a.hr! - b.hr!))
+      {/* ── Lactate curve chart: compare real step tests and/or workout-type
+          session curves, on switchable axes ── */}
+      {(fullTests.length >= 1 || workoutOptions.length >= 1) && (() => {
+        const resolveCurve = (id: string): CurveInput | null => {
+          if (id.startsWith('test:')) {
+            const t = fullTests.find(x => x.id === id.slice(5))
+            if (!t) return null
+            return {
+              id, label: `${format(new Date(t.date), 'd/M/yy')} · 🧪`, color: CURVE_COLOR_OLD, sourceType: 'test',
+              points: t.steps.map(s => ({ pace: s.pace, hr: s.hr, lactate: s.lactate })),
+            }
+          }
+          if (id.startsWith('workout:')) {
+            const wid = id.slice(8)
+            const group = workoutGroups.get(wid)
+            if (!group) return null
+            return {
+              id, label: `💪 ${group.title}`, color: CURVE_COLOR_WORKOUT, sourceType: 'workout',
+              points: group.logs.map(log => {
+                const { avgLactate, avgHr, avgPace } = averageRepMetrics(log.splitLogs || [])
+                return { pace: avgPace, hr: avgHr, lactate: avgLactate ?? 0, label: format(new Date(log.date), 'd/M') }
+              }),
+            }
+          }
+          return null
+        }
+
+        const curveOptions = [
+          ...fullTests.map(t => ({ id: `test:${t.id}`, label: `${format(new Date(t.date), 'd/M/yy')} · 🧪 בדיקת מדרגות` })),
+          ...workoutOptions.map(o => ({ id: `workout:${o.id}`, label: `💪 ${o.title}` })),
+        ]
+        const curveA = curveAId ? resolveCurve(curveAId) : null
+        const curveB = curveBId ? resolveCurve(curveBId) : null
+        const curves = [
+          curveA && { ...curveA, color: CURVE_COLOR_OLD },
+          curveB && { ...curveB, color: CURVE_COLOR_NEW },
+        ].filter((c): c is CurveInput => !!c)
 
         return (
           <Card>
@@ -470,115 +521,43 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
             <CardContent className="px-4 pb-4 space-y-3">
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[10px] text-muted-foreground block mb-1">עקומה ישנה</label>
+                  <label className="text-[10px] text-muted-foreground block mb-1">עקומה ראשונה</label>
                   <Select value={curveAId} onValueChange={setCurveAId}>
-                    <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="בחר בדיקה" /></SelectTrigger>
+                    <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="בחר" /></SelectTrigger>
                     <SelectContent>
-                      {fullTests.map(t => <SelectItem key={t.id} value={t.id} className="text-xs">{curveLabel(t)}</SelectItem>)}
+                      {curveOptions.map(o => <SelectItem key={o.id} value={o.id} className="text-xs">{o.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <label className="text-[10px] text-muted-foreground block mb-1">עקומה חדשה</label>
+                  <label className="text-[10px] text-muted-foreground block mb-1">עקומה שנייה</label>
                   <Select value={curveBId} onValueChange={setCurveBId}>
-                    <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="בחר בדיקה" /></SelectTrigger>
+                    <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="בחר" /></SelectTrigger>
                     <SelectContent>
-                      {fullTests.map(t => <SelectItem key={t.id} value={t.id} className="text-xs">{curveLabel(t)}</SelectItem>)}
+                      {curveOptions.map(o => <SelectItem key={o.id} value={o.id} className="text-xs">{o.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
-              {testA && testB ? (
-                <>
-                  <div style={{ width: '100%', height: 260 }} dir="ltr">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart margin={{ top: 10, right: 15, left: -15, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                        <XAxis dataKey="hr" type="number" domain={['dataMin - 5', 'dataMax + 5']}
-                          tick={{ fontSize: 11, fill: '#9ca3af' }}
-                          label={{ value: 'HR (bpm)', position: 'insideBottom', offset: -3, fontSize: 11, fill: '#9ca3af' }} />
-                        <YAxis dataKey="lactate" type="number" tick={{ fontSize: 11, fill: '#9ca3af' }}
-                          label={{ value: 'mmol/L', angle: -90, position: 'insideLeft', fontSize: 11, fill: '#9ca3af' }} />
-                        <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #f0f0f0', borderRadius: '12px' }}
-                          formatter={(v: any) => [`${v} mmol/L`, '']} labelFormatter={(v: any) => `${v} bpm`} />
-                        <Legend wrapperStyle={{ fontSize: 11 }} />
-                        <Line name={curveLabel(testA)} data={curveData(testA)} dataKey="lactate"
-                          stroke={CURVE_COLOR_OLD} strokeWidth={2} dot={{ r: 3 }} />
-                        <Line name={curveLabel(testB)} data={curveData(testB)} dataKey="lactate"
-                          stroke={CURVE_COLOR_NEW} strokeWidth={2} dot={{ r: 3 }} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
+              <div className="flex gap-1 bg-muted rounded-xl p-0.5 w-fit">
+                {([
+                  ['hrVsLactate', 'דופק/לקטט'],
+                  ['paceVsLactate', 'קצב/לקטט'],
+                  ['dual', 'זמן'],
+                ] as const).map(([m, label]) => (
+                  <button key={m} onClick={() => setAxisMode(m)}
+                    className={cn('text-[11px] px-3 py-1 rounded-lg font-semibold transition-all',
+                      axisMode === m ? 'bg-white text-navy shadow-sm' : 'text-muted-foreground')}>
+                    {label}
+                  </button>
+                ))}
+              </div>
 
-                  <div className="rounded-xl border border-border overflow-hidden">
-                    <div className="grid grid-cols-4 gap-1 bg-navy/5 px-2 py-1.5 text-[10px] font-bold text-navy text-center">
-                      <span>עקומה</span><span>דופק</span><span>לקטט</span><span>קצב</span>
-                    </div>
-                    {[{ t: testA, color: CURVE_COLOR_OLD, label: 'ישנה' }, { t: testB, color: CURVE_COLOR_NEW, label: 'חדשה' }]
-                      .flatMap(({ t, color, label }) => curveData(t).map((p, i) => (
-                        <div key={`${t.id}-${i}`} className="grid grid-cols-4 gap-1 items-center px-2 py-1 border-t border-border/40 text-[11px] text-center text-navy">
-                          <span className="font-semibold" style={{ color }}>{label}</span>
-                          <span>{p.hr}</span>
-                          <span className="font-bold">{p.lactate}</span>
-                          <span dir="ltr" className="font-mono">{p.pace || '—'}</span>
-                        </div>
-                      )))}
-                  </div>
-                </>
+              {curves.length > 0 ? (
+                <LactateMultiCurveChart curves={curves} axisMode={axisMode} />
               ) : (
-                <p className="text-xs text-muted-foreground text-center py-2">בחר שתי בדיקות להשוואה (נדרשות לפחות שתי בדיקות עם דופק)</p>
-              )}
-            </CardContent>
-          </Card>
-        )
-      })()}
-
-      {/* ── Fitness improvement: lactate at the same HR, old vs new ── */}
-      {fullTests.length >= 2 && curveAId && curveBId && curveAId !== curveBId && (() => {
-        const testA = fullTests.find(t => t.id === curveAId)
-        const testB = fullTests.find(t => t.id === curveBId)
-        if (!testA || !testB) return null
-        const rangeA = hrRange(testA.steps)
-        const rangeB = hrRange(testB.steps)
-        if (!rangeA || !rangeB) return null
-        const lo = Math.max(rangeA[0], rangeB[0])
-        const hi = Math.min(rangeA[1], rangeB[1])
-        // Whichever of the two selected tests is actually earlier in time —
-        // independent of which dropdown ("old"/"new") it was picked in.
-        const older = testA.date <= testB.date ? testA : testB
-        const newer = testA.date <= testB.date ? testB : testA
-        const checkpoints = lo < hi ? [0, 1, 2, 3].map(i => Math.round(lo + (hi - lo) * (i / 3))) : []
-        const uniqueCheckpoints = Array.from(new Set(checkpoints))
-        const rows = uniqueCheckpoints
-          .map(hr => ({ hr, oldLac: interpolateAtHr(older.steps, hr), newLac: interpolateAtHr(newer.steps, hr) }))
-          .filter(r => r.oldLac != null && r.newLac != null) as { hr: number; oldLac: number; newLac: number }[]
-
-        return (
-          <Card>
-            <CardHeader className="pb-2 pt-4 px-4">
-              <CardTitle className="text-sm">💡 שיפור כושר — לקטט באותו דופק</CardTitle>
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              {rows.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-2">אין טווח דופק חופף מספיק בין שתי הבדיקות להשוואה</p>
-              ) : (
-                <div className="grid grid-cols-2 gap-2">
-                  {rows.map(r => {
-                    const delta = Math.round((r.newLac - r.oldLac) * 100) / 100
-                    const pct = Math.round((delta / r.oldLac) * 1000) / 10
-                    const better = delta < 0
-                    return (
-                      <div key={r.hr} className={cn('rounded-xl border p-3', better ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200')}>
-                        <p className="text-[10px] text-muted-foreground mb-1">דופק {r.hr} bpm</p>
-                        <p className="text-xs font-mono" dir="ltr">{r.oldLac} → <span className="font-bold">{r.newLac}</span> mmol/L</p>
-                        <p className={cn('text-[11px] font-bold mt-1', better ? 'text-emerald-700' : 'text-red-600')} dir="ltr">
-                          {better ? '✓ ' : '⚠ '}{pct > 0 ? '+' : ''}{pct}%
-                        </p>
-                      </div>
-                    )
-                  })}
-                </div>
+                <p className="text-xs text-muted-foreground text-center py-2">בחר עקומה אחת או שתיים להצגה</p>
               )}
             </CardContent>
           </Card>
@@ -639,7 +618,7 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
             </div>
 
             {/* Live preview */}
-            {(livePreview.lt1 || livePreview.lt2) && (
+            {(livePreview.lt1 || livePreview.lt2 || livePreview.lt3) && (
               <div className="rounded-xl bg-emerald-50/60 border border-emerald-100 px-3 py-2 flex items-center justify-around text-center">
                 <div>
                   <p className="text-[10px] text-muted-foreground">T1 (2.0)</p>
@@ -651,6 +630,12 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
                   <p className="text-[10px] text-muted-foreground">T2 (4.0)</p>
                   <p className="text-sm font-black text-amber-700" dir="ltr">
                     {livePreview.lt2 ? `${secToPace(livePreview.lt2.paceSecPerKm)}${livePreview.lt2.hr ? ` · ♥${livePreview.lt2.hr}` : ''}` : '—'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground">T3 (4.5)</p>
+                  <p className="text-sm font-black text-rose-700" dir="ltr">
+                    {livePreview.lt3 ? `${secToPace(livePreview.lt3.paceSecPerKm)}${livePreview.lt3.hr ? ` · ♥${livePreview.lt3.hr}` : ''}` : '—'}
                   </p>
                 </div>
               </div>
@@ -827,6 +812,11 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
                     {test.lt1PaceSec && (
                       <span className="text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded-full" dir="ltr">
                         T1 {secToPace(test.lt1PaceSec)}
+                      </span>
+                    )}
+                    {test.lt3PaceSec && (
+                      <span className="text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200 px-1.5 py-0.5 rounded-full" dir="ltr">
+                        T3 {secToPace(test.lt3PaceSec)}
                       </span>
                     )}
                   </div>

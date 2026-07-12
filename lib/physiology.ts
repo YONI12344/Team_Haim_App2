@@ -34,12 +34,20 @@ export interface PhysiologySummary {
   /** LT2 / anaerobic threshold ("T2") */
   lt2PaceSec: number | null
   lt2Hr: number | null
+  /** LT3 / deep anaerobic marker ("T3", 4.5 mmol/L) */
+  lt3PaceSec?: number | null
+  lt3Hr?: number | null
   vo2maxEst: number | null
   /** 'test' = computed from a lactate test; 'manual' = coach estimate */
   source: 'test' | 'manual'
   testDate?: string
   updatedAt?: unknown
 }
+
+/** Fixed lactate anchors (mmol/L) for the three markers used throughout the app. */
+export const LT1_TARGET = 2.0
+export const LT2_TARGET = 4.0
+export const LT3_TARGET = 4.5
 
 /** "4:30" → 270 (sec/km). Returns null when unparseable. */
 export function paceToSec(p: string | null | undefined): number | null {
@@ -82,14 +90,18 @@ export function interpolateAtLactate(steps: LactateStep[], target: number): Thre
   return null
 }
 
-/** Compute LT1 (2.0 mmol) and LT2 (4.0 mmol) from test steps. */
-export function computeThresholds(steps: LactateStep[]): {
+export interface ThresholdTriple {
   lt1: ThresholdPoint | null
   lt2: ThresholdPoint | null
-} {
+  lt3: ThresholdPoint | null
+}
+
+/** Compute LT1 (2.0 mmol), LT2 (4.0 mmol) and LT3 (4.5 mmol) from test steps. */
+export function computeThresholds(steps: LactateStep[]): ThresholdTriple {
   return {
-    lt1: interpolateAtLactate(steps, 2.0),
-    lt2: interpolateAtLactate(steps, 4.0),
+    lt1: interpolateAtLactate(steps, LT1_TARGET),
+    lt2: interpolateAtLactate(steps, LT2_TARGET),
+    lt3: interpolateAtLactate(steps, LT3_TARGET),
   }
 }
 
