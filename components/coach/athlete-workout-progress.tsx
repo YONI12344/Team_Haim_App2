@@ -23,12 +23,10 @@ import { Loader2, TrendingUp } from 'lucide-react'
 import { collection, getDocs, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { cn } from '@/lib/utils'
-import { format } from 'date-fns'
 import { type LactateStep } from '@/lib/physiology'
-import { useWorkoutLactateGroups } from '@/hooks/useWorkoutLactateGroups'
+import { useWorkoutLactateGroups, buildSessionCurves } from '@/hooks/useWorkoutLactateGroups'
 import { LactateMultiCurveChart, type CurveInput, type AxisMode } from '@/components/coach/lactate-multi-curve-chart'
 
-const SESSION_COLORS = ['#e8826b', '#c9a84c', '#6b8fb5', '#8a6bb5', '#4caf8a', '#d4708a', '#c97a4c', '#5c9ab5']
 const CURVE_COLOR_BASELINE = '#0a1628'
 
 export function AthleteWorkoutProgress({ athleteId }: { athleteId: string }) {
@@ -63,16 +61,8 @@ export function AthleteWorkoutProgress({ athleteId }: { athleteId: string }) {
   }, [athleteId])
 
   const sessionCurves: CurveInput[] = useMemo(() => {
-    const logs = grouped.get(selectedWorkoutId)?.logs || []
-    return logs.map((log, i) => ({
-      id: log.id,
-      label: format(new Date(log.date), 'd/M/yy'),
-      color: SESSION_COLORS[i % SESSION_COLORS.length],
-      sourceType: 'workout' as const,
-      points: (log.splitLogs || [])
-        .filter(r => r.lactate || r.avgHr || r.pace)
-        .map(r => ({ pace: r.pace ?? null, hr: r.avgHr ?? null, lactate: r.lactate ?? 0, label: format(new Date(log.date), 'd/M') })),
-    })).filter(c => c.points.length > 0)
+    const group = grouped.get(selectedWorkoutId)
+    return group ? buildSessionCurves(group) : []
   }, [grouped, selectedWorkoutId])
 
   if (loading) return (

@@ -27,6 +27,8 @@ import { toast } from 'sonner'
 import { useLanguage } from '@/contexts/language-context'
 import { useAuth } from '@/contexts/auth-context'
 import { getCoachInfo } from '@/lib/coach'
+import { usePhysiology } from '@/hooks/usePhysiology'
+import { personalTargetForLevel, secToPace } from '@/lib/physiology'
 
 interface WorkoutLogFormProps {
   workoutId: string
@@ -39,6 +41,7 @@ interface WorkoutLogFormProps {
 export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, scheduledDate, workout }: WorkoutLogFormProps) {
   const { t } = useLanguage()
   const { user } = useAuth()
+  const { physiology } = usePhysiology(workout?.targetThresholdLevel ? athleteId : undefined)
   const [existingLog, setExistingLog] = useState<WorkoutLog | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -436,11 +439,26 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.intervalLogTitle}</p>
-            {workout?.targetLactate != null && (
-              <span className="text-[11px] font-semibold bg-navy/5 border border-navy/10 px-2 py-0.5 rounded-full whitespace-nowrap">
-                🎯 {workout.targetLactate} mmol/L
-              </span>
-            )}
+            {workout?.targetThresholdLevel && (() => {
+              const target = personalTargetForLevel(physiology, workout.targetThresholdLevel)
+              const metrics = workout.targetMetrics?.length ? workout.targetMetrics : ['pace', 'hr', 'lactate']
+              if (!target) {
+                return (
+                  <span className="text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full whitespace-nowrap">
+                    🎯 {workout.targetThresholdLevel} — אין עדיין נתוני מעבדה
+                  </span>
+                )
+              }
+              const parts: string[] = []
+              if (metrics.includes('pace')) parts.push(secToPace(target.paceSec))
+              if (metrics.includes('hr') && target.hr) parts.push(`♥${target.hr}`)
+              if (metrics.includes('lactate')) parts.push(`${target.lactateTarget} mmol/L`)
+              return (
+                <span className="text-[11px] font-semibold bg-navy/5 border border-navy/10 px-2 py-0.5 rounded-full whitespace-nowrap" dir="ltr">
+                  🎯 {workout.targetThresholdLevel} · {parts.join(' · ')}
+                </span>
+              )
+            })()}
           </div>
           {workout!.sets!.map((set, si) => {
             const intervals = (set as any).intervals

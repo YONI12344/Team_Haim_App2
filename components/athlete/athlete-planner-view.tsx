@@ -22,6 +22,7 @@ import { useLanguage } from '@/contexts/language-context'
 import { useWorkoutTypeLabels } from '@/lib/workout-labels'
 import { toast } from 'sonner'
 import { WorkoutLogForm } from '@/components/athlete/workout-log-form'
+import { personalTargetForLevel, secToPace } from '@/lib/physiology'
 import { ManualLogCard } from '@/components/shared/manual-log-card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { AddActivityDialog } from '@/components/athlete/add-activity-dialog'
@@ -241,6 +242,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             weekStartDay: d.weekStartDay === 1 ? 1 : 0,
             kmWeekStartDay: d.kmWeekStartDay === 0 ? 0 : 1,
             labVisibleToAthlete: d.labVisibleToAthlete === true,
+            physiology: d.physiology || undefined,
             createdAt: d.createdAt?.toDate?.() || new Date(),
             updatedAt: d.updatedAt?.toDate?.() || new Date(),
           })
@@ -423,6 +425,27 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
 
   const renderWorkoutDetail = (w: AssignedWorkout) => (
     <div className="rounded-2xl overflow-hidden border border-gray-100 bg-white" dir={isRTL ? 'rtl' : 'ltr'}>
+      {/* Personalized threshold target — computed from THIS athlete's own
+          physiology, so the same workout template shows different numbers
+          per athlete instead of one fixed value. */}
+      {w.workout.targetThresholdLevel && (() => {
+        const target = personalTargetForLevel(athlete?.physiology, w.workout.targetThresholdLevel)
+        const metrics = w.workout.targetMetrics?.length ? w.workout.targetMetrics : ['pace', 'hr', 'lactate']
+        const parts: string[] = []
+        if (target) {
+          if (metrics.includes('pace')) parts.push(secToPace(target.paceSec))
+          if (metrics.includes('hr') && target.hr) parts.push(`♥${target.hr}`)
+          if (metrics.includes('lactate')) parts.push(`${target.lactateTarget} mmol/L`)
+        }
+        return (
+          <div className="px-4 py-2.5 border-b border-border bg-navy/5 flex items-center justify-end">
+            <span className={cn('text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap',
+              target ? 'bg-white border border-navy/10 text-navy' : 'bg-amber-50 border border-amber-200 text-amber-700')} dir="ltr">
+              {target ? `🎯 ${w.workout.targetThresholdLevel} · ${parts.join(' · ')}` : `🎯 ${w.workout.targetThresholdLevel} — אין עדיין נתוני מעבדה`}
+            </span>
+          </div>
+        )
+      })()}
       {/* Warmup */}
       {w.workout.warmup && (
         <div className="px-4 py-3 border-b border-border">

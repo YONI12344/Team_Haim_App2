@@ -150,10 +150,18 @@ export interface Workout {
   warmup?: string
   cooldown?: string
   notes?: string
-  // Optional target blood-lactate level (mmol/L) for this session — shown to
-  // the athlete during execution as a goal. Available on any workout type;
-  // the athlete logs actual lactate per rep in SplitLog.lactate.
+  // @deprecated — a fixed mmol/L number can't be personalized per athlete.
+  // Kept for old data; the coach now picks targetThresholdLevel instead,
+  // and the actual pace/HR/lactate target is computed live per athlete
+  // (see lib/physiology.ts personalTargetForLevel), so the same
+  // 'threshold' workout shows each assigned athlete their own numbers.
   targetLactate?: number
+  // 'threshold' workouts only: which of the athlete's own thresholds this
+  // session targets.
+  targetThresholdLevel?: 'T1' | 'T2' | 'T3'
+  // Which metrics to show the athlete for that target — defaults to all
+  // three when unset (old workouts predating this field).
+  targetMetrics?: ('pace' | 'hr' | 'lactate')[]
   createdBy: string
   createdAt: Date
   updatedAt: Date

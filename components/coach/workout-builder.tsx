@@ -76,6 +76,8 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
   const [cooldown, setCooldown] = useState('')
   const [notes, setNotes] = useState('')
   const [targetLactate, setTargetLactate] = useState('')
+  const [targetThresholdLevel, setTargetThresholdLevel] = useState<'T1' | 'T2' | 'T3' | ''>('')
+  const [targetMetrics, setTargetMetrics] = useState<Set<'pace' | 'hr' | 'lactate'>>(new Set(['pace', 'hr', 'lactate']))
   const [sets, setSets] = useState<Partial<WorkoutSet>[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [loading, setLoading] = useState(!!workoutId)
@@ -97,6 +99,8 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
           setCooldown(data.cooldown || '')
           setNotes(data.notes || '')
           setTargetLactate(data.targetLactate != null ? String(data.targetLactate) : '')
+          setTargetThresholdLevel(data.targetThresholdLevel || '')
+          setTargetMetrics(new Set(data.targetMetrics && data.targetMetrics.length ? data.targetMetrics : ['pace', 'hr', 'lactate']))
           setSets(Array.isArray(data.sets) ? data.sets.map((s: any) => ({
             ...s,
             // Migrate the old ambiguous "rest" field: it was only ever shown
@@ -195,6 +199,8 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
         cooldown: cooldown.trim() || null,
         notes: notes.trim() || null,
         targetLactate: targetLactate ? Number(targetLactate) : null,
+        targetThresholdLevel: type === 'threshold' && targetThresholdLevel ? targetThresholdLevel : null,
+        targetMetrics: type === 'threshold' && targetThresholdLevel ? Array.from(targetMetrics) : null,
         sets: (sets as any[]).map((s, i) => ({
           id: s.id || `set-${i}`,
           reps: s.reps || 1,
@@ -343,17 +349,52 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
               </div>
             </div>
 
-            <div className="space-y-2 md:w-1/2">
-              <Label htmlFor="targetLactate">{t.targetLactateLabel}</Label>
-              <Input
-                id="targetLactate"
-                type="number"
-                step="0.1"
-                placeholder={t.targetLactatePh}
-                value={targetLactate}
-                onChange={(e) => setTargetLactate(e.target.value)}
-              />
-            </div>
+            {type === 'threshold' && (
+              <div className="space-y-3 rounded-lg border border-border p-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">{t.targetLevelLabel}</Label>
+                  <div className="flex gap-2">
+                    {(['T1', 'T2', 'T3'] as const).map((level) => (
+                      <Button key={level} type="button"
+                        variant={targetThresholdLevel === level ? 'default' : 'outline'}
+                        size="sm"
+                        className={targetThresholdLevel === level ? 'bg-navy text-white' : ''}
+                        onClick={() => setTargetThresholdLevel(level)}>
+                        {level}
+                      </Button>
+                    ))}
+                    {targetThresholdLevel && (
+                      <Button type="button" variant="ghost" size="sm" className="text-muted-foreground"
+                        onClick={() => setTargetThresholdLevel('')}>
+                        {t.cancel}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                {targetThresholdLevel && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">{t.targetMetricsLabel}</Label>
+                    <div className="flex gap-4">
+                      {([
+                        ['pace', t.metricPace],
+                        ['hr', t.metricHr],
+                        ['lactate', t.metricLactate],
+                      ] as const).map(([key, label]) => (
+                        <label key={key} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                          <input type="checkbox" checked={targetMetrics.has(key)}
+                            onChange={(e) => setTargetMetrics(prev => {
+                              const next = new Set(prev)
+                              e.target.checked ? next.add(key) : next.delete(key)
+                              return next
+                            })} />
+                          {label}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 

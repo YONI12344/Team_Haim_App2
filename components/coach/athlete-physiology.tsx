@@ -16,18 +16,8 @@ import {
   computeThresholds, estimateVo2max, derivePaceBands, physiologyHrZones,
   analyzeSpotReading, paceToSec, secToPace,
 } from '@/lib/physiology'
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select'
 import { AthleteWorkoutProgress } from '@/components/coach/athlete-workout-progress'
-import { LactateMultiCurveChart, type CurveInput, type AxisMode } from '@/components/coach/lactate-multi-curve-chart'
-import { useWorkoutLactateGroups } from '@/hooks/useWorkoutLactateGroups'
-
-// Matches the app's --gold/--coral theme tokens (recharts needs literal
-// color strings, not CSS vars) — same gold hex already used in athlete-stats.tsx.
-const CURVE_COLOR_OLD = '#c9a84c'
-const CURVE_COLOR_NEW = '#e8826b'
-const CURVE_COLOR_WORKOUT = '#7c9a4c'
+import { LactateWorkoutGallery } from '@/components/coach/lactate-workout-gallery'
 
 interface LactateTestDoc {
   id: string
@@ -94,14 +84,6 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
   const [spotReadings, setSpotReadings] = useState<SpotReading[]>([emptyReading()])
   const [savingSpot, setSavingSpot] = useState(false)
 
-  // Lactate-curve comparison — either curve slot can be a real step test or
-  // a workout type's session history (ids are prefixed 'test:'/'workout:'
-  // to disambiguate, see resolveCurve below).
-  const [curveAId, setCurveAId] = useState('')
-  const [curveBId, setCurveBId] = useState('')
-  const [axisMode, setAxisMode] = useState<AxisMode>('hrVsLactate')
-  const { grouped: workoutGroups, workoutOptions } = useWorkoutLactateGroups(athleteId)
-
   useEffect(() => {
     const load = async () => {
       setLoading(true)
@@ -132,13 +114,6 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
     }
     load()
   }, [athleteId])
-
-  // Default the curve comparison to oldest-vs-newest full test once loaded
-  useEffect(() => {
-    const full = tests.filter(t => t.kind !== 'spot')
-    if (full.length >= 1 && !curveBId) setCurveBId(`test:${full[0].id}`)
-    if (full.length >= 2 && !curveAId) setCurveAId(`test:${full[full.length - 1].id}`)
-  }, [tests])
 
   // Live preview of thresholds while typing the new test
   const livePreview = useMemo(() => computeThresholds(steps), [steps])
@@ -400,96 +375,9 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
         </CardContent>
       </Card>
 
-      {/* ── Lactate curve chart: compare real step tests and/or workout-type
-          session curves, on switchable axes ── */}
-      {(fullTests.length >= 1 || workoutOptions.length >= 1) && (() => {
-        const resolveCurve = (id: string): CurveInput | null => {
-          if (id.startsWith('test:')) {
-            const t = fullTests.find(x => x.id === id.slice(5))
-            if (!t) return null
-            return {
-              id, label: `${format(new Date(t.date), 'd/M/yy')} · 🧪`, color: CURVE_COLOR_OLD, sourceType: 'test',
-              points: t.steps.map(s => ({ pace: s.pace, hr: s.hr, lactate: s.lactate })),
-            }
-          }
-          if (id.startsWith('workout:')) {
-            const wid = id.slice(8)
-            const group = workoutGroups.get(wid)
-            if (!group) return null
-            // One point per rep (like a step test's steps) — never a
-            // session average, so pace/HR/lactate always come from the
-            // same measurement instead of being paired across different reps.
-            return {
-              id, label: `💪 ${group.title}`, color: CURVE_COLOR_WORKOUT, sourceType: 'workout',
-              points: group.logs.flatMap(log => (log.splitLogs || [])
-                .filter(r => r.lactate || r.avgHr || r.pace)
-                .map(r => ({ pace: r.pace ?? null, hr: r.avgHr ?? null, lactate: r.lactate ?? 0, label: format(new Date(log.date), 'd/M') }))),
-            }
-          }
-          return null
-        }
-
-        const curveOptions = [
-          ...fullTests.map(t => ({ id: `test:${t.id}`, label: `${format(new Date(t.date), 'd/M/yy')} · 🧪 בדיקת מדרגות` })),
-          ...workoutOptions.map(o => ({ id: `workout:${o.id}`, label: `💪 ${o.title}` })),
-        ]
-        const curveA = curveAId ? resolveCurve(curveAId) : null
-        const curveB = curveBId ? resolveCurve(curveBId) : null
-        const curves = [
-          curveA && { ...curveA, color: CURVE_COLOR_OLD },
-          curveB && { ...curveB, color: CURVE_COLOR_NEW },
-        ].filter((c): c is CurveInput => !!c)
-
-        return (
-          <Card>
-            <CardHeader className="pb-2 pt-4 px-4">
-              <CardTitle className="text-sm flex items-center gap-2">📈 עקומת לקטט</CardTitle>
-            </CardHeader>
-            <CardContent className="px-4 pb-4 space-y-3">
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[10px] text-muted-foreground block mb-1">עקומה ראשונה</label>
-                  <Select value={curveAId} onValueChange={setCurveAId}>
-                    <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="בחר" /></SelectTrigger>
-                    <SelectContent>
-                      {curveOptions.map(o => <SelectItem key={o.id} value={o.id} className="text-xs">{o.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-[10px] text-muted-foreground block mb-1">עקומה שנייה</label>
-                  <Select value={curveBId} onValueChange={setCurveBId}>
-                    <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="בחר" /></SelectTrigger>
-                    <SelectContent>
-                      {curveOptions.map(o => <SelectItem key={o.id} value={o.id} className="text-xs">{o.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="flex gap-1 bg-muted rounded-xl p-0.5 w-fit">
-                {([
-                  ['hrVsLactate', 'דופק/לקטט'],
-                  ['paceVsLactate', 'קצב/לקטט'],
-                  ['dual', 'זמן'],
-                ] as const).map(([m, label]) => (
-                  <button key={m} onClick={() => setAxisMode(m)}
-                    className={cn('text-[11px] px-3 py-1 rounded-lg font-semibold transition-all',
-                      axisMode === m ? 'bg-white text-navy shadow-sm' : 'text-muted-foreground')}>
-                    {label}
-                  </button>
-                ))}
-              </div>
-
-              {curves.length > 0 ? (
-                <LactateMultiCurveChart curves={curves} axisMode={axisMode} />
-              ) : (
-                <p className="text-xs text-muted-foreground text-center py-2">בחר עקומה אחת או שתיים להצגה</p>
-              )}
-            </CardContent>
-          </Card>
-        )
-      })()}
+      {/* ── Workout gallery: every workout type + the real baseline test,
+          each as its own graph, so they can all be scanned/compared at once ── */}
+      <LactateWorkoutGallery athleteId={athleteId} />
 
       {/* ── Derived training paces ── */}
       {bands && (

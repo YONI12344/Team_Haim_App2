@@ -49,6 +49,30 @@ export const LT1_TARGET = 2.0
 export const LT2_TARGET = 4.0
 export const LT3_TARGET = 4.5
 
+export interface PersonalTarget {
+  paceSec: number | null
+  hr: number | null
+  lactateTarget: number
+}
+
+/**
+ * The athlete's own pace/HR for a given threshold level, so a 'threshold'
+ * workout can show each assigned athlete their personal target instead of
+ * one fixed number baked into the template — copying the same workout to a
+ * different athlete then just shows *their* numbers.
+ * Returns null when this athlete has no data for that level yet (e.g.
+ * never took a step test) rather than a misleading empty target.
+ */
+export function personalTargetForLevel(
+  phys: PhysiologySummary | null | undefined,
+  level: 'T1' | 'T2' | 'T3',
+): PersonalTarget | null {
+  if (!phys) return null
+  if (level === 'T1') return phys.lt1PaceSec ? { paceSec: phys.lt1PaceSec, hr: phys.lt1Hr ?? null, lactateTarget: LT1_TARGET } : null
+  if (level === 'T2') return phys.lt2PaceSec ? { paceSec: phys.lt2PaceSec, hr: phys.lt2Hr ?? null, lactateTarget: LT2_TARGET } : null
+  return phys.lt3PaceSec ? { paceSec: phys.lt3PaceSec, hr: phys.lt3Hr ?? null, lactateTarget: LT3_TARGET } : null
+}
+
 /** "4:30" → 270 (sec/km). Returns null when unparseable. */
 export function paceToSec(p: string | null | undefined): number | null {
   if (!p) return null

@@ -14,7 +14,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { collection, getDocs, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+import { format } from 'date-fns'
 import { paceToSec, secToPace } from '@/lib/physiology'
+import type { CurveInput } from '@/components/coach/lactate-multi-curve-chart'
 
 export interface WorkoutRepEntry {
   avgHr?: number
@@ -46,6 +48,27 @@ export function averageRepMetrics(reps: WorkoutRepEntry[]): { avgLactate: number
   const paceSecVals = reps.map(r => paceToSec(r.pace)).filter((v): v is number => v != null)
   const avgPaceSec = paceSecVals.length ? Math.round(paceSecVals.reduce((s, v) => s + v, 0) / paceSecVals.length) : null
   return { avgLactate: avg(lacVals), avgHr: avg(hrVals), avgPace: avgPaceSec != null ? secToPace(avgPaceSec) : null }
+}
+
+const SESSION_COLORS = ['#e8826b', '#c9a84c', '#6b8fb5', '#8a6bb5', '#4caf8a', '#d4708a', '#c97a4c', '#5c9ab5']
+
+/** One curve per session/log in a workout group — rep-level points (never
+ *  session-averaged), so pace/HR/lactate always come from the same
+ *  measurement instead of being paired across different reps. Shared by
+ *  the workout gallery, the Lab overview chart, and the per-workout
+ *  deep-dive so all three build curves identically. */
+export function buildSessionCurves(group: WorkoutLactateGroup): CurveInput[] {
+  return group.logs
+    .map((log, i) => ({
+      id: log.id,
+      label: format(new Date(log.date), 'd/M/yy'),
+      color: SESSION_COLORS[i % SESSION_COLORS.length],
+      sourceType: 'workout' as const,
+      points: (log.splitLogs || [])
+        .filter(r => r.lactate || r.avgHr || r.pace)
+        .map(r => ({ pace: r.pace ?? null, hr: r.avgHr ?? null, lactate: r.lactate ?? 0, label: format(new Date(log.date), 'd/M') })),
+    }))
+    .filter(c => c.points.length > 0)
 }
 
 export function useWorkoutLactateGroups(athleteId: string) {

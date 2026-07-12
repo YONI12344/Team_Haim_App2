@@ -155,6 +155,11 @@ export interface Translations {
   thresholdWorkoutType: string
   targetLactateLabel: string
   targetLactatePh: string
+  targetLevelLabel: string
+  targetMetricsLabel: string
+  metricPace: string
+  metricHr: string
+  metricLactate: string
   repsLabel: string
   distanceDurationLabel: string
   distanceDurationPh: string
@@ -900,6 +905,11 @@ const translations: Record<Language, Translations> = {
     setLabel: 'Set',
     thresholdWorkoutType: 'Threshold (Lactate)',
     targetLactateLabel: 'Target lactate (mmol/L)',
+    targetLevelLabel: 'Target threshold level',
+    targetMetricsLabel: 'Metrics to show the athlete',
+    metricPace: 'Pace',
+    metricHr: 'Heart rate',
+    metricLactate: 'Lactate',
     targetLactatePh: '4.0',
     repsLabel: 'Reps',
     distanceDurationLabel: 'Distance/Duration',
@@ -1607,6 +1617,11 @@ const translations: Record<Language, Translations> = {
     setLabel: 'סט',
     thresholdWorkoutType: 'אימון סף (לקטט)',
     targetLactateLabel: 'יעד לקטט (mmol/L)',
+    targetLevelLabel: 'רמת סף יעד',
+    targetMetricsLabel: 'מדדים להצגה לספורטאי',
+    metricPace: 'קצב',
+    metricHr: 'דופק',
+    metricLactate: 'לקטט',
     targetLactatePh: '4.0',
     repsLabel: 'חזרות',
     distanceDurationLabel: 'מרחק/משך',
