@@ -315,7 +315,7 @@ const TYPE_HE: Record<WorkoutType, string> = {
   easy: 'ריצה קלה', long_run: 'ריצה ארוכה', tempo: 'טמפו/סף', intervals: 'אינטרוולים',
   hill_repeats: 'עליות', fartlek: 'פרטלק', recovery: 'התאוששות', strength: 'חיזוק',
   cross_training: 'אימון משולב', swim: 'שחייה', bike: 'אופניים', rest: 'מנוחה',
-  race: 'תחרות', time_trial: 'מבחן זמן',
+  race: 'תחרות', time_trial: 'מבחן זמן', threshold: 'אימון סף',
 }
 
 /**

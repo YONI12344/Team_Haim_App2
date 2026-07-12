@@ -136,6 +136,7 @@ export type WorkoutType =
   | 'rest'
   | 'race'
   | 'time_trial'
+  | 'threshold'
 
 // Workout
 export interface Workout {

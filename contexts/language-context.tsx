@@ -152,6 +152,7 @@ export interface Translations {
   noSetsAdded: string
   setLabel: string
   // Threshold workout phase builder
+  thresholdWorkoutType: string
   targetLactateLabel: string
   targetLactatePh: string
   repsLabel: string
@@ -895,6 +896,7 @@ const translations: Record<Language, Translations> = {
     addSetBtn: 'Add Set',
     noSetsAdded: 'No sets added. Click "Add Set" to build interval or structured workouts.',
     setLabel: 'Set',
+    thresholdWorkoutType: 'Threshold (Lactate)',
     targetLactateLabel: 'Target lactate (mmol/L)',
     targetLactatePh: '4.0',
     repsLabel: 'Reps',
@@ -1599,6 +1601,7 @@ const translations: Record<Language, Translations> = {
     addSetBtn: 'הוסף סט',
     noSetsAdded: 'לא נוספו סטים. לחץ "הוסף סט" כדי לבנות אימוני אינטרוולים או אימונים מובנים.',
     setLabel: 'סט',
+    thresholdWorkoutType: 'אימון סף (לקטט)',
     targetLactateLabel: 'יעד לקטט (mmol/L)',
     targetLactatePh: '4.0',
     repsLabel: 'חזרות',

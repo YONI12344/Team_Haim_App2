@@ -47,6 +47,7 @@ const workoutTypeOrder: WorkoutType[] = [
   'rest',
   'race',
   'time_trial',
+  'threshold',
 ]
 
 interface WorkoutBuilderProps {
