@@ -218,6 +218,42 @@ export function personalTargetRangeWithBaseline(
 }
 
 /**
+ * The actual line behind personalTargetRangeWithBaseline's numbers — a
+ * projected pace/HR curve across a wide lactate span (1.5–5.5 mmol),
+ * anchored on the workout's own real measurement and shaped by the
+ * baseline test's local slope at each point along the way. Returned as
+ * plain steps so it can be drawn as a dashed trendline on the graph
+ * (components/coach/lactate-multi-curve-chart.tsx) extending beyond what
+ * the workout itself measured, instead of only reporting three numbers —
+ * so a coach can see WHERE those numbers come from, not just what they are.
+ */
+export function projectWorkoutTrend(
+  workoutSteps: LactateStep[] | null | undefined,
+  baselineSteps: LactateStep[] | null | undefined,
+): LactateStep[] | null {
+  if (!workoutSteps || workoutSteps.length === 0 || !baselineSteps || baselineSteps.length < 2) return null
+  const valid = workoutSteps
+    .map(s => ({ pace: paceToSec(s.pace), hr: s.hr ?? null, lac: Number(s.lactate) }))
+    .filter((p): p is { pace: number; hr: number | null; lac: number } => p.pace != null && isFinite(p.lac) && p.lac > 0)
+  if (valid.length === 0) return null
+  const avgPace = valid.reduce((s, p) => s + p.pace, 0) / valid.length
+  const avgLac = valid.reduce((s, p) => s + p.lac, 0) / valid.length
+  const hrs = valid.map(p => p.hr).filter((h): h is number => h != null)
+  const avgHr = hrs.length ? hrs.reduce((s, h) => s + h, 0) / hrs.length : null
+
+  const points: LactateStep[] = []
+  for (const lac of [1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5]) {
+    const slope = localSlope(baselineSteps, lac)
+    if (!slope) continue
+    const paceSec = avgPace + slope.paceSecPerMmol * (lac - avgLac)
+    if (paceSec <= 0) continue
+    const hr = avgHr != null && slope.hrPerMmol != null ? Math.round(avgHr + slope.hrPerMmol * (lac - avgLac)) : null
+    points.push({ pace: secToPace(paceSec), hr, lactate: lac })
+  }
+  return points.length >= 2 ? points : null
+}
+
+/**
  * "🎯 4:05 (3:55–4:15) · ♥170 (165–178) · 3.5 mmol/L" — shared rendering for
  * a personalized (or coach-overridden) workout target range, filtered to
  * whichever metrics the coach picked for that workout.

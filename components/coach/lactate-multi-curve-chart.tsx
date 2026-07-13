@@ -26,6 +26,7 @@ import {
 import { cn } from '@/lib/utils'
 import {
   type LactateStep, computeThresholds, paceToSec, secToPace,
+  interpolateAtLactate, projectWorkoutTrend,
   LT1_TARGET, LT2_TARGET, LT3_TARGET,
 } from '@/lib/physiology'
 import { ChevronDown } from 'lucide-react'
@@ -59,6 +60,22 @@ function toSteps(points: CurvePoint[]): LactateStep[] {
 /** T1/T2/T3 (pace + HR) for one curve, or null fields where not computable. */
 export function curveThresholds(points: CurvePoint[]) {
   return computeThresholds(toSteps(points))
+}
+
+/** Same as curveThresholds, but for a 'workout' curve whose own narrow
+ *  lactate band can't reach a level directly — projects the missing ones
+ *  from the baseline curve's local slope (see lib/physiology.ts
+ *  projectWorkoutTrend), the same math drawn as the dashed trendline below. */
+function curveThresholdsWithBaseline(points: CurvePoint[], baselinePoints: CurvePoint[] | null) {
+  const direct = curveThresholds(points)
+  if (!baselinePoints || baselinePoints.length < 2) return direct
+  const projected = projectWorkoutTrend(toSteps(points), toSteps(baselinePoints))
+  if (!projected) return direct
+  return {
+    lt1: direct.lt1 || interpolateAtLactate(projected, LT1_TARGET),
+    lt2: direct.lt2 || interpolateAtLactate(projected, LT2_TARGET),
+    lt3: direct.lt3 || interpolateAtLactate(projected, LT3_TARGET),
+  }
 }
 
 /** paceNeg = -paceSec: pace is seconds/km, so a plain ascending axis would
@@ -137,6 +154,11 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
   if (usable.length === 0) {
     return <p className="text-xs text-muted-foreground text-center py-4">אין עדיין מספיק נתונים לגרף</p>
   }
+  // When a real step-test curve is also on this chart, a 'workout' curve
+  // whose own narrow lactate band can't reach a level gets it projected
+  // from the baseline's local slope instead — shown both as a dashed
+  // trendline (below) and used for that curve's own T1/T2/T3 markers.
+  const baselineCurve = usable.find(c => c.sourceType === 'test') ?? null
 
   const pointLabel = (dataKey: 'lactate' | 'hr') => ({
     position: 'top' as const,
@@ -229,6 +251,26 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
                   label={richPointLabel(axisMode, data)} />
               )
             })}
+            {/* Dashed projection — extends a workout curve's own (narrow)
+                measured segment outward using the baseline test's local
+                slope, so you can see WHERE an estimated T1/T2/T3 comes
+                from instead of only reading three numbers. Only drawn when
+                a real baseline curve is also present on this chart. */}
+            {axisMode !== 'dual' && baselineCurve && usable
+              .filter(c => c.sourceType === 'workout')
+              .map(c => {
+                const projected = projectWorkoutTrend(toSteps(c.points), toSteps(baselineCurve.points))
+                if (!projected) return null
+                const projPoints: CurvePoint[] = projected.map(s => ({ pace: s.pace, hr: s.hr, lactate: s.lactate }))
+                const data = axisMode === 'paceVsLactate' ? paceVsLactateData(projPoints) : hrVsLactateData(projPoints)
+                return (
+                  <Line key={`${c.id}-trend`}
+                    name={`${c.label} · הערכה`}
+                    data={data}
+                    dataKey="lactate" stroke={c.color} strokeWidth={1.5} strokeOpacity={0.5}
+                    strokeDasharray="5 4" dot={false} isAnimationActive={false} />
+                )
+              })}
             {axisMode === 'dual' && usable.flatMap(c => ([
               <Line key={`${c.id}-lac`} yAxisId="lac" name={`${c.label} · לקטט`} data={dualAxisData(c.points)}
                 dataKey="lactate" stroke={c.color} strokeWidth={2} dot={{ r: 3 }} connectNulls
@@ -238,18 +280,24 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
                 label={pointLabel('hr')} />,
             ]))}
             {/* T1/T2/T3 marked directly on the chart — only meaningful on the
-                pace/HR-vs-lactate axes, where a threshold has a real x position */}
+                pace/HR-vs-lactate axes, where a threshold has a real x
+                position. Workout curves fall back to the projected
+                (dashed-trend) value when their own data can't reach a
+                level, drawn hollow/dashed to mark it as an estimate. */}
             {axisMode !== 'dual' && usable.flatMap(c => {
-              const t = curveThresholds(c.points)
+              const direct = curveThresholds(c.points)
+              const t = c.sourceType === 'workout' ? curveThresholdsWithBaseline(c.points, baselineCurve?.points ?? null) : direct
               return T_LEVELS.map(({ key, target, name }) => {
                 const point = t[key]
                 if (!point) return null
                 const x = axisMode === 'paceVsLactate' ? -point.paceSecPerKm : point.hr
                 if (x == null) return null
+                const isEstimate = !direct[key]
                 return (
                   <ReferenceDot key={`${c.id}-${key}`} x={x} y={target} r={5}
                     fill="#fff" stroke={c.color} strokeWidth={2}
-                    label={{ value: name, position: 'top', fontSize: 10, fill: c.color, fontWeight: 700 }} />
+                    strokeDasharray={isEstimate ? '3 2' : undefined}
+                    label={{ value: isEstimate ? `${name}?` : name, position: 'top', fontSize: 10, fill: c.color, fontWeight: 700 }} />
                 )
               })
             })}
@@ -283,10 +331,11 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
           <span>עקומה</span><span>T1 (2.0)</span><span>T2 (4.0)</span><span>T3 (4.5)</span>
         </div>
         {usable.map((c, i) => {
-          const { lt1, lt2, lt3 } = curveThresholds(c.points)
+          const direct = curveThresholds(c.points)
+          const { lt1, lt2, lt3 } = c.sourceType === 'workout' ? curveThresholdsWithBaseline(c.points, baselineCurve?.points ?? null) : direct
           const prevC = usable[i - 1]
           const prev = prevC && prevC.sourceType === 'workout' && c.sourceType === 'workout' ? curveThresholds(prevC.points) : null
-          const cell = (t: { paceSecPerKm: number; hr: number | null } | null, prevT: { paceSecPerKm: number; hr: number | null } | null) => {
+          const cell = (t: { paceSecPerKm: number; hr: number | null } | null, prevT: { paceSecPerKm: number; hr: number | null } | null, isEstimate?: boolean) => {
             if (!t) return <span className="text-muted-foreground">—</span>
             const trend = metricDisplay !== 'hr' && prevT ? paceDelta(t.paceSecPerKm, prevT.paceSecPerKm) : null
             const trendChip = trend && (
@@ -294,15 +343,16 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
                 {trend.improved ? '▲' : '▼'}{trend.label}
               </span>
             )
+            const estimateMark = isEstimate && <span className="text-[9px] text-muted-foreground">≈</span>
             if (metricDisplay === 'pace') return (
               <span dir="ltr" className="font-mono inline-flex items-center gap-1 justify-center flex-wrap">
-                {secToPace(t.paceSecPerKm)}{trendChip}
+                {secToPace(t.paceSecPerKm)}{estimateMark}{trendChip}
               </span>
             )
-            if (metricDisplay === 'hr') return <span dir="ltr" className="font-mono">{t.hr ? `♥${t.hr}` : '—'}</span>
+            if (metricDisplay === 'hr') return <span dir="ltr" className="font-mono">{t.hr ? `♥${t.hr}` : '—'}{estimateMark}</span>
             return (
               <span dir="ltr" className="font-mono inline-flex items-center gap-1 justify-center flex-wrap">
-                {secToPace(t.paceSecPerKm)}{t.hr ? ` · ♥${t.hr}` : ''}{trendChip}
+                {secToPace(t.paceSecPerKm)}{t.hr ? ` · ♥${t.hr}` : ''}{estimateMark}{trendChip}
               </span>
             )
           }
@@ -311,9 +361,9 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
               <span className="font-semibold flex items-center justify-center gap-1" style={{ color: c.color }}>
                 {c.label}
               </span>
-              {cell(lt1, prev?.lt1 ?? null)}
-              {cell(lt2, prev?.lt2 ?? null)}
-              {cell(lt3, prev?.lt3 ?? null)}
+              {cell(lt1, prev?.lt1 ?? null, !direct.lt1)}
+              {cell(lt2, prev?.lt2 ?? null, !direct.lt2)}
+              {cell(lt3, prev?.lt3 ?? null, !direct.lt3)}
             </div>
           )
         })}

@@ -47,7 +47,7 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
   const { loading, grouped, workoutOptions } = useWorkoutLactateGroups(athleteId)
   const [axisModeById, setAxisModeById] = useState<Record<string, AxisMode>>({})
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [showBaselineById, setShowBaselineById] = useState<Record<string, boolean>>({})
+  const [showBaselineById, setShowBaselineById] = useState<Record<string, boolean | undefined>>({})
   const [baselineSteps, setBaselineSteps] = useState<LactateStep[] | null>(null)
   const [baselineLoading, setBaselineLoading] = useState(true)
 
@@ -158,7 +158,11 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
               </button>
 
               {isOpen && (() => {
-                const showBaseline = !!showBaselineById[card.id]
+                // Default the baseline overlay ON when this workout has an
+                // estimated level (so the dashed projection that produced
+                // it is visible right away) — otherwise off until toggled.
+                const hasEstimate = card.thresholds && (['T1', 'T2', 'T3'] as const).some(l => card.thresholds![l]?.extrapolated)
+                const showBaseline = showBaselineById[card.id] ?? !!hasEstimate
                 const chartCurves = card.id !== 'baseline' && baselineCurve && showBaseline
                   ? [...card.curves, baselineCurve]
                   : card.curves
