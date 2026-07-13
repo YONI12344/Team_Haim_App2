@@ -259,7 +259,7 @@ export function personalTargetRangeWithBaseline(
 
   const paceRangeSec: [number, number] = atMax.paceSec <= atMin.paceSec ? [atMax.paceSec, atMin.paceSec] : [atMin.paceSec, atMax.paceSec]
   const hrRange: [number, number] | null = atMin.hr != null && atMax.hr != null
-    ? [Math.min(atMin.hr, atMax.hr), Math.max(atMin.hr, atMax.hr)]
+    ? [Math.round(Math.min(atMin.hr, atMax.hr)), Math.round(Math.max(atMin.hr, atMax.hr))]
     : null
 
   return {
@@ -332,8 +332,9 @@ export function formatTargetRange(
       : secToPace(mid))
   }
   if (metrics.includes('hr') && range.hrRange) {
-    const mid = Math.round((range.hrRange[0] + range.hrRange[1]) / 2)
-    parts.push(showRange ? `♥${mid} (${range.hrRange[0]}–${range.hrRange[1]})` : `♥${mid}`)
+    const lo = Math.round(range.hrRange[0]), hi = Math.round(range.hrRange[1])
+    const mid = Math.round((lo + hi) / 2)
+    parts.push(showRange ? `♥${mid} (${lo}–${hi})` : `♥${mid}`)
   }
   if (metrics.includes('lactate') && lactateMid != null) {
     parts.push(`${lactateMid} mmol/L`)
