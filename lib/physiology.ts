@@ -137,57 +137,47 @@ export function personalTargetRangeForLevel(
   }
 }
 
-/** Least-squares slope of ys against xs — a straight-line best fit, so a
- *  single noisy pair of points can't flip its sign or magnitude the way
- *  picking just two adjacent points can. */
-function regressSlope(xs: number[], ys: number[]): number | null {
-  const n = xs.length
-  if (n < 2) return null
-  const xBar = xs.reduce((s, v) => s + v, 0) / n
-  const yBar = ys.reduce((s, v) => s + v, 0) / n
-  let num = 0, den = 0
-  for (let i = 0; i < n; i++) { num += (xs[i] - xBar) * (ys[i] - yBar); den += (xs[i] - xBar) ** 2 }
-  return den === 0 ? null : num / den
-}
+interface ZonePoint { paceSec: number; hr: number | null; lac: number }
+interface ZoneSlope { paceSecPerMmol: number; hrPerMmol: number | null }
 
 /**
- * The local slope (Δpace/Δlactate, Δhr/Δlactate) of the athlete's real
- * step-test curve near a given lactate value — how fast pace/HR change per
- * mmol in that neighborhood. Used only as a SHAPE reference; never as an
- * absolute anchor, since the baseline test itself might be months old.
- *
- * Fit over the ~4 steps nearest that lactate value (least-squares, not just
- * the two immediately bracketing it) — a real test can have one noisy step
- * (measurement variance between two adjacent readings), and computing the
- * slope from only that one pair can flip its sign or size. A few points
- * still keeps it local to where the projection actually needs it, unlike a
- * single slope over the whole (non-linear) curve.
+ * The baseline test's own three physiological zones, per the coach's own
+ * fixed lab markers (2.0/4.0/4.5 mmol): "rest" (the test's own first/lowest
+ * measured step — there's no true resting sample, so the easiest real step
+ * stands in for it), T1, T2, T3. Each zone (rest→T1, T1→T2, T2→T3) gets its
+ * OWN slope, since a real lactate curve's steepness changes markedly
+ * between zones — using one slope for the whole curve would misrepresent
+ * how much pace/HR actually move per mmol within a specific zone.
  */
-function localSlope(baselineSteps: LactateStep[], atLactate: number): { paceSecPerMmol: number; hrPerMmol: number | null } | null {
+function baselineZones(baselineSteps: LactateStep[]): { rest: ZonePoint; t1: ZonePoint; t2: ZonePoint; t3: ZonePoint } | null {
   const pts = baselineSteps
     .map(s => ({ pace: paceToSec(s.pace), hr: s.hr ?? null, lac: Number(s.lactate) }))
     .filter((p): p is { pace: number; hr: number | null; lac: number } => p.pace != null && isFinite(p.lac) && p.lac > 0)
+    .sort((a, b) => a.lac - b.lac)
   if (pts.length < 2) return null
-  const nearest = [...pts]
-    .sort((a, b) => Math.abs(a.lac - atLactate) - Math.abs(b.lac - atLactate))
-    .slice(0, Math.min(4, pts.length))
-  const paceSlope = regressSlope(nearest.map(p => p.lac), nearest.map(p => p.pace))
-  if (paceSlope == null) return null
-  const withHr = nearest.filter((p): p is { pace: number; hr: number; lac: number } => p.hr != null)
-  const hrSlope = withHr.length >= 2 ? regressSlope(withHr.map(p => p.lac), withHr.map(p => p.hr)) : null
-  return { paceSecPerMmol: paceSlope, hrPerMmol: hrSlope }
+  const rest: ZonePoint = { paceSec: pts[0].pace, hr: pts[0].hr, lac: pts[0].lac }
+  const t1 = interpolateAtLactate(baselineSteps, LT1_TARGET)
+  const t2 = interpolateAtLactate(baselineSteps, LT2_TARGET)
+  const t3 = interpolateAtLactate(baselineSteps, LT3_TARGET)
+  if (!t1 || !t2 || !t3) return null
+  return {
+    rest,
+    t1: { paceSec: t1.paceSecPerKm, hr: t1.hr, lac: LT1_TARGET },
+    t2: { paceSec: t2.paceSecPerKm, hr: t2.hr, lac: LT2_TARGET },
+    t3: { paceSec: t3.paceSecPerKm, hr: t3.hr, lac: LT3_TARGET },
+  }
 }
 
-/**
- * The workout's own real anchor point (average pace/HR/lactate across its
- * reps) plus the ONE local slope of the baseline curve evaluated at that
- * exact lactate — used for the entire projection below, so it comes out as
- * a straight tangent line through the real measurement instead of bending
- * (a different slope per target level would zig-zag whenever the baseline
- * curve's steepness changes between them, which is not a real effect —
- * just an artifact of measuring the slope in the wrong place).
- */
-function workoutAnchorAndSlope(workoutSteps: LactateStep[], baselineSteps: LactateStep[]) {
+function zoneSlope(a: ZonePoint, b: ZonePoint): ZoneSlope | null {
+  if (b.lac === a.lac) return null
+  return {
+    paceSecPerMmol: (b.paceSec - a.paceSec) / (b.lac - a.lac),
+    hrPerMmol: a.hr != null && b.hr != null ? (b.hr - a.hr) / (b.lac - a.lac) : null,
+  }
+}
+
+/** The workout's own real anchor point — average pace/HR/lactate across its reps. */
+function workoutAnchor(workoutSteps: LactateStep[]): { paceSec: number; hr: number | null; lac: number } | null {
   const valid = workoutSteps
     .map(s => ({ pace: paceToSec(s.pace), hr: s.hr ?? null, lac: Number(s.lactate) }))
     .filter((p): p is { pace: number; hr: number | null; lac: number } => p.pace != null && isFinite(p.lac) && p.lac > 0)
@@ -196,9 +186,41 @@ function workoutAnchorAndSlope(workoutSteps: LactateStep[], baselineSteps: Lacta
   const avgLac = valid.reduce((s, p) => s + p.lac, 0) / valid.length
   const hrs = valid.map(p => p.hr).filter((h): h is number => h != null)
   const avgHr = hrs.length ? hrs.reduce((s, h) => s + h, 0) / hrs.length : null
-  const slope = localSlope(baselineSteps, avgLac)
-  if (!slope) return null
-  return { avgPace, avgLac, avgHr, slope }
+  return { paceSec: avgPace, hr: avgHr, lac: avgLac }
+}
+
+/**
+ * Projects pace/HR at `targetLac`, walking from the workout's own anchor
+ * point through the baseline's zone boundaries (T1=2.0, T2=4.0) one
+ * segment at a time, applying that SPECIFIC zone's slope to each segment —
+ * a proper piecewise-linear continuation of the workout's line using the
+ * baseline's own shape, instead of one blended slope across zones with
+ * very different real steepness.
+ */
+function projectAtLactate(
+  anchor: { paceSec: number; hr: number | null; lac: number },
+  targetLac: number,
+  zones: { rest: ZonePoint; t1: ZonePoint; t2: ZonePoint; t3: ZonePoint },
+  m1: ZoneSlope | null, m2: ZoneSlope | null, m3: ZoneSlope | null,
+): { paceSec: number; hr: number | null } | null {
+  const slopeForZone = (midLac: number) => midLac < zones.t1.lac ? m1 : midLac < zones.t2.lac ? m2 : m3
+  if (Math.abs(targetLac - anchor.lac) < 1e-9) return { paceSec: anchor.paceSec, hr: anchor.hr }
+  const dir = targetLac > anchor.lac ? 1 : -1
+  const boundaries = [zones.t1.lac, zones.t2.lac].filter(b =>
+    dir > 0 ? b > anchor.lac && b < targetLac : b < anchor.lac && b > targetLac
+  )
+  const stops = [anchor.lac, ...boundaries.sort((a, b) => dir > 0 ? a - b : b - a), targetLac]
+  let lac = anchor.lac, paceSec = anchor.paceSec, hr: number | null = anchor.hr
+  for (let i = 1; i < stops.length; i++) {
+    const next = stops[i]
+    const m = slopeForZone((lac + next) / 2)
+    if (!m) return null
+    paceSec += m.paceSecPerMmol * (next - lac)
+    if (hr != null && m.hrPerMmol != null) hr += m.hrPerMmol * (next - lac)
+    else hr = null
+    lac = next
+  }
+  return paceSec > 0 ? { paceSec, hr } : null
 }
 
 /**
@@ -206,13 +228,13 @@ function workoutAnchorAndSlope(workoutSteps: LactateStep[], baselineSteps: Lacta
  * data can't reach a level directly (e.g. a constant-pace workout that only
  * ever sampled one narrow lactate band), projects it instead: anchor on
  * today's actual measured point (average pace/HR/lactate across the
- * workout's reps), then walk outward along the athlete's real baseline
- * test's LOCAL SLOPE at that anchor (how much pace/HR change per mmol
- * right there) — not the baseline's absolute pace, which could be stale.
- * This is how a coach would eyeball it: "they're doing 3:49 at 2.3 mmol
- * today; on their usual curve shape, 2.0 mmol is probably just a touch
- * slower than that." Marked `extrapolated: true` so callers can show it's
- * a projection, not a direct reading.
+ * workout's reps), then walk to the target lactate through the baseline
+ * test's own per-zone slopes (rest→T1, T1→T2, T2→T3) — not the baseline's
+ * absolute pace, which could be stale, only its shape, zone by zone. This
+ * is how a coach would eyeball it: "they're doing 3:49 at 2.3 mmol today —
+ * on their usual curve shape between T1 and T2, 4.0 mmol is probably around
+ * X." Marked `extrapolated: true` so callers can show it's a projection,
+ * not a direct reading.
  */
 export function personalTargetRangeWithBaseline(
   workoutSteps: LactateStep[] | null | undefined,
@@ -224,19 +246,20 @@ export function personalTargetRangeWithBaseline(
   if (!workoutSteps || workoutSteps.length === 0 || !baselineSteps || baselineSteps.length < 2) return null
 
   const { min, max } = WORKOUT_TARGET_RANGES[level]
-  const anchor = workoutAnchorAndSlope(workoutSteps, baselineSteps)
-  if (!anchor) return null
-  const { avgPace, avgLac, avgHr, slope } = anchor
+  const anchor = workoutAnchor(workoutSteps)
+  const zones = baselineZones(baselineSteps)
+  if (!anchor || !zones) return null
+  const m1 = zoneSlope(zones.rest, zones.t1)
+  const m2 = zoneSlope(zones.t1, zones.t2)
+  const m3 = zoneSlope(zones.t2, zones.t3)
 
-  const paceAtMin = avgPace + slope.paceSecPerMmol * (min - avgLac)
-  const paceAtMax = avgPace + slope.paceSecPerMmol * (max - avgLac)
-  if (paceAtMin <= 0 || paceAtMax <= 0) return null
-  const hrAtMin = avgHr != null && slope.hrPerMmol != null ? Math.round(avgHr + slope.hrPerMmol * (min - avgLac)) : null
-  const hrAtMax = avgHr != null && slope.hrPerMmol != null ? Math.round(avgHr + slope.hrPerMmol * (max - avgLac)) : null
+  const atMin = projectAtLactate(anchor, min, zones, m1, m2, m3)
+  const atMax = projectAtLactate(anchor, max, zones, m1, m2, m3)
+  if (!atMin || !atMax) return null
 
-  const paceRangeSec: [number, number] = paceAtMax <= paceAtMin ? [paceAtMax, paceAtMin] : [paceAtMin, paceAtMax]
-  const hrRange: [number, number] | null = hrAtMin != null && hrAtMax != null
-    ? [Math.min(hrAtMin, hrAtMax), Math.max(hrAtMin, hrAtMax)]
+  const paceRangeSec: [number, number] = atMax.paceSec <= atMin.paceSec ? [atMax.paceSec, atMin.paceSec] : [atMin.paceSec, atMax.paceSec]
+  const hrRange: [number, number] | null = atMin.hr != null && atMax.hr != null
+    ? [Math.min(atMin.hr, atMax.hr), Math.max(atMin.hr, atMax.hr)]
     : null
 
   return {
@@ -250,10 +273,10 @@ export function personalTargetRangeWithBaseline(
 
 /**
  * The actual line behind personalTargetRangeWithBaseline's numbers — a
- * projected pace/HR curve, drawn as a straight tangent line through the
- * workout's own real measurement (see workoutAnchorAndSlope) using the
- * baseline test's local slope right there. Returned as plain steps so it
- * can be drawn as a dashed trendline on the graph
+ * projected pace/HR curve, drawn as a piecewise-linear continuation of the
+ * workout's own real measurement through the baseline's per-zone slopes
+ * (see projectAtLactate). Returned as plain steps so it can be drawn as a
+ * dashed trendline on the graph
  * (components/coach/lactate-multi-curve-chart.tsx) extending beyond what
  * the workout itself measured, instead of only reporting three numbers —
  * so a coach can see WHERE those numbers come from, not just what they are.
@@ -261,25 +284,28 @@ export function personalTargetRangeWithBaseline(
  * Swept only ±2 mmol around the workout's own measured lactate (enough to
  * comfortably cover T1–T3, since a workout's average lactate is normally
  * itself somewhere in that 2.0–4.5 neighborhood) rather than a fixed wide
- * 1.5–5.5 span — a projection that stays close to the real data can't blow
- * out the chart's axis scale the way a much wider sweep could.
+ * span — a projection that stays close to the real data can't blow out
+ * the chart's axis scale the way a much wider sweep could.
  */
 export function projectWorkoutTrend(
   workoutSteps: LactateStep[] | null | undefined,
   baselineSteps: LactateStep[] | null | undefined,
 ): LactateStep[] | null {
   if (!workoutSteps || workoutSteps.length === 0 || !baselineSteps || baselineSteps.length < 2) return null
-  const anchor = workoutAnchorAndSlope(workoutSteps, baselineSteps)
-  if (!anchor) return null
-  const { avgPace, avgLac, avgHr, slope } = anchor
-  const lo = Math.max(0.5, avgLac - 2)
-  const hi = avgLac + 2
+  const anchor = workoutAnchor(workoutSteps)
+  const zones = baselineZones(baselineSteps)
+  if (!anchor || !zones) return null
+  const m1 = zoneSlope(zones.rest, zones.t1)
+  const m2 = zoneSlope(zones.t1, zones.t2)
+  const m3 = zoneSlope(zones.t2, zones.t3)
+
+  const lo = Math.max(0.5, anchor.lac - 2)
+  const hi = anchor.lac + 2
   const points: LactateStep[] = []
   for (let lac = lo; lac <= hi + 0.001; lac += 0.5) {
-    const paceSec = avgPace + slope.paceSecPerMmol * (lac - avgLac)
-    if (paceSec <= 0) continue
-    const hr = avgHr != null && slope.hrPerMmol != null ? Math.round(avgHr + slope.hrPerMmol * (lac - avgLac)) : null
-    points.push({ pace: secToPace(paceSec), hr, lactate: Math.round(lac * 10) / 10 })
+    const p = projectAtLactate(anchor, lac, zones, m1, m2, m3)
+    if (!p) continue
+    points.push({ pace: secToPace(p.paceSec), hr: p.hr != null ? Math.round(p.hr) : null, lactate: Math.round(lac * 10) / 10 })
   }
   return points.length >= 2 ? points : null
 }
