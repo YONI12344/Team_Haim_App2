@@ -235,6 +235,30 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
     )
   }
 
+  /** Plain-HTML fallback for the X-axis range — recharts' own tick
+   *  rendering (both the built-in style-object form and a custom SVG
+   *  render function) was showing up completely blank in production for
+   *  reasons that couldn't be pinned down without a browser to inspect.
+   *  This row is ordinary text in a div, entirely outside the SVG and
+   *  recharts' rendering pipeline, so it cannot be affected by whatever
+   *  was suppressing the in-chart ticks — guaranteed visible slow/mid/fast
+   *  (or low/mid/high HR) labels spanning the same range as the chart. */
+  const axisRangeLabels = (() => {
+    if (axisMode === 'paceVsLactate') {
+      const vals = usable.flatMap(c => paceVsLactateData(c.points).map(p => -p.paceNeg))
+      if (!vals.length) return null
+      const slow = Math.max(...vals), fast = Math.min(...vals)
+      return { left: secToPace(slow), mid: secToPace((slow + fast) / 2), right: secToPace(fast) }
+    }
+    if (axisMode === 'hrVsLactate') {
+      const vals = usable.flatMap(c => hrVsLactateData(c.points).map(p => p.hr!))
+      if (!vals.length) return null
+      const lo = Math.min(...vals), hi = Math.max(...vals)
+      return { left: `♥${Math.round(lo)}`, mid: `♥${Math.round((lo + hi) / 2)}`, right: `♥${Math.round(hi)}` }
+    }
+    return null
+  })()
+
   /** Rep-level label showing lactate PLUS whichever of pace/HR isn't already
    *  on an axis, so a point on the pace/lactate chart still shows that rep's
    *  HR (and vice versa) instead of only the plotted value. The value that
@@ -358,6 +382,13 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
           </LineChart>
         </ResponsiveContainer>
         </div>
+        {axisRangeLabels && (
+          <div className="flex items-center justify-between px-2" dir="ltr">
+            <span className="text-[11px] font-bold text-navy">{axisRangeLabels.left}</span>
+            <span className="text-[10px] text-muted-foreground">{axisRangeLabels.mid}</span>
+            <span className="text-[11px] font-bold text-navy">{axisRangeLabels.right}</span>
+          </div>
+        )}
       </div>
       )}
 
