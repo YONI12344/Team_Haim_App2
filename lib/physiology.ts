@@ -250,14 +250,19 @@ export function personalTargetRangeWithBaseline(
 
 /**
  * The actual line behind personalTargetRangeWithBaseline's numbers — a
- * projected pace/HR curve across a wide lactate span (1.5–5.5 mmol), drawn
- * as a straight tangent line through the workout's own real measurement
- * (see workoutAnchorAndSlope) using the baseline test's local slope right
- * there. Returned as plain steps so it can be drawn as a dashed trendline
- * on the graph (components/coach/lactate-multi-curve-chart.tsx) extending
- * beyond what the workout itself measured, instead of only reporting three
- * numbers — so a coach can see WHERE those numbers come from, not just
- * what they are.
+ * projected pace/HR curve, drawn as a straight tangent line through the
+ * workout's own real measurement (see workoutAnchorAndSlope) using the
+ * baseline test's local slope right there. Returned as plain steps so it
+ * can be drawn as a dashed trendline on the graph
+ * (components/coach/lactate-multi-curve-chart.tsx) extending beyond what
+ * the workout itself measured, instead of only reporting three numbers —
+ * so a coach can see WHERE those numbers come from, not just what they are.
+ *
+ * Swept only ±2 mmol around the workout's own measured lactate (enough to
+ * comfortably cover T1–T3, since a workout's average lactate is normally
+ * itself somewhere in that 2.0–4.5 neighborhood) rather than a fixed wide
+ * 1.5–5.5 span — a projection that stays close to the real data can't blow
+ * out the chart's axis scale the way a much wider sweep could.
  */
 export function projectWorkoutTrend(
   workoutSteps: LactateStep[] | null | undefined,
@@ -267,12 +272,14 @@ export function projectWorkoutTrend(
   const anchor = workoutAnchorAndSlope(workoutSteps, baselineSteps)
   if (!anchor) return null
   const { avgPace, avgLac, avgHr, slope } = anchor
+  const lo = Math.max(0.5, avgLac - 2)
+  const hi = avgLac + 2
   const points: LactateStep[] = []
-  for (const lac of [1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5]) {
+  for (let lac = lo; lac <= hi + 0.001; lac += 0.5) {
     const paceSec = avgPace + slope.paceSecPerMmol * (lac - avgLac)
     if (paceSec <= 0) continue
     const hr = avgHr != null && slope.hrPerMmol != null ? Math.round(avgHr + slope.hrPerMmol * (lac - avgLac)) : null
-    points.push({ pace: secToPace(paceSec), hr, lactate: lac })
+    points.push({ pace: secToPace(paceSec), hr, lactate: Math.round(lac * 10) / 10 })
   }
   return points.length >= 2 ? points : null
 }

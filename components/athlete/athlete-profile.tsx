@@ -46,6 +46,7 @@ import { db, storage } from '@/lib/firebase'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
 import { toast } from 'sonner'
+import { getCoachInfo } from '@/lib/coach'
 import type {
   AthleteProfile as AthleteProfileType,
   Discipline,
@@ -200,6 +201,31 @@ export function AthleteProfile() {
           saved++
         }
         toast.success(`Synced ${saved} new workouts from Strava!`)
+        // Notify coach (fire-and-forget) — this path (bulk Strava import,
+        // often backfilling past days) previously saved logs silently with
+        // no notification at all, unlike every other way an athlete logs
+        // a workout.
+        if (saved > 0) {
+          ;(async () => {
+            try {
+              const coachInfo = await getCoachInfo()
+              if (!coachInfo?.uid) return
+              const athleteSnap = await getDoc(doc(db, 'users', user.id))
+              if (athleteSnap.data()?.mutedByCoach === true) return
+              fetch('/api/send-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  userId: coachInfo.uid,
+                  title: `${athleteSnap.data()?.name || 'ספורטאי'} סנכרן מ-Strava`,
+                  body: saved === 1 ? 'אימון חדש אחד נוסף' : `${saved} אימונים חדשים נוספו`,
+                  data: { type: 'workout_update' },
+                  url: `/coach/athletes/${user.id}/planner`,
+                }),
+              }).catch(() => {})
+            } catch {}
+          })()
+        }
       }
     } catch (err) { console.error(err); toast.error('Sync failed') }
     finally { setStravaSyncing(false) }

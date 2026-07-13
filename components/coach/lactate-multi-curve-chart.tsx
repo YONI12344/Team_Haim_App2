@@ -223,7 +223,7 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
         <p className="text-[10px] font-semibold text-muted-foreground text-center" dir="rtl">{AXIS_CAPTION[axisMode]}</p>
         <div className="w-full min-w-0 overflow-hidden" style={{ height: size === 'compact' ? 300 : 360 }} dir="ltr">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart margin={{ top: 16, right: 24, left: 24, bottom: 28 }}>
+          <LineChart key={axisMode} margin={{ top: 16, right: 24, left: 24, bottom: 28 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             {axisMode === 'paceVsLactate' && (
               <>
