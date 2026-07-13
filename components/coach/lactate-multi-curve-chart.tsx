@@ -181,7 +181,7 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
         <p className="text-[10px] font-semibold text-muted-foreground text-center" dir="rtl">{AXIS_CAPTION[axisMode]}</p>
         <div className="w-full min-w-0 overflow-hidden" style={{ height: size === 'compact' ? 220 : 360 }} dir="ltr">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart margin={{ top: 16, right: 8, left: 0, bottom: 5 }}>
+          <LineChart margin={{ top: 16, right: 24, left: 24, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             {axisMode === 'paceVsLactate' && (
               <>
@@ -317,17 +317,6 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
             </div>
           )
         })}
-        {usable.some(c => c.sourceType === 'workout') && (
-          <div className="border-t border-border/40 px-2 py-1.5 space-y-0.5">
-            <p className="text-[10px] text-muted-foreground">
-              ⚠️ עקומות מאימונים הן הערכה מתוך היסטוריית האימון — לא בדיקת מדרגות רשמית
-            </p>
-            <p className="text-[10px] text-muted-foreground">
-              <span className="text-green-600 font-bold">▲</span> קצב מהיר יותר מהמפגש הקודם באותה רמת לקטט ·{' '}
-              <span className="text-red-500 font-bold">▼</span> איטי יותר
-            </p>
-          </div>
-        )}
       </div>
 
       {/* Per-curve data-point table — every plotted point, expandable per curve */}

@@ -113,34 +113,39 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
           return (
             <Card key={card.id} className="min-w-0">
               <button onClick={() => setExpandedId(p => p === card.id ? null : card.id)}
-                className="w-full text-right px-3 py-2.5 flex items-center justify-between gap-2 hover:bg-muted/20">
-                <div className="flex items-center gap-2 flex-wrap min-w-0">
-                  <span className="text-xs font-bold text-navy whitespace-nowrap">{card.title}</span>
-                  {card.trend && (
-                    <span className={cn('text-[9px] font-bold px-1.5 py-0.5 rounded-full',
-                      card.trend.improved ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500')}>
-                      {card.trend.improved ? '▲' : '▼'}{card.trend.label}
-                    </span>
-                  )}
-                  {/* Current T1/T2/T3 for THIS workout — from the athlete's
-                      most recent session of it (same source that drives the
-                      dynamic target shown when logging), not the real Lab
-                      thresholds. */}
-                  {card.thresholds && (card.thresholds.T1 || card.thresholds.T2 || card.thresholds.T3) && (
-                    <div className="flex flex-wrap gap-1">
-                      {(['T1', 'T2', 'T3'] as const).map(level => {
-                        const r = card.thresholds![level]
-                        if (!r) return null
-                        return (
-                          <span key={level} className="text-[10px] font-semibold bg-navy/5 border border-navy/10 text-navy px-1.5 py-0.5 rounded-full whitespace-nowrap" dir="ltr">
-                            {level} · {formatTargetRange(r, ['pace', 'hr'])}
-                          </span>
-                        )
-                      })}
-                    </div>
-                  )}
+                className="w-full text-right px-3 py-3 hover:bg-muted/20">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-xs font-bold text-navy whitespace-nowrap">{card.title}</span>
+                    {card.trend && (
+                      <span className={cn('text-[9px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap',
+                        card.trend.improved ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500')}>
+                        {card.trend.improved ? '▲' : '▼'}{card.trend.label}
+                      </span>
+                    )}
+                  </div>
+                  <ChevronDown className={cn('h-4 w-4 text-muted-foreground flex-shrink-0 transition-transform', isOpen && 'rotate-180')} />
                 </div>
-                <ChevronDown className={cn('h-4 w-4 text-muted-foreground flex-shrink-0 transition-transform', isOpen && 'rotate-180')} />
+                {/* Current T1/T2/T3 for THIS workout — from the athlete's
+                    most recent session of it (same source that drives the
+                    dynamic target shown when logging), not the real Lab
+                    thresholds. */}
+                {card.thresholds && (card.thresholds.T1 || card.thresholds.T2 || card.thresholds.T3) && (
+                  <div className="grid grid-cols-3 gap-1.5 mt-2">
+                    {(['T1', 'T2', 'T3'] as const).map(level => {
+                      const r = card.thresholds![level]
+                      const colors = level === 'T1' ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
+                        : level === 'T2' ? 'bg-amber-50 border-amber-100 text-amber-700'
+                        : 'bg-rose-50 border-rose-100 text-rose-700'
+                      return (
+                        <div key={level} className={cn('rounded-lg border px-2 py-1.5 text-center', r ? colors : 'border-dashed border-border/50')}>
+                          <p className={cn('text-[9px] font-semibold', r ? 'opacity-70' : 'text-muted-foreground')}>{level}</p>
+                          <p className="text-[10px] font-bold" dir="ltr">{r ? formatTargetRange(r, ['pace', 'hr']) : '—'}</p>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </button>
 
               {isOpen && (() => {
