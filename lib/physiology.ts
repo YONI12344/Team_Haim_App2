@@ -176,17 +176,27 @@ function zoneSlope(a: ZonePoint, b: ZonePoint): ZoneSlope | null {
   }
 }
 
-/** The workout's own real anchor point — average pace/HR/lactate across its reps. */
-function workoutAnchor(workoutSteps: LactateStep[]): { paceSec: number; hr: number | null; lac: number } | null {
-  const valid = workoutSteps
-    .map(s => ({ pace: paceToSec(s.pace), hr: s.hr ?? null, lac: Number(s.lactate) }))
-    .filter((p): p is { pace: number; hr: number | null; lac: number } => p.pace != null && isFinite(p.lac) && p.lac > 0)
-  if (valid.length === 0) return null
-  const avgPace = valid.reduce((s, p) => s + p.pace, 0) / valid.length
-  const avgLac = valid.reduce((s, p) => s + p.lac, 0) / valid.length
-  const hrs = valid.map(p => p.hr).filter((h): h is number => h != null)
-  const avgHr = hrs.length ? hrs.reduce((s, h) => s + h, 0) / hrs.length : null
-  return { paceSec: avgPace, hr: avgHr, lac: avgLac }
+interface WorkoutValidStep { paceSec: number; hr: number | null; lac: number }
+
+/** The workout's own valid real points, sorted by lactate ascending. */
+function workoutValidSteps(workoutSteps: LactateStep[]): WorkoutValidStep[] {
+  return workoutSteps
+    .map(s => ({ paceSec: paceToSec(s.pace)!, hr: s.hr ?? null, lac: Number(s.lactate) }))
+    .filter((p): p is WorkoutValidStep => p.paceSec != null && isFinite(p.lac) && p.lac > 0)
+    .sort((a, b) => a.lac - b.lac)
+}
+
+/**
+ * Which of the workout's own real points to project a given target lactate
+ * FROM — always the workout's own nearest real endpoint (its lowest point
+ * when projecting toward a lower mmol, its highest when projecting toward
+ * a higher one), never an averaged/synthetic point. This is what makes the
+ * projected line visibly continue the workout's own real dots instead of
+ * anchoring somewhere between them that doesn't correspond to any actual
+ * measurement — the projection should look like it's ON the workout curve.
+ */
+function nearestWorkoutAnchor(valid: WorkoutValidStep[], targetLac: number): WorkoutValidStep {
+  return targetLac <= valid[0].lac ? valid[0] : valid[valid.length - 1]
 }
 
 /**
@@ -226,15 +236,18 @@ function projectAtLactate(
 /**
  * Same result as personalTargetRangeForLevel, but when the workout's own
  * data can't reach a level directly (e.g. a constant-pace workout that only
- * ever sampled one narrow lactate band), projects it instead: anchor on
- * today's actual measured point (average pace/HR/lactate across the
- * workout's reps), then walk to the target lactate through the baseline
+ * ever sampled one narrow lactate band), projects it instead: anchor on the
+ * workout's own nearest REAL point (its lowest measured lactate when
+ * projecting downward, its highest when projecting upward — never an
+ * averaged, synthetic point that doesn't correspond to any actual
+ * measurement), then walk to the target lactate through the baseline
  * test's own per-zone slopes (rest→T1, T1→T2, T2→T3) — not the baseline's
  * absolute pace, which could be stale, only its shape, zone by zone. This
- * is how a coach would eyeball it: "they're doing 3:49 at 2.3 mmol today —
- * on their usual curve shape between T1 and T2, 4.0 mmol is probably around
- * X." Marked `extrapolated: true` so callers can show it's a projection,
- * not a direct reading.
+ * is how a coach would eyeball it: "their slowest rep was 3:49 at 2.3 mmol
+ * today — on their usual curve shape between T1 and T2, 2.0 mmol is
+ * probably just a touch slower than that, starting from where they
+ * actually were." Marked `extrapolated: true` so callers can show it's a
+ * projection, not a direct reading.
  */
 export function personalTargetRangeWithBaseline(
   workoutSteps: LactateStep[] | null | undefined,
@@ -246,15 +259,15 @@ export function personalTargetRangeWithBaseline(
   if (!workoutSteps || workoutSteps.length === 0 || !baselineSteps || baselineSteps.length < 2) return null
 
   const { min, max } = WORKOUT_TARGET_RANGES[level]
-  const anchor = workoutAnchor(workoutSteps)
+  const valid = workoutValidSteps(workoutSteps)
   const zones = baselineZones(baselineSteps)
-  if (!anchor || !zones) return null
+  if (valid.length === 0 || !zones) return null
   const m1 = zoneSlope(zones.rest, zones.t1)
   const m2 = zoneSlope(zones.t1, zones.t2)
   const m3 = zoneSlope(zones.t2, zones.t3)
 
-  const atMin = projectAtLactate(anchor, min, zones, m1, m2, m3)
-  const atMax = projectAtLactate(anchor, max, zones, m1, m2, m3)
+  const atMin = projectAtLactate(nearestWorkoutAnchor(valid, min), min, zones, m1, m2, m3)
+  const atMax = projectAtLactate(nearestWorkoutAnchor(valid, max), max, zones, m1, m2, m3)
   if (!atMin || !atMax) return null
 
   const paceRangeSec: [number, number] = atMax.paceSec <= atMin.paceSec ? [atMax.paceSec, atMin.paceSec] : [atMin.paceSec, atMax.paceSec]
@@ -272,42 +285,49 @@ export function personalTargetRangeWithBaseline(
 }
 
 /**
- * The actual line behind personalTargetRangeWithBaseline's numbers — a
- * projected pace/HR curve, drawn as a piecewise-linear continuation of the
- * workout's own real measurement through the baseline's per-zone slopes
- * (see projectAtLactate). Returned as plain steps so it can be drawn as a
- * dashed trendline on the graph
- * (components/coach/lactate-multi-curve-chart.tsx) extending beyond what
- * the workout itself measured, instead of only reporting three numbers —
- * so a coach can see WHERE those numbers come from, not just what they are.
- *
- * Swept only ±2 mmol around the workout's own measured lactate (enough to
- * comfortably cover T1–T3, since a workout's average lactate is normally
- * itself somewhere in that 2.0–4.5 neighborhood) rather than a fixed wide
- * span — a projection that stays close to the real data can't blow out
- * the chart's axis scale the way a much wider sweep could.
+ * The actual line behind personalTargetRangeWithBaseline's numbers — the
+ * workout's own real points, PLUS a piecewise-linear extension before the
+ * lowest one and after the highest one, using the baseline's per-zone
+ * slopes (see projectAtLactate). Drawn as one continuous dashed trendline
+ * on the graph (components/coach/lactate-multi-curve-chart.tsx) that
+ * visibly passes through the workout's actual dots and extends outward
+ * from them — not a separate line anchored on an averaged point that
+ * doesn't correspond to anything actually measured, which could end up
+ * sitting anywhere near the baseline instead of visibly continuing the
+ * workout's own curve. Extended ±2 mmol past the workout's own real range
+ * (comfortably covers T1–T3, since a workout's own measured lactate is
+ * normally itself already close to that 2.0–4.5 neighborhood).
  */
 export function projectWorkoutTrend(
   workoutSteps: LactateStep[] | null | undefined,
   baselineSteps: LactateStep[] | null | undefined,
 ): LactateStep[] | null {
   if (!workoutSteps || workoutSteps.length === 0 || !baselineSteps || baselineSteps.length < 2) return null
-  const anchor = workoutAnchor(workoutSteps)
+  const valid = workoutValidSteps(workoutSteps)
   const zones = baselineZones(baselineSteps)
-  if (!anchor || !zones) return null
+  if (valid.length === 0 || !zones) return null
   const m1 = zoneSlope(zones.rest, zones.t1)
   const m2 = zoneSlope(zones.t1, zones.t2)
   const m3 = zoneSlope(zones.t2, zones.t3)
 
-  const lo = Math.max(0.5, anchor.lac - 2)
-  const hi = anchor.lac + 2
-  const points: LactateStep[] = []
-  for (let lac = lo; lac <= hi + 0.001; lac += 0.5) {
-    const p = projectAtLactate(anchor, lac, zones, m1, m2, m3)
-    if (!p) continue
-    points.push({ pace: secToPace(p.paceSec), hr: p.hr != null ? Math.round(p.hr) : null, lactate: Math.round(lac * 10) / 10 })
+  const minPt = valid[0]
+  const maxPt = valid[valid.length - 1]
+
+  const before: LactateStep[] = []
+  const lo = Math.max(0.5, minPt.lac - 2)
+  for (let lac = lo; lac < minPt.lac - 0.05; lac += 0.5) {
+    const p = projectAtLactate(minPt, lac, zones, m1, m2, m3)
+    if (p) before.push({ pace: secToPace(p.paceSec), hr: p.hr != null ? Math.round(p.hr) : null, lactate: Math.round(lac * 10) / 10 })
   }
-  return points.length >= 2 ? points : null
+  const after: LactateStep[] = []
+  const hi = maxPt.lac + 2
+  for (let lac = maxPt.lac + 0.5; lac <= hi + 0.001; lac += 0.5) {
+    const p = projectAtLactate(maxPt, lac, zones, m1, m2, m3)
+    if (p) after.push({ pace: secToPace(p.paceSec), hr: p.hr != null ? Math.round(p.hr) : null, lactate: Math.round(lac * 10) / 10 })
+  }
+  const real: LactateStep[] = valid.map(p => ({ pace: secToPace(p.paceSec), hr: p.hr, lactate: p.lac }))
+  const all = [...before, ...real, ...after]
+  return all.length >= 2 ? all : null
 }
 
 /**
