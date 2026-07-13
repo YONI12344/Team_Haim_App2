@@ -45,7 +45,7 @@ export function AthleteLayout({ children, hideNav }: { children: ReactNode; hide
       {/* Bottom nav is a fixed h-16 bar (mobile only, md:hidden) — without
           matching bottom padding here it covers the last ~4rem of every
           page's content instead of just sitting below it. */}
-      <main className={hideNav ? "min-h-screen bg-gray-50" : "container px-4 pt-4 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pt-6 md:pb-6"}>
+      <main className={hideNav ? "min-h-screen bg-gray-50" : "container mx-auto px-4 pt-4 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pt-6 md:pb-6"}>
         {children}
       </main>
       {!hideNav && <AthleteBottomNav />}

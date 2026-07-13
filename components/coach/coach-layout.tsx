@@ -35,7 +35,7 @@ export function CoachLayout({ children, hideNav }: { children: ReactNode; hideNa
       {/* Bottom nav is a fixed h-16 bar (mobile only, md:hidden) — without
           matching bottom padding here it covers the last ~4rem of every
           page's content instead of just sitting below it. */}
-      <main className={hideNav ? "" : "container px-4 pt-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pt-8 md:pb-8"}>
+      <main className={hideNav ? "" : "container mx-auto px-4 pt-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pt-8 md:pb-8"}>
         {children}
       </main>
       {!hideNav && <CoachBottomNav />}
