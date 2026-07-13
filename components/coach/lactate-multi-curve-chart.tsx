@@ -166,20 +166,6 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
     formatter: (v: number) => (v == null ? '' : dataKey === 'lactate' ? v : Math.round(v)),
   })
 
-  // Explicit tick per actual pace value in the data (rounded to the nearest
-  // 3 seconds, deduped) instead of recharts' auto-generated round numbers,
-  // so the axis reads real paces from the session — but only up to a
-  // readable count; past that, fall back to auto ticks so labels don't
-  // overlap. Only ever built from real (measured) curves, never the dashed
-  // projection, so the axis reflects actual data points.
-  const paceTicks = (() => {
-    if (axisMode !== 'paceVsLactate') return undefined
-    const vals = Array.from(new Set(
-      usable.flatMap(c => paceVsLactateData(c.points).map(p => Math.round(p.paceNeg / 3) * 3))
-    )).sort((a, b) => a - b)
-    return vals.length > 0 && vals.length <= 20 ? vals : undefined
-  })()
-
   // T1/T2/T3 marker x-positions (direct or estimated) — the domain must
   // reach these too, or an estimated marker (which by definition usually
   // sits outside the workout's own narrow measured band — that's WHY it
@@ -210,24 +196,22 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
     return vals.length ? [Math.min(...vals) - 8, Math.max(...vals) + 8] as [number, number] : undefined
   })()
 
-  /** Rep-level label showing lactate, pace AND HR together on every point —
-   *  including the value actually plotted on the X axis (pace, or HR),
-   *  restated here in text. Axis tick labels alone weren't reliably
-   *  visible in every context this chart renders in (small "compact" cards,
-   *  various zoom/DPI), so the point's own X-value is never left to be
-   *  read only from the axis — it's always spelled out at the point itself. */
+  /** Rep-level label showing lactate PLUS whichever of pace/HR isn't already
+   *  on an axis, so a point on the pace/lactate chart still shows that rep's
+   *  HR (and vice versa) instead of only the plotted value. The value that
+   *  IS on the axis belongs on the axis itself (see the XAxis tickFormatter
+   *  below), not repeated on every single point. */
   const richPointLabel = (mode: 'paceVsLactate' | 'hrVsLactate', data: { hr?: number | null; pace?: string | null }[]) =>
     (props: any) => {
       const { x, y, value, index } = props
       if (value == null) return <></>
       const point = data[index]
-      const xValueText = mode === 'paceVsLactate' ? (point?.pace || '') : (point?.hr != null ? `♥${point.hr}` : '')
-      const other = mode === 'paceVsLactate'
+      const extra = mode === 'paceVsLactate'
         ? (point?.hr != null ? `♥${point.hr}` : '')
         : (point?.pace || '')
       return (
         <text x={x} y={y - 8} fontSize={9} textAnchor="middle" fill="#6b7280">
-          {value}{xValueText ? ` · ${xValueText}` : ''}{other ? ` · ${other}` : ''}
+          {value}{extra ? ` · ${extra}` : ''}
         </text>
       )
     }
@@ -244,17 +228,16 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
             {axisMode === 'paceVsLactate' && (
               <>
                 <XAxis dataKey="paceNeg" type="number" domain={paceDomain ?? ['dataMin - 5', 'dataMax + 5']} allowDataOverflow
-                  ticks={paceTicks}
                   tickFormatter={(v: number) => secToPace(-v)}
                   tick={{ fontSize: 10, fill: '#6b7280' }}
-                  interval={0} height={26} />
+                  tickCount={6} height={26} />
                 <YAxis dataKey="lactate" type="number" width={30} tick={{ fontSize: 11, fill: '#9ca3af' }} />
               </>
             )}
             {axisMode === 'hrVsLactate' && (
               <>
                 <XAxis dataKey="hr" type="number" domain={hrDomain ?? ['dataMin - 5', 'dataMax + 5']} allowDataOverflow
-                  tick={{ fontSize: 11, fill: '#6b7280' }} height={26} />
+                  tickCount={6} tick={{ fontSize: 11, fill: '#6b7280' }} height={26} />
                 <YAxis dataKey="lactate" type="number" width={30} tick={{ fontSize: 11, fill: '#9ca3af' }} />
               </>
             )}

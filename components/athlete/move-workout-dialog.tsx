@@ -22,7 +22,10 @@ interface MoveWorkoutDialogProps {
 }
 
 /**
- * Lets an athlete move a scheduled workout to another day (next 14 days).
+ * Lets an athlete move a scheduled workout to another day — a short window
+ * around the workout's OWN scheduled date (1 day before, 3 days after),
+ * not a full 2 weeks forward from today: moving a workout is normally a
+ * small shuffle ("do it tomorrow instead"), not a far-out reschedule.
  * Stores movedByAthlete + the original date and notifies the coach.
  */
 export function MoveWorkoutDialog({ open, onOpenChange, workout, athleteId, athleteName, busyDates, onMoved }: MoveWorkoutDialogProps) {
@@ -30,8 +33,8 @@ export function MoveWorkoutDialog({ open, onOpenChange, workout, athleteId, athl
   const [saving, setSaving] = useState(false)
   const [picked, setPicked] = useState<string | null>(null)
 
-  const today = new Date()
-  const options = Array.from({ length: 14 }, (_, i) => addDays(today, i))
+  const anchor = parseISO(workout.scheduledDate)
+  const options = Array.from({ length: 5 }, (_, i) => addDays(anchor, i - 1))
     .filter(d => format(d, 'yyyy-MM-dd') !== workout.scheduledDate)
 
   const handleMove = async () => {
