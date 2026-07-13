@@ -167,15 +167,17 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
   })
 
   // Explicit tick per actual pace value in the data (rounded to the nearest
-  // second, deduped) instead of recharts' auto-generated round numbers, so
-  // the axis reads real paces from the session — but only up to a readable
-  // count; past that, fall back to auto ticks so labels don't overlap.
+  // 3 seconds, deduped) instead of recharts' auto-generated round numbers,
+  // so the axis reads real paces from the session — but only up to a
+  // readable count; past that, fall back to auto ticks so labels don't
+  // overlap. Only ever built from real (measured) curves, never the dashed
+  // projection, so the axis reflects actual data points.
   const paceTicks = (() => {
     if (axisMode !== 'paceVsLactate') return undefined
     const vals = Array.from(new Set(
-      usable.flatMap(c => paceVsLactateData(c.points).map(p => Math.round(p.paceNeg)))
+      usable.flatMap(c => paceVsLactateData(c.points).map(p => Math.round(p.paceNeg / 3) * 3))
     )).sort((a, b) => a - b)
-    return vals.length > 0 && vals.length <= 14 ? vals : undefined
+    return vals.length > 0 && vals.length <= 20 ? vals : undefined
   })()
 
   /** Rep-level label showing lactate PLUS whichever of pace/HR isn't already
@@ -203,24 +205,22 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
         <p className="text-[10px] font-semibold text-muted-foreground text-center" dir="rtl">{AXIS_CAPTION[axisMode]}</p>
         <div className="w-full min-w-0 overflow-hidden" style={{ height: size === 'compact' ? 220 : 360 }} dir="ltr">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart margin={{ top: 16, right: 24, left: 24, bottom: 5 }}>
+          <LineChart margin={{ top: 16, right: 24, left: 24, bottom: 28 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             {axisMode === 'paceVsLactate' && (
               <>
                 <XAxis dataKey="paceNeg" type="number" domain={['dataMin - 5', 'dataMax + 5']}
                   ticks={paceTicks}
                   tickFormatter={(v: number) => secToPace(-v)}
-                  tick={{ fontSize: 10, fill: '#9ca3af' }}
-                  interval={0}
-                  label={{ value: 'קצב (/ק"מ) ← איטי   מהיר →', position: 'insideBottom', offset: -3, fontSize: 11, fill: '#9ca3af' }} />
+                  tick={{ fontSize: 10, fill: '#6b7280' }}
+                  interval={0} height={26} />
                 <YAxis dataKey="lactate" type="number" width={30} tick={{ fontSize: 11, fill: '#9ca3af' }} />
               </>
             )}
             {axisMode === 'hrVsLactate' && (
               <>
                 <XAxis dataKey="hr" type="number" domain={['dataMin - 5', 'dataMax + 5']}
-                  tick={{ fontSize: 11, fill: '#9ca3af' }}
-                  label={{ value: 'HR (bpm)', position: 'insideBottom', offset: -3, fontSize: 11, fill: '#9ca3af' }} />
+                  tick={{ fontSize: 11, fill: '#6b7280' }} height={26} />
                 <YAxis dataKey="lactate" type="number" width={30} tick={{ fontSize: 11, fill: '#9ca3af' }} />
               </>
             )}
