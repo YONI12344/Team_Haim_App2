@@ -144,6 +144,18 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
     formatter: (v: number) => (v == null ? '' : dataKey === 'lactate' ? v : Math.round(v)),
   })
 
+  // Explicit tick per actual pace value in the data (rounded to the nearest
+  // second, deduped) instead of recharts' auto-generated round numbers, so
+  // the axis reads real paces from the session — but only up to a readable
+  // count; past that, fall back to auto ticks so labels don't overlap.
+  const paceTicks = (() => {
+    if (axisMode !== 'paceVsLactate') return undefined
+    const vals = Array.from(new Set(
+      usable.flatMap(c => paceVsLactateData(c.points).map(p => Math.round(p.paceNeg)))
+    )).sort((a, b) => a - b)
+    return vals.length > 0 && vals.length <= 14 ? vals : undefined
+  })()
+
   /** Rep-level label showing lactate PLUS whichever of pace/HR isn't already
    *  on an axis, so a point on the pace/lactate chart still shows that rep's
    *  HR (and vice versa) instead of only the plotted value. */
@@ -174,8 +186,10 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
             {axisMode === 'paceVsLactate' && (
               <>
                 <XAxis dataKey="paceNeg" type="number" domain={['dataMin - 5', 'dataMax + 5']}
+                  ticks={paceTicks}
                   tickFormatter={(v: number) => secToPace(-v)}
-                  tick={{ fontSize: 11, fill: '#9ca3af' }}
+                  tick={{ fontSize: 10, fill: '#9ca3af' }}
+                  interval={0}
                   label={{ value: 'קצב (/ק"מ) ← איטי   מהיר →', position: 'insideBottom', offset: -3, fontSize: 11, fill: '#9ca3af' }} />
                 <YAxis dataKey="lactate" type="number" width={30} tick={{ fontSize: 11, fill: '#9ca3af' }} />
               </>

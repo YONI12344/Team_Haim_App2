@@ -47,6 +47,7 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
   const { loading, grouped, workoutOptions } = useWorkoutLactateGroups(athleteId)
   const [axisModeById, setAxisModeById] = useState<Record<string, AxisMode>>({})
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [showBaselineById, setShowBaselineById] = useState<Record<string, boolean>>({})
   const [baselineSteps, setBaselineSteps] = useState<LactateStep[] | null>(null)
   const [baselineLoading, setBaselineLoading] = useState(true)
 
@@ -142,24 +143,42 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
                 <ChevronDown className={cn('h-4 w-4 text-muted-foreground flex-shrink-0 transition-transform', isOpen && 'rotate-180')} />
               </button>
 
-              {isOpen && (
-                <>
-                  <CardHeader className="pb-2 pt-0 px-3">
-                    <div className="flex gap-1 bg-muted rounded-xl p-0.5 w-fit">
-                      {AXIS_OPTIONS.map(([m, label]) => (
-                        <button key={m} onClick={() => setAxisModeById(prev => ({ ...prev, [card.id]: m }))}
-                          className={cn('text-[10px] px-2 py-1 rounded-lg font-semibold transition-all',
-                            axisMode === m ? 'bg-white text-navy shadow-sm' : 'text-muted-foreground')}>
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="px-3 pb-3">
-                    <LactateMultiCurveChart curves={card.curves} axisMode={axisMode} size="compact" />
-                  </CardContent>
-                </>
-              )}
+              {isOpen && (() => {
+                const showBaseline = !!showBaselineById[card.id]
+                const chartCurves = card.id !== 'baseline' && baselineCurve && showBaseline
+                  ? [...card.curves, baselineCurve]
+                  : card.curves
+                return (
+                  <>
+                    <CardHeader className="pb-2 pt-0 px-3 space-y-1.5">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex gap-1 bg-muted rounded-xl p-0.5 w-fit">
+                          {AXIS_OPTIONS.map(([m, label]) => (
+                            <button key={m} onClick={() => setAxisModeById(prev => ({ ...prev, [card.id]: m }))}
+                              className={cn('text-[10px] px-2 py-1 rounded-lg font-semibold transition-all',
+                                axisMode === m ? 'bg-white text-navy shadow-sm' : 'text-muted-foreground')}>
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                        {/* Overlay the lab-test baseline curve onto this
+                            workout's own graph, in addition to the baseline
+                            having its own separate box above. */}
+                        {card.id !== 'baseline' && baselineCurve && axisMode !== 'dual' && (
+                          <button onClick={() => setShowBaselineById(prev => ({ ...prev, [card.id]: !showBaseline }))}
+                            className={cn('text-[10px] font-semibold px-2 py-1 rounded-lg border transition-all',
+                              showBaseline ? 'bg-navy/5 border-navy/20 text-navy' : 'border-border/50 text-muted-foreground')}>
+                            🧪 השווה לבדיקת מעבדה
+                          </button>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="px-3 pb-3">
+                      <LactateMultiCurveChart curves={chartCurves} axisMode={axisMode} size="compact" />
+                    </CardContent>
+                  </>
+                )
+              })()}
             </Card>
           )
         })}
