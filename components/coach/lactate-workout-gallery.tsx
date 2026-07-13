@@ -78,7 +78,7 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
     points: baselineSteps.map(s => ({ pace: s.pace, hr: s.hr, lactate: s.lactate })),
   } : null
 
-  const cards: { id: string; title: string; curves: CurveInput[]; thresholds?: ReturnType<typeof currentWorkoutThresholds>; trend?: ReturnType<typeof paceDelta> }[] = [
+  const cards: { id: string; title: string; curves: CurveInput[]; thresholds?: ReturnType<typeof currentWorkoutThresholds>; trend?: ReturnType<typeof paceDelta>; sessionCount?: number }[] = [
     ...(baselineCurve ? [{ id: 'baseline', title: 'בדיקת מעבדה (בסיס)', curves: [baselineCurve] }] : []),
     ...workoutOptions.map(o => {
       const curves = buildSessionCurves(grouped.get(o.id)!)
@@ -88,6 +88,7 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
         curves,
         thresholds: currentWorkoutThresholds(grouped.get(o.id)),
         trend: sessionTrend(curves),
+        sessionCount: curves.filter(c => c.sourceType === 'workout').length,
       }
     }),
   ]
@@ -117,10 +118,14 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="text-xs font-bold text-navy whitespace-nowrap">{card.title}</span>
-                    {card.trend && (
+                    {card.trend ? (
                       <span className={cn('text-[9px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap',
                         card.trend.improved ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500')}>
                         {card.trend.improved ? '▲' : '▼'}{card.trend.label}
+                      </span>
+                    ) : card.id !== 'baseline' && (card.sessionCount ?? 0) < 2 && (
+                      <span className="text-[9px] font-medium text-muted-foreground whitespace-nowrap">
+                        אימון ראשון — אין עדיין השוואה
                       </span>
                     )}
                   </div>
@@ -129,11 +134,13 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
                 {/* Current T1/T2/T3 for THIS workout — from the athlete's
                     most recent session of it (same source that drives the
                     dynamic target shown when logging), not the real Lab
-                    thresholds. */}
-                {card.thresholds && (card.thresholds.T1 || card.thresholds.T2 || card.thresholds.T3) && (
+                    thresholds. Always shown (with a placeholder per level
+                    when not yet computable) so it's clear this is "no data
+                    yet at that level" rather than the feature being broken. */}
+                {card.id !== 'baseline' && (
                   <div className="grid grid-cols-3 gap-1.5 mt-2">
                     {(['T1', 'T2', 'T3'] as const).map(level => {
-                      const r = card.thresholds![level]
+                      const r = card.thresholds?.[level] ?? null
                       const colors = level === 'T1' ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
                         : level === 'T2' ? 'bg-amber-50 border-amber-100 text-amber-700'
                         : 'bg-rose-50 border-rose-100 text-rose-700'

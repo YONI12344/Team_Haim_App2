@@ -342,10 +342,16 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
                       <div className="bg-navy/5 font-bold text-navy px-1.5 py-1">מינימום</div>
                       <div className="bg-navy/5 font-bold text-navy px-1.5 py-1">ממוצע</div>
                       <div className="bg-navy/5 font-bold text-navy px-1.5 py-1">מקסימום</div>
+                      {/* Pace is seconds/km, so numeric min = fastest — shown
+                          under מקסימום (max effort) here, and numeric max =
+                          slowest under מינימום (min effort), so this row
+                          reads consistently with HR/lactate below it (low =
+                          least effort, high = most effort) instead of by
+                          raw magnitude. */}
                       <div className="bg-white px-1.5 py-1 text-navy">קצב</div>
-                      <div className="bg-white px-1.5 py-1 font-mono text-navy" dir="ltr">{s.paceSec ? secToPace(s.paceSec.min) : '—'}</div>
-                      <div className="bg-white px-1.5 py-1 font-mono text-navy" dir="ltr">{s.paceSec ? secToPace(s.paceSec.avg) : '—'}</div>
                       <div className="bg-white px-1.5 py-1 font-mono text-navy" dir="ltr">{s.paceSec ? secToPace(s.paceSec.max) : '—'}</div>
+                      <div className="bg-white px-1.5 py-1 font-mono text-navy" dir="ltr">{s.paceSec ? secToPace(s.paceSec.avg) : '—'}</div>
+                      <div className="bg-white px-1.5 py-1 font-mono text-navy" dir="ltr">{s.paceSec ? secToPace(s.paceSec.min) : '—'}</div>
                       <div className="bg-white px-1.5 py-1 text-navy">דופק</div>
                       <div className="bg-white px-1.5 py-1 font-mono text-navy">{s.hr?.min ?? '—'}</div>
                       <div className="bg-white px-1.5 py-1 font-mono text-navy">{s.hr ? Math.round(s.hr.avg) : '—'}</div>
