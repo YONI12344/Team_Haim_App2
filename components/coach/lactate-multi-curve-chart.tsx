@@ -90,7 +90,7 @@ function curveThresholdsWithBaseline(points: CurvePoint[], baselinePoints: Curve
 function paceVsLactateData(points: CurvePoint[]) {
   return points
     .filter(p => p.pace && paceToSec(p.pace) != null)
-    .map(p => ({ paceNeg: -paceToSec(p.pace)!, lactate: p.lactate, hr: p.hr ?? null }))
+    .map(p => ({ paceNeg: -paceToSec(p.pace)!, lactate: p.lactate, hr: p.hr ?? null, pace: p.pace ?? null }))
     .sort((a, b) => a.paceNeg - b.paceNeg)
 }
 
@@ -180,20 +180,54 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
     return vals.length > 0 && vals.length <= 20 ? vals : undefined
   })()
 
-  /** Rep-level label showing lactate PLUS whichever of pace/HR isn't already
-   *  on an axis, so a point on the pace/lactate chart still shows that rep's
-   *  HR (and vice versa) instead of only the plotted value. */
+  // T1/T2/T3 marker x-positions (direct or estimated) — the domain must
+  // reach these too, or an estimated marker (which by definition usually
+  // sits outside the workout's own narrow measured band — that's WHY it
+  // needed projecting) would fall outside the tighter domain below and
+  // simply not be drawn.
+  const thresholdXs = axisMode !== 'dual' ? usable.flatMap(c => {
+    const t = c.sourceType === 'workout' ? curveThresholdsWithBaseline(c.points, baselineCurve?.points ?? null) : curveThresholds(c.points)
+    return T_LEVELS.map(({ key }) => {
+      const point = t[key]
+      if (!point) return null
+      return axisMode === 'paceVsLactate' ? -point.paceSecPerKm : point.hr
+    }).filter((x): x is number => x != null)
+  }) : []
+
+  // The X-domain must come from the real (measured) curves + the T-level
+  // markers only — the dashed projection line itself can run far past both
+  // at its 1.5/5.5 mmol ends, and letting recharts auto-size the domain off
+  // ALL rendered lines (including that one) squeezed the real, visible
+  // data into a fraction of the chart's width with a huge blank gap beside it.
+  const paceDomain = (() => {
+    if (axisMode !== 'paceVsLactate') return undefined
+    const vals = [...usable.flatMap(c => paceVsLactateData(c.points).map(p => p.paceNeg)), ...thresholdXs]
+    return vals.length ? [Math.min(...vals) - 8, Math.max(...vals) + 8] as [number, number] : undefined
+  })()
+  const hrDomain = (() => {
+    if (axisMode !== 'hrVsLactate') return undefined
+    const vals = [...usable.flatMap(c => hrVsLactateData(c.points).map(p => p.hr!)), ...thresholdXs]
+    return vals.length ? [Math.min(...vals) - 8, Math.max(...vals) + 8] as [number, number] : undefined
+  })()
+
+  /** Rep-level label showing lactate, pace AND HR together on every point —
+   *  including the value actually plotted on the X axis (pace, or HR),
+   *  restated here in text. Axis tick labels alone weren't reliably
+   *  visible in every context this chart renders in (small "compact" cards,
+   *  various zoom/DPI), so the point's own X-value is never left to be
+   *  read only from the axis — it's always spelled out at the point itself. */
   const richPointLabel = (mode: 'paceVsLactate' | 'hrVsLactate', data: { hr?: number | null; pace?: string | null }[]) =>
     (props: any) => {
       const { x, y, value, index } = props
       if (value == null) return <></>
       const point = data[index]
-      const extra = mode === 'paceVsLactate'
+      const xValueText = mode === 'paceVsLactate' ? (point?.pace || '') : (point?.hr != null ? `♥${point.hr}` : '')
+      const other = mode === 'paceVsLactate'
         ? (point?.hr != null ? `♥${point.hr}` : '')
         : (point?.pace || '')
       return (
         <text x={x} y={y - 8} fontSize={9} textAnchor="middle" fill="#6b7280">
-          {value}{extra ? ` · ${extra}` : ''}
+          {value}{xValueText ? ` · ${xValueText}` : ''}{other ? ` · ${other}` : ''}
         </text>
       )
     }
@@ -203,13 +237,13 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
       {!hideChart && (
       <div className="space-y-1 min-w-0">
         <p className="text-[10px] font-semibold text-muted-foreground text-center" dir="rtl">{AXIS_CAPTION[axisMode]}</p>
-        <div className="w-full min-w-0 overflow-hidden" style={{ height: size === 'compact' ? 220 : 360 }} dir="ltr">
+        <div className="w-full min-w-0 overflow-hidden" style={{ height: size === 'compact' ? 300 : 360 }} dir="ltr">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart margin={{ top: 16, right: 24, left: 24, bottom: 28 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             {axisMode === 'paceVsLactate' && (
               <>
-                <XAxis dataKey="paceNeg" type="number" domain={['dataMin - 5', 'dataMax + 5']}
+                <XAxis dataKey="paceNeg" type="number" domain={paceDomain ?? ['dataMin - 5', 'dataMax + 5']} allowDataOverflow
                   ticks={paceTicks}
                   tickFormatter={(v: number) => secToPace(-v)}
                   tick={{ fontSize: 10, fill: '#6b7280' }}
@@ -219,7 +253,7 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
             )}
             {axisMode === 'hrVsLactate' && (
               <>
-                <XAxis dataKey="hr" type="number" domain={['dataMin - 5', 'dataMax + 5']}
+                <XAxis dataKey="hr" type="number" domain={hrDomain ?? ['dataMin - 5', 'dataMax + 5']} allowDataOverflow
                   tick={{ fontSize: 11, fill: '#6b7280' }} height={26} />
                 <YAxis dataKey="lactate" type="number" width={30} tick={{ fontSize: 11, fill: '#9ca3af' }} />
               </>
