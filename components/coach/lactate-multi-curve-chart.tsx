@@ -343,10 +343,10 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
                 const data = axisMode === 'paceVsLactate' ? paceVsLactateData(projPoints) : hrVsLactateData(projPoints)
                 return (
                   <Line key={`${c.id}-trend`}
-                    name={`${c.label} · הערכה`}
+                    name={`${c.label} · הערכה (המשך מהאימון)`}
                     data={data}
-                    dataKey="lactate" stroke={c.color} strokeWidth={1.5} strokeOpacity={0.5}
-                    strokeDasharray="5 4" dot={false} isAnimationActive={false} />
+                    dataKey="lactate" stroke={c.color} strokeWidth={3}
+                    strokeDasharray="8 5" dot={{ r: 2, strokeWidth: 1 }} isAnimationActive={false} />
                 )
               })}
             {axisMode === 'dual' && usable.flatMap(c => ([

@@ -313,14 +313,19 @@ export function projectWorkoutTrend(
   const minPt = valid[0]
   const maxPt = valid[valid.length - 1]
 
+  // Extend only as far as actually needed to reach T1 (2.0) / T3 (5.0), not
+  // a generic ±2 mmol — sweeping further than that (especially below the
+  // workout's own lowest point, down toward rest) runs so far along the
+  // baseline's own slope that it visually reads as a copy of the baseline
+  // curve instead of a short, clearly-workout-anchored extension.
   const before: LactateStep[] = []
-  const lo = Math.max(0.5, minPt.lac - 2)
+  const lo = Math.max(0.5, Math.min(minPt.lac, WORKOUT_TARGET_RANGES.T1.min) - 0.3)
   for (let lac = lo; lac < minPt.lac - 0.05; lac += 0.5) {
     const p = projectAtLactate(minPt, lac, zones, m1, m2, m3)
     if (p) before.push({ pace: secToPace(p.paceSec), hr: p.hr != null ? Math.round(p.hr) : null, lactate: Math.round(lac * 10) / 10 })
   }
   const after: LactateStep[] = []
-  const hi = maxPt.lac + 2
+  const hi = Math.max(maxPt.lac, WORKOUT_TARGET_RANGES.T3.max) + 0.3
   for (let lac = maxPt.lac + 0.5; lac <= hi + 0.001; lac += 0.5) {
     const p = projectAtLactate(maxPt, lac, zones, m1, m2, m3)
     if (p) after.push({ pace: secToPace(p.paceSec), hr: p.hr != null ? Math.round(p.hr) : null, lactate: Math.round(lac * 10) / 10 })
