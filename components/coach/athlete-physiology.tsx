@@ -10,6 +10,7 @@ import { db } from '@/lib/firebase'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
+import { useLanguage } from '@/contexts/language-context'
 import {
   type LactateStep, type PhysiologySummary,
   computeThresholds, estimateVo2max, derivePaceBands, physiologyHrZones,
@@ -43,6 +44,7 @@ const emptyStep = (): LactateStep => ({ pace: '', hr: null, lactate: 0 })
  * VO2max estimate, derived training paces, and smart HR zones.
  */
 export function AthletePhysiology({ athleteId }: { athleteId: string }) {
+  const { t, isRTL } = useLanguage()
   const [loading, setLoading] = useState(true)
   const [phys, setPhys] = useState<PhysiologySummary | null>(null)
   const [maxHr, setMaxHr] = useState<string>('')
@@ -111,7 +113,7 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
     const lt1 = paceToSec(mT1Pace)
     const lt2 = paceToSec(mT2Pace)
     const lt3 = paceToSec(mT3Pace)
-    if (!lt2) { toast.error('נדרש לפחות קצב סף T2 (למשל 4:10)'); return }
+    if (!lt2) { toast.error(t.labToastT2Required); return }
     setSavingManual(true)
     try {
       await savePhysiology({
@@ -121,14 +123,14 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
         vo2maxEst: estimateVo2max(lt2),
         source: 'manual',
       })
-      toast.success('הספים עודכנו (הערכה ידנית)')
-    } catch { toast.error('שמירה נכשלה') }
+      toast.success(t.labToastManualSaved)
+    } catch { toast.error(t.labToastSaveFailed) }
     finally { setSavingManual(false) }
   }
 
   const handleSaveTest = async () => {
     const validSteps = steps.filter(s => paceToSec(s.pace) != null && Number(s.lactate) > 0)
-    if (validSteps.length < 3) { toast.error('נדרשות לפחות 3 מדרגות עם קצב ולקטט'); return }
+    if (validSteps.length < 3) { toast.error(t.labToastNeed3Steps); return }
     const { lt1, lt2, lt3 } = computeThresholds(validSteps)
     setSavingTest(true)
     try {
@@ -156,15 +158,15 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
           source: 'test', testDate,
         })
       }
-      toast.success('הבדיקה נשמרה והספים חושבו ✓')
+      toast.success(t.labToastTestSaved)
       setShowNewTest(false)
       setTestNotes(''); setSteps([emptyStep(), emptyStep(), emptyStep(), emptyStep()])
-    } catch (e) { console.error(e); toast.error('שמירה נכשלה') }
+    } catch (e) { console.error(e); toast.error(t.labToastSaveFailed) }
     finally { setSavingTest(false) }
   }
 
   const applyTest = async (test: LactateTestDoc) => {
-    if (!test.lt2PaceSec) { toast.error('לבדיקה זו אין T2 מחושב'); return }
+    if (!test.lt2PaceSec) { toast.error(t.labToastNoT2); return }
     await savePhysiology({
       lt1PaceSec: test.lt1PaceSec ?? null, lt1Hr: test.lt1Hr ?? null,
       lt2PaceSec: test.lt2PaceSec, lt2Hr: test.lt2Hr ?? null,
@@ -172,16 +174,16 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
       vo2maxEst: estimateVo2max(test.lt2PaceSec),
       source: 'test', testDate: test.date,
     })
-    toast.success(`הספים עודכנו מבדיקת ${format(new Date(test.date), 'd/M/yy')}`)
+    toast.success(`${t.labToastThresholdsFromTest} ${format(new Date(test.date), 'd/M/yy')}`)
   }
 
   const handleDeleteTest = async (id: string) => {
-    if (!confirm('למחוק את הבדיקה?')) return
+    if (!confirm(t.labConfirmDeleteTest)) return
     try {
       await deleteDoc(doc(db, 'lactateTests', id))
-      setTests(prev => prev.filter(t => t.id !== id))
-      toast.success('הבדיקה נמחקה')
-    } catch { toast.error('מחיקה נכשלה') }
+      setTests(prev => prev.filter(x => x.id !== id))
+      toast.success(t.labToastTestDeleted)
+    } catch { toast.error(t.labToastDeleteFailed) }
   }
 
   const saveHr = async (field: 'maxHR' | 'restingHR', value: string) => {
@@ -204,11 +206,11 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
         id: `phys-${b.key}`,
         type: typeMap[b.key] || 'easy',
         pace: `${secToPace(b.highSec)}–${secToPace(b.lowSec)}`,
-        description: b.labelHe,
+        description: bandText[b.key]?.label ?? b.labelHe,
       }))
       await updateDoc(doc(db, 'users', athleteId), { trainingPaces })
-      toast.success('הטמפואים עודכנו אצל הספורטאי ✓')
-    } catch { toast.error('עדכון נכשל') }
+      toast.success(t.labToastPacesUpdated)
+    } catch { toast.error(t.labToastUpdateFailed) }
     finally { setUpdatingPaces(false) }
   }
 
@@ -223,25 +225,58 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
     maxHr: maxHr ? Number(maxHr) : null,
     lt1Hr: phys?.lt1Hr, lt2Hr: phys?.lt2Hr,
   })
-  const fullTests = tests.filter(t => t.kind !== 'spot')
+  const fullTests = tests.filter(x => x.kind !== 'spot')
+
+  // derivePaceBands/physiologyHrZones return fixed Hebrew label/note text
+  // (labelHe/noteHe) — translated here by each row's stable `key` instead
+  // of touching those pure math functions, so the Lab reads in whichever
+  // language is active without making the underlying library language-aware.
+  const bandText: Record<string, { label: string; note: string }> = isRTL ? {
+    recovery: { label: 'התאוששות', note: 'ריצה קלה מאוד, שיחה חופשית' },
+    easy: { label: 'קל / אירובי', note: phys?.lt1PaceSec != null ? 'מתחת לסף האירובי (T1)' : 'הערכה מ-T2' },
+    marathon: { label: 'קצב מרתון', note: 'בין T1 ל-T2' },
+    threshold: { label: 'סף (T2)', note: 'קצב סף חומצת חלב' },
+    interval: { label: 'אינטרוולים (VO2)', note: 'קטעים 2–5 דק׳' },
+    reps: { label: 'חזרות מהירות', note: 'קטעים קצרים, מהירות' },
+  } : {
+    recovery: { label: 'Recovery', note: 'Very easy running, free conversation' },
+    easy: { label: 'Easy / Aerobic', note: phys?.lt1PaceSec != null ? 'Below aerobic threshold (T1)' : 'Estimated from T2' },
+    marathon: { label: 'Marathon pace', note: 'Between T1 and T2' },
+    threshold: { label: 'Threshold (T2)', note: 'Lactate threshold pace' },
+    interval: { label: 'Intervals (VO2)', note: '2–5 min reps' },
+    reps: { label: 'Fast reps', note: 'Short, fast segments' },
+  }
+  const zoneText: Record<string, { label: string; note: string }> = isRTL ? {
+    z1: { label: 'Z1 התאוששות', note: hrZones?.anchored ? 'מתחת לסף האירובי' : '50–60% מדופק מקס׳' },
+    z2: { label: 'Z2 אירובי', note: hrZones?.anchored ? 'עד T1 — בסיס הנפח' : '60–70%' },
+    z3: { label: 'Z3 טמפו', note: hrZones?.anchored ? 'בין הספים' : '70–80%' },
+    z4: { label: 'Z4 סף', note: hrZones?.anchored ? 'סביב T2' : '80–90%' },
+    z5: { label: 'Z5 מקסימלי', note: hrZones?.anchored ? 'מעל הסף — VO2max' : '90–100%' },
+  } : {
+    z1: { label: 'Z1 Recovery', note: hrZones?.anchored ? 'Below aerobic threshold' : '50–60% of max HR' },
+    z2: { label: 'Z2 Aerobic', note: hrZones?.anchored ? 'Up to T1 — volume base' : '60–70%' },
+    z3: { label: 'Z3 Tempo', note: hrZones?.anchored ? 'Between thresholds' : '70–80%' },
+    z4: { label: 'Z4 Threshold', note: hrZones?.anchored ? 'Around T2' : '80–90%' },
+    z5: { label: 'Z5 Maximal', note: hrZones?.anchored ? 'Above threshold — VO2max' : '90–100%' },
+  }
 
   return (
-    <div className="space-y-4" dir="rtl">
+    <div className="space-y-4" dir={isRTL ? 'rtl' : 'ltr'}>
 
       {/* ── Current thresholds ── */}
       <Card>
         <CardHeader className="pb-2 pt-4 px-4">
           <CardTitle className="text-sm flex items-center gap-2">
             <Gauge className="h-4 w-4 text-gold"/>
-            ספים נוכחיים
+            {t.labCurrentThresholds}
             {phys && (
               <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full border',
                 phys.source === 'test'
                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                   : 'bg-amber-50 text-amber-700 border-amber-200')}>
                 {phys.source === 'test'
-                  ? `מבדיקת לקטט ${phys.testDate ? format(new Date(phys.testDate), 'd/M/yy') : ''}`
-                  : 'הערכה ידנית'}
+                  ? `${t.labFromLactateTest} ${phys.testDate ? format(new Date(phys.testDate), 'd/M/yy') : ''}`
+                  : t.labManualEstimate}
               </span>
             )}
           </CardTitle>
@@ -250,68 +285,68 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
           {phys?.lt2PaceSec ? (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-3 text-center">
-                <p className="text-[10px] text-muted-foreground mb-0.5">T1 · סף אירובי</p>
+                <p className="text-[10px] text-muted-foreground mb-0.5">{t.labT1Aerobic}</p>
                 <p className="text-lg font-black text-emerald-700">{secToPace(phys.lt1PaceSec)}</p>
                 <p className="text-[10px] text-muted-foreground">{phys.lt1Hr ? `♥ ${phys.lt1Hr} bpm` : '/km'}</p>
               </div>
               <div className="rounded-xl bg-amber-50 border border-amber-100 p-3 text-center">
-                <p className="text-[10px] text-muted-foreground mb-0.5">T2 · סף אנאירובי</p>
+                <p className="text-[10px] text-muted-foreground mb-0.5">{t.labT2Anaerobic}</p>
                 <p className="text-lg font-black text-amber-700">{secToPace(phys.lt2PaceSec)}</p>
                 <p className="text-[10px] text-muted-foreground">{phys.lt2Hr ? `♥ ${phys.lt2Hr} bpm` : '/km'}</p>
               </div>
               <div className="rounded-xl bg-rose-50 border border-rose-100 p-3 text-center">
-                <p className="text-[10px] text-muted-foreground mb-0.5">T3 · אנאירובי עמוק</p>
+                <p className="text-[10px] text-muted-foreground mb-0.5">{t.labT3DeepAnaerobic}</p>
                 <p className="text-lg font-black text-rose-700">{secToPace(phys.lt3PaceSec)}</p>
                 <p className="text-[10px] text-muted-foreground">{phys.lt3Hr ? `♥ ${phys.lt3Hr} bpm` : '/km'}</p>
               </div>
               <div className="rounded-xl bg-navy/5 border border-navy/10 p-3 text-center">
-                <p className="text-[10px] text-muted-foreground mb-0.5">VO2max (הערכה)</p>
+                <p className="text-[10px] text-muted-foreground mb-0.5">{t.labVo2maxEstimate}</p>
                 <p className="text-lg font-black text-navy">{phys.vo2maxEst ?? '—'}</p>
                 <p className="text-[10px] text-muted-foreground">ml/kg/min</p>
               </div>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground text-center py-2">
-              אין עדיין ספים — הוסף בדיקת לקטט או הזן הערכה ידנית
+              {t.labNoThresholdsYet}
             </p>
           )}
 
           {/* Manual override */}
           <button onClick={() => setShowManual(p => !p)}
             className="w-full flex items-center justify-between text-xs font-semibold text-muted-foreground hover:text-navy py-1">
-            <span>עדכון ידני (בלי בדיקה — לפי הערכה)</span>
+            <span>{t.labManualUpdateToggle}</span>
             <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', showManual && 'rotate-180')}/>
           </button>
           {showManual && (
             <div className="rounded-xl border border-border p-3 space-y-2">
               <div className="grid grid-cols-4 gap-2">
                 <div>
-                  <label className="text-[10px] text-muted-foreground block mb-1">T1 קצב</label>
+                  <label className="text-[10px] text-muted-foreground block mb-1">{t.labT1Pace}</label>
                   <Input value={mT1Pace} onChange={e => setMT1Pace(e.target.value)} placeholder="4:45" className="h-9 text-sm text-center" dir="ltr"/>
                 </div>
                 <div>
-                  <label className="text-[10px] text-muted-foreground block mb-1">T1 דופק</label>
+                  <label className="text-[10px] text-muted-foreground block mb-1">{t.labT1Hr}</label>
                   <Input value={mT1Hr} onChange={e => setMT1Hr(e.target.value)} placeholder="152" type="number" className="h-9 text-sm text-center"/>
                 </div>
                 <div>
-                  <label className="text-[10px] text-muted-foreground block mb-1">T2 קצב *</label>
+                  <label className="text-[10px] text-muted-foreground block mb-1">{t.labT2PaceRequired}</label>
                   <Input value={mT2Pace} onChange={e => setMT2Pace(e.target.value)} placeholder="4:10" className="h-9 text-sm text-center" dir="ltr"/>
                 </div>
                 <div>
-                  <label className="text-[10px] text-muted-foreground block mb-1">T2 דופק</label>
+                  <label className="text-[10px] text-muted-foreground block mb-1">{t.labT2Hr}</label>
                   <Input value={mT2Hr} onChange={e => setMT2Hr(e.target.value)} placeholder="172" type="number" className="h-9 text-sm text-center"/>
                 </div>
                 <div>
-                  <label className="text-[10px] text-muted-foreground block mb-1">T3 קצב</label>
+                  <label className="text-[10px] text-muted-foreground block mb-1">{t.labT3Pace}</label>
                   <Input value={mT3Pace} onChange={e => setMT3Pace(e.target.value)} placeholder="4:00" className="h-9 text-sm text-center" dir="ltr"/>
                 </div>
                 <div>
-                  <label className="text-[10px] text-muted-foreground block mb-1">T3 דופק</label>
+                  <label className="text-[10px] text-muted-foreground block mb-1">{t.labT3Hr}</label>
                   <Input value={mT3Hr} onChange={e => setMT3Hr(e.target.value)} placeholder="178" type="number" className="h-9 text-sm text-center"/>
                 </div>
               </div>
               <Button onClick={handleSaveManual} disabled={savingManual} size="sm" className="w-full h-9 bg-navy text-white">
-                {savingManual ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : 'שמור הערכה'}
+                {savingManual ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : t.labSaveEstimateBtn}
               </Button>
             </div>
           )}
@@ -326,15 +361,15 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
       {bands && (
         <Card>
           <CardHeader className="pb-2 pt-4 px-4">
-            <CardTitle className="text-sm">טמפואים נגזרים מהספים</CardTitle>
+            <CardTitle className="text-sm">{t.labDerivedPaces}</CardTitle>
           </CardHeader>
           <CardContent className="px-4 pb-4 space-y-2">
             <div className="space-y-1.5">
               {bands.map(b => (
                 <div key={b.key} className="flex items-center justify-between rounded-xl border border-border px-3 py-2">
                   <div>
-                    <p className="text-xs font-bold text-navy">{b.labelHe}</p>
-                    <p className="text-[10px] text-muted-foreground">{b.noteHe}</p>
+                    <p className="text-xs font-bold text-navy">{bandText[b.key]?.label ?? b.labelHe}</p>
+                    <p className="text-[10px] text-muted-foreground">{bandText[b.key]?.note ?? b.noteHe}</p>
                   </div>
                   <p className="font-mono text-sm font-bold text-navy" dir="ltr">
                     {secToPace(b.highSec)}–{secToPace(b.lowSec)} <span className="text-[10px] text-muted-foreground">/km</span>
@@ -344,7 +379,7 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
             </div>
             <Button onClick={handlePushPaces} disabled={updatingPaces}
               className="w-full h-10 bg-gold hover:bg-gold/90 text-navy font-bold">
-              {updatingPaces ? <Loader2 className="h-4 w-4 animate-spin"/> : 'עדכן את הטמפואים אצל הספורטאי ←'}
+              {updatingPaces ? <Loader2 className="h-4 w-4 animate-spin"/> : t.labPushPacesBtn}
             </Button>
           </CardContent>
         </Card>
@@ -355,11 +390,11 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
         <CardHeader className="pb-2 pt-4 px-4">
           <CardTitle className="text-sm flex items-center gap-2">
             <Heart className="h-4 w-4 text-red-500"/>
-            אזורי דופק
+            {t.labHrZones}
             {hrZones && (
               <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full border',
                 hrZones.anchored ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-gray-50 text-gray-500 border-gray-200')}>
-                {hrZones.anchored ? 'מעוגן לספים מהבדיקה' : '% מדופק מקסימלי'}
+                {hrZones.anchored ? t.labAnchoredToTest : t.labPercentMaxHr}
               </span>
             )}
           </CardTitle>
@@ -367,12 +402,12 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
         <CardContent className="px-4 pb-4 space-y-3">
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-[10px] text-muted-foreground block mb-1">דופק מקסימלי</label>
+              <label className="text-[10px] text-muted-foreground block mb-1">{t.labMaxHr}</label>
               <Input value={maxHr} type="number" className="h-9 text-sm text-center"
                 onChange={e => setMaxHr(e.target.value)} onBlur={e => saveHr('maxHR', e.target.value)} placeholder="190"/>
             </div>
             <div>
-              <label className="text-[10px] text-muted-foreground block mb-1">דופק מנוחה</label>
+              <label className="text-[10px] text-muted-foreground block mb-1">{t.labRestingHr}</label>
               <Input value={restingHr} type="number" className="h-9 text-sm text-center"
                 onChange={e => setRestingHr(e.target.value)} onBlur={e => saveHr('restingHR', e.target.value)} placeholder="48"/>
             </div>
@@ -382,8 +417,8 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
               {hrZones.zones.map(z => (
                 <div key={z.key} className="flex items-center justify-between rounded-xl border border-border px-3 py-2">
                   <div>
-                    <p className="text-xs font-bold text-navy">{z.labelHe}</p>
-                    <p className="text-[10px] text-muted-foreground">{z.noteHe}</p>
+                    <p className="text-xs font-bold text-navy">{zoneText[z.key]?.label ?? z.labelHe}</p>
+                    <p className="text-[10px] text-muted-foreground">{zoneText[z.key]?.note ?? z.noteHe}</p>
                   </div>
                   <p className="font-mono text-sm font-bold text-navy" dir="ltr">
                     {z.lowBpm > 0 ? z.lowBpm : '<'}–{z.highBpm} <span className="text-[10px] text-muted-foreground">bpm</span>
@@ -392,7 +427,7 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
               ))}
             </div>
           ) : (
-            <p className="text-xs text-muted-foreground text-center py-2">הזן דופק מקסימלי או בדיקת לקטט עם דופק</p>
+            <p className="text-xs text-muted-foreground text-center py-2">{t.labEnterMaxHrHint}</p>
           )}
         </CardContent>
       </Card>
@@ -403,12 +438,12 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm flex items-center gap-2">
               <FlaskConical className="h-4 w-4 text-gold"/>
-              בדיקת לקטט חדשה
+              {t.labNewLactateTest}
             </CardTitle>
             {!showNewTest && (
               <Button size="sm" variant="outline" className="h-7 text-xs border-gold/40 text-gold hover:bg-gold/10"
                 onClick={() => setShowNewTest(true)}>
-                <Plus className="h-3 w-3 ml-1"/>הוסף בדיקה
+                <Plus className="h-3 w-3 ml-1"/>{t.labAddTestBtn}
               </Button>
             )}
           </div>
@@ -417,19 +452,19 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
           <CardContent className="px-4 pb-4 space-y-3">
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-[10px] text-muted-foreground block mb-1">תאריך</label>
+                <label className="text-[10px] text-muted-foreground block mb-1">{t.labDateLabel}</label>
                 <Input type="date" value={testDate} onChange={e => setTestDate(e.target.value)} className="h-9 text-sm"/>
               </div>
               <div>
-                <label className="text-[10px] text-muted-foreground block mb-1">הערות (פרוטוקול)</label>
-                <Input value={testNotes} onChange={e => setTestNotes(e.target.value)} placeholder="מסילה, מדרגות 4 דק׳" className="h-9 text-sm" dir="rtl"/>
+                <label className="text-[10px] text-muted-foreground block mb-1">{t.labNotesProtocol}</label>
+                <Input value={testNotes} onChange={e => setTestNotes(e.target.value)} placeholder={t.labNotesPlaceholder} className="h-9 text-sm" dir={isRTL ? 'rtl' : 'ltr'}/>
               </div>
             </div>
 
             {/* Step rows */}
             <div className="rounded-xl border border-border overflow-hidden">
               <div className="grid grid-cols-[2rem_1fr_1fr_1fr_2rem] gap-1 bg-navy/5 px-2 py-1.5 text-[10px] font-bold text-navy text-center">
-                <span>#</span><span>קצב /ק"מ</span><span>דופק</span><span>לקטט mmol</span><span/>
+                <span>#</span><span>{t.labPaceUnit}</span><span>{t.labHrLabel}</span><span>{t.labLactateMmol}</span><span/>
               </div>
               {steps.map((s, i) => (
                 <div key={i} className="grid grid-cols-[2rem_1fr_1fr_1fr_2rem] gap-1 items-center px-2 py-1 border-t border-border/40">
@@ -446,7 +481,7 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
               ))}
               <button onClick={() => setSteps(p => [...p, emptyStep()])}
                 className="w-full py-1.5 text-[11px] font-semibold text-gold hover:bg-gold/5 border-t border-border/40">
-                + מדרגה
+                {t.labAddStepBtn}
               </button>
             </div>
 
@@ -476,9 +511,9 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
 
             <div className="flex gap-2">
               <Button onClick={handleSaveTest} disabled={savingTest} className="flex-1 h-10 bg-navy text-white font-bold">
-                {savingTest ? <Loader2 className="h-4 w-4 animate-spin"/> : 'שמור בדיקה וחשב ספים'}
+                {savingTest ? <Loader2 className="h-4 w-4 animate-spin"/> : t.labSaveTestBtn}
               </Button>
-              <Button variant="ghost" onClick={() => setShowNewTest(false)} className="h-10">ביטול</Button>
+              <Button variant="ghost" onClick={() => setShowNewTest(false)} className="h-10">{t.cancel}</Button>
             </div>
           </CardContent>
         )}
@@ -488,7 +523,7 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
       {fullTests.length > 0 && (
         <Card>
           <CardHeader className="pb-2 pt-4 px-4">
-            <CardTitle className="text-sm">היסטוריית בדיקות מדרגות ({fullTests.length})</CardTitle>
+            <CardTitle className="text-sm">{t.labTestHistory} ({fullTests.length})</CardTitle>
           </CardHeader>
           <CardContent className="px-4 pb-4 space-y-1.5">
             {fullTests.map(test => (
@@ -519,7 +554,7 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
                   <div className="border-t border-border/40 px-3 py-2 space-y-2">
                     {test.notes && <p className="text-[11px] text-muted-foreground">{test.notes}</p>}
                     <div className="grid grid-cols-[2rem_1fr_1fr_1fr] gap-1 text-[10px] font-bold text-navy text-center">
-                      <span>#</span><span>קצב</span><span>דופק</span><span>לקטט</span>
+                      <span>#</span><span>{isRTL ? 'קצב' : 'Pace'}</span><span>{t.labHrLabel}</span><span>{t.labLactateLabel}</span>
                     </div>
                     {test.steps?.map((s, i) => (
                       <div key={i} className="grid grid-cols-[2rem_1fr_1fr_1fr] gap-1 text-[11px] text-center text-navy">
@@ -531,7 +566,7 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
                     ))}
                     <div className="flex gap-2 pt-1">
                       <Button size="sm" variant="outline" className="h-7 text-[11px] flex-1" onClick={() => applyTest(test)}>
-                        השתמש בבדיקה זו לספים
+                        {t.labUseThisTestBtn}
                       </Button>
                       <Button size="sm" variant="ghost" className="h-7 text-[11px] text-red-500 hover:text-red-600" onClick={() => handleDeleteTest(test.id)}>
                         <Trash2 className="h-3 w-3"/>

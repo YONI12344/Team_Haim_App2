@@ -767,6 +767,83 @@ export interface Translations {
   moveSuccessToast: string
   editActivityBtn: string
   fixStravaDataHint: string
+
+  // Lab (lactate/HR thresholds)
+  labCurrentThresholds: string
+  labFromLactateTest: string
+  labManualEstimate: string
+  labT1Aerobic: string
+  labT2Anaerobic: string
+  labT3DeepAnaerobic: string
+  labVo2maxEstimate: string
+  labNoThresholdsYet: string
+  labManualUpdateToggle: string
+  labT1Pace: string
+  labT1Hr: string
+  labT2PaceRequired: string
+  labT2Hr: string
+  labT3Pace: string
+  labT3Hr: string
+  labSaveEstimateBtn: string
+  labDerivedPaces: string
+  labPushPacesBtn: string
+  labHrZones: string
+  labAnchoredToTest: string
+  labPercentMaxHr: string
+  labMaxHr: string
+  labRestingHr: string
+  labEnterMaxHrHint: string
+  labNewLactateTest: string
+  labAddTestBtn: string
+  labDateLabel: string
+  labNotesProtocol: string
+  labNotesPlaceholder: string
+  labPaceUnit: string
+  labHrLabel: string
+  labLactateMmol: string
+  labLactateLabel: string
+  labAddStepBtn: string
+  labSaveTestBtn: string
+  labTestHistory: string
+  labUseThisTestBtn: string
+  labAxisPaceLactate: string
+  labAxisHrLactate: string
+  labAxisTime: string
+  labNoGraphsYet: string
+  labNoGraphsHint: string
+  labWorkoutComparison: string
+  labBaselineTest: string
+  labBaselineTestShort: string
+  labFirstWorkoutNoComparison: string
+  labCompareToBaseline: string
+  labEstimateSuffix: string
+  labCaptionPace: string
+  labCaptionHr: string
+  labCaptionDual: string
+  labNotEnoughData: string
+  labThresholdsHeader: string
+  labPaceAndHr: string
+  labPaceOnly: string
+  labHrOnly: string
+  labCurveColumnHeader: string
+  labStatColumnHeader: string
+  labMin: string
+  labAvg: string
+  labMax: string
+  labPointsCount: string
+  labEstimateContinued: string
+  labToastT2Required: string
+  labToastManualSaved: string
+  labToastSaveFailed: string
+  labToastNeed3Steps: string
+  labToastTestSaved: string
+  labToastNoT2: string
+  labToastThresholdsFromTest: string
+  labToastTestDeleted: string
+  labToastDeleteFailed: string
+  labToastPacesUpdated: string
+  labToastUpdateFailed: string
+  labConfirmDeleteTest: string
 }
 
 const translations: Record<Language, Translations> = {
@@ -1487,6 +1564,82 @@ const translations: Record<Language, Translations> = {
     moveSuccessToast: 'Workout moved!',
     editActivityBtn: 'Edit',
     fixStravaDataHint: 'You can fix the distance or pace if Strava missed something',
+
+    labCurrentThresholds: 'Current thresholds',
+    labFromLactateTest: 'From lactate test',
+    labManualEstimate: 'Manual estimate',
+    labT1Aerobic: 'T1 · Aerobic threshold',
+    labT2Anaerobic: 'T2 · Anaerobic threshold',
+    labT3DeepAnaerobic: 'T3 · Deep anaerobic',
+    labVo2maxEstimate: 'VO2max (estimate)',
+    labNoThresholdsYet: 'No thresholds yet — add a lactate test or enter a manual estimate',
+    labManualUpdateToggle: 'Manual update (no test — by estimate)',
+    labT1Pace: 'T1 pace',
+    labT1Hr: 'T1 HR',
+    labT2PaceRequired: 'T2 pace *',
+    labT2Hr: 'T2 HR',
+    labT3Pace: 'T3 pace',
+    labT3Hr: 'T3 HR',
+    labSaveEstimateBtn: 'Save estimate',
+    labDerivedPaces: 'Paces derived from thresholds',
+    labPushPacesBtn: "Update the athlete's paces ←",
+    labHrZones: 'HR zones',
+    labAnchoredToTest: 'Anchored to test thresholds',
+    labPercentMaxHr: '% of max HR',
+    labMaxHr: 'Max HR',
+    labRestingHr: 'Resting HR',
+    labEnterMaxHrHint: 'Enter max HR or a lactate test with HR',
+    labNewLactateTest: 'New lactate test',
+    labAddTestBtn: 'Add test',
+    labDateLabel: 'Date',
+    labNotesProtocol: 'Notes (protocol)',
+    labNotesPlaceholder: 'Track, 4-min steps',
+    labPaceUnit: 'Pace /km',
+    labHrLabel: 'HR',
+    labLactateMmol: 'Lactate mmol',
+    labLactateLabel: 'Lactate',
+    labAddStepBtn: '+ Step',
+    labSaveTestBtn: 'Save test & compute thresholds',
+    labTestHistory: 'Step-test history',
+    labUseThisTestBtn: 'Use this test for thresholds',
+    labAxisPaceLactate: 'Pace/Lactate',
+    labAxisHrLactate: 'HR/Lactate',
+    labAxisTime: 'Time',
+    labNoGraphsYet: 'No graphs to show yet',
+    labNoGraphsHint: 'Once a lab test is added, or the athlete logs lactate during a threshold workout (in the field next to each rep), its graph will appear here automatically.',
+    labWorkoutComparison: 'Workout comparison — all workout types',
+    labBaselineTest: 'Lab test (baseline)',
+    labBaselineTestShort: 'Lab test',
+    labFirstWorkoutNoComparison: 'First workout — no comparison yet',
+    labCompareToBaseline: '🧪 Compare to lab test',
+    labEstimateSuffix: ' (estimate)',
+    labCaptionPace: 'X axis: pace (per km) · Y axis: blood lactate (mmol/L)',
+    labCaptionHr: 'X axis: HR (bpm) · Y axis: blood lactate (mmol/L)',
+    labCaptionDual: 'X axis: date/session · Y axis (left): lactate (mmol/L) · Y axis (right): HR (bpm)',
+    labNotEnoughData: 'Not enough data yet for a graph',
+    labThresholdsHeader: 'Thresholds (T1/T2/T3)',
+    labPaceAndHr: 'Pace + HR',
+    labPaceOnly: 'Pace only',
+    labHrOnly: 'HR only',
+    labCurveColumnHeader: 'Curve',
+    labStatColumnHeader: 'Statistic',
+    labMin: 'Min',
+    labAvg: 'Avg',
+    labMax: 'Max',
+    labPointsCount: 'pts',
+    labEstimateContinued: ' · Estimate (continuing from the workout)',
+    labToastT2Required: 'T2 threshold pace is required (e.g. 4:10)',
+    labToastManualSaved: 'Thresholds updated (manual estimate)',
+    labToastSaveFailed: 'Save failed',
+    labToastNeed3Steps: 'At least 3 steps with pace and lactate are required',
+    labToastTestSaved: 'Test saved and thresholds computed ✓',
+    labToastNoT2: 'This test has no computed T2',
+    labToastThresholdsFromTest: 'Thresholds updated from the',
+    labToastTestDeleted: 'Test deleted',
+    labToastDeleteFailed: 'Delete failed',
+    labToastPacesUpdated: "Athlete's paces updated ✓",
+    labToastUpdateFailed: 'Update failed',
+    labConfirmDeleteTest: 'Delete this test?',
   },
   he: {
     teamHaim: 'Team Haim',
@@ -2200,6 +2353,82 @@ const translations: Record<Language, Translations> = {
     moveSuccessToast: 'האימון הוזז!',
     editActivityBtn: 'ערוך',
     fixStravaDataHint: 'אפשר לתקן מרחק או טמפו אם Strava פספס משהו',
+
+    labCurrentThresholds: 'ספים נוכחיים',
+    labFromLactateTest: 'מבדיקת לקטט',
+    labManualEstimate: 'הערכה ידנית',
+    labT1Aerobic: 'T1 · סף אירובי',
+    labT2Anaerobic: 'T2 · סף אנאירובי',
+    labT3DeepAnaerobic: 'T3 · אנאירובי עמוק',
+    labVo2maxEstimate: 'VO2max (הערכה)',
+    labNoThresholdsYet: 'אין עדיין ספים — הוסף בדיקת לקטט או הזן הערכה ידנית',
+    labManualUpdateToggle: 'עדכון ידני (בלי בדיקה — לפי הערכה)',
+    labT1Pace: 'T1 קצב',
+    labT1Hr: 'T1 דופק',
+    labT2PaceRequired: 'T2 קצב *',
+    labT2Hr: 'T2 דופק',
+    labT3Pace: 'T3 קצב',
+    labT3Hr: 'T3 דופק',
+    labSaveEstimateBtn: 'שמור הערכה',
+    labDerivedPaces: 'טמפואים נגזרים מהספים',
+    labPushPacesBtn: 'עדכן את הטמפואים אצל הספורטאי ←',
+    labHrZones: 'אזורי דופק',
+    labAnchoredToTest: 'מעוגן לספים מהבדיקה',
+    labPercentMaxHr: '% מדופק מקסימלי',
+    labMaxHr: 'דופק מקסימלי',
+    labRestingHr: 'דופק מנוחה',
+    labEnterMaxHrHint: 'הזן דופק מקסימלי או בדיקת לקטט עם דופק',
+    labNewLactateTest: 'בדיקת לקטט חדשה',
+    labAddTestBtn: 'הוסף בדיקה',
+    labDateLabel: 'תאריך',
+    labNotesProtocol: 'הערות (פרוטוקול)',
+    labNotesPlaceholder: 'מסילה, מדרגות 4 דק׳',
+    labPaceUnit: 'קצב /ק"מ',
+    labHrLabel: 'דופק',
+    labLactateMmol: 'לקטט mmol',
+    labLactateLabel: 'לקטט',
+    labAddStepBtn: '+ מדרגה',
+    labSaveTestBtn: 'שמור בדיקה וחשב ספים',
+    labTestHistory: 'היסטוריית בדיקות מדרגות',
+    labUseThisTestBtn: 'השתמש בבדיקה זו לספים',
+    labAxisPaceLactate: 'קצב/לקטט',
+    labAxisHrLactate: 'דופק/לקטט',
+    labAxisTime: 'זמן',
+    labNoGraphsYet: 'עדיין אין גרפים להצגה',
+    labNoGraphsHint: 'ברגע שתתווסף בדיקת מעבדה, או שהאתלט ידווח לקטט באימון (באימוני סף בלבד — בשדה ליד כל חזרה), הגרף שלו יופיע כאן אוטומטית.',
+    labWorkoutComparison: 'השוואת אימונים — כל סוגי האימונים',
+    labBaselineTest: 'בדיקת מעבדה (בסיס)',
+    labBaselineTestShort: 'בדיקת מעבדה',
+    labFirstWorkoutNoComparison: 'אימון ראשון — אין עדיין השוואה',
+    labCompareToBaseline: '🧪 השווה לבדיקת מעבדה',
+    labEstimateSuffix: ' (הערכה)',
+    labCaptionPace: 'ציר X: קצב (לכל ק"מ) · ציר Y: לקטט בדם (mmol/L)',
+    labCaptionHr: 'ציר X: דופק (bpm) · ציר Y: לקטט בדם (mmol/L)',
+    labCaptionDual: 'ציר X: תאריך/מפגש · ציר Y (שמאל): לקטט (mmol/L) · ציר Y (ימין): דופק (bpm)',
+    labNotEnoughData: 'אין עדיין מספיק נתונים לגרף',
+    labThresholdsHeader: 'ספים (T1/T2/T3)',
+    labPaceAndHr: 'קצב + דופק',
+    labPaceOnly: 'קצב בלבד',
+    labHrOnly: 'דופק בלבד',
+    labCurveColumnHeader: 'עקומה',
+    labStatColumnHeader: 'סטטיסטיקה',
+    labMin: 'מינימום',
+    labAvg: 'ממוצע',
+    labMax: 'מקסימום',
+    labPointsCount: 'נק׳',
+    labEstimateContinued: ' · הערכה (המשך מהאימון)',
+    labToastT2Required: 'נדרש לפחות קצב סף T2 (למשל 4:10)',
+    labToastManualSaved: 'הספים עודכנו (הערכה ידנית)',
+    labToastSaveFailed: 'שמירה נכשלה',
+    labToastNeed3Steps: 'נדרשות לפחות 3 מדרגות עם קצב ולקטט',
+    labToastTestSaved: 'הבדיקה נשמרה והספים חושבו ✓',
+    labToastNoT2: 'לבדיקה זו אין T2 מחושב',
+    labToastThresholdsFromTest: 'הספים עודכנו מבדיקת',
+    labToastTestDeleted: 'הבדיקה נמחקה',
+    labToastDeleteFailed: 'מחיקה נכשלה',
+    labToastPacesUpdated: 'הטמפואים עודכנו אצל הספורטאי ✓',
+    labToastUpdateFailed: 'עדכון נכשל',
+    labConfirmDeleteTest: 'למחוק את הבדיקה?',
   },
 }
 

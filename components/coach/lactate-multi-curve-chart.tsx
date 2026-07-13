@@ -30,6 +30,7 @@ import {
   LT1_TARGET, LT2_TARGET, LT3_TARGET,
 } from '@/lib/physiology'
 import { ChevronDown } from 'lucide-react'
+import { useLanguage } from '@/contexts/language-context'
 
 export interface CurvePoint {
   /** "M:SS" per km */
@@ -162,12 +163,6 @@ function buildSharedRows(
   return rows.sort((a, b) => a.xVal - b.xVal)
 }
 
-const AXIS_CAPTION: Record<AxisMode, string> = {
-  paceVsLactate: 'ציר X: קצב (לכל ק"מ) · ציר Y: לקטט בדם (mmol/L)',
-  hrVsLactate: 'ציר X: דופק (bpm) · ציר Y: לקטט בדם (mmol/L)',
-  dual: 'ציר X: תאריך/מפגש · ציר Y (שמאל): לקטט (mmol/L) · ציר Y (ימין): דופק (bpm)',
-}
-
 interface RangeStat { min: number; max: number; avg: number }
 
 function statOf(vals: number[]): RangeStat | null {
@@ -194,11 +189,17 @@ const T_LEVELS = [
 export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable, size = 'full' }: {
   curves: CurveInput[]; axisMode: AxisMode; hideChart?: boolean; hideTable?: boolean; size?: 'full' | 'compact'
 }) {
+  const { t, isRTL } = useLanguage()
+  const AXIS_CAPTION: Record<AxisMode, string> = {
+    paceVsLactate: t.labCaptionPace,
+    hrVsLactate: t.labCaptionHr,
+    dual: t.labCaptionDual,
+  }
   const [metricDisplay, setMetricDisplay] = useState<MetricDisplay>('both')
   const [expandedCurve, setExpandedCurve] = useState<string | null>(null)
   const usable = curves.filter(c => c.points.length > 0)
   if (usable.length === 0) {
-    return <p className="text-xs text-muted-foreground text-center py-4">אין עדיין מספיק נתונים לגרף</p>
+    return <p className="text-xs text-muted-foreground text-center py-4">{t.labNotEnoughData}</p>
   }
   // When a real step-test curve is also on this chart, a 'workout' curve
   // whose own narrow lactate band can't reach a level gets it projected
@@ -335,7 +336,7 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
     <div className="space-y-3 min-w-0">
       {!hideChart && (
       <div className="space-y-1 min-w-0">
-        <p className="text-[10px] font-semibold text-muted-foreground text-center" dir="rtl">{AXIS_CAPTION[axisMode]}</p>
+        <p className="text-[10px] font-semibold text-muted-foreground text-center" dir={isRTL ? 'rtl' : 'ltr'}>{AXIS_CAPTION[axisMode]}</p>
         <div className="w-full min-w-0 overflow-hidden" style={{ height: size === 'compact' ? 300 : 360 }} dir="ltr">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart key={axisMode} data={axisMode !== 'dual' ? sharedRows : undefined} margin={{ top: 16, right: 24, left: 24, bottom: 28 }}>
@@ -386,15 +387,15 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
               .filter(c => c.sourceType === 'workout')
               .map(c => (
                 <Line key={`${c.id}-trend`}
-                  name={`${c.label} · הערכה (המשך מהאימון)`}
+                  name={`${c.label}${t.labEstimateContinued}`}
                   dataKey={`${c.id}-trend`} stroke={c.color} strokeWidth={3}
                   strokeDasharray="8 5" dot={{ r: 2, strokeWidth: 1 }} connectNulls isAnimationActive={false} />
               ))}
             {axisMode === 'dual' && usable.flatMap(c => ([
-              <Line key={`${c.id}-lac`} yAxisId="lac" name={`${c.label} · לקטט`} data={dualAxisData(c.points)}
+              <Line key={`${c.id}-lac`} yAxisId="lac" name={`${c.label} · ${t.labLactateLabel}`} data={dualAxisData(c.points)}
                 dataKey="lactate" stroke={c.color} strokeWidth={2} dot={{ r: 3 }} connectNulls
                 label={pointLabel('lactate')} />,
-              <Line key={`${c.id}-hr`} yAxisId="hr" name={`${c.label} · דופק`} data={dualAxisData(c.points)}
+              <Line key={`${c.id}-hr`} yAxisId="hr" name={`${c.label} · ${t.labHrLabel}`} data={dualAxisData(c.points)}
                 dataKey="hr" stroke={c.color} strokeWidth={2} strokeDasharray="4 3" dot={{ r: 3 }} connectNulls
                 label={pointLabel('hr')} />,
             ]))}
@@ -437,12 +438,12 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
       <>
       {/* T1/T2/T3 summary — switchable between pace+HR, pace only, or HR only */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">ספים (T1/T2/T3)</p>
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{t.labThresholdsHeader}</p>
         <div className="flex gap-1 bg-muted rounded-xl p-0.5">
           {([
-            ['both', 'קצב + דופק'],
-            ['pace', 'קצב בלבד'],
-            ['hr', 'דופק בלבד'],
+            ['both', t.labPaceAndHr],
+            ['pace', t.labPaceOnly],
+            ['hr', t.labHrOnly],
           ] as const).map(([m, label]) => (
             <button key={m} onClick={() => setMetricDisplay(m)}
               className={cn('text-[10px] px-2 py-1 rounded-lg font-semibold transition-all whitespace-nowrap',
@@ -454,16 +455,16 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
       </div>
       <div className="rounded-xl border border-border overflow-hidden">
         <div className="grid grid-cols-4 gap-1 bg-navy/5 px-2 py-1.5 text-[10px] font-bold text-navy text-center">
-          <span>עקומה</span><span>T1 (2.0)</span><span>T2 (4.0)</span><span>T3 (4.5)</span>
+          <span>{t.labCurveColumnHeader}</span><span>T1 (2.0)</span><span>T2 (4.0)</span><span>T3 (4.5)</span>
         </div>
         {usable.map((c, i) => {
           const direct = curveThresholds(c.points)
           const { lt1, lt2, lt3 } = c.sourceType === 'workout' ? curveThresholdsWithBaseline(c.points, baselineCurve?.points ?? null) : direct
           const prevC = usable[i - 1]
           const prev = prevC && prevC.sourceType === 'workout' && c.sourceType === 'workout' ? curveThresholds(prevC.points) : null
-          const cell = (t: { paceSecPerKm: number; hr: number | null } | null, prevT: { paceSecPerKm: number; hr: number | null } | null, isEstimate?: boolean) => {
-            if (!t) return <span className="text-muted-foreground">—</span>
-            const trend = metricDisplay !== 'hr' && prevT ? paceDelta(t.paceSecPerKm, prevT.paceSecPerKm) : null
+          const cell = (lvl: { paceSecPerKm: number; hr: number | null } | null, prevT: { paceSecPerKm: number; hr: number | null } | null, isEstimate?: boolean) => {
+            if (!lvl) return <span className="text-muted-foreground">—</span>
+            const trend = metricDisplay !== 'hr' && prevT ? paceDelta(lvl.paceSecPerKm, prevT.paceSecPerKm) : null
             const trendChip = trend && (
               <span className={cn('text-[9px] font-bold', trend.improved ? 'text-green-600' : 'text-red-500')}>
                 {trend.improved ? '▲' : '▼'}{trend.label}
@@ -472,13 +473,13 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
             const estimateMark = isEstimate && <span className="text-[9px] text-muted-foreground">≈</span>
             if (metricDisplay === 'pace') return (
               <span dir="ltr" className="font-mono inline-flex items-center gap-1 justify-center flex-wrap">
-                {secToPace(t.paceSecPerKm)}{estimateMark}{trendChip}
+                {secToPace(lvl.paceSecPerKm)}{estimateMark}{trendChip}
               </span>
             )
-            if (metricDisplay === 'hr') return <span dir="ltr" className="font-mono">{t.hr ? `♥${t.hr}` : '—'}{estimateMark}</span>
+            if (metricDisplay === 'hr') return <span dir="ltr" className="font-mono">{lvl.hr ? `♥${lvl.hr}` : '—'}{estimateMark}</span>
             return (
               <span dir="ltr" className="font-mono inline-flex items-center gap-1 justify-center flex-wrap">
-                {secToPace(t.paceSecPerKm)}{t.hr ? ` · ♥${t.hr}` : ''}{estimateMark}{trendChip}
+                {secToPace(lvl.paceSecPerKm)}{lvl.hr ? ` · ♥${lvl.hr}` : ''}{estimateMark}{trendChip}
               </span>
             )
           }
@@ -504,7 +505,7 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
               <span className="text-xs font-bold flex items-center gap-1.5" style={{ color: c.color }}>
                 <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />
                 {c.label}
-                <span className="text-[10px] text-muted-foreground font-normal">({c.points.length} נק')</span>
+                <span className="text-[10px] text-muted-foreground font-normal">({c.points.length} {t.labPointsCount})</span>
               </span>
               <ChevronDown className={cn('h-3.5 w-3.5 text-muted-foreground transition-transform', expandedCurve === c.id && 'rotate-180')} />
             </button>
@@ -514,32 +515,32 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
                 <div className="border-t border-border/40">
                   {(s.lactate || s.hr || s.paceSec) && (
                     <div className="grid grid-cols-4 gap-px bg-border text-[10px] text-center overflow-x-auto">
-                      <div className="bg-navy/5 font-bold text-navy px-1.5 py-1">סטטיסטיקה</div>
-                      <div className="bg-navy/5 font-bold text-navy px-1.5 py-1">מינימום</div>
-                      <div className="bg-navy/5 font-bold text-navy px-1.5 py-1">ממוצע</div>
-                      <div className="bg-navy/5 font-bold text-navy px-1.5 py-1">מקסימום</div>
+                      <div className="bg-navy/5 font-bold text-navy px-1.5 py-1">{t.labStatColumnHeader}</div>
+                      <div className="bg-navy/5 font-bold text-navy px-1.5 py-1">{t.labMin}</div>
+                      <div className="bg-navy/5 font-bold text-navy px-1.5 py-1">{t.labAvg}</div>
+                      <div className="bg-navy/5 font-bold text-navy px-1.5 py-1">{t.labMax}</div>
                       {/* Pace is seconds/km, so numeric min = fastest — shown
-                          under מקסימום (max effort) here, and numeric max =
-                          slowest under מינימום (min effort), so this row
+                          under Max (max effort) here, and numeric max =
+                          slowest under Min (min effort), so this row
                           reads consistently with HR/lactate below it (low =
                           least effort, high = most effort) instead of by
                           raw magnitude. */}
-                      <div className="bg-white px-1.5 py-1 text-navy">קצב</div>
+                      <div className="bg-white px-1.5 py-1 text-navy">{t.labPaceUnit}</div>
                       <div className="bg-white px-1.5 py-1 font-mono text-navy" dir="ltr">{s.paceSec ? secToPace(s.paceSec.max) : '—'}</div>
                       <div className="bg-white px-1.5 py-1 font-mono text-navy" dir="ltr">{s.paceSec ? secToPace(s.paceSec.avg) : '—'}</div>
                       <div className="bg-white px-1.5 py-1 font-mono text-navy" dir="ltr">{s.paceSec ? secToPace(s.paceSec.min) : '—'}</div>
-                      <div className="bg-white px-1.5 py-1 text-navy">דופק</div>
+                      <div className="bg-white px-1.5 py-1 text-navy">{t.labHrLabel}</div>
                       <div className="bg-white px-1.5 py-1 font-mono text-navy">{s.hr?.min ?? '—'}</div>
                       <div className="bg-white px-1.5 py-1 font-mono text-navy">{s.hr ? Math.round(s.hr.avg) : '—'}</div>
                       <div className="bg-white px-1.5 py-1 font-mono text-navy">{s.hr?.max ?? '—'}</div>
-                      <div className="bg-white px-1.5 py-1 text-navy">לקטט</div>
+                      <div className="bg-white px-1.5 py-1 text-navy">{t.labLactateLabel}</div>
                       <div className="bg-white px-1.5 py-1 font-mono font-bold text-navy">{s.lactate?.min ?? '—'}</div>
                       <div className="bg-white px-1.5 py-1 font-mono font-bold text-navy">{s.lactate?.avg ?? '—'}</div>
                       <div className="bg-white px-1.5 py-1 font-mono font-bold text-navy">{s.lactate?.max ?? '—'}</div>
                     </div>
                   )}
                   <div className="grid grid-cols-3 gap-px bg-border text-[10px] font-bold text-navy text-center mt-1.5">
-                    <div className="bg-navy/5 px-1.5 py-1">קצב</div><div className="bg-navy/5 px-1.5 py-1">דופק</div><div className="bg-navy/5 px-1.5 py-1">לקטט</div>
+                    <div className="bg-navy/5 px-1.5 py-1">{t.labPaceUnit}</div><div className="bg-navy/5 px-1.5 py-1">{t.labHrLabel}</div><div className="bg-navy/5 px-1.5 py-1">{t.labLactateLabel}</div>
                   </div>
                   <div className="grid grid-cols-3 gap-px bg-border text-[11px] text-center text-navy">
                     {c.points.map((p, i) => (

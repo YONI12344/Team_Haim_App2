@@ -20,14 +20,9 @@ import { type LactateStep } from '@/lib/physiology'
 import { useWorkoutLactateGroups, buildSessionCurves, currentWorkoutThresholds } from '@/hooks/useWorkoutLactateGroups'
 import { LactateMultiCurveChart, curveThresholds, paceDelta, type CurveInput, type AxisMode } from '@/components/coach/lactate-multi-curve-chart'
 import { formatTargetRange } from '@/lib/physiology'
+import { useLanguage } from '@/contexts/language-context'
 
 const CURVE_COLOR_BASELINE = '#0a1628'
-
-const AXIS_OPTIONS = [
-  ['paceVsLactate', 'קצב/לקטט'],
-  ['hrVsLactate', 'דופק/לקטט'],
-  ['dual', 'זמן'],
-] as const
 
 /** Compare the last two actual sessions of this workout (not the lab
  *  baseline) at whichever T-level both have data for, so the collapsed box
@@ -44,6 +39,12 @@ function sessionTrend(curves: CurveInput[]) {
 }
 
 export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
+  const { t, isRTL } = useLanguage()
+  const AXIS_OPTIONS = [
+    ['paceVsLactate', t.labAxisPaceLactate],
+    ['hrVsLactate', t.labAxisHrLactate],
+    ['dual', t.labAxisTime],
+  ] as const
   const { loading, grouped, workoutOptions } = useWorkoutLactateGroups(athleteId)
   const [axisModeById, setAxisModeById] = useState<Record<string, AxisMode>>({})
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -58,7 +59,7 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
         const snap = await getDocs(query(collection(db, 'lactateTests'), where('athleteId', '==', athleteId)))
         const stepTests = snap.docs
           .map(d => d.data() as any)
-          .filter(t => t.kind !== 'spot' && Array.isArray(t.steps) && t.steps.length > 0)
+          .filter(x => x.kind !== 'spot' && Array.isArray(x.steps) && x.steps.length > 0)
           .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
         setBaselineSteps(stepTests[0]?.steps ?? null)
       } catch (e) { console.error(e); setBaselineSteps(null) }
@@ -74,12 +75,12 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
   )
 
   const baselineCurve: CurveInput | null = baselineSteps?.length ? {
-    id: 'baseline', label: 'בדיקת מעבדה', color: CURVE_COLOR_BASELINE, sourceType: 'test',
+    id: 'baseline', label: t.labBaselineTestShort, color: CURVE_COLOR_BASELINE, sourceType: 'test',
     points: baselineSteps.map(s => ({ pace: s.pace, hr: s.hr, lactate: s.lactate })),
   } : null
 
   const cards: { id: string; title: string; curves: CurveInput[]; thresholds?: ReturnType<typeof currentWorkoutThresholds>; trend?: ReturnType<typeof paceDelta>; sessionCount?: number }[] = [
-    ...(baselineCurve ? [{ id: 'baseline', title: 'בדיקת מעבדה (בסיס)', curves: [baselineCurve] }] : []),
+    ...(baselineCurve ? [{ id: 'baseline', title: t.labBaselineTest, curves: [baselineCurve] }] : []),
     ...workoutOptions.map(o => {
       const curves = buildSessionCurves(grouped.get(o.id)!)
       return {
@@ -94,18 +95,15 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
   ]
 
   if (cards.length === 0) return (
-    <div className="rounded-2xl border border-dashed border-border p-4 text-center" dir="rtl">
-      <p className="text-sm font-semibold text-navy">עדיין אין גרפים להצגה</p>
-      <p className="text-xs text-muted-foreground mt-1">
-        ברגע שתתווסף בדיקת מעבדה, או שהאתלט ידווח לקטט באימון (באימוני סף בלבד —
-        בשדה ליד כל חזרה), הגרף שלו יופיע כאן אוטומטית.
-      </p>
+    <div className="rounded-2xl border border-dashed border-border p-4 text-center" dir={isRTL ? 'rtl' : 'ltr'}>
+      <p className="text-sm font-semibold text-navy">{t.labNoGraphsYet}</p>
+      <p className="text-xs text-muted-foreground mt-1">{t.labNoGraphsHint}</p>
     </div>
   )
 
   return (
-    <div className="space-y-2" dir="rtl">
-      <h3 className="text-sm font-bold text-navy">השוואת אימונים — כל סוגי האימונים</h3>
+    <div className="space-y-2" dir={isRTL ? 'rtl' : 'ltr'}>
+      <h3 className="text-sm font-bold text-navy">{t.labWorkoutComparison}</h3>
 
       <div className="space-y-2">
         {cards.map(card => {
@@ -125,7 +123,7 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
                       </span>
                     ) : card.id !== 'baseline' && (card.sessionCount ?? 0) < 2 && (
                       <span className="text-[9px] font-medium text-muted-foreground whitespace-nowrap">
-                        אימון ראשון — אין עדיין השוואה
+                        {t.labFirstWorkoutNoComparison}
                       </span>
                     )}
                   </div>
@@ -147,7 +145,7 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
                       return (
                         <div key={level} className={cn('rounded-lg border px-2 py-1.5 text-center', r ? colors : 'border-dashed border-border/50')}>
                           <p className={cn('text-[9px] font-semibold', r ? 'opacity-70' : 'text-muted-foreground')}>
-                            {level}{r?.extrapolated ? ' (הערכה)' : ''}
+                            {level}{r?.extrapolated ? t.labEstimateSuffix : ''}
                           </p>
                           <p className="text-[10px] font-bold" dir="ltr">{r ? formatTargetRange(r, ['pace', 'hr']) : '—'}</p>
                         </div>
@@ -186,7 +184,7 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
                           <button onClick={() => setShowBaselineById(prev => ({ ...prev, [card.id]: !showBaseline }))}
                             className={cn('text-[10px] font-semibold px-2 py-1 rounded-lg border transition-all',
                               showBaseline ? 'bg-navy/5 border-navy/20 text-navy' : 'border-border/50 text-muted-foreground')}>
-                            🧪 השווה לבדיקת מעבדה
+                            {t.labCompareToBaseline}
                           </button>
                         )}
                       </div>
