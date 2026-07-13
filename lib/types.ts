@@ -162,6 +162,11 @@ export interface Workout {
   // Which metrics to show the athlete for that target — defaults to all
   // three when unset (old workouts predating this field).
   targetMetrics?: ('pace' | 'hr' | 'lactate')[]
+  // 'threshold' workouts only: the rep distance this session is built
+  // around (e.g. 400 for "20×400"). Lets T1/T2/T3 pool across every
+  // threshold workout at this same distance instead of only ever
+  // comparing to another instance of the exact same workout template.
+  thresholdDistance?: number
   createdBy: string
   createdAt: Date
   updatedAt: Date
@@ -333,6 +338,10 @@ export interface WorkoutLog {
   // per-workout progress view (components/coach/athlete-workout-progress.tsx)
   // can group/label logs without extra reads.
   workoutTitle?: string
+  // Denormalized from the workout template's thresholdDistance — lets logs
+  // be grouped by rep distance (e.g. every 400m threshold session) instead
+  // of only by the exact workoutId, without an extra read per log.
+  thresholdDistance?: number
   // true when any splitLogs entry has a lactate reading — lets that same
   // view query logs cheaply instead of fetching everything.
   hasLactate?: boolean

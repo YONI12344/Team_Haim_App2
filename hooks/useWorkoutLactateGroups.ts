@@ -29,6 +29,10 @@ export interface WorkoutLactateLog {
   id: string
   workoutId: string
   workoutTitle?: string
+  /** Rep distance this session was built around (e.g. 400 for "20×400") —
+   *  when set, this log pools with every other threshold log at the same
+   *  distance instead of only ones sharing the exact same workoutId. */
+  thresholdDistance?: number
   date: string
   splitLogs?: WorkoutRepEntry[]
   comment?: string
@@ -51,6 +55,15 @@ export function averageRepMetrics(reps: WorkoutRepEntry[]): { avgLactate: number
 }
 
 const SESSION_COLORS = ['#e8826b', '#c9a84c', '#6b8fb5', '#8a6bb5', '#4caf8a', '#d4708a', '#c97a4c', '#5c9ab5']
+
+/** The same grouping key `useWorkoutLactateGroups` uses internally — a
+ *  threshold workout with a tagged rep distance pools by that distance,
+ *  everything else keys by its own workoutId. Callers looking up "this
+ *  workout's group" (to find its target/last session) must use this same
+ *  key instead of the raw workoutId, or they'll miss a pooled group. */
+export function groupKeyFor(workout: { thresholdDistance?: number } | null | undefined, workoutId: string): string {
+  return workout?.thresholdDistance ? `dist-${workout.thresholdDistance}` : workoutId
+}
 
 /** One curve per session/log in a workout group — rep-level points (never
  *  session-averaged), so pace/HR/lactate always come from the same
@@ -127,11 +140,16 @@ export function useWorkoutLactateGroups(athleteId: string) {
     load()
   }, [athleteId])
 
+  // Threshold logs group by rep distance when tagged (so "20×400" and
+  // "12×400" pool into one "אימוני סף 400 מ׳" group instead of staying
+  // separate) — everything else still groups by the exact workoutId.
   const grouped = useMemo(() => {
     const map = new Map<string, WorkoutLactateGroup>()
     for (const log of logs) {
-      if (!map.has(log.workoutId)) map.set(log.workoutId, { title: log.workoutTitle || 'אימון', logs: [] })
-      map.get(log.workoutId)!.logs.push(log)
+      const key = log.thresholdDistance ? `dist-${log.thresholdDistance}` : log.workoutId
+      const title = log.thresholdDistance ? `אימוני סף ${log.thresholdDistance} מ׳` : (log.workoutTitle || 'אימון')
+      if (!map.has(key)) map.set(key, { title, logs: [] })
+      map.get(key)!.logs.push(log)
     }
     return map
   }, [logs])

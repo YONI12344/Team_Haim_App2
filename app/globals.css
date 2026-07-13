@@ -195,6 +195,13 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html, body {
+    /* Safety net: a wide chart/table anywhere in the app should never be
+       able to push the whole page into horizontal scroll — it should be
+       contained (and, if the underlying element isn't fixed, clipped)
+       rather than letting the page scroll and hide content off one edge. */
+    overflow-x: hidden;
+  }
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-body);

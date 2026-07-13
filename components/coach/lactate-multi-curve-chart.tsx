@@ -154,13 +154,13 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
     }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 min-w-0">
       {!hideChart && (
-      <div className="space-y-1">
+      <div className="space-y-1 min-w-0">
         <p className="text-[10px] font-semibold text-muted-foreground text-center" dir="rtl">{AXIS_CAPTION[axisMode]}</p>
-        <div style={{ width: '100%', height: size === 'compact' ? 220 : 360 }} dir="ltr">
+        <div className="w-full min-w-0 overflow-hidden" style={{ height: size === 'compact' ? 220 : 360 }} dir="ltr">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart margin={{ top: 16, right: 8, left: -10, bottom: 5 }}>
+          <LineChart margin={{ top: 16, right: 8, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             {axisMode === 'paceVsLactate' && (
               <>
@@ -168,8 +168,7 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
                   tickFormatter={(v: number) => secToPace(v)}
                   tick={{ fontSize: 11, fill: '#9ca3af' }}
                   label={{ value: 'קצב (/ק"מ)', position: 'insideBottom', offset: -3, fontSize: 11, fill: '#9ca3af' }} />
-                <YAxis dataKey="lactate" type="number" tick={{ fontSize: 11, fill: '#9ca3af' }}
-                  label={{ value: 'mmol/L', angle: -90, position: 'insideLeft', fontSize: 11, fill: '#9ca3af' }} />
+                <YAxis dataKey="lactate" type="number" width={30} tick={{ fontSize: 11, fill: '#9ca3af' }} />
               </>
             )}
             {axisMode === 'hrVsLactate' && (
@@ -177,8 +176,7 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
                 <XAxis dataKey="hr" type="number" domain={['dataMin - 5', 'dataMax + 5']}
                   tick={{ fontSize: 11, fill: '#9ca3af' }}
                   label={{ value: 'HR (bpm)', position: 'insideBottom', offset: -3, fontSize: 11, fill: '#9ca3af' }} />
-                <YAxis dataKey="lactate" type="number" tick={{ fontSize: 11, fill: '#9ca3af' }}
-                  label={{ value: 'mmol/L', angle: -90, position: 'insideLeft', fontSize: 11, fill: '#9ca3af' }} />
+                <YAxis dataKey="lactate" type="number" width={30} tick={{ fontSize: 11, fill: '#9ca3af' }} />
               </>
             )}
             {axisMode === 'dual' && (

@@ -103,7 +103,7 @@ export function AthleteWorkoutProgress({ athleteId }: { athleteId: string }) {
         <h3 className="text-sm font-bold text-navy">התקדמות באימונים</h3>
       </div>
 
-      <Card>
+      <Card className="min-w-0">
         <CardHeader className="pb-2 pt-4 px-4 space-y-2.5">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <Select value={selectedWorkoutId} onValueChange={setSelectedWorkoutId}>

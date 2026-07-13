@@ -78,6 +78,7 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
   const [targetLactate, setTargetLactate] = useState('')
   const [targetThresholdLevel, setTargetThresholdLevel] = useState<'T1' | 'T2' | 'T3' | ''>('')
   const [targetMetrics, setTargetMetrics] = useState<Set<'pace' | 'hr' | 'lactate'>>(new Set(['pace', 'hr', 'lactate']))
+  const [thresholdDistance, setThresholdDistance] = useState<number | ''>('')
   const [sets, setSets] = useState<Partial<WorkoutSet>[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [loading, setLoading] = useState(!!workoutId)
@@ -101,6 +102,7 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
           setTargetLactate(data.targetLactate != null ? String(data.targetLactate) : '')
           setTargetThresholdLevel(data.targetThresholdLevel || '')
           setTargetMetrics(new Set(data.targetMetrics && data.targetMetrics.length ? data.targetMetrics : ['pace', 'hr', 'lactate']))
+          setThresholdDistance(data.thresholdDistance || '')
           setSets(Array.isArray(data.sets) ? data.sets.map((s: any) => ({
             ...s,
             // Migrate the old ambiguous "rest" field: it was only ever shown
@@ -201,6 +203,7 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
         targetLactate: targetLactate ? Number(targetLactate) : null,
         targetThresholdLevel: type === 'threshold' && targetThresholdLevel ? targetThresholdLevel : null,
         targetMetrics: type === 'threshold' && targetThresholdLevel ? Array.from(targetMetrics) : null,
+        thresholdDistance: type === 'threshold' && thresholdDistance ? Number(thresholdDistance) : null,
         sets: (sets as any[]).map((s, i) => ({
           id: s.id || `set-${i}`,
           reps: s.reps || 1,
@@ -351,6 +354,26 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
 
             {type === 'threshold' && (
               <div className="space-y-3 rounded-lg border border-border p-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">מרחק חזרות (לאיסוף T1/T2/T3 יחד עם אימונים אחרים באותו מרחק)</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {[200, 400, 600, 800, 1000, 1600, 2000, 3000].map((d) => (
+                      <Button key={d} type="button"
+                        variant={thresholdDistance === d ? 'default' : 'outline'}
+                        size="sm"
+                        className={thresholdDistance === d ? 'bg-navy text-white' : ''}
+                        onClick={() => setThresholdDistance(d)}>
+                        {d}מ׳
+                      </Button>
+                    ))}
+                    {thresholdDistance !== '' && (
+                      <Button type="button" variant="ghost" size="sm" className="text-muted-foreground"
+                        onClick={() => setThresholdDistance('')}>
+                        {t.cancel}
+                      </Button>
+                    )}
+                  </div>
+                </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">{t.targetLevelLabel}</Label>
                   <div className="flex gap-2">

@@ -25,7 +25,7 @@ import { toast } from 'sonner'
 import { WorkoutLogForm } from '@/components/athlete/workout-log-form'
 import { personalTargetRangeForLevel, formatTargetRange, paceToSec, secToPace } from '@/lib/physiology'
 import { useLatestStepTest } from '@/hooks/useLatestStepTest'
-import { useWorkoutLactateGroups, latestSessionSteps } from '@/hooks/useWorkoutLactateGroups'
+import { useWorkoutLactateGroups, latestSessionSteps, groupKeyFor } from '@/hooks/useWorkoutLactateGroups'
 import { isCoachEmail } from '@/lib/constants'
 import { ManualLogCard } from '@/components/shared/manual-log-card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -489,7 +489,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
         // workout over the (possibly months-old) lab test — the target
         // self-adapts session to session.
         const recent = !w.targetOverride
-          ? personalTargetRangeForLevel(latestSessionSteps(workoutGroups.get(w.workoutId)), w.workout.targetThresholdLevel)
+          ? personalTargetRangeForLevel(latestSessionSteps(workoutGroups.get(groupKeyFor(w.workout, w.workoutId))), w.workout.targetThresholdLevel)
           : null
         const source: 'override' | 'recent' | 'lab' = w.targetOverride ? 'override' : recent ? 'recent' : 'lab'
         const auto = recent || personalTargetRangeForLevel(latestSteps, w.workout.targetThresholdLevel)

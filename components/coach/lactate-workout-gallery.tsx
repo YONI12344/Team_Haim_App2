@@ -87,11 +87,11 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
     <div className="space-y-3" dir="rtl">
       <h3 className="text-sm font-bold text-navy">השוואת אימונים — כל סוגי האימונים</h3>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 min-w-0">
         {cards.map(card => {
           const axisMode = axisModeById[card.id] ?? 'paceVsLactate'
           return (
-            <Card key={card.id}>
+            <Card key={card.id} className="min-w-0">
               <CardHeader className="pb-2 pt-3 px-3 space-y-1.5">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <CardTitle className="text-xs">{card.title}</CardTitle>

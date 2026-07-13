@@ -28,7 +28,7 @@ import { useLanguage } from '@/contexts/language-context'
 import { useAuth } from '@/contexts/auth-context'
 import { getCoachInfo } from '@/lib/coach'
 import { useLatestStepTest } from '@/hooks/useLatestStepTest'
-import { useWorkoutLactateGroups, latestSessionSteps } from '@/hooks/useWorkoutLactateGroups'
+import { useWorkoutLactateGroups, latestSessionSteps, groupKeyFor } from '@/hooks/useWorkoutLactateGroups'
 import { personalTargetRangeForLevel, formatTargetRange } from '@/lib/physiology'
 
 interface WorkoutLogFormProps {
@@ -313,6 +313,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
         comment,
         splitLogs: finalSplitLogs,
         workoutTitle: workout?.title || null,
+        thresholdDistance: workout?.thresholdDistance ?? null,
         hasLactate,
       }
       if (isUpdate) {
@@ -485,7 +486,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
               // workout over the (possibly months-old) lab test — the target
               // should self-adapt session to session.
               const recentRange = !targetOverride
-                ? personalTargetRangeForLevel(latestSessionSteps(workoutGroups.get(workoutId), existingLog?.id), workout.targetThresholdLevel)
+                ? personalTargetRangeForLevel(latestSessionSteps(workoutGroups.get(groupKeyFor(workout, workoutId)), existingLog?.id), workout.targetThresholdLevel)
                 : null
               const source: 'override' | 'recent' | 'lab' = targetOverride ? 'override' : recentRange ? 'recent' : 'lab'
               const range = targetOverride
