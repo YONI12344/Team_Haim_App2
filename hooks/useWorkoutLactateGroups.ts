@@ -15,7 +15,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { format } from 'date-fns'
-import { paceToSec, secToPace, personalTargetRangeForLevel, type LactateStep, type PersonalTargetRange } from '@/lib/physiology'
+import { paceToSec, secToPace, personalTargetRangeForLevel, personalTargetRangeWithBaseline, type LactateStep, type PersonalTargetRange } from '@/lib/physiology'
 import type { CurveInput } from '@/components/coach/lactate-multi-curve-chart'
 
 export interface WorkoutRepEntry {
@@ -122,11 +122,27 @@ export function latestSessionSteps(group: WorkoutLactateGroup | undefined, exclu
  * same "last session" data that now drives the dynamic workout target (see
  * workout-log-form.tsx / athlete-planner-view.tsx), surfaced here so the
  * Lab can show it as a headline per workout instead of only implicitly, by
- * reading the most-recent row of the per-session table. Each level is
- * null when the athlete's last session didn't span that mmol range.
+ * reading the most-recent row of the per-session table.
+ *
+ * A constant-pace workout (e.g. 3×3000 @ T1) only ever samples one narrow
+ * lactate band, so it directly hits at most one level — when
+ * `baselineSteps` (the athlete's real step test) is passed, the other
+ * levels are projected from that test's local slope anchored through this
+ * session's actual measurement instead of staying blank. See
+ * personalTargetRangeWithBaseline for how that projection works.
  */
-export function currentWorkoutThresholds(group: WorkoutLactateGroup | undefined): Record<'T1' | 'T2' | 'T3', PersonalTargetRange | null> {
+export function currentWorkoutThresholds(
+  group: WorkoutLactateGroup | undefined,
+  baselineSteps?: LactateStep[] | null,
+): Record<'T1' | 'T2' | 'T3', PersonalTargetRange | null> {
   const steps = latestSessionSteps(group)
+  if (baselineSteps && baselineSteps.length >= 2) {
+    return {
+      T1: personalTargetRangeWithBaseline(steps, baselineSteps, 'T1'),
+      T2: personalTargetRangeWithBaseline(steps, baselineSteps, 'T2'),
+      T3: personalTargetRangeWithBaseline(steps, baselineSteps, 'T3'),
+    }
+  }
   return {
     T1: personalTargetRangeForLevel(steps, 'T1'),
     T2: personalTargetRangeForLevel(steps, 'T2'),

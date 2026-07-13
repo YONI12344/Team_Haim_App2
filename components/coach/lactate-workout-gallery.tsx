@@ -86,7 +86,7 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
         id: o.id,
         title: o.title,
         curves,
-        thresholds: currentWorkoutThresholds(grouped.get(o.id)),
+        thresholds: currentWorkoutThresholds(grouped.get(o.id), baselineSteps),
         trend: sessionTrend(curves),
         sessionCount: curves.filter(c => c.sourceType === 'workout').length,
       }
@@ -146,7 +146,9 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
                         : 'bg-rose-50 border-rose-100 text-rose-700'
                       return (
                         <div key={level} className={cn('rounded-lg border px-2 py-1.5 text-center', r ? colors : 'border-dashed border-border/50')}>
-                          <p className={cn('text-[9px] font-semibold', r ? 'opacity-70' : 'text-muted-foreground')}>{level}</p>
+                          <p className={cn('text-[9px] font-semibold', r ? 'opacity-70' : 'text-muted-foreground')}>
+                            {level}{r?.extrapolated ? ' (הערכה)' : ''}
+                          </p>
                           <p className="text-[10px] font-bold" dir="ltr">{r ? formatTargetRange(r, ['pace', 'hr']) : '—'}</p>
                         </div>
                       )

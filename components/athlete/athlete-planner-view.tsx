@@ -23,7 +23,7 @@ import { useLanguage } from '@/contexts/language-context'
 import { useWorkoutTypeLabels } from '@/lib/workout-labels'
 import { toast } from 'sonner'
 import { WorkoutLogForm } from '@/components/athlete/workout-log-form'
-import { personalTargetRangeForLevel, formatTargetRange, paceToSec, secToPace } from '@/lib/physiology'
+import { personalTargetRangeForLevel, personalTargetRangeWithBaseline, formatTargetRange, paceToSec, secToPace } from '@/lib/physiology'
 import { useLatestStepTest } from '@/hooks/useLatestStepTest'
 import { useWorkoutLactateGroups, latestSessionSteps, groupKeyFor } from '@/hooks/useWorkoutLactateGroups'
 import { isCoachEmail } from '@/lib/constants'
@@ -492,7 +492,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
     // workout over the (possibly months-old) lab test — the target
     // self-adapts session to session.
     const recent = targetLevel && !w.targetOverride
-      ? personalTargetRangeForLevel(latestSessionSteps(workoutGroups.get(groupKeyFor(w.workout, w.workoutId))), targetLevel)
+      ? personalTargetRangeWithBaseline(latestSessionSteps(workoutGroups.get(groupKeyFor(w.workout, w.workoutId))), latestSteps, targetLevel)
       : null
     const source: 'override' | 'recent' | 'lab' = w.targetOverride ? 'override' : recent ? 'recent' : 'lab'
     const auto = targetLevel ? (recent || personalTargetRangeForLevel(latestSteps, targetLevel)) : null
@@ -533,10 +533,12 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             <span className={cn('text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap',
               range ? 'bg-white border border-navy/10 text-navy' : 'bg-amber-50 border border-amber-200 text-amber-700')} dir="ltr">
               {range
-                ? `🎯 ${targetLevel} · ${inlinePaceText}${
-                    source === 'override' ? ' · ✏️' : source === 'recent' ? ' · מהאימון הקודם' : ' · מבדיקת מעבדה'
+                ? `${targetLevel} · ${inlinePaceText}${
+                    source === 'override' ? ' · ✏️'
+                    : source === 'recent' ? ((range as any).extrapolated ? ' · מוערך משיפוע הבדיקה' : ' · מהאימון הקודם')
+                    : ' · מבדיקת מעבדה'
                   }`
-                : `🎯 ${targetLevel} — אין עדיין נתוני מעבדה`}
+                : `${targetLevel} — אין עדיין נתוני מעבדה`}
             </span>
             {isCoachViewer && (
               <button type="button" onClick={() => startEditingTarget(w, range)}
@@ -584,16 +586,12 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                   </>
                 }
                 {hasIntervals && set.reps > 1 && <span className="font-normal text-muted-foreground"> · {set.reps}×</span>}
+                {/* The set's own pace field is often just the T-level name
+                    ("@ T1") rather than an actual pace — append the
+                    athlete's concrete personalized number here too, not
+                    only in the badge above the sets. */}
+                {inlinePaceText && <span className="font-normal" dir="ltr"> · {inlinePaceText}</span>}
               </p>
-              {/* The set's own pace field is often just the T-level name
-                  ("@ T1") rather than an actual pace — show the athlete's
-                  concrete personalized number right here too, not only in
-                  the badge above the sets. */}
-              {inlinePaceText && (
-                <p className="text-sm font-bold text-navy text-right mt-0.5" dir="ltr">
-                  🎯 {inlinePaceText}
-                </p>
-              )}
             </div>
             {/* Intervals */}
             {hasIntervals && set.intervals.map((iv: any, ii: number) => (

@@ -29,7 +29,7 @@ import { useAuth } from '@/contexts/auth-context'
 import { getCoachInfo } from '@/lib/coach'
 import { useLatestStepTest } from '@/hooks/useLatestStepTest'
 import { useWorkoutLactateGroups, latestSessionSteps, groupKeyFor, inferThresholdDistance } from '@/hooks/useWorkoutLactateGroups'
-import { personalTargetRangeForLevel, formatTargetRange } from '@/lib/physiology'
+import { personalTargetRangeForLevel, personalTargetRangeWithBaseline, formatTargetRange } from '@/lib/physiology'
 
 interface WorkoutLogFormProps {
   workoutId: string
@@ -486,7 +486,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
               // workout over the (possibly months-old) lab test — the target
               // should self-adapt session to session.
               const recentRange = !targetOverride
-                ? personalTargetRangeForLevel(latestSessionSteps(workoutGroups.get(groupKeyFor(workout, workoutId)), existingLog?.id), workout.targetThresholdLevel)
+                ? personalTargetRangeWithBaseline(latestSessionSteps(workoutGroups.get(groupKeyFor(workout, workoutId)), existingLog?.id), latestSteps, workout.targetThresholdLevel)
                 : null
               const source: 'override' | 'recent' | 'lab' = targetOverride ? 'override' : recentRange ? 'recent' : 'lab'
               const range = targetOverride
@@ -496,15 +496,17 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
               if (!range) {
                 return (
                   <span className="text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full whitespace-nowrap">
-                    🎯 {workout.targetThresholdLevel} — אין עדיין נתוני מעבדה
+                    {workout.targetThresholdLevel} — אין עדיין נתוני מעבדה
                   </span>
                 )
               }
               const lactateMid = source === 'lab' || source === 'recent' ? (range as any).lactateMid : undefined
-              const sourceTag = source === 'recent' ? ' · מהאימון הקודם' : source === 'lab' ? ' · מבדיקת מעבדה' : ' · ✏️'
+              const sourceTag = source === 'recent'
+                ? ((range as any).extrapolated ? ' · מוערך משיפוע הבדיקה' : ' · מהאימון הקודם')
+                : source === 'lab' ? ' · מבדיקת מעבדה' : ' · ✏️'
               return (
                 <span className="text-[11px] font-semibold bg-navy/5 border border-navy/10 px-2 py-0.5 rounded-full whitespace-nowrap" dir="ltr">
-                  🎯 {workout.targetThresholdLevel} · {formatTargetRange(range, metrics, lactateMid)}{sourceTag}
+                  {workout.targetThresholdLevel} · {formatTargetRange(range, metrics, lactateMid)}{sourceTag}
                 </span>
               )
             })()}
