@@ -137,27 +137,45 @@ export function personalTargetRangeForLevel(
   }
 }
 
+/** Least-squares slope of ys against xs — a straight-line best fit, so a
+ *  single noisy pair of points can't flip its sign or magnitude the way
+ *  picking just two adjacent points can. */
+function regressSlope(xs: number[], ys: number[]): number | null {
+  const n = xs.length
+  if (n < 2) return null
+  const xBar = xs.reduce((s, v) => s + v, 0) / n
+  const yBar = ys.reduce((s, v) => s + v, 0) / n
+  let num = 0, den = 0
+  for (let i = 0; i < n; i++) { num += (xs[i] - xBar) * (ys[i] - yBar); den += (xs[i] - xBar) ** 2 }
+  return den === 0 ? null : num / den
+}
+
 /**
  * The local slope (Δpace/Δlactate, Δhr/Δlactate) of the athlete's real
  * step-test curve near a given lactate value — how fast pace/HR change per
  * mmol in that neighborhood. Used only as a SHAPE reference; never as an
  * absolute anchor, since the baseline test itself might be months old.
+ *
+ * Fit over the ~4 steps nearest that lactate value (least-squares, not just
+ * the two immediately bracketing it) — a real test can have one noisy step
+ * (measurement variance between two adjacent readings), and computing the
+ * slope from only that one pair can flip its sign or size. A few points
+ * still keeps it local to where the projection actually needs it, unlike a
+ * single slope over the whole (non-linear) curve.
  */
 function localSlope(baselineSteps: LactateStep[], atLactate: number): { paceSecPerMmol: number; hrPerMmol: number | null } | null {
   const pts = baselineSteps
     .map(s => ({ pace: paceToSec(s.pace), hr: s.hr ?? null, lac: Number(s.lactate) }))
     .filter((p): p is { pace: number; hr: number | null; lac: number } => p.pace != null && isFinite(p.lac) && p.lac > 0)
-    .sort((a, b) => a.lac - b.lac)
   if (pts.length < 2) return null
-  let i = pts.findIndex(p => p.lac >= atLactate)
-  if (i <= 0) i = 1
-  if (i >= pts.length) i = pts.length - 1
-  const a = pts[i - 1], b = pts[i]
-  if (b.lac === a.lac) return null
-  return {
-    paceSecPerMmol: (b.pace - a.pace) / (b.lac - a.lac),
-    hrPerMmol: a.hr != null && b.hr != null ? (b.hr - a.hr) / (b.lac - a.lac) : null,
-  }
+  const nearest = [...pts]
+    .sort((a, b) => Math.abs(a.lac - atLactate) - Math.abs(b.lac - atLactate))
+    .slice(0, Math.min(4, pts.length))
+  const paceSlope = regressSlope(nearest.map(p => p.lac), nearest.map(p => p.pace))
+  if (paceSlope == null) return null
+  const withHr = nearest.filter((p): p is { pace: number; hr: number; lac: number } => p.hr != null)
+  const hrSlope = withHr.length >= 2 ? regressSlope(withHr.map(p => p.lac), withHr.map(p => p.hr)) : null
+  return { paceSecPerMmol: paceSlope, hrPerMmol: hrSlope }
 }
 
 /**
@@ -268,15 +286,21 @@ export function formatTargetRange(
   range: { paceRangeSec: [number, number]; hrRange: [number, number] | null },
   metrics: ('pace' | 'hr' | 'lactate')[],
   lactateMid?: number,
+  /** false = just the midpoint number, no "(min–max)" — for showing the
+   *  target inline on a set's own line, where the full range is clutter;
+   *  the range itself still belongs in the badge above the sets. */
+  showRange = true,
 ): string {
   const parts: string[] = []
   if (metrics.includes('pace')) {
     const mid = Math.round((range.paceRangeSec[0] + range.paceRangeSec[1]) / 2)
-    parts.push(`${secToPace(mid)} (${secToPace(range.paceRangeSec[0])}–${secToPace(range.paceRangeSec[1])})`)
+    parts.push(showRange
+      ? `${secToPace(mid)} (${secToPace(range.paceRangeSec[0])}–${secToPace(range.paceRangeSec[1])})`
+      : secToPace(mid))
   }
   if (metrics.includes('hr') && range.hrRange) {
     const mid = Math.round((range.hrRange[0] + range.hrRange[1]) / 2)
-    parts.push(`♥${mid} (${range.hrRange[0]}–${range.hrRange[1]})`)
+    parts.push(showRange ? `♥${mid} (${range.hrRange[0]}–${range.hrRange[1]})` : `♥${mid}`)
   }
   if (metrics.includes('lactate') && lactateMid != null) {
     parts.push(`${lactateMid} mmol/L`)

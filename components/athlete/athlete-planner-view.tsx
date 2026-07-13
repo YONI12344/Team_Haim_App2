@@ -503,7 +503,11 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
           : auto)
       : null
     const isEditing = editingTargetId === w.id
-    const inlinePaceText = targetLevel && range ? formatTargetRange(range, metrics, source === 'override' ? undefined : auto?.lactateMid) : null
+    // Full range for the badge above the sets (the "official" target);
+    // just the midpoint for the set's own line — the range there was
+    // clutter, the athlete just needs one number to aim for per set.
+    const badgeText = targetLevel && range ? formatTargetRange(range, metrics, source === 'override' ? undefined : auto?.lactateMid) : null
+    const inlinePaceText = targetLevel && range ? formatTargetRange(range, metrics, source === 'override' ? undefined : auto?.lactateMid, false) : null
 
     return (
     <div className="rounded-2xl overflow-hidden border border-gray-100 bg-white" dir={isRTL ? 'rtl' : 'ltr'}>
@@ -533,7 +537,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             <span className={cn('text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap',
               range ? 'bg-white border border-navy/10 text-navy' : 'bg-amber-50 border border-amber-200 text-amber-700')} dir="ltr">
               {range
-                ? `${targetLevel} · ${inlinePaceText}${
+                ? `${targetLevel} · ${badgeText}${
                     source === 'override' ? ' · ✏️'
                     : source === 'recent' ? ((range as any).extrapolated ? ' · מוערך משיפוע הבדיקה' : ' · מהאימון הקודם')
                     : ' · מבדיקת מעבדה'
