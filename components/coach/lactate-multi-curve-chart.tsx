@@ -61,11 +61,20 @@ export function curveThresholds(points: CurvePoint[]) {
   return computeThresholds(toSteps(points))
 }
 
+/** paceNeg = -paceSec: pace is seconds/km, so a plain ascending axis would
+ *  put the FASTEST pace on the left — plotting the negated value keeps a
+ *  normal ascending numeric axis (no reliance on recharts' `reversed`,
+ *  which doesn't reposition ReferenceDot/ReferenceLine consistently) while
+ *  reading left→right as slow→fast, matching how a step test is run and
+ *  the standard lactate-curve convention. Undo the negation in every place
+ *  that displays or positions against this value (ticks, tooltip, T1/T2/T3
+ *  markers) via secToPace(-v).
+ */
 function paceVsLactateData(points: CurvePoint[]) {
   return points
     .filter(p => p.pace && paceToSec(p.pace) != null)
-    .map(p => ({ paceSec: paceToSec(p.pace), lactate: p.lactate, hr: p.hr ?? null }))
-    .sort((a, b) => a.paceSec! - b.paceSec!)
+    .map(p => ({ paceNeg: -paceToSec(p.pace)!, lactate: p.lactate, hr: p.hr ?? null }))
+    .sort((a, b) => a.paceNeg - b.paceNeg)
 }
 
 function hrVsLactateData(points: CurvePoint[]) {
@@ -79,7 +88,7 @@ function hrVsLactateData(points: CurvePoint[]) {
  *  earlier) session's same level — a small ▲/▼ chip so a coach can see at a
  *  glance whether the athlete got faster at the same lactate level from one
  *  session of this workout to the next. */
-function paceDelta(curSec: number, prevSec: number): { label: string; improved: boolean } | null {
+export function paceDelta(curSec: number, prevSec: number): { label: string; improved: boolean } | null {
   const diff = curSec - prevSec
   if (Math.abs(diff) < 1) return null
   const abs = Math.round(Math.abs(diff))
@@ -164,14 +173,10 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             {axisMode === 'paceVsLactate' && (
               <>
-                {/* reversed: pace is seconds/km, so plain ascending would put
-                    the FASTEST pace on the left — reversed makes the axis
-                    read slow→fast left-to-right, matching how a step test
-                    is actually run and the standard lactate-curve convention. */}
-                <XAxis dataKey="paceSec" type="number" domain={['dataMin - 5', 'dataMax + 5']} reversed
-                  tickFormatter={(v: number) => secToPace(v)}
+                <XAxis dataKey="paceNeg" type="number" domain={['dataMin - 5', 'dataMax + 5']}
+                  tickFormatter={(v: number) => secToPace(-v)}
                   tick={{ fontSize: 11, fill: '#9ca3af' }}
-                  label={{ value: 'קצב (/ק"מ)', position: 'insideBottom', offset: -3, fontSize: 11, fill: '#9ca3af' }} />
+                  label={{ value: 'קצב (/ק"מ) ← איטי   מהיר →', position: 'insideBottom', offset: -3, fontSize: 11, fill: '#9ca3af' }} />
                 <YAxis dataKey="lactate" type="number" width={30} tick={{ fontSize: 11, fill: '#9ca3af' }} />
               </>
             )}
@@ -198,7 +203,7 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
                 label={{ value: v.toFixed(1), position: 'insideRight', fontSize: 9, fill: '#9ca3af' }} />
             ))}
             <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #f0f0f0', borderRadius: '12px' }}
-              labelFormatter={(v: any) => axisMode === 'paceVsLactate' ? secToPace(v) : String(v)} />
+              labelFormatter={(v: any) => axisMode === 'paceVsLactate' ? secToPace(-v) : String(v)} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             {axisMode !== 'dual' && usable.map(c => {
               const data = axisMode === 'paceVsLactate' ? paceVsLactateData(c.points) : hrVsLactateData(c.points)
@@ -225,7 +230,7 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
               return T_LEVELS.map(({ key, target, name }) => {
                 const point = t[key]
                 if (!point) return null
-                const x = axisMode === 'paceVsLactate' ? point.paceSecPerKm : point.hr
+                const x = axisMode === 'paceVsLactate' ? -point.paceSecPerKm : point.hr
                 if (x == null) return null
                 return (
                   <ReferenceDot key={`${c.id}-${key}`} x={x} y={target} r={5}

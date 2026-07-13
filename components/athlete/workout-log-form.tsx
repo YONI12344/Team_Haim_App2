@@ -28,7 +28,7 @@ import { useLanguage } from '@/contexts/language-context'
 import { useAuth } from '@/contexts/auth-context'
 import { getCoachInfo } from '@/lib/coach'
 import { useLatestStepTest } from '@/hooks/useLatestStepTest'
-import { useWorkoutLactateGroups, latestSessionSteps, groupKeyFor } from '@/hooks/useWorkoutLactateGroups'
+import { useWorkoutLactateGroups, latestSessionSteps, groupKeyFor, inferThresholdDistance } from '@/hooks/useWorkoutLactateGroups'
 import { personalTargetRangeForLevel, formatTargetRange } from '@/lib/physiology'
 
 interface WorkoutLogFormProps {
@@ -313,7 +313,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
         comment,
         splitLogs: finalSplitLogs,
         workoutTitle: workout?.title || null,
-        thresholdDistance: workout?.thresholdDistance ?? null,
+        thresholdDistance: inferThresholdDistance(workout) ?? null,
         hasLactate,
       }
       if (isUpdate) {
