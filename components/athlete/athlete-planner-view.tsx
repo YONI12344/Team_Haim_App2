@@ -477,32 +477,39 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
     } catch (err) { console.error(err); toast.error('העדכון נכשל') }
   }
 
-  const renderWorkoutDetail = (w: AssignedWorkout) => (
-    <div className="rounded-2xl overflow-hidden border border-gray-100 bg-white" dir={isRTL ? 'rtl' : 'ltr'}>
-      {/* Personalized threshold target — computed from THIS athlete's own
-          step-test data (a range, not one fixed point), so the same workout
-          template shows different numbers per athlete. The coach can
-          manually override it for this specific assignment. */}
-      {w.workout.targetThresholdLevel && (() => {
-        const metrics: ('pace' | 'hr' | 'lactate')[] = w.workout.targetMetrics?.length ? w.workout.targetMetrics : ['pace', 'hr', 'lactate']
-        // Prefer the athlete's own last completed session of this exact
-        // workout over the (possibly months-old) lab test — the target
-        // self-adapts session to session.
-        const recent = !w.targetOverride
-          ? personalTargetRangeForLevel(latestSessionSteps(workoutGroups.get(groupKeyFor(w.workout, w.workoutId))), w.workout.targetThresholdLevel)
-          : null
-        const source: 'override' | 'recent' | 'lab' = w.targetOverride ? 'override' : recent ? 'recent' : 'lab'
-        const auto = recent || personalTargetRangeForLevel(latestSteps, w.workout.targetThresholdLevel)
-        const range = w.targetOverride
+  const renderWorkoutDetail = (w: AssignedWorkout) => {
+    // Personalized threshold target — computed from THIS athlete's own
+    // step-test data (a range, not one fixed point), so the same workout
+    // template shows different numbers per athlete. The coach can manually
+    // override it for this specific assignment. Computed once up here
+    // (not only inside the badge below) so the concrete pace can also be
+    // embedded directly in each set further down, not only in a badge
+    // above the sets — that badge alone was unclear about which pace
+    // applied to which set.
+    const targetLevel = w.workout.targetThresholdLevel
+    const metrics: ('pace' | 'hr' | 'lactate')[] = w.workout.targetMetrics?.length ? w.workout.targetMetrics : ['pace', 'hr', 'lactate']
+    // Prefer the athlete's own last completed session of this exact
+    // workout over the (possibly months-old) lab test — the target
+    // self-adapts session to session.
+    const recent = targetLevel && !w.targetOverride
+      ? personalTargetRangeForLevel(latestSessionSteps(workoutGroups.get(groupKeyFor(w.workout, w.workoutId))), targetLevel)
+      : null
+    const source: 'override' | 'recent' | 'lab' = w.targetOverride ? 'override' : recent ? 'recent' : 'lab'
+    const auto = targetLevel ? (recent || personalTargetRangeForLevel(latestSteps, targetLevel)) : null
+    const range = targetLevel
+      ? (w.targetOverride
           ? { paceRangeSec: [w.targetOverride.paceMinSec, w.targetOverride.paceMaxSec] as [number, number],
               hrRange: w.targetOverride.hrMin != null && w.targetOverride.hrMax != null ? [w.targetOverride.hrMin, w.targetOverride.hrMax] as [number, number] : null }
-          : auto
-        const isEditing = editingTargetId === w.id
+          : auto)
+      : null
+    const isEditing = editingTargetId === w.id
+    const inlinePaceText = targetLevel && range ? formatTargetRange(range, metrics, source === 'override' ? undefined : auto?.lactateMid) : null
 
-        if (isEditing) {
-          return (
+    return (
+    <div className="rounded-2xl overflow-hidden border border-gray-100 bg-white" dir={isRTL ? 'rtl' : 'ltr'}>
+      {targetLevel && (isEditing ? (
             <div className="px-4 py-3 border-b border-border bg-navy/5 space-y-2" dir="rtl">
-              <p className="text-xs font-semibold text-navy">התאמת יעד ({w.workout.targetThresholdLevel}) לספורטאי זה</p>
+              <p className="text-xs font-semibold text-navy">התאמת יעד ({targetLevel}) לספורטאי זה</p>
               <div className="grid grid-cols-2 gap-2">
                 <Input placeholder="קצב מינ' (4:15)" value={targetEditFields.paceMin} dir="ltr" className="h-9 text-sm"
                   onChange={e => setTargetEditFields(f => ({ ...f, paceMin: e.target.value }))} />
@@ -521,18 +528,15 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                 <Button type="button" size="sm" variant="ghost" onClick={() => setEditingTargetId(null)}>ביטול</Button>
               </div>
             </div>
-          )
-        }
-
-        return (
+      ) : (
           <div className="px-4 py-2.5 border-b border-border bg-navy/5 flex items-center justify-end gap-1.5 flex-wrap">
             <span className={cn('text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap',
               range ? 'bg-white border border-navy/10 text-navy' : 'bg-amber-50 border border-amber-200 text-amber-700')} dir="ltr">
               {range
-                ? `🎯 ${w.workout.targetThresholdLevel} · ${formatTargetRange(range, metrics, source === 'override' ? undefined : auto?.lactateMid)}${
+                ? `🎯 ${targetLevel} · ${inlinePaceText}${
                     source === 'override' ? ' · ✏️' : source === 'recent' ? ' · מהאימון הקודם' : ' · מבדיקת מעבדה'
                   }`
-                : `🎯 ${w.workout.targetThresholdLevel} — אין עדיין נתוני מעבדה`}
+                : `🎯 ${targetLevel} — אין עדיין נתוני מעבדה`}
             </span>
             {isCoachViewer && (
               <button type="button" onClick={() => startEditingTarget(w, range)}
@@ -547,8 +551,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               </button>
             )}
           </div>
-        )
-      })()}
+      ))}
       {/* Warmup */}
       {w.workout.warmup && (
         <div className="px-4 py-3 border-b border-border">
@@ -582,6 +585,15 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                 }
                 {hasIntervals && set.reps > 1 && <span className="font-normal text-muted-foreground"> · {set.reps}×</span>}
               </p>
+              {/* The set's own pace field is often just the T-level name
+                  ("@ T1") rather than an actual pace — show the athlete's
+                  concrete personalized number right here too, not only in
+                  the badge above the sets. */}
+              {inlinePaceText && (
+                <p className="text-sm font-bold text-navy text-right mt-0.5" dir="ltr">
+                  🎯 {inlinePaceText}
+                </p>
+              )}
             </div>
             {/* Intervals */}
             {hasIntervals && set.intervals.map((iv: any, ii: number) => (
@@ -682,8 +694,8 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
         })()}
       </div>
     </div>
-  )
-
+    )
+  }
 
   const handleStravaSync = async () => {
     if (!athleteId) return

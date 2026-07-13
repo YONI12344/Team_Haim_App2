@@ -85,23 +85,51 @@ export function personalTargetRangeForLevel(
   steps: LactateStep[] | null | undefined,
   level: 'T1' | 'T2' | 'T3',
 ): PersonalTargetRange | null {
-  if (!steps || steps.length < 2) return null
+  if (!steps || steps.length === 0) return null
   const { min, max } = WORKOUT_TARGET_RANGES[level]
-  const atLow = interpolateAtLactate(steps, min)
-  const atHigh = interpolateAtLactate(steps, max)
-  if (!atLow || !atHigh) return null
-  // Higher mmol ⇒ faster pace (lower sec/km) — order the pair fast→slow regardless.
-  const paceRangeSec: [number, number] = atHigh.paceSecPerKm <= atLow.paceSecPerKm
-    ? [atHigh.paceSecPerKm, atLow.paceSecPerKm]
-    : [atLow.paceSecPerKm, atHigh.paceSecPerKm]
-  const hrRange: [number, number] | null = atLow.hr != null && atHigh.hr != null
-    ? [Math.min(atLow.hr, atHigh.hr), Math.max(atLow.hr, atHigh.hr)]
-    : null
+
+  // Prefer true interpolation across a graduated spread of efforts (a step
+  // test, or a workout with genuinely different paces) — most accurate
+  // when the data actually spans this level's mmol window.
+  if (steps.length >= 2) {
+    const atLow = interpolateAtLactate(steps, min)
+    const atHigh = interpolateAtLactate(steps, max)
+    if (atLow && atHigh) {
+      // Higher mmol ⇒ faster pace (lower sec/km) — order the pair fast→slow regardless.
+      const paceRangeSec: [number, number] = atHigh.paceSecPerKm <= atLow.paceSecPerKm
+        ? [atHigh.paceSecPerKm, atLow.paceSecPerKm]
+        : [atLow.paceSecPerKm, atHigh.paceSecPerKm]
+      const hrRange: [number, number] | null = atLow.hr != null && atHigh.hr != null
+        ? [Math.min(atLow.hr, atHigh.hr), Math.max(atLow.hr, atHigh.hr)]
+        : null
+      return {
+        paceRangeSec,
+        hrRange,
+        lactateRange: [min, max],
+        lactateMid: Math.round((min + max) * 10 / 2) / 10,
+      }
+    }
+  }
+
+  // Fallback: a constant-pace workout (e.g. reps all held at roughly the
+  // same effort) has no slope to interpolate — but if the measured lactate
+  // itself already falls inside this level's target window, that
+  // measurement directly tells us today's pace/HR for that level. Use it
+  // instead of discarding real data just because there's no second effort
+  // to interpolate against.
+  const inRange = steps
+    .map(s => ({ pace: paceToSec(s.pace), hr: s.hr ?? null, lac: Number(s.lactate) }))
+    .filter((p): p is { pace: number; hr: number | null; lac: number } => p.pace != null && isFinite(p.lac) && p.lac > 0)
+    .filter(p => p.lac >= min && p.lac <= max)
+  if (inRange.length === 0) return null
+  const paces = inRange.map(p => p.pace)
+  const hrs = inRange.map(p => p.hr).filter((h): h is number => h != null)
+  const avgLac = Math.round((inRange.reduce((s, p) => s + p.lac, 0) / inRange.length) * 10) / 10
   return {
-    paceRangeSec,
-    hrRange,
+    paceRangeSec: [Math.min(...paces), Math.max(...paces)],
+    hrRange: hrs.length ? [Math.min(...hrs), Math.max(...hrs)] : null,
     lactateRange: [min, max],
-    lactateMid: Math.round((min + max) * 10 / 2) / 10,
+    lactateMid: avgLac,
   }
 }
 
