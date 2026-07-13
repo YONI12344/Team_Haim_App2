@@ -116,6 +116,52 @@ function dualAxisData(points: CurvePoint[]) {
   return points.map((p, i) => ({ label: p.label || String(i + 1), hr: p.hr ?? null, lactate: p.lactate }))
 }
 
+/**
+ * ONE shared, sorted array of rows for the whole chart — the critical fix
+ * for a real bug: giving each curve's <Line> its OWN separate `data` array
+ * let recharts position points by their INDEX within that array (point #1
+ * of curve A next to point #1 of curve B, etc.) instead of by their actual
+ * shared X value, so two points at completely different paces could render
+ * at the same pixel position. Every curve (plus the projected "trend"
+ * pseudo-curve) becomes its own column (`c.id`, or `${c.id}-trend`) on this
+ * ONE shared row list, keyed by a single `xVal` — recharts' standard,
+ * correct pattern for multiple series sharing one continuous numeric axis.
+ * Each row only has the column(s) for whichever curve(s) actually have a
+ * point at that exact X value; every <Line dataKey={c.id} connectNulls>
+ * then draws only through its own column, skipping rows that belong to
+ * other curves, but always positioned by real value, never by index.
+ */
+function buildSharedRows(
+  usable: CurveInput[],
+  axisMode: 'paceVsLactate' | 'hrVsLactate',
+  baselineCurve: CurveInput | null,
+): Record<string, any>[] {
+  const rows: Record<string, any>[] = []
+  for (const c of usable) {
+    const pts = axisMode === 'paceVsLactate' ? paceVsLactateData(c.points) : hrVsLactateData(c.points)
+    for (const p of pts as any[]) {
+      const xVal = axisMode === 'paceVsLactate' ? p.paceNeg : p.hr
+      if (xVal == null) continue
+      rows.push({ xVal, [c.id]: p.lactate, [`${c.id}__hr`]: p.hr ?? null, [`${c.id}__pace`]: p.pace ?? null })
+    }
+  }
+  if (baselineCurve) {
+    for (const c of usable.filter(c => c.sourceType === 'workout')) {
+      const projected = projectWorkoutTrend(toSteps(c.points), toSteps(baselineCurve.points))
+      if (!projected) continue
+      const projPoints: CurvePoint[] = projected.map(s => ({ pace: s.pace, hr: s.hr, lactate: s.lactate }))
+      const pts = axisMode === 'paceVsLactate' ? paceVsLactateData(projPoints) : hrVsLactateData(projPoints)
+      const trendKey = `${c.id}-trend`
+      for (const p of pts as any[]) {
+        const xVal = axisMode === 'paceVsLactate' ? p.paceNeg : p.hr
+        if (xVal == null) continue
+        rows.push({ xVal, [trendKey]: p.lactate })
+      }
+    }
+  }
+  return rows.sort((a, b) => a.xVal - b.xVal)
+}
+
 const AXIS_CAPTION: Record<AxisMode, string> = {
   paceVsLactate: 'ציר X: קצב (לכל ק"מ) · ציר Y: לקטט בדם (mmol/L)',
   hrVsLactate: 'ציר X: דופק (bpm) · ציר Y: לקטט בדם (mmol/L)',
@@ -196,6 +242,11 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
     return vals.length ? [Math.min(...vals) - 8, Math.max(...vals) + 8] as [number, number] : undefined
   })()
 
+  // The one shared row array every Line in this chart reads from — see
+  // buildSharedRows for why this (not a separate `data` per <Line>) is
+  // what actually guarantees correct, value-based X positioning.
+  const sharedRows = axisMode !== 'dual' ? buildSharedRows(usable, axisMode, baselineCurve) : []
+
   /** Custom axis tick renderers — plain SVG <text>, same approach as the
    *  point labels below (which reliably render in every screenshot this
    *  session), instead of recharts' built-in tick={{...}} style-object
@@ -264,14 +315,15 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
    *  HR (and vice versa) instead of only the plotted value. The value that
    *  IS on the axis belongs on the axis itself (see the XAxis tickFormatter
    *  below), not repeated on every single point. */
-  const richPointLabel = (mode: 'paceVsLactate' | 'hrVsLactate', data: { hr?: number | null; pace?: string | null }[]) =>
+  const richPointLabel = (curveId: string, mode: 'paceVsLactate' | 'hrVsLactate') =>
     (props: any) => {
-      const { x, y, value, index } = props
+      const { x, y, value, payload } = props
       if (value == null) return <></>
-      const point = data[index]
+      const hr = payload?.[`${curveId}__hr`]
+      const paceStr = payload?.[`${curveId}__pace`]
       const extra = mode === 'paceVsLactate'
-        ? (point?.hr != null ? `♥${point.hr}` : '')
-        : (point?.pace || '')
+        ? (hr != null ? `♥${hr}` : '')
+        : (paceStr || '')
       return (
         <text x={x} y={y - 8} fontSize={9} textAnchor="middle" fill="#6b7280">
           {value}{extra ? ` · ${extra}` : ''}
@@ -286,20 +338,20 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
         <p className="text-[10px] font-semibold text-muted-foreground text-center" dir="rtl">{AXIS_CAPTION[axisMode]}</p>
         <div className="w-full min-w-0 overflow-hidden" style={{ height: size === 'compact' ? 300 : 360 }} dir="ltr">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart key={axisMode} margin={{ top: 16, right: 24, left: 24, bottom: 28 }}>
+          <LineChart key={axisMode} data={axisMode !== 'dual' ? sharedRows : undefined} margin={{ top: 16, right: 24, left: 24, bottom: 28 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             {axisMode === 'paceVsLactate' && (
               <>
-                <XAxis dataKey="paceNeg" type="number" domain={paceDomain ?? ['dataMin - 5', 'dataMax + 5']} allowDataOverflow
+                <XAxis dataKey="xVal" type="number" domain={paceDomain ?? ['dataMin - 5', 'dataMax + 5']} allowDataOverflow
                   tickCount={6} height={26} tick={paceTick} />
-                <YAxis dataKey="lactate" type="number" width={30} tick={lactateTick} />
+                <YAxis type="number" width={30} tick={lactateTick} />
               </>
             )}
             {axisMode === 'hrVsLactate' && (
               <>
-                <XAxis dataKey="hr" type="number" domain={hrDomain ?? ['dataMin - 5', 'dataMax + 5']} allowDataOverflow
+                <XAxis dataKey="xVal" type="number" domain={hrDomain ?? ['dataMin - 5', 'dataMax + 5']} allowDataOverflow
                   tickCount={6} height={26} tick={hrTick} />
-                <YAxis dataKey="lactate" type="number" width={30} tick={lactateTick} />
+                <YAxis type="number" width={30} tick={lactateTick} />
               </>
             )}
             {axisMode === 'dual' && (
@@ -319,16 +371,12 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
             <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #f0f0f0', borderRadius: '12px' }}
               labelFormatter={(v: any) => axisMode === 'paceVsLactate' ? secToPace(-v) : String(v)} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
-            {axisMode !== 'dual' && usable.map(c => {
-              const data = axisMode === 'paceVsLactate' ? paceVsLactateData(c.points) : hrVsLactateData(c.points)
-              return (
-                <Line key={c.id}
-                  name={c.label}
-                  data={data}
-                  dataKey="lactate" stroke={c.color} strokeWidth={2} dot={{ r: 3 }}
-                  label={richPointLabel(axisMode, data)} />
-              )
-            })}
+            {axisMode !== 'dual' && usable.map(c => (
+              <Line key={c.id}
+                name={c.label}
+                dataKey={c.id} stroke={c.color} strokeWidth={2} dot={{ r: 3 }} connectNulls
+                label={richPointLabel(c.id, axisMode)} />
+            ))}
             {/* Dashed projection — extends a workout curve's own (narrow)
                 measured segment outward using the baseline test's local
                 slope, so you can see WHERE an estimated T1/T2/T3 comes
@@ -336,19 +384,12 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
                 a real baseline curve is also present on this chart. */}
             {axisMode !== 'dual' && baselineCurve && usable
               .filter(c => c.sourceType === 'workout')
-              .map(c => {
-                const projected = projectWorkoutTrend(toSteps(c.points), toSteps(baselineCurve.points))
-                if (!projected) return null
-                const projPoints: CurvePoint[] = projected.map(s => ({ pace: s.pace, hr: s.hr, lactate: s.lactate }))
-                const data = axisMode === 'paceVsLactate' ? paceVsLactateData(projPoints) : hrVsLactateData(projPoints)
-                return (
-                  <Line key={`${c.id}-trend`}
-                    name={`${c.label} · הערכה (המשך מהאימון)`}
-                    data={data}
-                    dataKey="lactate" stroke={c.color} strokeWidth={3}
-                    strokeDasharray="8 5" dot={{ r: 2, strokeWidth: 1 }} isAnimationActive={false} />
-                )
-              })}
+              .map(c => (
+                <Line key={`${c.id}-trend`}
+                  name={`${c.label} · הערכה (המשך מהאימון)`}
+                  dataKey={`${c.id}-trend`} stroke={c.color} strokeWidth={3}
+                  strokeDasharray="8 5" dot={{ r: 2, strokeWidth: 1 }} connectNulls isAnimationActive={false} />
+              ))}
             {axisMode === 'dual' && usable.flatMap(c => ([
               <Line key={`${c.id}-lac`} yAxisId="lac" name={`${c.label} · לקטט`} data={dualAxisData(c.points)}
                 dataKey="lactate" stroke={c.color} strokeWidth={2} dot={{ r: 3 }} connectNulls
