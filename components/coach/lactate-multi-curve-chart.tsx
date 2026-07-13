@@ -196,6 +196,45 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
     return vals.length ? [Math.min(...vals) - 8, Math.max(...vals) + 8] as [number, number] : undefined
   })()
 
+  /** Custom axis tick renderers — plain SVG <text>, same approach as the
+   *  point labels below (which reliably render in every screenshot this
+   *  session), instead of recharts' built-in tick={{...}} style-object
+   *  path, which was rendering completely blank in this environment for
+   *  reasons that weren't worth chasing further once a guaranteed
+   *  alternative was available. */
+  const paceTick = (props: any) => {
+    const { x, y, payload } = props
+    return (
+      <text x={x} y={y + 14} textAnchor="middle" fontSize={10} fill="#374151">
+        {secToPace(-payload.value)}
+      </text>
+    )
+  }
+  const hrTick = (props: any) => {
+    const { x, y, payload } = props
+    return (
+      <text x={x} y={y + 14} textAnchor="middle" fontSize={10} fill="#374151">
+        {Math.round(payload.value)}
+      </text>
+    )
+  }
+  const lactateTick = (props: any) => {
+    const { x, y, payload } = props
+    return (
+      <text x={x} y={y + 4} textAnchor="end" fontSize={10} fill="#374151">
+        {payload.value}
+      </text>
+    )
+  }
+  const categoryTick = (props: any) => {
+    const { x, y, payload } = props
+    return (
+      <text x={x} y={y + 14} textAnchor="middle" fontSize={10} fill="#374151">
+        {payload.value}
+      </text>
+    )
+  }
+
   /** Rep-level label showing lactate PLUS whichever of pace/HR isn't already
    *  on an axis, so a point on the pace/lactate chart still shows that rep's
    *  HR (and vice versa) instead of only the plotted value. The value that
@@ -228,25 +267,23 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
             {axisMode === 'paceVsLactate' && (
               <>
                 <XAxis dataKey="paceNeg" type="number" domain={paceDomain ?? ['dataMin - 5', 'dataMax + 5']} allowDataOverflow
-                  tickFormatter={(v: number) => secToPace(-v)}
-                  tick={{ fontSize: 10, fill: '#6b7280' }}
-                  tickCount={6} height={26} />
-                <YAxis dataKey="lactate" type="number" width={30} tick={{ fontSize: 11, fill: '#9ca3af' }} />
+                  tickCount={6} height={26} tick={paceTick} />
+                <YAxis dataKey="lactate" type="number" width={30} tick={lactateTick} />
               </>
             )}
             {axisMode === 'hrVsLactate' && (
               <>
                 <XAxis dataKey="hr" type="number" domain={hrDomain ?? ['dataMin - 5', 'dataMax + 5']} allowDataOverflow
-                  tickCount={6} tick={{ fontSize: 11, fill: '#6b7280' }} height={26} />
-                <YAxis dataKey="lactate" type="number" width={30} tick={{ fontSize: 11, fill: '#9ca3af' }} />
+                  tickCount={6} height={26} tick={hrTick} />
+                <YAxis dataKey="lactate" type="number" width={30} tick={lactateTick} />
               </>
             )}
             {axisMode === 'dual' && (
               <>
-                <XAxis dataKey="label" type="category" allowDuplicatedCategory={false} tick={{ fontSize: 11, fill: '#9ca3af' }} />
-                <YAxis yAxisId="lac" type="number" tick={{ fontSize: 11, fill: '#9ca3af' }} width={35}
+                <XAxis dataKey="label" type="category" allowDuplicatedCategory={false} height={26} tick={categoryTick} />
+                <YAxis yAxisId="lac" type="number" width={35} tick={lactateTick}
                   label={{ value: 'mmol/L', angle: -90, position: 'insideLeft', fontSize: 11, fill: '#9ca3af' }} />
-                <YAxis yAxisId="hr" type="number" orientation="right" tick={{ fontSize: 11, fill: '#9ca3af' }} width={35} />
+                <YAxis yAxisId="hr" type="number" orientation="right" width={35} tick={hrTick} />
               </>
             )}
             {/* Constant lactate reference lines — where 2.0/4.0/4.5 mmol
