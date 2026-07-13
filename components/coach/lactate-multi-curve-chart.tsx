@@ -164,7 +164,11 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             {axisMode === 'paceVsLactate' && (
               <>
-                <XAxis dataKey="paceSec" type="number" domain={['dataMin - 5', 'dataMax + 5']}
+                {/* reversed: pace is seconds/km, so plain ascending would put
+                    the FASTEST pace on the left — reversed makes the axis
+                    read slow→fast left-to-right, matching how a step test
+                    is actually run and the standard lactate-curve convention. */}
+                <XAxis dataKey="paceSec" type="number" domain={['dataMin - 5', 'dataMax + 5']} reversed
                   tickFormatter={(v: number) => secToPace(v)}
                   tick={{ fontSize: 11, fill: '#9ca3af' }}
                   label={{ value: 'קצב (/ק"מ)', position: 'insideBottom', offset: -3, fontSize: 11, fill: '#9ca3af' }} />

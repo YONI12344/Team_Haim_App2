@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { Loader2, Plus, Trash2, FlaskConical, Heart, Gauge, ChevronDown } from 'lucide-react'
 import { collection, doc, getDoc, getDocs, addDoc, deleteDoc, updateDoc, query, where, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
@@ -12,11 +11,10 @@ import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import {
-  type LactateStep, type PhysiologySummary, type SpotReading,
+  type LactateStep, type PhysiologySummary,
   computeThresholds, estimateVo2max, derivePaceBands, physiologyHrZones,
-  analyzeSpotReading, paceToSec, secToPace,
+  paceToSec, secToPace,
 } from '@/lib/physiology'
-import { AthleteWorkoutProgress } from '@/components/coach/athlete-workout-progress'
 import { LactateWorkoutGallery } from '@/components/coach/lactate-workout-gallery'
 
 interface LactateTestDoc {
@@ -24,13 +22,9 @@ interface LactateTestDoc {
   athleteId: string
   date: string
   notes?: string
-  /** 'step' = full incremental test (default); 'spot' = in-workout quick check */
+  /** 'step' = full incremental test (default); 'spot' = legacy in-workout
+   *  quick check — no longer created, but old docs may still have this. */
   kind?: 'step' | 'spot'
-  /** spot checks: session context, e.g. "20×400" + morning/evening */
-  workoutLabel?: string
-  session?: 'am' | 'pm'
-  targetLactate?: number | null
-  readings?: SpotReading[]
   steps: LactateStep[]
   lt1PaceSec?: number | null
   lt1Hr?: number | null
@@ -73,16 +67,6 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
   const [savingTest, setSavingTest] = useState(false)
   const [expandedTest, setExpandedTest] = useState<string | null>(null)
   const [updatingPaces, setUpdatingPaces] = useState(false)
-
-  // In-workout spot check form
-  const emptyReading = (): SpotReading => ({ label: '', pace: '', hr: null, lactate: 0 })
-  const [showSpot, setShowSpot] = useState(false)
-  const [spotDate, setSpotDate] = useState(format(new Date(), 'yyyy-MM-dd'))
-  const [spotSession, setSpotSession] = useState<'am' | 'pm'>('am')
-  const [spotWorkout, setSpotWorkout] = useState('')
-  const [spotTarget, setSpotTarget] = useState('')
-  const [spotReadings, setSpotReadings] = useState<SpotReading[]>([emptyReading()])
-  const [savingSpot, setSavingSpot] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -191,37 +175,6 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
     toast.success(`הספים עודכנו מבדיקת ${format(new Date(test.date), 'd/M/yy')}`)
   }
 
-  const handleSaveSpot = async () => {
-    const valid = spotReadings.filter(r => paceToSec(r.pace) != null && Number(r.lactate) > 0)
-    if (valid.length === 0) { toast.error('נדרשת לפחות קריאה אחת עם קצב ולקטט'); return }
-    setSavingSpot(true)
-    try {
-      const docData = {
-        athleteId,
-        kind: 'spot' as const,
-        date: spotDate,
-        session: spotSession,
-        workoutLabel: spotWorkout.trim(),
-        targetLactate: spotTarget ? Number(spotTarget) : null,
-        readings: valid.map(r => ({
-          label: r.label?.trim() || '',
-          pace: r.pace.trim(),
-          hr: r.hr ? Number(r.hr) : null,
-          lactate: Number(r.lactate),
-        })),
-        steps: [] as LactateStep[],
-        notes: '',
-        createdAt: serverTimestamp(),
-      }
-      const ref = await addDoc(collection(db, 'lactateTests'), docData)
-      setTests(prev => [{ ...docData, id: ref.id } as LactateTestDoc, ...prev])
-      toast.success('הבדיקה המהירה נשמרה ✓')
-      setShowSpot(false)
-      setSpotWorkout(''); setSpotTarget(''); setSpotReadings([emptyReading()])
-    } catch (e) { console.error(e); toast.error('שמירה נכשלה') }
-    finally { setSavingSpot(false) }
-  }
-
   const handleDeleteTest = async (id: string) => {
     if (!confirm('למחוק את הבדיקה?')) return
     try {
@@ -271,16 +224,6 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
     lt1Hr: phys?.lt1Hr, lt2Hr: phys?.lt2Hr,
   })
   const fullTests = tests.filter(t => t.kind !== 'spot')
-  const spotChecks = tests.filter(t => t.kind === 'spot')
-  const analyzeReading = (r: SpotReading) => {
-    const sec = paceToSec(r.pace)
-    if (sec == null || !Number(r.lactate)) return null
-    return analyzeSpotReading(sec, Number(r.lactate), phys?.lt1PaceSec, phys?.lt2PaceSec)
-  }
-  const verdictClass = (v: string) =>
-    v === 'improving' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-    : v === 'tired' ? 'bg-red-50 text-red-600 border-red-200'
-    : 'bg-gray-50 text-gray-600 border-gray-200'
 
   return (
     <div className="space-y-4" dir="rtl">
@@ -541,146 +484,6 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
         )}
       </Card>
 
-      {/* ── In-workout spot check ── */}
-      <Card className={showSpot ? 'border-gold/40' : ''}>
-        <CardHeader className="pb-2 pt-4 px-4">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm flex items-center gap-2">
-              ⚡ בדיקה מהירה באימון
-              <span className="text-[10px] font-normal text-muted-foreground">לקטט תוך כדי חזרות (20×400, 5×1600...)</span>
-            </CardTitle>
-            {!showSpot && (
-              <Button size="sm" variant="outline" className="h-7 text-xs border-gold/40 text-gold hover:bg-gold/10"
-                onClick={() => setShowSpot(true)}>
-                <Plus className="h-3 w-3 ml-1"/>הוסף
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        {showSpot && (
-          <CardContent className="px-4 pb-4 space-y-3">
-            <div className="grid grid-cols-3 gap-2">
-              <div>
-                <label className="text-[10px] text-muted-foreground block mb-1">תאריך</label>
-                <Input type="date" value={spotDate} onChange={e => setSpotDate(e.target.value)} className="h-9 text-sm"/>
-              </div>
-              <div>
-                <label className="text-[10px] text-muted-foreground block mb-1">אימון</label>
-                <Input value={spotWorkout} onChange={e => setSpotWorkout(e.target.value)} placeholder="20×400" className="h-9 text-sm text-center" dir="ltr"/>
-              </div>
-              <div>
-                <label className="text-[10px] text-muted-foreground block mb-1">יעד לקטט</label>
-                <Input value={spotTarget} onChange={e => setSpotTarget(e.target.value)} placeholder="2.5" type="number" step="0.1" className="h-9 text-sm text-center"/>
-              </div>
-            </div>
-            {/* Session AM/PM */}
-            <div className="flex gap-1 bg-muted rounded-xl p-0.5 w-fit">
-              {(['am','pm'] as const).map(s => (
-                <button key={s} onClick={() => setSpotSession(s)}
-                  className={cn('text-xs px-4 py-1 rounded-lg font-semibold transition-all',
-                    spotSession === s ? 'bg-white text-navy shadow-sm' : 'text-muted-foreground')}>
-                  {s === 'am' ? '🌅 בוקר' : '🌇 ערב'}
-                </button>
-              ))}
-            </div>
-
-            {/* Readings */}
-            <div className="rounded-xl border border-border overflow-hidden">
-              <div className="grid grid-cols-[1fr_1fr_1fr_1fr_2rem] gap-1 bg-navy/5 px-2 py-1.5 text-[10px] font-bold text-navy text-center">
-                <span>אחרי חזרה</span><span>קצב /ק"מ</span><span>דופק</span><span>לקטט</span><span/>
-              </div>
-              {spotReadings.map((r, i) => {
-                const a = analyzeReading(r)
-                return (
-                  <div key={i} className="border-t border-border/40">
-                    <div className="grid grid-cols-[1fr_1fr_1fr_1fr_2rem] gap-1 items-center px-2 py-1">
-                      <Input value={r.label || ''} onChange={e => setSpotReadings(p => p.map((x, xi) => xi === i ? { ...x, label: e.target.value } : x))}
-                        placeholder="8" className="h-8 text-xs text-center"/>
-                      <Input value={r.pace} onChange={e => setSpotReadings(p => p.map((x, xi) => xi === i ? { ...x, pace: e.target.value } : x))}
-                        placeholder="3:45" className="h-8 text-xs text-center" dir="ltr"/>
-                      <Input value={r.hr ?? ''} onChange={e => setSpotReadings(p => p.map((x, xi) => xi === i ? { ...x, hr: e.target.value ? Number(e.target.value) : null } : x))}
-                        placeholder="168" type="number" className="h-8 text-xs text-center"/>
-                      <Input value={r.lactate || ''} onChange={e => setSpotReadings(p => p.map((x, xi) => xi === i ? { ...x, lactate: Number(e.target.value) } : x))}
-                        placeholder="2.5" type="number" step="0.1" className="h-8 text-xs text-center"/>
-                      <button onClick={() => setSpotReadings(p => p.filter((_, xi) => xi !== i))}
-                        className="text-gray-300 hover:text-red-400 text-xs">✕</button>
-                    </div>
-                    {/* Live shape verdict per reading */}
-                    {a && (
-                      <div className="px-2 pb-1.5 flex items-center gap-2 flex-wrap">
-                        <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full border', verdictClass(a.verdict))}>
-                          {a.verdictHe}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground" dir="ltr">
-                          צפוי {a.expected} · נמדד {r.lactate} (Δ{a.delta > 0 ? '+' : ''}{a.delta})
-                        </span>
-                        {a.todayT2Sec && (
-                          <span className="text-[10px] font-semibold text-navy" dir="ltr">
-                            T2 היום ≈ {secToPace(a.todayT2Sec)}/km
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-              <button onClick={() => setSpotReadings(p => [...p, emptyReading()])}
-                className="w-full py-1.5 text-[11px] font-semibold text-gold hover:bg-gold/5 border-t border-border/40">
-                + קריאה
-              </button>
-            </div>
-            {!phys?.lt2PaceSec && (
-              <p className="text-[11px] text-amber-600">להשוואת כושר נדרש T2 בסיס — הוסף בדיקת מדרגות או הערכה ידנית למעלה</p>
-            )}
-
-            <div className="flex gap-2">
-              <Button onClick={handleSaveSpot} disabled={savingSpot} className="flex-1 h-10 bg-navy text-white font-bold">
-                {savingSpot ? <Loader2 className="h-4 w-4 animate-spin"/> : 'שמור בדיקה מהירה'}
-              </Button>
-              <Button variant="ghost" onClick={() => setShowSpot(false)} className="h-10">ביטול</Button>
-            </div>
-          </CardContent>
-        )}
-
-        {/* Spot-check history — shape over time */}
-        {spotChecks.length > 0 && (
-          <CardContent className={cn('px-4 pb-4 space-y-1.5', showSpot && 'border-t border-border/40 pt-3')}>
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">מעקב כושר ({spotChecks.length})</p>
-            {spotChecks.map(check => {
-              const analyses = (check.readings || []).map(analyzeReading).filter(Boolean) as NonNullable<ReturnType<typeof analyzeReading>>[]
-              const avgDelta = analyses.length ? Math.round(analyses.reduce((s, a) => s + a.delta, 0) / analyses.length * 10) / 10 : null
-              const overall = avgDelta == null ? null : avgDelta <= -0.5 ? 'improving' : avgDelta >= 0.5 ? 'tired' : 'stable'
-              const lastT2 = analyses.length ? analyses[analyses.length - 1].todayT2Sec : null
-              return (
-                <div key={check.id} className="rounded-xl border border-border px-3 py-2">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-bold text-navy">{format(new Date(check.date), 'd/M/yy')}</span>
-                      <span className="text-[10px] text-muted-foreground">{check.session === 'pm' ? '🌇' : '🌅'}</span>
-                      {check.workoutLabel && <span className="text-[10px] font-semibold bg-navy/5 px-1.5 py-0.5 rounded-full" dir="ltr">{check.workoutLabel}</span>}
-                      {overall && (
-                        <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full border', verdictClass(overall))}>
-                          {overall === 'improving' ? 'משתפר 🔥' : overall === 'tired' ? 'עייף ⚠️' : 'יציב ✓'}
-                        </span>
-                      )}
-                      {lastT2 && <span className="text-[10px] font-semibold text-navy" dir="ltr">T2≈{secToPace(lastT2)}</span>}
-                    </div>
-                    <button onClick={() => handleDeleteTest(check.id)} className="text-gray-300 hover:text-red-400 text-xs flex-shrink-0">✕</button>
-                  </div>
-                  <div className="mt-1 flex flex-wrap gap-1.5">
-                    {(check.readings || []).map((r, i) => (
-                      <span key={i} className="text-[10px] font-mono bg-muted/40 border border-border/40 px-1.5 py-0.5 rounded" dir="ltr">
-                        {r.label ? `#${r.label} ` : ''}{r.pace} → {r.lactate}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )
-            })}
-          </CardContent>
-        )}
-      </Card>
-
       {/* ── Test history ── */}
       {fullTests.length > 0 && (
         <Card>
@@ -742,9 +545,6 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
         </Card>
       )}
 
-      {/* ── Per-workout progress over time (separate from real T1/T2 above —
-          see components/coach/athlete-workout-progress.tsx for why) ── */}
-      <AthleteWorkoutProgress athleteId={athleteId} />
     </div>
   )
 }
