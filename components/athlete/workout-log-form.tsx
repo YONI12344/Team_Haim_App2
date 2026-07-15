@@ -29,7 +29,7 @@ import { useAuth } from '@/contexts/auth-context'
 import { getCoachInfo } from '@/lib/coach'
 import { useLatestStepTest } from '@/hooks/useLatestStepTest'
 import { useWorkoutLactateGroups, latestSessionSteps, groupKeyFor, inferThresholdDistance } from '@/hooks/useWorkoutLactateGroups'
-import { personalTargetRangeForLevel, personalTargetRangeWithBaseline, formatTargetRange, paceToSec } from '@/lib/physiology'
+import { personalTargetRangeForLevel, personalTargetRangeWithBaseline, formatTargetRange, paceToSec, secToPace } from '@/lib/physiology'
 
 interface WorkoutLogFormProps {
   workoutId: string
@@ -39,37 +39,86 @@ interface WorkoutLogFormProps {
   workout?: Workout
 }
 
+/** Best-effort meters from a free-text rep distance field (e.g. "1000m",
+ *  "1600"). The coach always writes these in meters (same convention
+ *  inferThresholdDistance relies on elsewhere) — returns null for a
+ *  duration-based rep (e.g. "5 דק'"/"5 min") where there's no distance to
+ *  match against at all. */
+function parseRepMeters(raw: string | undefined): number | null {
+  if (!raw) return null
+  if (/דק|min/i.test(raw)) return null
+  const n = parseInt(String(raw).replace(/[^\d]/g, ''), 10)
+  return Number.isFinite(n) && n > 0 ? n : null
+}
+
+interface RawLap { distanceKm?: number; time?: string; heartRate?: number | null }
+interface MatchedLap { pace: string; heartRate: number | null }
+
 /**
- * Some watches (Garmin/Coros interval mode synced via Strava) log a
- * separate lap for every recovery segment in addition to each work rep, so
- * an interval session's real lap count can be much higher than the
- * workout's own rep count — e.g. 5 reps but 9 laps (work/rest/work/rest/…).
- * Matching laps to reps by raw index then misaligns the moment a rest lap
- * lands where a work rep is expected (a rest lap's pace is drastically
- * slower, since it's jogging/walking recovery, not running).
+ * Matches Strava laps to workout reps by DISTANCE, not by raw position.
+ * Some watches auto-lap at a fixed round distance (e.g. every 1km)
+ * regardless of the workout's actual rep length, so a 1.6km rep can come
+ * back as two laps (1km + 0.6km) instead of one — matched 1:1 by index,
+ * that desyncs every rep after it. This also still has to skip real
+ * rest/recovery laps (much slower pace) so they don't get folded into a
+ * work rep's distance by mistake.
  *
- * Filters down to just the laps that look like actual work efforts —
- * anything much slower than the fastest lap is treated as a rest/recovery
- * lap and dropped — so what's left lines up with the workout's reps in
- * order. A no-op when there are already ≤ expectedCount laps (nothing to
- * filter, most sessions recorded with one lap per rep).
+ * For each rep (in order), skips any rest laps, then accumulates
+ * consecutive laps — summing their distance AND their time — until the
+ * total reaches ~90% of that rep's expected distance. The rep's pace is
+ * then computed from the COMBINED time ÷ COMBINED distance (not from any
+ * single lap's own pace), and its HR is the time-weighted average across
+ * whichever laps got combined. A rep with no known expected distance (a
+ * duration-based rep) just takes the next single lap, same as before.
  */
-function filterWorkLaps<T extends { pace?: string }>(laps: T[], expectedCount: number): T[] {
-  if (laps.length <= expectedCount) return laps
-  const paced = laps
-    .map(l => ({ lap: l, sec: paceToSec(l.pace) }))
-    .filter((x): x is { lap: T; sec: number } => x.sec != null)
-  if (paced.length === 0) return laps.slice(0, expectedCount)
-  const fastestSec = Math.min(...paced.map(x => x.sec))
-  // A rest/recovery lap is dramatically slower than the fastest work lap —
-  // 40% slower already comfortably separates "recovery jog" from "hard rep"
-  // paces, without risking cutting a genuinely slower-but-real rep late in
-  // a fatiguing session.
-  const workLaps = laps.filter(l => {
-    const sec = paceToSec(l.pace)
-    return sec != null && sec <= fastestSec * 1.4
-  })
-  return workLaps.length > 0 ? workLaps : laps.slice(0, expectedCount)
+function matchLapsToReps(laps: RawLap[], expectedMeters: (number | null)[]): (MatchedLap | null)[] {
+  const parsed = laps.map(l => ({
+    meters: l.distanceKm != null ? l.distanceKm * 1000 : null,
+    sec: paceToSec(l.time),
+    heartRate: l.heartRate ?? null,
+  }))
+  const paceOf = (p: typeof parsed[number]) => (p.meters && p.sec) ? p.sec / (p.meters / 1000) : null
+  const paceSecs = parsed.map(paceOf).filter((v): v is number => v != null)
+  const fastestPace = paceSecs.length ? Math.min(...paceSecs) : null
+  // Same 40% threshold as before: a recovery jog/walk reads dramatically
+  // slower than the fastest real lap in the session.
+  const isRest = (p: typeof parsed[number]) => {
+    const pace = paceOf(p)
+    return fastestPace != null && pace != null && pace > fastestPace * 1.4
+  }
+
+  const results: (MatchedLap | null)[] = []
+  let li = 0
+  for (const target of expectedMeters) {
+    while (li < parsed.length && isRest(parsed[li])) li++
+    if (li >= parsed.length) { results.push(null); continue }
+
+    if (!target) {
+      // Duration-based rep — no expected distance to match against, so
+      // just take the next lap as-is (previous 1:1 behavior).
+      const p = parsed[li]
+      results.push(p.meters && p.sec ? { pace: secToPace(paceOf(p)), heartRate: p.heartRate } : null)
+      li++
+      continue
+    }
+
+    let accMeters = 0, accSec = 0, hrWeighted = 0, hrWeight = 0, used = 0
+    while (li < parsed.length) {
+      const p = parsed[li]
+      if (isRest(p)) break // reached recovery — this rep's laps are done
+      if (p.meters == null || p.sec == null) { li++; continue }
+      accMeters += p.meters
+      accSec += p.sec
+      if (p.heartRate != null) { hrWeighted += p.heartRate * p.sec; hrWeight += p.sec }
+      used++
+      li++
+      if (accMeters >= target * 0.9) break
+    }
+    results.push(used > 0
+      ? { pace: secToPace(accSec / (accMeters / 1000)), heartRate: hrWeight > 0 ? Math.round(hrWeighted / hrWeight) : null }
+      : null)
+  }
+  return results
 }
 
 export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, scheduledDate, workout }: WorkoutLogFormProps) {
@@ -267,19 +316,21 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
       .catch(err => { console.error(err); setTargetOverride(null) })
   }, [assignedWorkoutId, workout?.targetThresholdLevel])
 
-  // Pre-fill (still editable) pace/HR per rep from matched Strava laps, by
-  // order — lap N is assumed to correspond to rep N (the athlete lapping
-  // their watch each rep), after filterWorkLaps drops any rest/recovery
-  // laps so a slow recovery jog doesn't land on a work rep. Not
-  // distance/time-verified, just a default the athlete can correct. Uses
-  // the functional setSplitLogs form so it's safe regardless of whether
-  // this runs before or after the sets-seeding effect.
+  // Pre-fill (still editable) pace/HR per rep from matched Strava laps —
+  // matchLapsToReps combines consecutive auto-laps by distance+time (e.g. a
+  // 1.6km rep recorded as two 1km auto-laps) and drops rest/recovery laps,
+  // so a rep's pace comes from its own combined data instead of whichever
+  // lap happened to land at that index. Not further verified beyond that;
+  // just a default the athlete can correct. Uses the functional
+  // setSplitLogs form so it's safe regardless of whether this runs before
+  // or after the sets-seeding effect.
   useEffect(() => {
     if (!stravaSource?.splitLogs?.length) return
     setSplitLogs(prev => {
-      const workLaps = filterWorkLaps(stravaSource.splitLogs, prev.length)
+      const expectedMeters = prev.map(s => parseRepMeters(s.distance))
+      const matched = matchLapsToReps(stravaSource.splitLogs, expectedMeters)
       return prev.map((s, i) => {
-        const lap = workLaps[i]
+        const lap = matched[i]
         if (!lap) return s
         return {
           ...s,
