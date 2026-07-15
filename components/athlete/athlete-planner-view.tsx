@@ -800,8 +800,22 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               })
 
               if (candidates.length > 0) {
-                // Prefer a same-session match; otherwise take the first candidate
-                const match = (activitySession && candidates.find(aw => aw.data().session === activitySession)) || candidates[0]
+                // Prefer a same-session (am/pm) match. When that's not
+                // conclusive — no startTime on the activity, or the coach
+                // never tagged a session on either workout — fall back to
+                // whichever candidate's planned distance is closest to this
+                // activity's actual distance, instead of an arbitrary first
+                // candidate from the query's unordered result.
+                const bySession = activitySession ? candidates.find(aw => aw.data().session === activitySession) : undefined
+                const byDistance = !bySession && candidates.length > 1
+                  ? candidates.reduce<{ aw: typeof candidates[number]; diff: number } | null>((best, aw) => {
+                      const plannedKm = aw.data().workout?.distance
+                      if (plannedKm == null) return best
+                      const diff = Math.abs(plannedKm - activity.distanceKm)
+                      return (!best || diff < best.diff) ? { aw, diff } : best
+                    }, null)?.aw
+                  : undefined
+                const match = bySession || byDistance || candidates[0]
                 const wType = match.data().workout?.type || ''
                 const isStrengthW = ['strength', 'cross_training'].includes(wType)
                 const plannedDist = match.data().workout?.distance ?? 0
