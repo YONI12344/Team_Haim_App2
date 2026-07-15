@@ -23,6 +23,7 @@ import {
   collection,
   doc,
   getDoc,
+  getDocs,
   serverTimestamp,
   updateDoc,
 } from 'firebase/firestore'
@@ -79,9 +80,29 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
   const [targetThresholdLevel, setTargetThresholdLevel] = useState<'T1' | 'T2' | 'T3' | ''>('')
   const [targetMetrics, setTargetMetrics] = useState<Set<'pace' | 'hr' | 'lactate'>>(new Set(['pace', 'hr', 'lactate']))
   const [thresholdDistance, setThresholdDistance] = useState<number | ''>('')
+  const [comparisonGroup, setComparisonGroup] = useState('')
+  const [existingGroups, setExistingGroups] = useState<string[]>([])
   const [sets, setSets] = useState<Partial<WorkoutSet>[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [loading, setLoading] = useState(!!workoutId)
+
+  // Existing comparisonGroup names across every workout template, so the
+  // coach can reuse "Fartlek A" exactly (autocomplete) instead of retyping
+  // it slightly differently each time and accidentally splitting the group.
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'workouts'))
+        const names = new Set<string>()
+        snap.docs.forEach(d => {
+          const g = (d.data() as Workout).comparisonGroup
+          if (g) names.add(g)
+        })
+        setExistingGroups(Array.from(names).sort())
+      } catch (err) { console.error('Error loading comparison groups:', err) }
+    }
+    load()
+  }, [])
 
   // Load existing workout when editing
   useEffect(() => {
@@ -103,6 +124,7 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
           setTargetThresholdLevel(data.targetThresholdLevel || '')
           setTargetMetrics(new Set(data.targetMetrics && data.targetMetrics.length ? data.targetMetrics : ['pace', 'hr', 'lactate']))
           setThresholdDistance(data.thresholdDistance || '')
+          setComparisonGroup(data.comparisonGroup || '')
           setSets(Array.isArray(data.sets) ? data.sets.map((s: any) => ({
             ...s,
             // Migrate the old ambiguous "rest" field: it was only ever shown
@@ -204,6 +226,7 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
         targetThresholdLevel: type === 'threshold' && targetThresholdLevel ? targetThresholdLevel : null,
         targetMetrics: type === 'threshold' && targetThresholdLevel ? Array.from(targetMetrics) : null,
         thresholdDistance: type === 'threshold' && thresholdDistance ? Number(thresholdDistance) : null,
+        comparisonGroup: comparisonGroup.trim() || null,
         sets: (sets as any[]).map((s, i) => ({
           id: s.id || `set-${i}`,
           reps: s.reps || 1,
@@ -418,6 +441,22 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
                 )}
               </div>
             )}
+
+            <div className="space-y-1.5">
+              <Label htmlFor="comparisonGroup" className="text-xs">{t.labComparisonGroupLabel}</Label>
+              <Input
+                id="comparisonGroup"
+                dir="auto"
+                list="comparison-group-options"
+                placeholder={t.labComparisonGroupPh}
+                value={comparisonGroup}
+                onChange={(e) => setComparisonGroup(e.target.value)}
+              />
+              <datalist id="comparison-group-options">
+                {existingGroups.map(g => <option key={g} value={g} />)}
+              </datalist>
+              <p className="text-[11px] text-muted-foreground">{t.labComparisonGroupHint}</p>
+            </div>
           </CardContent>
         </Card>
 

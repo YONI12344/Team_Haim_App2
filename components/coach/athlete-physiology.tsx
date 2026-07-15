@@ -17,6 +17,7 @@ import {
   paceToSec, secToPace,
 } from '@/lib/physiology'
 import { LactateWorkoutGallery } from '@/components/coach/lactate-workout-gallery'
+import { WorkoutComparisonGallery } from '@/components/coach/workout-comparison-gallery'
 
 interface LactateTestDoc {
   id: string
@@ -356,6 +357,10 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
       {/* ── Workout gallery: every workout type + the real baseline test,
           each as its own graph, so they can all be scanned/compared at once ── */}
       <LactateWorkoutGallery athleteId={athleteId} />
+
+      {/* ── Workout trends: coach-tagged comparison groups (any workout
+          type, no lactate needed) — pace/HR over calendar time ── */}
+      <WorkoutComparisonGallery athleteId={athleteId} />
 
       {/* ── Derived training paces ── */}
       {bands && (

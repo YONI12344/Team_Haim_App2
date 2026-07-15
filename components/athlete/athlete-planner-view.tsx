@@ -830,7 +830,10 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
 
                 if (shouldComplete) {
                   await updateDoc(doc(db, 'assignedWorkouts', match.id), { status: 'completed', completedAt: serverTimestamp() })
-                  await updateDoc(logRef, { assignedWorkoutId: match.id })
+                  // Denormalize the matched workout's comparisonGroup so this
+                  // Strava-synced log also pools into the Lab's workout-trend
+                  // comparison, not just logs entered through the log form.
+                  await updateDoc(logRef, { assignedWorkoutId: match.id, comparisonGroup: match.data().workout?.comparisonGroup || null })
                   setAssignedWorkouts(prev => prev.map(w => w.id === match.id ? { ...w, status: 'completed' } : w))
                 }
               }

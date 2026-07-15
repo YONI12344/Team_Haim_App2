@@ -844,6 +844,21 @@ export interface Translations {
   labToastPacesUpdated: string
   labToastUpdateFailed: string
   labConfirmDeleteTest: string
+  labComparisonGroupLabel: string
+  labComparisonGroupPh: string
+  labComparisonGroupHint: string
+  labWorkoutTrends: string
+  labWorkoutTrendsHint: string
+  labNoTrendGroups: string
+  labNoTrendGroupsHint: string
+  labSessionsCount: string
+  labTrendPaceChart: string
+  labTrendHrChart: string
+  labTrendTableDate: string
+  labTrendTableDistance: string
+  labTrendTablePace: string
+  labTrendTableHr: string
+  labTrendTableEffort: string
 }
 
 const translations: Record<Language, Translations> = {
@@ -1640,6 +1655,21 @@ const translations: Record<Language, Translations> = {
     labToastPacesUpdated: "Athlete's paces updated ✓",
     labToastUpdateFailed: 'Update failed',
     labConfirmDeleteTest: 'Delete this test?',
+    labComparisonGroupLabel: 'Comparison group (optional)',
+    labComparisonGroupPh: 'e.g. Fartlek A',
+    labComparisonGroupHint: 'Give repeatable workouts (any type) the same name and every session you log will be compared together in the Lab — pace & HR over time.',
+    labWorkoutTrends: 'Workout trends',
+    labWorkoutTrendsHint: 'Pace & HR over time, for workouts tagged with the same comparison group',
+    labNoTrendGroups: 'No comparison groups yet',
+    labNoTrendGroupsHint: 'Tag a workout with a comparison group when building it, and its logged sessions will show up here.',
+    labSessionsCount: 'sessions',
+    labTrendPaceChart: 'Pace over time',
+    labTrendHrChart: 'Heart rate over time',
+    labTrendTableDate: 'Date',
+    labTrendTableDistance: 'Distance',
+    labTrendTablePace: 'Pace',
+    labTrendTableHr: 'HR',
+    labTrendTableEffort: 'Effort',
   },
   he: {
     teamHaim: 'Team Haim',
@@ -2429,6 +2459,21 @@ const translations: Record<Language, Translations> = {
     labToastPacesUpdated: 'הטמפואים עודכנו אצל הספורטאי ✓',
     labToastUpdateFailed: 'עדכון נכשל',
     labConfirmDeleteTest: 'למחוק את הבדיקה?',
+    labComparisonGroupLabel: 'קבוצת השוואה (אופציונלי)',
+    labComparisonGroupPh: 'לדוגמה: פרטלק א׳',
+    labComparisonGroupHint: 'תן לאימונים חוזרים (מכל סוג) אותו שם, וכל אימון שתירשם יושווה יחד במעבדה — קצב ודופק לאורך זמן.',
+    labWorkoutTrends: 'מגמות אימונים',
+    labWorkoutTrendsHint: 'קצב ודופק לאורך זמן, לאימונים המתויגים באותה קבוצת השוואה',
+    labNoTrendGroups: 'אין עדיין קבוצות השוואה',
+    labNoTrendGroupsHint: 'תייג אימון בקבוצת השוואה בעת בנייתו, והרישומים שלו יופיעו כאן.',
+    labSessionsCount: 'אימונים',
+    labTrendPaceChart: 'קצב לאורך זמן',
+    labTrendHrChart: 'דופק לאורך זמן',
+    labTrendTableDate: 'תאריך',
+    labTrendTableDistance: 'מרחק',
+    labTrendTablePace: 'קצב',
+    labTrendTableHr: 'דופק',
+    labTrendTableEffort: 'מאמץ',
   },
 }
 

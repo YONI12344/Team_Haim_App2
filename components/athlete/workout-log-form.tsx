@@ -314,6 +314,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
         splitLogs: finalSplitLogs,
         workoutTitle: workout?.title || null,
         thresholdDistance: inferThresholdDistance(workout) ?? null,
+        comparisonGroup: workout?.comparisonGroup || null,
         hasLactate,
       }
       if (isUpdate) {

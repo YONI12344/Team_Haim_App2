@@ -167,6 +167,12 @@ export interface Workout {
   // threshold workout at this same distance instead of only ever
   // comparing to another instance of the exact same workout template.
   thresholdDistance?: number
+  // Coach-assigned label identifying this workout as one instance of a
+  // repeatable series (e.g. "Fartlek A") — any workout type, not just
+  // threshold. Every log of a workout sharing this same label pools into
+  // one pace/HR-over-time comparison in the Lab, independent of the
+  // lactate-specific grouping above.
+  comparisonGroup?: string
   createdBy: string
   createdAt: Date
   updatedAt: Date
@@ -342,6 +348,11 @@ export interface WorkoutLog {
   // be grouped by rep distance (e.g. every 400m threshold session) instead
   // of only by the exact workoutId, without an extra read per log.
   thresholdDistance?: number
+  // Denormalized from the workout template's comparisonGroup — lets ANY
+  // workout type (not just threshold) be pooled and compared session-over
+  // -session in the Lab's workout-comparison graph (pace/HR over time),
+  // without an extra read per log.
+  comparisonGroup?: string
   // true when any splitLogs entry has a lactate reading — lets that same
   // view query logs cheaply instead of fetching everything.
   hasLactate?: boolean
