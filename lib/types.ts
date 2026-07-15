@@ -379,10 +379,13 @@ export interface SplitLog {
   pace?: string
   notes?: string
   /** Heart rate for this rep — manually entered, or pre-filled (editable)
-   *  from a matched Strava lap. */
-  avgHr?: number
-  /** Optional blood-lactate reading (mmol/L) the athlete adds for this rep. */
-  lactate?: number
+   *  from a matched Strava lap. `null` (rather than omitted) once saved,
+   *  since Firestore rejects a literal `undefined` field. */
+  avgHr?: number | null
+  /** Optional blood-lactate reading (mmol/L) the athlete adds for this rep.
+   *  `null` (rather than omitted) once saved, since Firestore rejects a
+   *  literal `undefined` field. */
+  lactate?: number | null
 }
 
 /** Map a legacy string effort label to its numeric (1–10) equivalent. */

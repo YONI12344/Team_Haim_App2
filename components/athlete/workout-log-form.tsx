@@ -29,7 +29,7 @@ import { useAuth } from '@/contexts/auth-context'
 import { getCoachInfo } from '@/lib/coach'
 import { useLatestStepTest } from '@/hooks/useLatestStepTest'
 import { useWorkoutLactateGroups, latestSessionSteps, groupKeyFor, inferThresholdDistance } from '@/hooks/useWorkoutLactateGroups'
-import { personalTargetRangeForLevel, personalTargetRangeWithBaseline, formatTargetRange } from '@/lib/physiology'
+import { personalTargetRangeForLevel, personalTargetRangeWithBaseline, formatTargetRange, paceToSec } from '@/lib/physiology'
 
 interface WorkoutLogFormProps {
   workoutId: string
@@ -37,6 +37,39 @@ interface WorkoutLogFormProps {
   athleteId: string
   scheduledDate: string
   workout?: Workout
+}
+
+/**
+ * Some watches (Garmin/Coros interval mode synced via Strava) log a
+ * separate lap for every recovery segment in addition to each work rep, so
+ * an interval session's real lap count can be much higher than the
+ * workout's own rep count — e.g. 5 reps but 9 laps (work/rest/work/rest/…).
+ * Matching laps to reps by raw index then misaligns the moment a rest lap
+ * lands where a work rep is expected (a rest lap's pace is drastically
+ * slower, since it's jogging/walking recovery, not running).
+ *
+ * Filters down to just the laps that look like actual work efforts —
+ * anything much slower than the fastest lap is treated as a rest/recovery
+ * lap and dropped — so what's left lines up with the workout's reps in
+ * order. A no-op when there are already ≤ expectedCount laps (nothing to
+ * filter, most sessions recorded with one lap per rep).
+ */
+function filterWorkLaps<T extends { pace?: string }>(laps: T[], expectedCount: number): T[] {
+  if (laps.length <= expectedCount) return laps
+  const paced = laps
+    .map(l => ({ lap: l, sec: paceToSec(l.pace) }))
+    .filter((x): x is { lap: T; sec: number } => x.sec != null)
+  if (paced.length === 0) return laps.slice(0, expectedCount)
+  const fastestSec = Math.min(...paced.map(x => x.sec))
+  // A rest/recovery lap is dramatically slower than the fastest work lap —
+  // 40% slower already comfortably separates "recovery jog" from "hard rep"
+  // paces, without risking cutting a genuinely slower-but-real rep late in
+  // a fatiguing session.
+  const workLaps = laps.filter(l => {
+    const sec = paceToSec(l.pace)
+    return sec != null && sec <= fastestSec * 1.4
+  })
+  return workLaps.length > 0 ? workLaps : laps.slice(0, expectedCount)
 }
 
 export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, scheduledDate, workout }: WorkoutLogFormProps) {
@@ -236,20 +269,25 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
 
   // Pre-fill (still editable) pace/HR per rep from matched Strava laps, by
   // order — lap N is assumed to correspond to rep N (the athlete lapping
-  // their watch each rep). Not distance/time-verified, just a default the
-  // athlete can correct. Uses the functional setSplitLogs form so it's safe
-  // regardless of whether this runs before or after the sets-seeding effect.
+  // their watch each rep), after filterWorkLaps drops any rest/recovery
+  // laps so a slow recovery jog doesn't land on a work rep. Not
+  // distance/time-verified, just a default the athlete can correct. Uses
+  // the functional setSplitLogs form so it's safe regardless of whether
+  // this runs before or after the sets-seeding effect.
   useEffect(() => {
     if (!stravaSource?.splitLogs?.length) return
-    setSplitLogs(prev => prev.map((s, i) => {
-      const lap = stravaSource.splitLogs[i]
-      if (!lap) return s
-      return {
-        ...s,
-        pace: s.pace || lap.pace || '',
-        avgHr: s.avgHr || lap.heartRate || undefined,
-      }
-    }))
+    setSplitLogs(prev => {
+      const workLaps = filterWorkLaps(stravaSource.splitLogs, prev.length)
+      return prev.map((s, i) => {
+        const lap = workLaps[i]
+        if (!lap) return s
+        return {
+          ...s,
+          pace: s.pace || lap.pace || '',
+          avgHr: s.avgHr || lap.heartRate || undefined,
+        }
+      })
+    })
   }, [stravaSource])
 
   const updateSplit = useCallback((index: number, field: keyof SplitLog, value: string) => {
@@ -276,6 +314,17 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
     setSaving(true)
     const isUpdate = !!existingLog?.id
     try {
+      // The `workout` prop is a snapshot embedded in the assignedWorkouts
+      // doc at assignment time — if the coach tags a comparisonGroup onto
+      // the template AFTER a session was already assigned, that snapshot
+      // won't have it. Re-fetch the live template so the group tag always
+      // applies retroactively instead of only to newly-assigned sessions.
+      let liveComparisonGroup = workout?.comparisonGroup || null
+      try {
+        const wSnap = await getDoc(doc(db, 'workouts', workoutId))
+        if (wSnap.exists()) liveComparisonGroup = (wSnap.data() as Workout).comparisonGroup || null
+      } catch (e) { console.error('Error fetching live workout for comparisonGroup:', e) }
+
       // Apply the "which reps did you test" answers onto the matching
       // splitLogs entries (1-based rep number → array index) instead of a
       // lactate box sitting on every single rep.
@@ -295,8 +344,11 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
         .filter(s => s.time || s.pace || s.notes || s.avgHr || s.lactate)
         .map(s => ({
           ...s,
-          avgHr: s.avgHr ? Number(s.avgHr) : undefined,
-          lactate: s.lactate ? Number(s.lactate) : undefined,
+          // Firestore's updateDoc/addDoc reject a literal `undefined` field
+          // anywhere, including nested inside an array — must be `null`
+          // (or the key omitted) for a rep with no HR/lactate reading.
+          avgHr: s.avgHr ? Number(s.avgHr) : null,
+          lactate: s.lactate ? Number(s.lactate) : null,
         }))
       // Denormalized so the Lab's per-workout progress view
       // (components/coach/athlete-workout-progress.tsx) can group/label
@@ -314,7 +366,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
         splitLogs: finalSplitLogs,
         workoutTitle: workout?.title || null,
         thresholdDistance: inferThresholdDistance(workout) ?? null,
-        comparisonGroup: workout?.comparisonGroup || null,
+        comparisonGroup: liveComparisonGroup,
         hasLactate,
       }
       if (isUpdate) {
