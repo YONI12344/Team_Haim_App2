@@ -859,6 +859,7 @@ export interface Translations {
   labTrendTablePace: string
   labTrendTableHr: string
   labTrendTableEffort: string
+  labNoLactateYetTrend: string
 }
 
 const translations: Record<Language, Translations> = {
@@ -1670,6 +1671,7 @@ const translations: Record<Language, Translations> = {
     labTrendTablePace: 'Pace',
     labTrendTableHr: 'HR',
     labTrendTableEffort: 'Effort',
+    labNoLactateYetTrend: 'Not tested yet — showing pace/HR trend instead',
   },
   he: {
     teamHaim: 'Team Haim',
@@ -2474,6 +2476,7 @@ const translations: Record<Language, Translations> = {
     labTrendTablePace: 'קצב',
     labTrendTableHr: 'דופק',
     labTrendTableEffort: 'מאמץ',
+    labNoLactateYetTrend: 'עדיין לא נבדק לקטט — מוצגת מגמת קצב/דופק',
   },
 }
 

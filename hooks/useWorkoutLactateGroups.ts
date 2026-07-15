@@ -36,6 +36,10 @@ export interface WorkoutLactateLog {
   date: string
   splitLogs?: WorkoutRepEntry[]
   comment?: string
+  /** True when any rep of this session has a lactate reading. A threshold
+   *  workout logged without testing still belongs in this group (so it's
+   *  comparable session-over-session) but has this false. */
+  hasLactate?: boolean
 }
 
 export interface WorkoutLactateGroup {
@@ -94,8 +98,13 @@ export function buildSessionCurves(group: WorkoutLactateGroup): CurveInput[] {
       label: format(new Date(log.date), 'd/M/yy'),
       color: SESSION_COLORS[i % SESSION_COLORS.length],
       sourceType: 'workout' as const,
+      // Requires an actual lactate reading per rep — this feeds the
+      // pace/HR-vs-LACTATE chart specifically, so a session logged without
+      // any testing (pace/HR only) has nothing to plot here. It still
+      // belongs in the group (see hasLactate above) for the time-based
+      // pace/HR trend shown instead when a group has no lactate at all.
       points: (log.splitLogs || [])
-        .filter(r => r.lactate || r.avgHr || r.pace)
+        .filter(r => r.lactate)
         .map(r => ({ pace: r.pace ?? null, hr: r.avgHr ?? null, lactate: r.lactate ?? 0, label: format(new Date(log.date), 'd/M') })),
     }))
     .filter(c => c.points.length > 0)
@@ -112,7 +121,13 @@ export function buildSessionCurves(group: WorkoutLactateGroup): CurveInput[] {
 export function latestSessionSteps(group: WorkoutLactateGroup | undefined, excludeLogId?: string): LactateStep[] {
   if (!group) return []
   const candidates = group.logs.filter(l => l.id !== excludeLogId)
-  const last = candidates[candidates.length - 1]
+  // Prefer the most recent session that actually has lactate data — now
+  // that untested sessions of the same workout are also in this group (see
+  // hasLactate above), the truly latest log might have none, which would
+  // silently lose a still-relevant prior tested session as the reference.
+  // Falls back to the true latest (untested) session only if none were ever tested.
+  const withLactate = candidates.filter(l => (l.splitLogs || []).some(r => r.lactate))
+  const last = withLactate[withLactate.length - 1] ?? candidates[candidates.length - 1]
   if (!last) return []
   return (last.splitLogs || []).map(r => ({ pace: r.pace ?? '', hr: r.avgHr ?? null, lactate: r.lactate ?? 0 }))
 }
@@ -159,34 +174,45 @@ export function useWorkoutLactateGroups(athleteId: string) {
     const load = async () => {
       setLoading(true)
       try {
+        // No hasLactate filter — a threshold workout logged WITHOUT testing
+        // (pace/HR only) still belongs in this gallery so it's comparable
+        // session-over-session; it just has nothing to plot on the
+        // pace/HR-vs-lactate axis (see buildSessionCurves), and shows a
+        // pace/HR-over-time trend instead (see lactate-workout-gallery.tsx).
         const snap = await getDocs(query(
           collection(db, 'logs'),
           where('athleteId', '==', athleteId),
-          where('hasLactate', '==', true),
         ))
-        const docs = snap.docs
-          .map(d => ({ id: d.id, ...(d.data() as Omit<WorkoutLactateLog, 'id'>) }))
-          .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
-        setLogs(docs)
+        const raw = snap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<WorkoutLactateLog, 'id'>) }))
 
         // Logs saved before a workout was tagged with thresholdDistance (or
         // before that field existed) don't carry it — fetch each distinct
-        // workout template once and infer the distance from its rep
-        // structure, so old sessions still pool with newer ones at the same
-        // distance instead of sitting alone in their own card forever.
-        const missingIds = Array.from(new Set(docs.filter(d => !d.thresholdDistance).map(d => d.workoutId)))
+        // workout template once to infer the distance from its rep
+        // structure (so old sessions still pool with newer ones at the same
+        // distance) AND to confirm the workout is actually type 'threshold'
+        // (needed to decide whether an untested, undistanced log belongs in
+        // this gallery at all — everything else, e.g. an easy run, doesn't).
+        const missingIds = Array.from(new Set(raw.filter(d => !d.thresholdDistance).map(d => d.workoutId)))
+        const inferredMap = new Map<string, number>()
+        const thresholdTypeIds = new Set<string>()
         if (missingIds.length > 0) {
           const fetched = await Promise.all(
             missingIds.map(id => getDoc(doc(db, 'workouts', id)).catch(() => null))
           )
-          const map = new Map<string, number>()
           fetched.forEach((wSnap, i) => {
             if (!wSnap?.exists()) return
-            const dist = inferThresholdDistance(wSnap.data() as DistanceSource)
-            if (dist) map.set(missingIds[i], dist)
+            const data = wSnap.data() as DistanceSource
+            const dist = inferThresholdDistance(data)
+            if (dist) inferredMap.set(missingIds[i], dist)
+            if (data.type === 'threshold') thresholdTypeIds.add(missingIds[i])
           })
-          setInferredDistance(map)
+          setInferredDistance(inferredMap)
         }
+
+        const docs = raw
+          .filter(d => d.hasLactate || d.thresholdDistance || inferredMap.has(d.workoutId) || thresholdTypeIds.has(d.workoutId))
+          .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+        setLogs(docs)
       } catch (e) { console.error(e) }
       finally { setLoading(false) }
     }

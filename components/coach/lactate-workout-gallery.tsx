@@ -17,10 +17,24 @@ import { collection, getDocs, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { cn } from '@/lib/utils'
 import { type LactateStep } from '@/lib/physiology'
-import { useWorkoutLactateGroups, buildSessionCurves, currentWorkoutThresholds } from '@/hooks/useWorkoutLactateGroups'
+import { useWorkoutLactateGroups, buildSessionCurves, currentWorkoutThresholds, averageRepMetrics, type WorkoutLactateGroup } from '@/hooks/useWorkoutLactateGroups'
 import { LactateMultiCurveChart, curveThresholds, paceDelta, type CurveInput, type AxisMode } from '@/components/coach/lactate-multi-curve-chart'
-import { formatTargetRange } from '@/lib/physiology'
+import { WorkoutComparisonChart } from '@/components/coach/workout-comparison-chart'
+import { type ComparisonPoint } from '@/hooks/useWorkoutComparisonGroups'
+import { formatTargetRange, paceToSec } from '@/lib/physiology'
 import { useLanguage } from '@/contexts/language-context'
+
+/** Per-session pace/HR trend built from the group's raw logs (not the
+ *  lactate curves) — used when a workout has been logged without any
+ *  lactate testing at all, so there's nothing to plot on the pace/HR-vs
+ *  -lactate axis, but pace/HR-over-time is still meaningful. */
+function toTrendPoints(group: WorkoutLactateGroup): ComparisonPoint[] {
+  return group.logs.map(log => {
+    const { avgHr, avgPace } = averageRepMetrics(log.splitLogs || [])
+    const paceSec = avgPace ? paceToSec(avgPace) : null
+    return { logId: log.id, date: log.date, label: log.date, paceSec, pace: avgPace, hr: avgHr }
+  })
+}
 
 const CURVE_COLOR_BASELINE = '#0a1628'
 
@@ -79,17 +93,25 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
     points: baselineSteps.map(s => ({ pace: s.pace, hr: s.hr, lactate: s.lactate })),
   } : null
 
-  const cards: { id: string; title: string; curves: CurveInput[]; thresholds?: ReturnType<typeof currentWorkoutThresholds>; trend?: ReturnType<typeof paceDelta>; sessionCount?: number }[] = [
+  const cards: { id: string; title: string; curves: CurveInput[]; thresholds?: ReturnType<typeof currentWorkoutThresholds>; trend?: ReturnType<typeof paceDelta>; sessionCount?: number; trendPoints?: ComparisonPoint[] }[] = [
     ...(baselineCurve ? [{ id: 'baseline', title: t.labBaselineTest, curves: [baselineCurve] }] : []),
     ...workoutOptions.map(o => {
-      const curves = buildSessionCurves(grouped.get(o.id)!)
+      const group = grouped.get(o.id)!
+      const curves = buildSessionCurves(group)
       return {
         id: o.id,
         title: o.title,
         curves,
-        thresholds: currentWorkoutThresholds(grouped.get(o.id), baselineSteps),
+        thresholds: currentWorkoutThresholds(group, baselineSteps),
         trend: sessionTrend(curves),
-        sessionCount: curves.filter(c => c.sourceType === 'workout').length,
+        // Every logged session of this workout, tested or not — a group
+        // that's only ever been logged without lactate testing still has a
+        // real session count (used for the pace/HR trend chart below).
+        sessionCount: group.logs.length,
+        // No session in this group has ever had a lactate reading — nothing
+        // to plot on the pace/HR-vs-lactate axis, so build the pace/HR
+        // -over-time trend from the raw logs instead.
+        trendPoints: curves.length === 0 ? toTrendPoints(group) : undefined,
       }
     }),
   ]
@@ -135,7 +157,7 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
                     thresholds. Always shown (with a placeholder per level
                     when not yet computable) so it's clear this is "no data
                     yet at that level" rather than the feature being broken. */}
-                {card.id !== 'baseline' && (
+                {card.id !== 'baseline' && card.curves.length > 0 && (
                   <div className="grid grid-cols-3 gap-1.5 mt-2">
                     {(['T1', 'T2', 'T3'] as const).map(level => {
                       const r = card.thresholds?.[level] ?? null
@@ -153,9 +175,18 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
                     })}
                   </div>
                 )}
+                {card.id !== 'baseline' && card.curves.length === 0 && (
+                  <p className="text-[10px] text-muted-foreground mt-1.5">{t.labNoLactateYetTrend}</p>
+                )}
               </button>
 
-              {isOpen && (() => {
+              {isOpen && card.id !== 'baseline' && card.curves.length === 0 && (
+                <CardContent className="px-3 pb-3">
+                  <WorkoutComparisonChart points={card.trendPoints || []} />
+                </CardContent>
+              )}
+
+              {isOpen && (card.id === 'baseline' || card.curves.length > 0) && (() => {
                 // Default the baseline overlay ON when this workout has an
                 // estimated level (so the dashed projection that produced
                 // it is visible right away) — otherwise off until toggled.
