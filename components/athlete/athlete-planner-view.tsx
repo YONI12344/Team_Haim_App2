@@ -743,13 +743,15 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
         // candidate, and once that happened before the session-inference
         // fix existed, it would otherwise never get another chance to
         // re-match now that a better signal (session) is available.
-        const toMatch: { activity: any; logRef: any }[] = []
+        const toMatch: { activity: any; logRef: any; oldAssignedWorkoutId: string | null }[] = []
         for (const activity of data.activities) {
           const existing = await getDocs(query(collection(db, 'logs'), where('stravaActivityId', '==', activity.stravaActivityId), where('athleteId', '==', athleteId)))
           let logRef
+          let oldAssignedWorkoutId: string | null = null
           if (!existing.empty) {
             const existingDoc = existing.docs[0]
             if (existingDoc.data().assignedWorkoutId && (existingDoc.data().matchTier ?? 0) >= 3) continue
+            oldAssignedWorkoutId = existingDoc.data().assignedWorkoutId || null
             logRef = existingDoc.ref
           } else {
             logRef = await addDoc(collection(db, 'logs'), {
@@ -794,7 +796,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               } catch {}
             })()
           }
-          toMatch.push({ activity, logRef })
+          toMatch.push({ activity, logRef, oldAssignedWorkoutId })
         }
 
         // Smart auto-complete, grouped by date so same-day activities can
@@ -825,9 +827,9 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             // Phase 1 — each activity's OWN best match, independent of its
             // same-day siblings. tier: 3=explicit session tag, 2=rep-fit,
             // 1=distance closeness, 0=only candidate / no signal at all.
-            type Tentative = { activity: any; logRef: any; match: any; tier: number }
+            type Tentative = { activity: any; logRef: any; match: any; tier: number; oldAssignedWorkoutId: string | null }
             const tentative: Tentative[] = []
-            for (const { activity, logRef } of dayItems) {
+            for (const { activity, logRef, oldAssignedWorkoutId } of dayItems) {
               const candidates = awSnap.docs.filter(aw => {
                 if (aw.data().status === 'completed') return false
                 const wType = aw.data().workout?.type || ''
@@ -888,7 +890,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                 candidates: candidates.map(c => ({ id: c.id, title: c.data().workout?.title, session: c.data().session, plannedKm: c.data().workout?.distance })),
                 matchedTo: match.data().workout?.title, tier,
               })
-              tentative.push({ activity, logRef, match, tier })
+              tentative.push({ activity, logRef, match, tier, oldAssignedWorkoutId })
             }
 
             // Phase 2 — reconcile same-day activities that started close
@@ -946,6 +948,24 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               if (shouldComplete) {
                 await updateDoc(doc(db, 'assignedWorkouts', match.id), { status: 'completed', completedAt: serverTimestamp() })
                 setAssignedWorkouts(prev => prev.map(w => w.id === match.id ? { ...w, status: 'completed' } : w))
+              }
+            }
+
+            // A repaired log's match can move to a DIFFERENT workout than
+            // before (e.g. a fragment that was wrongly completing the
+            // evening workout now correctly points to morning instead) —
+            // if nothing today still points to whatever it used to be
+            // linked to, that workout's "completed" status is stale and
+            // must be reverted, or it stays wrongly marked done forever.
+            const oldIds = new Set(tentative.map(t => t.oldAssignedWorkoutId).filter((id): id is string => !!id))
+            const newIds = new Set(tentative.map(t => t.match.id))
+            for (const oldId of oldIds) {
+              if (newIds.has(oldId)) continue
+              const staleDoc = awSnap.docs.find(d => d.id === oldId)
+              if (staleDoc && staleDoc.data().status === 'completed') {
+                console.log('[strava-match] reverting stale completion', { workoutId: oldId, title: staleDoc.data().workout?.title })
+                await updateDoc(doc(db, 'assignedWorkouts', oldId), { status: 'scheduled', completedAt: null })
+                setAssignedWorkouts(prev => prev.map(w => w.id === oldId ? { ...w, status: 'scheduled' } : w))
               }
             }
           } catch (e) { console.error('Smart auto-complete failed:', e) }
