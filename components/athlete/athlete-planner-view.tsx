@@ -25,7 +25,7 @@ import { toast } from 'sonner'
 import { WorkoutLogForm } from '@/components/athlete/workout-log-form'
 import { personalTargetRangeForLevel, personalTargetRangeWithBaseline, formatTargetRange, paceToSec, secToPace } from '@/lib/physiology'
 import { useLatestStepTest } from '@/hooks/useLatestStepTest'
-import { useWorkoutLactateGroups, latestSessionSteps, groupKeyFor } from '@/hooks/useWorkoutLactateGroups'
+import { useWorkoutLactateGroups, latestSessionSteps, groupKeyFor, inferThresholdDistance } from '@/hooks/useWorkoutLactateGroups'
 import { expectedRepMetersForWorkout, scoreActivityFitForReps, buildRepDisplayRows } from '@/lib/strava-lap-matching'
 import { isCoachEmail } from '@/lib/constants'
 import { ManualLogCard } from '@/components/shared/manual-log-card'
@@ -1060,6 +1060,59 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               }
             }
 
+            // Lab backfill — a Strava-synced log's workoutId is only ever
+            // the synthetic `strava_<activityId>` placeholder set at
+            // creation (see the addDoc above), and it never gets
+            // thresholdDistance/hasLactate — so useWorkoutLactateGroups
+            // (the Lab) never sees ANY auto-synced threshold session at
+            // all, no matter how good its rep data is. For the MAIN event
+            // fragment of each matched workout that actually has a
+            // rep/interval structure — warmup/cooldown fragments are
+            // skipped on purpose, only the real effort belongs in the Lab
+            // — point workoutId at the real template, tag the threshold
+            // distance/title, and rebuild splitLogs as one row per REP
+            // (planned-distance pace + the rest after it) instead of the
+            // raw per-lap Strava data, exactly like a manually-saved
+            // session already gets from workout-log-form.tsx.
+            for (const matchId of new Set(tentative.map(t => t.match.id))) {
+              const group = tentative.filter(t => t.match.id === matchId)
+              const match = group[0].match
+              const workoutData = match.data().workout
+              const expectedMeters = expectedRepMetersForWorkout(workoutData)
+              if (expectedMeters.length === 0) continue // not a structured/threshold workout
+              const mainEntry = group.reduce((best, g) => (g.activity.distanceKm || 0) > (best.activity.distanceKm || 0) ? g : best)
+              const rows = buildRepDisplayRows(
+                (mainEntry.activity.splitLogs || []).map((s: any) => ({ distanceKm: s.distanceKm, time: s.time, heartRate: s.heartRate })),
+                expectedMeters,
+              )
+              const newSplitLogs: any[] = []
+              let lastRepEntry: any = null
+              for (const row of rows) {
+                if (row.kind === 'rep') {
+                  lastRepEntry = {
+                    setIndex: 0, repIndex: row.repIndex,
+                    distance: row.targetMeters ? `${row.targetMeters}m` : '',
+                    time: secToPace(row.elapsedSec),
+                    pace: row.pace,
+                    avgHr: row.heartRate ?? null,
+                    lactate: null,
+                    rest: '',
+                  }
+                  newSplitLogs.push(lastRepEntry)
+                } else if (lastRepEntry && !lastRepEntry.rest) {
+                  lastRepEntry.rest = row.time
+                }
+              }
+              if (newSplitLogs.length === 0) continue
+              await updateDoc(mainEntry.logRef, {
+                workoutId: match.data().workoutId,
+                workoutTitle: workoutData?.title || null,
+                thresholdDistance: inferThresholdDistance(workoutData) ?? null,
+                hasLactate: false,
+                splitLogs: newSplitLogs,
+              })
+            }
+
             // A repaired log's match can move to a DIFFERENT workout than
             // before (e.g. a fragment that was wrongly completing the
             // evening workout now correctly points to morning instead) —
@@ -1110,15 +1163,30 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
   // dropping it) and shown as one row per rep/rest instead of one row per
   // raw device lap. A continuous run (no rep structure) still shows the
   // raw per-lap splits as before.
+  //
+  // A log that's already been through the Lab backfill (handleStravaSync)
+  // or the manual rep-entry form (workout-log-form.tsx) stores splitLogs
+  // in the OPPOSITE shape already — one row per REP (with its own `pace`/
+  // `rest` already computed), not raw per-lap device data — so there's
+  // nothing left to re-group; it's told apart by having a `pace` but no
+  // `distanceKm` (which every raw Strava lap always carries).
   const SplitsTable = ({ splitLogs, matchedWorkout, referencePace }: { splitLogs: any[]; matchedWorkout?: AssignedWorkout; referencePace?: string }) => {
     const expectedMeters = expectedRepMetersForWorkout(matchedWorkout?.workout)
-    const displayRows = expectedMeters.length > 0
-      ? buildRepDisplayRows(splitLogs.map((s: any) => ({ distanceKm: s.distanceKm, time: s.time, heartRate: s.heartRate })), expectedMeters)
-      : null
+    const isRepShaped = splitLogs.length > 0 && splitLogs[0].distanceKm == null && !!splitLogs[0].pace
+    const hasRepStructure = expectedMeters.length > 0
 
-    let repCounter = 0
-    const rows = displayRows
-      ? displayRows.map(row => {
+    type Row = { label: string; time: string; pace: string; heartRate: number | string | null; targetLabel: string; isRest: boolean }
+    let rows: Row[]
+    if (hasRepStructure && isRepShaped) {
+      rows = []
+      splitLogs.forEach((s: any, i: number) => {
+        rows.push({ label: String(i + 1), time: s.time || '', pace: s.pace || '', heartRate: s.avgHr ?? null, targetLabel: s.distance || '—', isRest: false })
+        if (s.rest) rows.push({ label: t.restLapLabel, time: s.rest, pace: '', heartRate: null, targetLabel: '—', isRest: true })
+      })
+    } else if (hasRepStructure) {
+      let repCounter = 0
+      rows = buildRepDisplayRows(splitLogs.map((s: any) => ({ distanceKm: s.distanceKm, time: s.time, heartRate: s.heartRate })), expectedMeters)
+        .map(row => {
           if (row.kind === 'rest') {
             return { label: t.restLapLabel, time: row.time, pace: '', heartRate: row.heartRate, targetLabel: '—', isRest: true }
           }
@@ -1132,14 +1200,16 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             isRest: false,
           }
         })
-      : splitLogs.map((s: any, i: number) => ({
-          label: String(i + 1),
-          time: s.time,
-          pace: s.pace || '',
-          heartRate: s.heartRate || null,
-          targetLabel: (s.paceZone || s.notes?.replace('Zone ', '')) ? `Z${s.paceZone || s.notes?.replace('Zone ', '')}` : '—',
-          isRest: false,
-        }))
+    } else {
+      rows = splitLogs.map((s: any, i: number) => ({
+        label: String(i + 1),
+        time: s.time,
+        pace: s.pace || '',
+        heartRate: s.heartRate || null,
+        targetLabel: (s.paceZone || s.notes?.replace('Zone ', '')) ? `Z${s.paceZone || s.notes?.replace('Zone ', '')}` : '—',
+        isRest: false,
+      }))
+    }
 
     return (
       <div className="rounded-lg border border-border overflow-hidden">
@@ -1153,11 +1223,11 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
           </colgroup>
           <thead>
             <tr className="bg-[#0a1628]/5">
-              <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{displayRows ? '#' : 'km'}</th>
+              <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{hasRepStructure ? '#' : 'km'}</th>
               <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{t.timeInputLabel}</th>
               <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{t.tempoLabel}</th>
               <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{t.heartRateLabel}</th>
-              <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{displayRows ? t.targetDistanceLabel : 'Zone'}</th>
+              <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{hasRepStructure ? t.targetDistanceLabel : 'Zone'}</th>
             </tr>
           </thead>
           <tbody>
