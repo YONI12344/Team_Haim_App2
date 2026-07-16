@@ -90,8 +90,16 @@ export type DisplayRow =
  * "filler" laps (much shorter than the smallest rep distance in this
  * workout — a warmup stride, a GPS-blip fragment) are skipped entirely
  * (too short to be a real rep OR a meaningful rest). Real work laps are
- * then accumulated — summing their distance AND their time — until the
- * total reaches ~90% of that rep's expected distance. The device's own
+ * then accumulated — summing their distance AND their time — until a rest
+ * lap appears, the laps run out, or (once the total has reached ~90% of
+ * that rep's expected distance) taking the next lap would push the total
+ * clearly past the target (beyond ~110%), meaning that lap must be the
+ * start of the NEXT rep instead. Reaching ~90% alone is deliberately NOT
+ * enough to stop: athletes sometimes hit the lap button mid-rep on the
+ * track just to check a split, so one continuous rep can come back as 2-3
+ * consecutive real laps with no rest lap between them — all of those laps'
+ * time must count toward THIS rep, or its pace (computed against the full
+ * planned distance, see below) comes out impossibly fast. The device's own
  * per-lap distance is only trusted for THAT grouping decision, though —
  * the rep's actual pace is computed from the COMBINED time ÷ the rep's
  * PLANNED distance, not the device's summed distance. On a treadmill
@@ -170,12 +178,19 @@ export function buildRepDisplayRows(laps: RawLap[], expectedMeters: (number | nu
       if (isRest(p)) break // reached recovery — this rep's laps are done
       if (isFiller(p)) { li++; continue } // stride/fragment — skip, don't break
       if (p.meters == null || p.sec == null) { li++; continue }
+      // Once the accumulated distance has already reached ~90% of this
+      // rep's target, only keep consuming laps that still plausibly belong
+      // to it (athletes sometimes hit lap MID-rep just to check a split, so
+      // one rep can span several consecutive real laps with no rest lap
+      // between them). A lap that would push the total clearly past the
+      // target (beyond ~110%) can't be part of this rep anymore — it must
+      // be the start of the NEXT rep, so stop here without consuming it.
+      if (accMeters >= target * 0.9 && accMeters + p.meters > target * 1.1) break
       accMeters += p.meters
       accSec += p.sec
       if (p.heartRate != null) { hrWeighted += p.heartRate * p.sec; hrWeight += p.sec }
       used++
       li++
-      if (accMeters >= target * 0.9) break
     }
     if (used > 0) {
       rows.push({
