@@ -342,7 +342,22 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
       {!hideChart && (
       <div className="space-y-1 min-w-0">
         <p className="text-[10px] font-semibold text-muted-foreground text-center" dir={isRTL ? 'rtl' : 'ltr'}>{AXIS_CAPTION[axisMode]}</p>
-        <div className="w-full min-w-0 overflow-hidden" style={{ height: size === 'compact' ? 300 : 360 }} dir="ltr">
+        {/* Explicit axis titles, not just the caption sentence above — plain
+            HTML text (not recharts' <XAxis label={{...}}>/<YAxis label=.../>),
+            same reasoning as the tick renderers and axisRangeLabels below:
+            recharts' own label rendering was unreliable in this environment
+            for reasons never fully pinned down, so anything that MUST be
+            visible goes through plain text outside its SVG pipeline. */}
+        <div className="flex items-stretch gap-1 min-w-0" dir="ltr">
+          {axisMode !== 'dual' && (
+            <div className="flex items-center justify-center flex-shrink-0" style={{ width: 12 }}>
+              <span className="text-[9px] font-semibold text-muted-foreground whitespace-nowrap"
+                style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
+                {t.labAxisLactateTitle}
+              </span>
+            </div>
+          )}
+          <div className="w-full min-w-0 overflow-hidden" style={{ height: size === 'compact' ? 300 : 360 }}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart key={axisMode} data={axisMode !== 'dual' ? sharedRows : undefined} margin={{ top: 16, right: 24, left: 24, bottom: 28 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -428,6 +443,7 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
             })}
           </LineChart>
         </ResponsiveContainer>
+          </div>
         </div>
         {axisRangeLabels && (
           <div className="flex items-center justify-between px-2" dir="ltr">
@@ -435,6 +451,11 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
             <span className="text-[10px] text-muted-foreground">{axisRangeLabels.mid}</span>
             <span className="text-[11px] font-bold text-navy">{axisRangeLabels.right}</span>
           </div>
+        )}
+        {axisMode !== 'dual' && (
+          <p className="text-[9px] font-semibold text-muted-foreground text-center">
+            {axisMode === 'paceVsLactate' ? t.labAxisPaceTitle : t.labAxisHrTitle}
+          </p>
         )}
       </div>
       )}

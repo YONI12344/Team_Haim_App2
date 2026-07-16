@@ -49,6 +49,12 @@ export interface WorkoutLactateLog {
 export interface WorkoutLactateGroup {
   title: string
   logs: WorkoutLactateLog[]
+  /** The workout's own `type` (easy/tempo/threshold/interval/repetition/race) —
+   *  used to bucket the gallery into one folder per workout type. A
+   *  distance-pooled group (e.g. "אימוני סף 1000 מ׳") is always 'threshold'
+   *  by construction (see groupKeyFor/inferThresholdDistance); anything else
+   *  is looked up from its own workout template. */
+  type?: string
 }
 
 /** Average lactate/HR/pace across one log's reps — shared by every view
@@ -203,6 +209,7 @@ export function useWorkoutLactateGroups(athleteId: string) {
   const [loading, setLoading] = useState(true)
   const [logs, setLogs] = useState<WorkoutLactateLog[]>([])
   const [inferredDistance, setInferredDistance] = useState<Map<string, number>>(new Map())
+  const [workoutTypeById, setWorkoutTypeById] = useState<Map<string, string>>(new Map())
 
   useEffect(() => {
     const load = async () => {
@@ -219,28 +226,33 @@ export function useWorkoutLactateGroups(athleteId: string) {
         ))
         const raw = snap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<WorkoutLactateLog, 'id'>) }))
 
-        // Logs saved before a workout was tagged with thresholdDistance (or
-        // before that field existed) don't carry it — fetch each distinct
-        // workout template once to infer the distance from its rep
-        // structure (so old sessions still pool with newer ones at the same
-        // distance) AND to confirm the workout is actually type 'threshold'
-        // (needed to decide whether an untested, undistanced log belongs in
-        // this gallery at all — everything else, e.g. an easy run, doesn't).
-        const missingIds = Array.from(new Set(raw.filter(d => !d.thresholdDistance).map(d => d.workoutId)))
+        // Fetch every distinct workout template ONCE — needed to (a) infer
+        // thresholdDistance for an old log that predates that field, (b)
+        // confirm a distance-less log's workout is actually type
+        // 'threshold' (decides whether it belongs in this gallery at all),
+        // and (c) learn the workout's own `type` for the gallery's
+        // folder-by-type grouping below — a log can already have
+        // thresholdDistance denormalized onto it (skipping (a)/(b)) but
+        // still need (c), so this fetches ALL distinct workoutIds, not just
+        // the ones missing thresholdDistance.
+        const allWorkoutIds = Array.from(new Set(raw.map(d => d.workoutId)))
         const inferredMap = new Map<string, number>()
         const thresholdTypeIds = new Set<string>()
-        if (missingIds.length > 0) {
+        const typeMap = new Map<string, string>()
+        if (allWorkoutIds.length > 0) {
           const fetched = await Promise.all(
-            missingIds.map(id => getDoc(doc(db, 'workouts', id)).catch(() => null))
+            allWorkoutIds.map(id => getDoc(doc(db, 'workouts', id)).catch(() => null))
           )
           fetched.forEach((wSnap, i) => {
             if (!wSnap?.exists()) return
             const data = wSnap.data() as DistanceSource
             const dist = inferThresholdDistance(data)
-            if (dist) inferredMap.set(missingIds[i], dist)
-            if (data.type === 'threshold') thresholdTypeIds.add(missingIds[i])
+            if (dist) inferredMap.set(allWorkoutIds[i], dist)
+            if (data.type === 'threshold') thresholdTypeIds.add(allWorkoutIds[i])
+            if (data.type) typeMap.set(allWorkoutIds[i], data.type)
           })
           setInferredDistance(inferredMap)
+          setWorkoutTypeById(typeMap)
         }
 
         const docs = raw
@@ -263,15 +275,20 @@ export function useWorkoutLactateGroups(athleteId: string) {
       const dist = log.thresholdDistance || inferredDistance.get(log.workoutId)
       const key = dist ? `dist-${dist}` : log.workoutId
       const title = dist ? `אימוני סף ${dist} מ׳` : (log.workoutTitle || 'אימון')
-      if (!map.has(key)) map.set(key, { title, logs: [] })
+      // A distance-pooled group is always a real threshold workout by
+      // construction (groupKeyFor/inferThresholdDistance only pool by
+      // distance for type 'threshold', or an explicit thresholdDistance
+      // tag) — no template lookup needed for those.
+      const type = dist ? 'threshold' : workoutTypeById.get(log.workoutId)
+      if (!map.has(key)) map.set(key, { title, logs: [], type })
       map.get(key)!.logs.push(log)
     }
     return map
-  }, [logs, inferredDistance])
+  }, [logs, inferredDistance, workoutTypeById])
 
   const workoutOptions = useMemo(() =>
     Array.from(grouped.entries())
-      .map(([id, g]) => ({ id, title: g.title, lastDate: g.logs[g.logs.length - 1]?.date || '' }))
+      .map(([id, g]) => ({ id, title: g.title, type: g.type, lastDate: g.logs[g.logs.length - 1]?.date || '' }))
       .sort((a, b) => b.lastDate.localeCompare(a.lastDate)),
     [grouped])
 

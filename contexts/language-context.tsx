@@ -820,6 +820,16 @@ export interface Translations {
   labNoGraphsYet: string
   labNoGraphsHint: string
   labWorkoutComparison: string
+  labFolderThreshold: string
+  labFolderInterval: string
+  labFolderRepetition: string
+  labFolderTempo: string
+  labFolderEasy: string
+  labFolderRace: string
+  labFolderOther: string
+  labAxisPaceTitle: string
+  labAxisHrTitle: string
+  labAxisLactateTitle: string
   labBaselineTest: string
   labBaselineTestShort: string
   labFirstWorkoutNoComparison: string
@@ -1661,6 +1671,16 @@ const translations: Record<Language, Translations> = {
     labNoGraphsYet: 'No graphs to show yet',
     labNoGraphsHint: 'Once a lab test is added, or the athlete logs lactate during a threshold workout (in the field next to each rep), its graph will appear here automatically.',
     labWorkoutComparison: 'Workout comparison — all workout types',
+    labFolderThreshold: 'Threshold',
+    labFolderInterval: 'Intervals',
+    labFolderRepetition: 'Repetitions',
+    labFolderTempo: 'Tempo',
+    labFolderEasy: 'Easy',
+    labFolderRace: 'Race',
+    labFolderOther: 'Other',
+    labAxisPaceTitle: 'Pace (min/km)',
+    labAxisHrTitle: 'Heart rate (bpm)',
+    labAxisLactateTitle: 'Lactate (mmol/L)',
     labBaselineTest: 'Lab test (baseline)',
     labBaselineTestShort: 'Lab test',
     labFirstWorkoutNoComparison: 'First workout — no comparison yet',
@@ -2494,6 +2514,16 @@ const translations: Record<Language, Translations> = {
     labNoGraphsYet: 'עדיין אין גרפים להצגה',
     labNoGraphsHint: 'ברגע שתתווסף בדיקת מעבדה, או שהאתלט ידווח לקטט באימון (באימוני סף בלבד — בשדה ליד כל חזרה), הגרף שלו יופיע כאן אוטומטית.',
     labWorkoutComparison: 'השוואת אימונים — כל סוגי האימונים',
+    labFolderThreshold: 'סף',
+    labFolderInterval: 'אינטרוולים',
+    labFolderRepetition: 'חזרות',
+    labFolderTempo: 'טמפו',
+    labFolderEasy: 'קל',
+    labFolderRace: 'מרוץ',
+    labFolderOther: 'אחר',
+    labAxisPaceTitle: 'קצב (דק׳/ק"מ)',
+    labAxisHrTitle: 'דופק (bpm)',
+    labAxisLactateTitle: 'לקטט (mmol/L)',
     labBaselineTest: 'בדיקת מעבדה (בסיס)',
     labBaselineTestShort: 'בדיקת מעבדה',
     labFirstWorkoutNoComparison: 'אימון ראשון — אין עדיין השוואה',
