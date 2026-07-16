@@ -401,7 +401,20 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
     assignedWorkouts.find(w => w.id === selectedWorkoutId) || null
   , [assignedWorkouts, selectedWorkoutId])
 
-  const computeStravaMatch = useCallback((w: AssignedWorkout, dateStr: string) => {
+  /** A heuristic fallback for when there's no precise assignedWorkoutId
+   *  match (wLog) yet — sums ALL of the date's activity logs of the same
+   *  discipline and compares the total against THIS card's own target.
+   *  That's only sound on a day with exactly one workout: on a
+   *  multi-workout day it double-counts the same activities against every
+   *  card independently (e.g. today's total running distance clearing 70%
+   *  of BOTH a 9km and a 7km target at once), which is exactly what caused
+   *  both cards to show "done" with the same total distance even after
+   *  the real per-workout Strava matching was already correct. Multi-
+   *  workout days must rely solely on the precise wLog match instead —
+   *  nothing shown here beats guessing wrong.
+   */
+  const computeStravaMatch = useCallback((w: AssignedWorkout, dateStr: string, isMulti: boolean) => {
+    if (isMulti) return null
     try {
       const activityLogs = weekLogs.filter(l => l.date === dateStr && isActivityLog(l))
       if (activityLogs.length === 0) return null
@@ -1627,7 +1640,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
       || weekLogs.find(l => !isMulti && !l.assignedWorkoutId && l.date === dateStr && !!l.actualDistance && !isActivityLog(l))
     const wMsg = coachMessages.find(m => m.assignedWorkoutId === w.id)
     const stravaThisDay = weekLogs.find(l => l.date === dateStr && l.source === 'strava')
-    const stravaMatch = computeStravaMatch(w, dateStr)
+    const stravaMatch = computeStravaMatch(w, dateStr, isMulti)
     const isEffectivelyDone = wEff === 'completed' || stravaMatch?.status === 'completed'
     return (
       <div key={w.id} className="space-y-2">
