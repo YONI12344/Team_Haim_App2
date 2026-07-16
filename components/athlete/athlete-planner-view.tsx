@@ -129,6 +129,7 @@ interface WeekLog {
   stravaType?: string
   activityType?: string
   durationMin?: number
+  startTime?: string
 }
 
 function mapLogDoc(d: { id: string; data: () => any }): WeekLog {
@@ -152,6 +153,7 @@ function mapLogDoc(d: { id: string; data: () => any }): WeekLog {
     stravaType: v.stravaType,
     activityType: v.activityType,
     durationMin: v.durationMin,
+    startTime: v.startTime,
   }
 }
 
@@ -1607,6 +1609,328 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
     )
   }
 
+  // ── Consolidated multi-fragment session card ────────────────────────
+  // A single training block (warmup + main set + cooldown) can land as
+  // several separate Strava activities that all correctly share one
+  // assignedWorkoutId (see the same-session clustering in
+  // handleStravaSync) — the athlete should only see ONE box for it and
+  // give feedback ONCE, not once per fragment. The longest-distance
+  // fragment is the main event; its pace/HR/splits are what's shown.
+  const ConsolidatedStravaCard = ({ logs, dayWorkouts = [] }: { logs: WeekLog[]; dayWorkouts?: AssignedWorkout[] }) => {
+    const sortedByTime = [...logs].sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''))
+    const mainLog = logs.reduce((best, l) => (l.actualDistance || 0) > (best.actualDistance || 0) ? l : best, logs[0])
+    const kindInfo = getActivityInfo(mainLog)
+    const isManual = mainLog.source === 'manual'
+    const totalDistance = Math.round(logs.reduce((s, l) => s + (l.actualDistance || 0), 0) * 100) / 100
+    const totalDurationMin = logs.reduce((s, l) => s + (l.durationMin || 0), 0)
+    const durationDisplay = formatDurationMin(totalDurationMin, isRTL)
+    const isPending = logs.some(l => l.feedbackStatus === 'pending')
+    const [pendingEffort, setPendingEffort] = useState<number|null>(mainLog.effort ?? null)
+    const [pendingComment, setPendingComment] = useState(mainLog.comment || '')
+    const [submitting, setSubmitting] = useState(false)
+    const [showForm, setShowForm] = useState(isPending)
+    const [showDetails, setShowDetails] = useState(false)
+    const [showSplits, setShowSplits] = useState(false)
+    const [reassigning, setReassigning] = useState(false)
+
+    const handleSubmit = async () => {
+      if (!pendingEffort) { toast.error(t.selectEffortError); return }
+      setSubmitting(true)
+      try {
+        const { serverTimestamp } = await import('firebase/firestore')
+        await Promise.all(logs.map(l => updateDoc(doc(db, 'logs', l.id), {
+          effort: pendingEffort, comment: pendingComment, feedbackStatus: 'done', updatedAt: serverTimestamp(),
+        })))
+        const ids = new Set(logs.map(l => l.id))
+        setWeekLogs(prev => prev.map(l => ids.has(l.id) ? { ...l, effort: pendingEffort, comment: pendingComment, feedbackStatus: 'done' } : l))
+        setShowForm(false)
+        toast.success(t.workoutSaved)
+        ;(async () => {
+          try {
+            const athleteSnap = await getDoc(doc(db, 'users', athleteId))
+            const coachId = athleteSnap.data()?.coachId
+            const athleteName = athleteSnap.data()?.name || 'ספורטאי'
+            if (!coachId || athleteSnap.data()?.mutedByCoach === true) return
+            const preview = pendingComment.trim() ? pendingComment.trim().slice(0, 100) : `מאמץ ${pendingEffort}/10`
+            fetch('/api/send-notification', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userId: coachId,
+                title: `${athleteName} הוסיף הערה לאימון`,
+                body: preview,
+                data: { type: 'workout_comment' },
+                url: `/coach/athletes/${athleteId}/planner`,
+              }),
+            }).catch(() => {})
+          } catch {}
+        })()
+      } catch (e) { console.error(e); toast.error(t.savingError) }
+      finally { setSubmitting(false) }
+    }
+
+    const handleReassign = async (newWorkoutId: string) => {
+      const prevWorkoutId = mainLog.assignedWorkoutId || null
+      if (newWorkoutId === (prevWorkoutId || '')) return
+      setReassigning(true)
+      try {
+        const { serverTimestamp } = await import('firebase/firestore')
+        const newWorkout = newWorkoutId ? dayWorkouts.find(w => w.id === newWorkoutId) : undefined
+        await Promise.all(logs.map(l => updateDoc(doc(db, 'logs', l.id), {
+          assignedWorkoutId: newWorkoutId || null,
+          comparisonGroup: newWorkout?.workout?.comparisonGroup || null,
+          matchTier: 3,
+        })))
+        if (newWorkoutId) {
+          await updateDoc(doc(db, 'assignedWorkouts', newWorkoutId), { status: 'completed', completedAt: serverTimestamp() })
+          setAssignedWorkouts(prev => prev.map(w => w.id === newWorkoutId ? { ...w, status: 'completed' } : w))
+        }
+        if (prevWorkoutId && prevWorkoutId !== newWorkoutId) {
+          await updateDoc(doc(db, 'assignedWorkouts', prevWorkoutId), { status: 'scheduled', completedAt: null })
+          setAssignedWorkouts(prev => prev.map(w => w.id === prevWorkoutId ? { ...w, status: 'scheduled' } : w))
+        }
+        const ids = new Set(logs.map(l => l.id))
+        setWeekLogs(prev => prev.map(l => ids.has(l.id) ? { ...l, assignedWorkoutId: newWorkoutId || undefined } : l))
+        toast.success(t.reassignedToast)
+      } catch (e) { console.error(e); toast.error(t.savingError) }
+      finally { setReassigning(false) }
+    }
+
+    const handleDeleteAll = async () => {
+      if (!confirm(t.deleteWorkoutConfirm)) return
+      try {
+        const { deleteDoc } = await import('firebase/firestore')
+        await Promise.all(logs.map(l => deleteDoc(doc(db, 'logs', l.id))))
+        const ids = new Set(logs.map(l => l.id))
+        setWeekLogs(prev => prev.filter(l => !ids.has(l.id)))
+        toast.success(t.workoutDeleted)
+      } catch (e) { console.error(e); toast.error(t.errorDeleting) }
+    }
+
+    const assignSelect = dayWorkouts.length > 0 && (
+      <div className="px-3.5 pb-2 flex items-center gap-1.5">
+        <span className="text-[10px] text-muted-foreground flex-shrink-0">{t.assignToWorkoutLabel}</span>
+        <select
+          value={mainLog.assignedWorkoutId || ''}
+          disabled={reassigning}
+          onChange={e => handleReassign(e.target.value)}
+          className="flex-1 min-w-0 text-[11px] font-semibold text-navy bg-gray-50 border border-gray-200 rounded-full px-2 py-1 disabled:opacity-50">
+          <option value="">{t.noWorkoutOption}</option>
+          {dayWorkouts.map(w => (
+            <option key={w.id} value={w.id}>{w.workout?.title || t.workouts}</option>
+          ))}
+        </select>
+      </div>
+    )
+
+    const segmentChips = (
+      <div className="px-3.5 pb-2 flex items-center gap-1.5 flex-wrap">
+        {sortedByTime.map(l => (
+          <span key={l.id} className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full border',
+            l.id === mainLog.id ? 'bg-[#c9a84c]/15 text-[#c9a84c] border-[#c9a84c]/30' : 'bg-gray-50 text-gray-500 border-gray-200')}>
+            {l.id === mainLog.id && `${t.mainEventBadge} · `}
+            {l.actualDistance ? `${l.actualDistance} km` : (formatDurationMin(l.durationMin, isRTL) || l.stravaName)}
+          </span>
+        ))}
+      </div>
+    )
+
+    const splitsSection = (mainLog.splitLogs && mainLog.splitLogs.length > 0) && (
+      <div>
+        <button
+          onClick={() => setShowSplits(prev => !prev)}
+          className="w-full px-3.5 py-2 flex items-center justify-between text-xs font-bold text-[#0a1628]/60 hover:bg-gray-50 transition-colors">
+          <span>{t.splitsLabelShort} ({mainLog.splitLogs.length})</span>
+          {showSplits ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+        </button>
+        {showSplits && (
+          <div className="px-3.5 pb-3">
+            <div className="rounded-lg border border-border overflow-hidden">
+              <table className="w-full table-fixed text-[10px]" dir="ltr">
+                <colgroup>
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '22%' }} />
+                  <col style={{ width: '24%' }} />
+                  <col style={{ width: '24%' }} />
+                  <col style={{ width: '18%' }} />
+                </colgroup>
+                <thead>
+                  <tr className="bg-[#0a1628]/5">
+                    <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">km</th>
+                    <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{t.timeInputLabel}</th>
+                    <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{t.tempoLabel}</th>
+                    <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{t.heartRateLabel}</th>
+                    <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">Zone</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mainLog.splitLogs.map((s: any, i: number) => {
+                    const pace = s.pace?.replace('/km', '') || '—'
+                    const zone = s.paceZone || s.notes?.replace('Zone ', '') || '—'
+                    const hr = s.heartRate || '—'
+                    const isfast = s.pace && parseFloat(s.pace) < parseFloat(mainLog.actualPace || '99')
+                    return (
+                      <tr key={i} className={cn('border-t border-border/40', i % 2 === 0 ? 'bg-white' : 'bg-muted/20')}>
+                        <td className="py-2 text-center font-bold text-[#0a1628]">{i + 1}</td>
+                        <td className="py-2 text-center font-mono">{s.time}</td>
+                        <td className={cn('py-2 text-center font-mono font-semibold', isfast ? 'text-emerald-600' : 'text-[#0a1628]')}>{pace}</td>
+                        <td className={cn('py-2 text-center font-mono', hr !== '—' && hr > 160 ? 'text-red-500' : hr !== '—' && hr > 140 ? 'text-orange-500' : 'text-[#0a1628]')}>{hr}</td>
+                        <td className={cn('py-2 text-center font-bold', zone === '5' || zone === '4' ? 'text-red-500' : zone === '3' ? 'text-orange-500' : zone === '2' ? 'text-amber-500' : 'text-emerald-600')}>
+                          {zone === '—' ? '—' : `Z${zone}`}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+
+    // ── STATE 1: Pending feedback (or editing) — compact collapsible ───
+    if (isPending || showForm) return (
+      <div className="rounded-2xl border border-amber-200/60 bg-white shadow-sm overflow-hidden" dir="rtl">
+        <div className="px-3.5 py-2.5 flex items-center gap-2">
+          <div className={cn('h-6 w-6 rounded-lg flex items-center justify-center flex-shrink-0', isManual ? 'bg-[#0a1628]' : 'bg-[#FC4C02]')}>
+            <span className="text-[11px]">{isManual ? kindInfo.emoji : <span className="text-[9px] font-black text-white">S</span>}</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full border flex-shrink-0', kindInfo.badgeClass)}>
+                {kindInfo.emoji} {activityLabel(kindInfo.kind, isRTL)}
+              </span>
+              <span className="text-sm font-bold text-navy truncate">{totalDistance ? `${totalDistance} km` : durationDisplay}</span>
+              <span className="text-xs text-gray-400">· {logs.length} {t.segmentsCountLabel}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <button
+              onClick={() => setShowForm(prev => !prev)}
+              className={cn('text-[11px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap active:scale-95 transition-all border',
+                showForm ? 'bg-gray-100 text-gray-600 border-gray-200' : 'bg-[#c9a84c]/20 text-[#c9a84c] border-[#c9a84c]/40')}>
+              {showForm ? t.closeCta : 'ממתין למשוב שלך'}
+            </button>
+            <button onClick={handleDeleteAll} className="h-6 w-6 rounded-full hover:bg-red-50 flex items-center justify-center text-muted-foreground/50 hover:text-red-400 transition-colors text-sm">✕</button>
+          </div>
+        </div>
+        {segmentChips}
+        {assignSelect}
+        {showForm && (
+          <div className="border-t border-border/50">
+            <div className="px-4 py-4 space-y-4">
+              <div>
+                <p className="text-sm font-semibold text-navy mb-3">{t.howHardWasIt}</p>
+                <div className="flex items-center justify-center gap-6">
+                  <button
+                    onClick={() => setPendingEffort(prev => prev != null ? Math.max(1, prev - 1) : 5)}
+                    className="w-12 h-12 rounded-full border-2 border-border bg-white hover:bg-muted/40 transition-all flex items-center justify-center text-xl font-bold text-navy shadow-sm select-none">
+                    −
+                  </button>
+                  <div className="flex flex-col items-center gap-1 min-w-[72px]">
+                    <span className={cn('text-5xl font-black leading-none transition-colors',
+                      pendingEffort == null ? 'text-muted-foreground/25' :
+                      pendingEffort <= 3 ? 'text-emerald-500' :
+                      pendingEffort <= 5 ? 'text-green-600' :
+                      pendingEffort <= 7 ? 'text-amber-500' :
+                      pendingEffort <= 9 ? 'text-orange-500' : 'text-red-500'
+                    )}>
+                      {pendingEffort ?? '—'}
+                    </span>
+                    <span className={cn('text-xs font-semibold transition-colors',
+                      pendingEffort == null ? 'text-muted-foreground' :
+                      pendingEffort <= 3 ? 'text-emerald-500' :
+                      pendingEffort <= 5 ? 'text-green-600' :
+                      pendingEffort <= 7 ? 'text-amber-500' :
+                      pendingEffort <= 9 ? 'text-orange-500' : 'text-red-500'
+                    )}>
+                      {pendingEffort == null ? t.chooseIntensity :
+                       pendingEffort <= 3 ? t.effortVeryEasy :
+                       pendingEffort <= 5 ? t.effortEasyLabel :
+                       pendingEffort <= 7 ? t.effortModerate :
+                       pendingEffort <= 9 ? t.effortHard : t.effortVeryHard}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setPendingEffort(prev => prev != null ? Math.min(10, prev + 1) : 5)}
+                    className="w-12 h-12 rounded-full border-2 border-border bg-white hover:bg-muted/40 transition-all flex items-center justify-center text-xl font-bold text-navy shadow-sm select-none">
+                    +
+                  </button>
+                </div>
+              </div>
+              <textarea
+                placeholder={t.optionalCommentPh}
+                value={pendingComment}
+                onChange={e => setPendingComment(e.target.value)}
+                dir="rtl"
+                className="w-full rounded-xl border border-border/60 bg-muted/20 px-3 py-2.5 text-sm resize-none h-20 focus:outline-none focus:ring-2 focus:ring-navy/20 focus:border-navy/40 transition-all placeholder:text-muted-foreground/60"
+              />
+              <button
+                onClick={handleSubmit}
+                disabled={submitting || !pendingEffort}
+                className="w-full h-12 rounded-2xl bg-navy hover:bg-navy/90 disabled:opacity-40 text-white text-base font-bold transition-all">
+                {submitting ? t.savingDots : t.sendFeedbackToCoach}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+
+    // ── STATE 2: Completed — expanded stats card ────────────────────────
+    return (
+      <div className="bg-white rounded-2xl border border-[#FC4C02]/15 shadow-sm overflow-hidden" dir="rtl">
+        <div className="px-3.5 py-2.5 flex items-center gap-2">
+          <div className={cn('h-6 w-6 rounded-lg flex items-center justify-center flex-shrink-0', isManual ? 'bg-[#0a1628]' : 'bg-[#FC4C02]')}>
+            <span className="text-[11px]">{isManual ? kindInfo.emoji : <span className="text-[9px] font-black text-white">S</span>}</span>
+          </div>
+          <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full border flex-shrink-0', kindInfo.badgeClass)}>
+            {kindInfo.emoji} {activityLabel(kindInfo.kind, isRTL)}
+          </span>
+          <span className="flex-1 text-sm font-bold text-[#0a1628] truncate">{mainLog.stravaName || activityLabel(kindInfo.kind, isRTL)}</span>
+          <span className="text-[10px] font-bold text-emerald-600 flex-shrink-0">✓</span>
+          <button onClick={() => setShowForm(true)} className="text-[10px] text-[#0a1628]/50 hover:text-[#0a1628] flex-shrink-0 font-medium border border-gray-200 rounded-full px-2 py-0.5 transition-colors">{t.editActivityBtn}</button>
+          <button onClick={handleDeleteAll} className="h-6 w-6 rounded-full flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors flex-shrink-0 text-sm">✕</button>
+        </div>
+        {segmentChips}
+        {assignSelect}
+        <div className="px-3.5 pb-3 grid grid-cols-3 gap-1.5">
+          {totalDistance > 0 && (
+            <div className="bg-gray-50 rounded-xl p-2 text-center">
+              <p className="text-base font-black text-[#0a1628]">{totalDistance}</p>
+              <p className="text-[9px] text-gray-400">ק&quot;מ</p>
+            </div>
+          )}
+          {durationDisplay && (
+            <div className="bg-gray-50 rounded-xl p-2 text-center">
+              <p className="text-base font-black text-[#0a1628]">{durationDisplay}</p>
+              <p className="text-[9px] text-gray-400">{t.durationMinLabel}</p>
+            </div>
+          )}
+          {mainLog.actualPace && (
+            <div className="bg-gray-50 rounded-xl p-2 text-center">
+              <p className="text-base font-black text-[#0a1628]" dir="ltr">{mainLog.actualPace.replace('/km','')}</p>
+              <p className="text-[9px] text-gray-400">{t.tempoLabel}</p>
+            </div>
+          )}
+          {mainLog.averageHeartRate && (
+            <div className="bg-red-50 rounded-xl p-2 text-center">
+              <p className="text-base font-black text-red-600">{mainLog.averageHeartRate}</p>
+              <p className="text-[9px] text-gray-400">{t.heartRateLabel}</p>
+            </div>
+          )}
+          {mainLog.effort != null && (
+            <div className="bg-amber-50 rounded-xl p-2 text-center">
+              <p className="text-base font-black text-amber-700">{mainLog.effort}/10</p>
+              <p className="text-[9px] text-gray-400">{t.effortValueLabel}</p>
+            </div>
+          )}
+        </div>
+        {splitsSection}
+      </div>
+    )
+  }
 
   // ── Shared premium workout card renderer ────────────────────────────────────
   const renderWorkoutCard = (w: AssignedWorkout, cardIndex?: number) => {
@@ -1752,8 +2076,23 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
     // day (isMulti false) — on a multi-workout day an orphaned log would
     // otherwise get attributed to every workout that day via this same
     // fallback, showing the same completed distance under all of them.
+    // When several Strava fragments (warmup/main/cooldown) share this
+    // workout, the longest-distance one is the main event — that's the
+    // one whose pace/effort should represent the workout up top, and the
+    // top "km" pill should show the combined total, not just one fragment.
+    const matchedWithDistance = matchedActivities.filter(l => !!l.actualDistance)
+    const mainMatchedLog = matchedWithDistance.length > 0
+      ? matchedWithDistance.reduce((best, l) => (l.actualDistance || 0) > (best.actualDistance || 0) ? l : best)
+      : undefined
+    const totalMatchedKm = matchedWithDistance.length > 0
+      ? Math.round(matchedWithDistance.reduce((s, l) => s + (l.actualDistance || 0), 0) * 100) / 100
+      : undefined
     const wLog = weekLogs.find(l => l.assignedWorkoutId === w.id && !!l.actualDistance && !isActivityLog(l))
       || weekLogs.find(l => !isMulti && !l.assignedWorkoutId && l.date === dateStr && !!l.actualDistance && !isActivityLog(l))
+    // Used only for the top pill's pace/effort/duration display (never for
+    // ManualLogCard below, which must stay scoped to plain non-Strava logs
+    // or the matched Strava fragment(s) would render twice).
+    const topLog = mainMatchedLog || wLog
     const wMsg = coachMessages.find(m => m.assignedWorkoutId === w.id)
     const stravaThisDay = weekLogs.find(l => l.date === dateStr && l.source === 'strava')
     const stravaMatch = computeStravaMatch(w, dateStr, isMulti)
@@ -1798,16 +2137,16 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               {w.workout.distance && (
                 <span className={cn('text-sm font-bold px-3 py-1.5 rounded-full',
                   isEffectivelyDone ? 'bg-white/20 text-white' : 'bg-[#c9a84c] text-[#0a1628]')}>
-                  {wLog?.actualDistance ?? w.workout.distance} km
+                  {totalMatchedKm ?? topLog?.actualDistance ?? w.workout.distance} km
                 </span>
               )}
-              {w.workout.duration && !wLog && (
+              {w.workout.duration && !topLog && (
                 <span className="text-sm bg-white/15 text-white px-3 py-1.5 rounded-full">{w.workout.duration} min</span>
               )}
-              {wLog?.actualPace && <span className="text-sm bg-white/15 text-white px-3 py-1.5 rounded-full" dir="ltr">{wLog.actualPace}</span>}
-              {wLog?.effort != null && <span className="text-sm bg-white/15 text-white px-3 py-1.5 rounded-full">{t.effortValueLabel} {wLog.effort}/10</span>}
+              {topLog?.actualPace && <span className="text-sm bg-white/15 text-white px-3 py-1.5 rounded-full" dir="ltr">{topLog.actualPace}</span>}
+              {topLog?.effort != null && <span className="text-sm bg-white/15 text-white px-3 py-1.5 rounded-full">{t.effortValueLabel} {topLog.effort}/10</span>}
             </div>
-            {stravaMatch && !wLog && (
+            {stravaMatch && !topLog && (
               <div className="flex items-center gap-1.5 mb-3" dir="rtl">
                 <span className="text-[9px] font-black text-[#FC4C02] bg-[#FC4C02]/25 w-4 h-4 rounded flex items-center justify-center flex-shrink-0">S</span>
                 {stravaMatch.planned > 0 ? (
@@ -1904,8 +2243,13 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             (via assignedWorkoutId) — shown right here instead of in a
             generic list below every workout of the day, so the morning
             workout only ever shows the morning's own Strava data and the
-            evening workout only its own. */}
-        {matchedActivities.map(log => <StravaCard key={log.id} log={log} dayWorkouts={dayWorkouts} />)}
+            evening workout only its own. When warmup/main/cooldown were
+            recorded as separate fragments they all land here together —
+            show ONE consolidated card (one feedback prompt) instead of
+            one box per fragment. */}
+        {matchedActivities.length > 1
+          ? <ConsolidatedStravaCard logs={matchedActivities} dayWorkouts={dayWorkouts} />
+          : matchedActivities.map(log => <StravaCard key={log.id} log={log} dayWorkouts={dayWorkouts} />)}
       </div>
     )
   }
