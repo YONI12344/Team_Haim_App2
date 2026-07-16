@@ -264,53 +264,56 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
   return (
     <div className="space-y-4" dir={isRTL ? 'rtl' : 'ltr'}>
 
-      {/* ── Current thresholds ── */}
-      <Card>
-        <CardHeader className="pb-2 pt-4 px-4">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Gauge className="h-4 w-4 text-gold"/>
+      {/* ── Current thresholds — hero treatment: the single headline number
+          an athlete actually opens this page to check, so it gets the same
+          dark gradient "hero card" language as a workout tile elsewhere in
+          the app instead of blending in as just another white card. ── */}
+      <div className="rounded-3xl bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 p-5">
+        <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+          <span className="flex items-center gap-1.5 text-white/90 font-bold text-sm">
+            <Gauge className="h-4 w-4 text-[#c9a84c]"/>
             {t.labCurrentThresholds}
-            {phys && (
-              <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full border',
-                phys.source === 'test'
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                  : 'bg-amber-50 text-amber-700 border-amber-200')}>
-                {phys.source === 'test'
-                  ? `${t.labFromLactateTest} ${phys.testDate ? format(new Date(phys.testDate), 'd/M/yy') : ''}`
-                  : t.labManualEstimate}
-              </span>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-4 pb-4 space-y-3">
-          {phys?.lt2PaceSec ? (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-3 text-center">
-                <p className="text-[10px] text-muted-foreground mb-0.5">{t.labT1Aerobic}</p>
-                <p className="text-lg font-black text-emerald-700">{secToPace(phys.lt1PaceSec)}</p>
-                <p className="text-[10px] text-muted-foreground">{phys.lt1Hr ? `♥ ${phys.lt1Hr} bpm` : '/km'}</p>
-              </div>
-              <div className="rounded-xl bg-amber-50 border border-amber-100 p-3 text-center">
-                <p className="text-[10px] text-muted-foreground mb-0.5">{t.labT2Anaerobic}</p>
-                <p className="text-lg font-black text-amber-700">{secToPace(phys.lt2PaceSec)}</p>
-                <p className="text-[10px] text-muted-foreground">{phys.lt2Hr ? `♥ ${phys.lt2Hr} bpm` : '/km'}</p>
-              </div>
-              <div className="rounded-xl bg-rose-50 border border-rose-100 p-3 text-center">
-                <p className="text-[10px] text-muted-foreground mb-0.5">{t.labT3DeepAnaerobic}</p>
-                <p className="text-lg font-black text-rose-700">{secToPace(phys.lt3PaceSec)}</p>
-                <p className="text-[10px] text-muted-foreground">{phys.lt3Hr ? `♥ ${phys.lt3Hr} bpm` : '/km'}</p>
-              </div>
-              <div className="rounded-xl bg-navy/5 border border-navy/10 p-3 text-center">
-                <p className="text-[10px] text-muted-foreground mb-0.5">{t.labVo2maxEstimate}</p>
-                <p className="text-lg font-black text-navy">{phys.vo2maxEst ?? '—'}</p>
-                <p className="text-[10px] text-muted-foreground">ml/kg/min</p>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground text-center py-2">
-              {t.labNoThresholdsYet}
-            </p>
+          </span>
+          {phys && (
+            <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full',
+              phys.source === 'test' ? 'bg-emerald-400/20 text-emerald-300' : 'bg-amber-400/20 text-amber-300')}>
+              {phys.source === 'test'
+                ? `${t.labFromLactateTest} ${phys.testDate ? format(new Date(phys.testDate), 'd/M/yy') : ''}`
+                : t.labManualEstimate}
+            </span>
           )}
+        </div>
+        {phys?.lt2PaceSec ? (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="rounded-2xl bg-white/10 p-3 text-center">
+              <p className="text-[10px] text-white/50 mb-0.5">{t.labT1Aerobic}</p>
+              <p className="text-xl font-black text-emerald-300" dir="ltr">{secToPace(phys.lt1PaceSec)}</p>
+              <p className="text-[10px] text-white/50" dir="ltr">{phys.lt1Hr ? `♥ ${phys.lt1Hr} bpm` : '/km'}</p>
+            </div>
+            <div className="rounded-2xl bg-white/10 p-3 text-center">
+              <p className="text-[10px] text-white/50 mb-0.5">{t.labT2Anaerobic}</p>
+              <p className="text-xl font-black text-amber-300" dir="ltr">{secToPace(phys.lt2PaceSec)}</p>
+              <p className="text-[10px] text-white/50" dir="ltr">{phys.lt2Hr ? `♥ ${phys.lt2Hr} bpm` : '/km'}</p>
+            </div>
+            <div className="rounded-2xl bg-white/10 p-3 text-center">
+              <p className="text-[10px] text-white/50 mb-0.5">{t.labT3DeepAnaerobic}</p>
+              <p className="text-xl font-black text-rose-300" dir="ltr">{secToPace(phys.lt3PaceSec)}</p>
+              <p className="text-[10px] text-white/50" dir="ltr">{phys.lt3Hr ? `♥ ${phys.lt3Hr} bpm` : '/km'}</p>
+            </div>
+            <div className="rounded-2xl bg-white/10 p-3 text-center">
+              <p className="text-[10px] text-white/50 mb-0.5">{t.labVo2maxEstimate}</p>
+              <p className="text-xl font-black text-white" dir="ltr">{phys.vo2maxEst ?? '—'}</p>
+              <p className="text-[10px] text-white/50">ml/kg/min</p>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-white/50 text-center py-2">
+            {t.labNoThresholdsYet}
+          </p>
+        )}
+      </div>
+      <Card>
+        <CardContent className="px-4 pt-4 pb-4 space-y-3">
 
           {/* Manual override */}
           <button onClick={() => setShowManual(p => !p)}
