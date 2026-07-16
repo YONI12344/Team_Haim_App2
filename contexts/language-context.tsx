@@ -666,6 +666,7 @@ export interface Translations {
   savingError: string
   workoutDeleted: string
   stravaSyncTitle: string
+  stravaRateLimitError: string
   workoutDetailsCta: string
   closeCta: string
   weekKmDoneLabel: string
@@ -1513,6 +1514,7 @@ const translations: Record<Language, Translations> = {
     savingError: 'Error saving',
     workoutDeleted: 'Workout deleted',
     stravaSyncTitle: 'Sync Strava',
+    stravaRateLimitError: "Strava's API rate limit was hit — wait about 15 minutes and try syncing again.",
     workoutDetailsCta: 'Workout details ›',
     closeCta: 'Close ✕',
     weekKmDoneLabel: 'km done',
@@ -2338,6 +2340,7 @@ const translations: Record<Language, Translations> = {
     savingError: 'שגיאה בשמירה',
     workoutDeleted: 'אימון נמחק',
     stravaSyncTitle: 'סנכרן Strava',
+    stravaRateLimitError: 'הגעת למגבלת הבקשות של Strava — המתן כ-15 דקות ונסה לסנכרן שוב.',
     workoutDetailsCta: 'פרטי אימון ›',
     closeCta: 'סגור ✕',
     weekKmDoneLabel: 'ק"מ בוצע',

@@ -954,6 +954,13 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
         // Reload logs
         const logsSnap = await getDocs(query(collection(db, 'logs'), where('athleteId', '==', athleteId)))
         setWeekLogs(logsSnap.docs.map(mapLogDoc))
+      } else {
+        // Previously silent on failure — e.g. Strava's own rate limit
+        // (100 requests/15min) kicking in after several syncs in a row
+        // returns { error: '...Too Many Requests' } here, and nothing was
+        // ever shown to the user for it.
+        const isRateLimit = String(data.error || '').toLowerCase().includes('too many requests')
+        toast.error(isRateLimit ? t.stravaRateLimitError : t.stravaSyncTitle)
       }
     } catch (err) { console.error(err); toast.error(t.stravaSyncTitle) }
     finally { setStravaSyncing(false) }

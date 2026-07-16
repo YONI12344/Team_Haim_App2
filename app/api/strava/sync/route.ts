@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
       currentToken = refreshed.access_token
     }
 
-    // Fetch last 30 activities from Strava
+    // Fetch last 30 activities from Strava (cheap — one API call)
     const activities = await getStravaActivities(currentToken, 30)
 
     // Map activities to a date lookup
@@ -27,9 +27,21 @@ export async function POST(request: NextRequest) {
       activitiesByDate[date].push(activity)
     })
 
-    // Fetch full activity details for splits + laps
+    // Full detail + laps costs 2 extra API calls PER activity — fetching
+    // that for all 30 would burn ~60 calls on a single sync click, which
+    // can exhaust Strava's 100-requests-per-15-minutes read limit after
+    // just a couple of syncs (every sync after that fails with 429 until
+    // the window resets). Workout-matching only ever needs recent data, so
+    // only activities from the last week get the expensive detail+laps
+    // fetch; older ones fall back to the basic list data (no rep splits,
+    // but still enough for date/distance/pace).
+    const RECENT_DAYS = 7
+    const cutoffMs = Date.now() - RECENT_DAYS * 24 * 60 * 60 * 1000
+    const isRecent = (a: typeof activities[number]) => new Date(a.start_date_local).getTime() >= cutoffMs
+
     const fullActivities = await Promise.all(
       activities.map(async (activity) => {
+        if (!isRecent(activity)) return activity
         try {
           const [actRes, lapsRes] = await Promise.all([
             fetch(`https://www.strava.com/api/v3/activities/${activity.id}`, {
