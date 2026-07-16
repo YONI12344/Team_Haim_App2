@@ -32,7 +32,7 @@ import {
 import type { AthleteProfile, Workout, AssignedWorkout, TrainingDayType, WorkoutLog, WorkoutType, JourneyDoc, JourneyStage } from '@/lib/types'
 import { sortBySession } from '@/lib/types'
 import { legacyEffortToNumber } from '@/lib/types'
-import { listJourneys, computeJourneyProgress, saveJourney, stageDisplayName } from '@/lib/journey'
+import { listJourneys, computeJourneyProgress, saveJourney, stageDisplayName, isRestWeek } from '@/lib/journey'
 import { useAuth } from '@/contexts/auth-context'
 import { useWorkoutTypeLabels, autoWorkoutTitle } from '@/lib/workout-labels'
 import { secToPace } from '@/lib/physiology'
@@ -172,6 +172,7 @@ export function AthletePlanner({ athleteId }: Props) {
             weekSchedule: d.weekSchedule,
             weeklyKmRange: d.weeklyKmRange,
             offWeekInterval: d.offWeekInterval,
+            offWeekAnchorDate: d.offWeekAnchorDate,
             targetPaceKm: d.targetPaceKm,
             physiology: d.physiology,
             labVisibleToAthlete: d.labVisibleToAthlete === true,
@@ -204,7 +205,7 @@ export function AthletePlanner({ athleteId }: Props) {
                 stageName: stageDisplayName(stage),
                 weekInStage: cur,
                 totalWeeksInStage: total,
-                isOffWeek: cur % offN === 0,
+                isOffWeek: isRestWeek(today, offN, d.offWeekAnchorDate, stage.startDate),
                 goalRaceDate: active.goalRaceDate,
                 goalRaceEvent: active.goalRaceEvent,
               })
@@ -300,8 +301,7 @@ export function AthletePlanner({ athleteId }: Props) {
     let isDownWeek = false
     if (stage) {
       const offN = athlete?.offWeekInterval ?? 4
-      const weekInStage = Math.max(1, Math.ceil((mid.getTime() - new Date(stage.startDate).getTime()) / (7 * 86400000)))
-      isDownWeek = offN > 0 && weekInStage % offN === 0
+      isDownWeek = isRestWeek(mid, offN, athlete?.offWeekAnchorDate, stage.startDate)
     }
     const baseTarget = stage?.weeklyVolumeKm
       ?? (athlete?.weeklyKmRange ? Math.round((athlete.weeklyKmRange.min + athlete.weeklyKmRange.max) / 2) : null)
@@ -323,6 +323,24 @@ export function AthletePlanner({ athleteId }: Props) {
       ? Math.round((athlete.weeklyKmRange.min + athlete.weeklyKmRange.max) / 2)
       : null
   }, [getWeekSeasonInfo, athlete])
+
+  /**
+   * Moves the recurring rest-week cadence to re-anchor at `wkStart` —
+   * vacation, illness, fatigue, etc. That week (and every offWeekInterval
+   * weeks before/after it) becomes the recovery week going forward,
+   * replacing the old fixed count from the journey stage's start date.
+   */
+  const handleSetRestWeek = async (wkStart: Date) => {
+    const dateStr = format(wkStart, 'yyyy-MM-dd')
+    try {
+      await updateDoc(doc(db, 'users', athleteId), { offWeekAnchorDate: dateStr })
+      setAthlete(prev => prev ? { ...prev, offWeekAnchorDate: dateStr } : prev)
+      toast.success('שבוע זה סומן כשבוע המנוחה — הקצב יתעדכן בהתאם')
+    } catch (e) {
+      console.error(e)
+      toast.error('שמירה נכשלה')
+    }
+  }
 
   // ── Calendar helpers ──────────────────────────────────────────────────────
   const calendarWeeks = useMemo(() => {
@@ -1079,6 +1097,17 @@ export function AthletePlanner({ athleteId }: Props) {
                   onClick={() => copyWeekTo(copiedWeekStart, weekStart)}>
                   <ClipboardPaste className="h-3 w-3 mr-1"/>הדבק לשבוע זה
                 </Button>
+              )}
+              {viewMode === 'week' && (
+                athlete?.offWeekAnchorDate === format(weekStart, 'yyyy-MM-dd') ? (
+                  <span className="text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300 px-2.5 py-1 rounded-full">
+                    🛌 שבוע המנוחה
+                  </span>
+                ) : (
+                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleSetRestWeek(weekStart)}>
+                    🛌 סמן כשבוע מנוחה
+                  </Button>
+                )
               )}
             </div>
 

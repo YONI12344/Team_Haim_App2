@@ -17,7 +17,7 @@ import { db } from '@/lib/firebase'
 import { collection, doc, getDoc, getDocs, query, where, updateDoc } from 'firebase/firestore'
 import type { AthleteProfile, AssignedWorkout, TrainingDayType } from '@/lib/types'
 import { sortBySession, setRestAfter, setRestBetweenReps } from '@/lib/types'
-import { listJourneys, computeJourneyProgress, stageDisplayName } from '@/lib/journey'
+import { listJourneys, computeJourneyProgress, stageDisplayName, isRestWeek } from '@/lib/journey'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
 import { useWorkoutTypeLabels } from '@/lib/workout-labels'
@@ -255,6 +255,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             personalRecords: [], seasonBests: [], trainingPaces: [], goals: [],
             weekSchedule: d.weekSchedule, weeklyKmRange: d.weeklyKmRange,
             offWeekInterval: d.offWeekInterval,
+            offWeekAnchorDate: d.offWeekAnchorDate,
             weekStartDay: d.weekStartDay === 1 ? 1 : 0,
             kmWeekStartDay: d.kmWeekStartDay === 0 ? 0 : 1,
             labVisibleToAthlete: d.labVisibleToAthlete === true,
@@ -276,7 +277,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               const cur = Math.max(1, Math.ceil((today.getTime()-s.getTime())/(7*86400000)))
               setJourney({
                 stageName: stageDisplayName(stage), weekInStage: cur, totalWeeksInStage: total,
-                isOffWeek: cur % (d.offWeekInterval ?? 4) === 0,
+                isOffWeek: isRestWeek(today, d.offWeekInterval ?? 4, d.offWeekAnchorDate, stage.startDate),
                 goalRaceDate: active.goalRaceDate, goalRaceEvent: active.goalRaceEvent,
               })
             }

@@ -541,6 +541,35 @@ export function computeJourneyProgress(
   return { totalDays, elapsedDays, percent, activeStage, nextStage, daysToRace }
 }
 
+/**
+ * Whether the week containing `mid` (a mid-week reference date, e.g.
+ * Thursday of the week being checked — avoids DST/boundary edge cases
+ * versus comparing raw week-start dates) is a recovery/rest week, per the
+ * athlete's every-`offN`-weeks cadence.
+ *
+ * When the coach has explicitly set `anchorDate` (see "set this week as
+ * the rest week" in athlete-planner.tsx / athlete-planner-view.tsx — moves
+ * the cadence when the athlete goes on vacation, gets sick, needs an extra
+ * recovery week, etc.), that week itself becomes a rest week and every
+ * `offN`-th week before/after it re-aligns from there — the recurring
+ * pattern shifts to fit, not just this one week.
+ *
+ * Falls back to the ORIGINAL fixed cadence (counted from the journey
+ * stage's own start date, 1-indexed) when no anchor has ever been set, so
+ * nothing changes for an athlete who's never had it moved.
+ */
+export function isRestWeek(mid: Date, offN: number, anchorDate: string | undefined, stageStartDate: string): boolean {
+  if (offN <= 0) return false
+  if (anchorDate) {
+    const anchor = new Date(anchorDate)
+    const weeksSinceAnchor = Math.round((mid.getTime() - anchor.getTime()) / (7 * 86400000))
+    return ((weeksSinceAnchor % offN) + offN) % offN === 0
+  }
+  const stageStart = new Date(stageStartDate)
+  const weekInStage = Math.max(1, Math.ceil((mid.getTime() - stageStart.getTime()) / (7 * 86400000)))
+  return weekInStage % offN === 0
+}
+
 /** Percent of a single stage elapsed by `today`. */
 export function computeStageProgress(stage: JourneyStage, today: Date = new Date()): number {
   const a = new Date(stage.startDate).getTime()

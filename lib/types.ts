@@ -85,6 +85,12 @@ export interface AthleteProfile {
   weeklyKmRange?: { min: number; max: number }
   // Recovery week interval: every Nth week is an off/recovery week (default 4)
   offWeekInterval?: number
+  // Monday ('yyyy-MM-dd') of a week the coach explicitly marked as the rest
+  // week (vacation, illness, fatigue, etc.) — re-anchors the offWeekInterval
+  // cadence from this week forward/back instead of the fixed journey-stage
+  // count, so the whole recurring pattern shifts to fit. See isRestWeek in
+  // lib/journey.ts.
+  offWeekAnchorDate?: string
   createdAt: Date
   updatedAt: Date
 }
