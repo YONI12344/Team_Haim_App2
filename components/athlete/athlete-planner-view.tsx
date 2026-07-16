@@ -26,6 +26,7 @@ import { WorkoutLogForm } from '@/components/athlete/workout-log-form'
 import { personalTargetRangeForLevel, personalTargetRangeWithBaseline, formatTargetRange, paceToSec, secToPace } from '@/lib/physiology'
 import { useLatestStepTest } from '@/hooks/useLatestStepTest'
 import { useWorkoutLactateGroups, latestSessionSteps, groupKeyFor } from '@/hooks/useWorkoutLactateGroups'
+import { expectedRepMetersForWorkout, scoreActivityFitForReps } from '@/lib/strava-lap-matching'
 import { isCoachEmail } from '@/lib/constants'
 import { ManualLogCard } from '@/components/shared/manual-log-card'
 import { MarkDayOffDialog } from '@/components/shared/mark-day-off-dialog'
@@ -807,12 +808,25 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               if (candidates.length > 0) {
                 // Prefer a same-session (am/pm) match. When that's not
                 // conclusive — no startTime on the activity, or the coach
-                // never tagged a session on either workout — fall back to
-                // whichever candidate's planned distance is closest to this
-                // activity's actual distance, instead of an arbitrary first
-                // candidate from the query's unordered result.
+                // never tagged a session on either workout — prefer
+                // whichever candidate's OWN rep structure this activity's
+                // laps actually fit (e.g. a separately-recorded warmup/
+                // cooldown run won't have laps near any rep distance, so it
+                // loses to the real interval workout even if its distance
+                // happens to look closer). Only fall back to raw distance
+                // closeness when neither candidate has a rep structure to
+                // score against (continuous workouts) or scores tie.
                 const bySession = activitySession ? candidates.find(aw => aw.data().session === activitySession) : undefined
-                const byDistance = !bySession && candidates.length > 1
+                const byRepFit = !bySession && candidates.length > 1
+                  ? candidates.reduce<{ aw: typeof candidates[number]; score: number } | null>((best, aw) => {
+                      const expectedMeters = expectedRepMetersForWorkout(aw.data().workout)
+                      if (expectedMeters.length === 0) return best
+                      const score = scoreActivityFitForReps(activity.splitLogs || [], expectedMeters)
+                      if (score === 0) return best
+                      return (!best || score > best.score) ? { aw, score } : best
+                    }, null)?.aw
+                  : undefined
+                const byDistance = !bySession && !byRepFit && candidates.length > 1
                   ? candidates.reduce<{ aw: typeof candidates[number]; diff: number } | null>((best, aw) => {
                       const plannedKm = aw.data().workout?.distance
                       if (plannedKm == null) return best
@@ -820,7 +834,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                       return (!best || diff < best.diff) ? { aw, diff } : best
                     }, null)?.aw
                   : undefined
-                const match = bySession || byDistance || candidates[0]
+                const match = bySession || byRepFit || byDistance || candidates[0]
                 const wType = match.data().workout?.type || ''
                 const isStrengthW = ['strength', 'cross_training'].includes(wType)
                 const plannedDist = match.data().workout?.distance ?? 0

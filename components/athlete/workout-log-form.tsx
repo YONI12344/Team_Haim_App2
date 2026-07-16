@@ -30,6 +30,7 @@ import { getCoachInfo } from '@/lib/coach'
 import { useLatestStepTest } from '@/hooks/useLatestStepTest'
 import { useWorkoutLactateGroups, latestSessionSteps, groupKeyFor, inferThresholdDistance } from '@/hooks/useWorkoutLactateGroups'
 import { personalTargetRangeForLevel, personalTargetRangeWithBaseline, formatTargetRange, paceToSec, secToPace } from '@/lib/physiology'
+import { parseRepMeters, matchLapsToReps, expectedRepMetersForWorkout, scoreActivityFitForReps } from '@/lib/strava-lap-matching'
 
 interface WorkoutLogFormProps {
   workoutId: string
@@ -37,108 +38,6 @@ interface WorkoutLogFormProps {
   athleteId: string
   scheduledDate: string
   workout?: Workout
-}
-
-/** Best-effort meters from a free-text rep distance field (e.g. "1000m",
- *  "1600"). The coach always writes these in meters (same convention
- *  inferThresholdDistance relies on elsewhere) — returns null for a
- *  duration-based rep (e.g. "5 דק'"/"5 min") where there's no distance to
- *  match against at all. */
-function parseRepMeters(raw: string | undefined): number | null {
-  if (!raw) return null
-  if (/דק|min/i.test(raw)) return null
-  const n = parseInt(String(raw).replace(/[^\d]/g, ''), 10)
-  return Number.isFinite(n) && n > 0 ? n : null
-}
-
-interface RawLap { distanceKm?: number; time?: string; heartRate?: number | null }
-interface MatchedLap { pace: string; heartRate: number | null }
-
-/**
- * Matches Strava laps to workout reps by DISTANCE, not by raw position.
- * Some watches auto-lap at a fixed round distance (e.g. every 1km)
- * regardless of the workout's actual rep length, so a 1.6km rep can come
- * back as two laps (1km + 0.6km) instead of one — matched 1:1 by index,
- * that desyncs every rep after it. This also still has to skip real
- * rest/recovery laps (much slower pace) so they don't get folded into a
- * work rep's distance by mistake.
- *
- * For each rep (in order), skips any rest laps AND any "filler" laps (much
- * shorter than the smallest rep distance in this workout — a warmup
- * stride, a GPS-blip fragment, etc.), then accumulates consecutive real
- * laps — summing their distance AND their time — until the total reaches
- * ~90% of that rep's expected distance. The rep's pace is then computed
- * from the COMBINED time ÷ COMBINED distance (not from any single lap's
- * own pace), and its HR is the time-weighted average across whichever laps
- * got combined. A rep with no known expected distance (a duration-based
- * rep) just takes the next single non-filler lap, same as before.
- *
- * Warmup/cooldown/strides are never explicitly labeled in Strava's lap
- * data, so they're inferred: a slow lap (jogging pace) is caught by the
- * rest-pace check below; a short fast one (a stride) isn't slow but is far
- * too short to be a real rep, caught by the filler-distance check instead.
- * Either way they're skipped from the rep-matching entirely — they still
- * count toward the session's overall distance/duration (that comes from
- * the whole Strava activity, untouched by this function), just never fill
- * a specific rep's pace.
- */
-function matchLapsToReps(laps: RawLap[], expectedMeters: (number | null)[]): (MatchedLap | null)[] {
-  const parsed = laps.map(l => ({
-    meters: l.distanceKm != null ? l.distanceKm * 1000 : null,
-    sec: paceToSec(l.time),
-    heartRate: l.heartRate ?? null,
-  }))
-  const paceOf = (p: typeof parsed[number]) => (p.meters && p.sec) ? p.sec / (p.meters / 1000) : null
-  const paceSecs = parsed.map(paceOf).filter((v): v is number => v != null)
-  const fastestPace = paceSecs.length ? Math.min(...paceSecs) : null
-  // Same 40% threshold as before: a recovery jog/walk reads dramatically
-  // slower than the fastest real lap in the session.
-  const isRest = (p: typeof parsed[number]) => {
-    const pace = paceOf(p)
-    return fastestPace != null && pace != null && pace > fastestPace * 1.4
-  }
-
-  // The smallest rep distance this workout actually calls for (e.g. 800 for
-  // "10×800") — a lap under 40% of that is too short to be a real rep no
-  // matter how fast it was run, so it must be a stride/fragment instead.
-  const targets = expectedMeters.filter((m): m is number => m != null && m > 0)
-  const minTarget = targets.length ? Math.min(...targets) : null
-  const isFiller = (p: typeof parsed[number]) =>
-    minTarget != null && p.meters != null && p.meters < minTarget * 0.4
-
-  const results: (MatchedLap | null)[] = []
-  let li = 0
-  for (const target of expectedMeters) {
-    while (li < parsed.length && (isRest(parsed[li]) || isFiller(parsed[li]))) li++
-    if (li >= parsed.length) { results.push(null); continue }
-
-    if (!target) {
-      // Duration-based rep — no expected distance to match against, so
-      // just take the next lap as-is (previous 1:1 behavior).
-      const p = parsed[li]
-      results.push(p.meters && p.sec ? { pace: secToPace(paceOf(p)), heartRate: p.heartRate } : null)
-      li++
-      continue
-    }
-
-    let accMeters = 0, accSec = 0, hrWeighted = 0, hrWeight = 0, used = 0
-    while (li < parsed.length) {
-      const p = parsed[li]
-      if (isRest(p)) break // reached recovery — this rep's laps are done
-      if (isFiller(p)) { li++; continue } // stride/fragment — skip, don't break
-      if (p.meters == null || p.sec == null) { li++; continue }
-      accMeters += p.meters
-      accSec += p.sec
-      if (p.heartRate != null) { hrWeighted += p.heartRate * p.sec; hrWeight += p.sec }
-      used++
-      li++
-      if (accMeters >= target * 0.9) break
-    }
-    results.push(used > 0
-      ? { pace: secToPace(accSec / (accMeters / 1000)), heartRate: hrWeight > 0 ? Math.round(hrWeighted / hrWeight) : null }
-      : null)
-  }
-  return results
 }
 
 export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, scheduledDate, workout }: WorkoutLogFormProps) {
@@ -263,14 +162,23 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
         // If still nothing, fall back to a Strava log for the same date —
         // this prevents workout-log-form from creating a second document
         // alongside an existing Strava log (which has workoutId
-        // 'strava_<id>', not the template id). When the athlete had TWO
-        // sessions that day (e.g. easy AM run + evening threshold workout)
-        // and the auto-match in athlete-planner-view.tsx didn't manage to
-        // tag the right one with this assignedWorkoutId, there can be more
-        // than one Strava log for the same date — picking an arbitrary one
-        // here would fill a threshold workout's rep splits from the wrong
-        // activity entirely. Instead pick whichever activity's total
-        // distance is closest to this workout's own planned distance.
+        // 'strava_<id>', not the template id). When the athlete had TWO+
+        // sessions that day (e.g. easy AM run + evening threshold workout,
+        // or a separately-recorded warmup/cooldown either side of the
+        // actual interval session) and the auto-match in
+        // athlete-planner-view.tsx didn't manage to tag the right one with
+        // this assignedWorkoutId, there can be more than one Strava log for
+        // the same date — picking an arbitrary one here would fill a
+        // threshold workout's rep splits from the wrong activity entirely.
+        //
+        // For a structured workout (has its own reps), prefer whichever
+        // candidate's OWN laps actually fit that rep pattern (scored via
+        // scoreActivityFitForReps) — a continuous warmup/cooldown jog won't
+        // have laps clustering near any rep distance/pace, so it scores
+        // near zero and loses to the real interval activity even if it
+        // happens to be numerically closer on total distance alone. Ties
+        // (or a continuous workout with no rep structure to score against)
+        // fall back to whichever total distance is closest to planned.
         if (!matchedDoc && scheduledDate) {
           const stravaSnap = await getDocs(query(
             collection(db, 'logs'),
@@ -278,14 +186,24 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
             where('date', '==', scheduledDate),
             where('source', '==', 'strava'),
           ))
-          const plannedDist = workout?.distance
-          matchedDoc = stravaSnap.docs.reduce((best: any, d: any) => {
-            if (!best) return d
-            if (plannedDist == null) return best
-            const diff = Math.abs((d.data().actualDistance || 0) - plannedDist)
-            const bestDiff = Math.abs((best.data().actualDistance || 0) - plannedDist)
-            return diff < bestDiff ? d : best
-          }, undefined)
+          if (stravaSnap.docs.length <= 1) {
+            matchedDoc = stravaSnap.docs[0]
+          } else {
+            const expectedMeters = expectedRepMetersForWorkout(workout)
+            const plannedDist = workout?.distance
+            let bestScore = -1
+            let bestDiff = Infinity
+            for (const d of stravaSnap.docs) {
+              const data = d.data()
+              const repScore = expectedMeters.length ? scoreActivityFitForReps(data.splitLogs || [], expectedMeters) : 0
+              const diff = plannedDist != null ? Math.abs((data.actualDistance || 0) - plannedDist) : Infinity
+              if (repScore > bestScore || (repScore === bestScore && diff < bestDiff)) {
+                bestScore = repScore
+                bestDiff = diff
+                matchedDoc = d
+              }
+            }
+          }
         }
 
         if (matchedDoc) {
