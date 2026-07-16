@@ -109,7 +109,7 @@ export function ManualLogCard({
                 return (
                   <p key={si} className="text-xs text-gray-500">
                     <span className="font-semibold text-[#0a1628]">{t.setLabelPrefix} {Number(si) + 1}:</span>{' '}
-                    {items.map(s => (s.distance ? `${s.distance} ${s.time}` : s.time)).join(' · ')}
+                    {items.map(s => `${s.distance ? `${s.distance} ${s.time}` : s.time}${s.rest ? ` (+${s.rest})` : ''}`).join(' · ')}
                   </p>
                 )
               })}

@@ -411,6 +411,13 @@ export interface SplitLog {
    *  `null` (rather than omitted) once saved, since Firestore rejects a
    *  literal `undefined` field. */
   lactate?: number | null
+  /** Recovery duration AFTER this rep, before the next one starts (e.g.
+   *  "1:30") — manually entered, or pre-filled (editable) from the
+   *  matched Strava rest lap. Rest length is part of a threshold
+   *  session's real physiological picture (too little/too much recovery
+   *  changes the lactate/pace response), so it's kept alongside the
+   *  rep's own data instead of only being shown once and discarded. */
+  rest?: string
 }
 
 /** Map a legacy string effort label to its numeric (1–10) equivalent. */

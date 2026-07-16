@@ -30,7 +30,7 @@ import { getCoachInfo } from '@/lib/coach'
 import { useLatestStepTest } from '@/hooks/useLatestStepTest'
 import { useWorkoutLactateGroups, latestSessionSteps, groupKeyFor, inferThresholdDistance } from '@/hooks/useWorkoutLactateGroups'
 import { personalTargetRangeForLevel, personalTargetRangeWithBaseline, formatTargetRange, paceToSec, secToPace } from '@/lib/physiology'
-import { parseRepMeters, matchLapsToReps, expectedRepMetersForWorkout, scoreActivityFitForReps } from '@/lib/strava-lap-matching'
+import { parseRepMeters, buildRepDisplayRows, expectedRepMetersForWorkout, scoreActivityFitForReps } from '@/lib/strava-lap-matching'
 
 interface WorkoutLogFormProps {
   workoutId: string
@@ -279,11 +279,16 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
       .catch(err => { console.error(err); setTargetOverride(null) })
   }, [assignedWorkoutId, workout?.targetThresholdLevel])
 
-  // Pre-fill (still editable) pace/HR per rep from matched Strava laps —
-  // matchLapsToReps combines consecutive auto-laps by distance+time (e.g. a
-  // 1.6km rep recorded as two 1km auto-laps) and drops rest/recovery laps,
-  // so a rep's pace comes from its own combined data instead of whichever
-  // lap happened to land at that index. Not further verified beyond that;
+  // Pre-fill (still editable) pace/HR/rest per rep from matched Strava laps —
+  // buildRepDisplayRows combines consecutive auto-laps by distance+time (e.g.
+  // a 1.6km rep recorded as two 1km auto-laps) into one rep row, and keeps
+  // every rest/recovery lap as its own row in between instead of dropping
+  // it — a rep's pace comes from its own combined data instead of whichever
+  // lap happened to land at that index, and the recovery AFTER a rep is
+  // carried onto that same rep's `rest` field. Rest length is part of a
+  // threshold session's real shape (too little/too much recovery changes
+  // the lactate/pace response), so it's captured here rather than shown
+  // once in the Strava view and lost. Not further verified beyond that;
   // just a default the athlete can correct. Uses the functional
   // setSplitLogs form so it's safe regardless of whether this runs before
   // or after the sets-seeding effect.
@@ -291,14 +296,23 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
     if (!stravaSource?.splitLogs?.length) return
     setSplitLogs(prev => {
       const expectedMeters = prev.map(s => parseRepMeters(s.distance))
-      const matched = matchLapsToReps(stravaSource.splitLogs, expectedMeters)
+      const rows = buildRepDisplayRows(stravaSource.splitLogs, expectedMeters)
+      const matched = new Map<number, Extract<typeof rows[number], { kind: 'rep' }>>()
+      const restAfter = new Map<number, string>()
+      let lastRepIndex: number | null = null
+      for (const row of rows) {
+        if (row.kind === 'rep') { matched.set(row.repIndex, row); lastRepIndex = row.repIndex }
+        else if (lastRepIndex != null && !restAfter.has(lastRepIndex)) restAfter.set(lastRepIndex, row.time)
+      }
       return prev.map((s, i) => {
-        const lap = matched[i]
-        if (!lap) return s
+        const lap = matched.get(i)
+        const rest = restAfter.get(i)
+        if (!lap && !rest) return s
         return {
           ...s,
-          pace: s.pace || lap.pace || '',
-          avgHr: s.avgHr || lap.heartRate || undefined,
+          pace: s.pace || lap?.pace || '',
+          avgHr: s.avgHr || lap?.heartRate || undefined,
+          rest: s.rest || rest || '',
         }
       })
     })
@@ -355,7 +369,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
       const splitLogsWithLactate = splitLogs.map((s, i) => ({ ...s, lactate: lactateByRep.get(i + 1) }))
 
       const finalSplitLogs = splitLogsWithLactate
-        .filter(s => s.time || s.pace || s.notes || s.avgHr || s.lactate)
+        .filter(s => s.time || s.pace || s.notes || s.avgHr || s.lactate || s.rest)
         .map(s => ({
           ...s,
           // Firestore's updateDoc/addDoc reject a literal `undefined` field
@@ -585,7 +599,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
             const renderRepInputs = (globalIndex: number) => {
               const split = splitLogs[globalIndex]
               return (
-                <div className="flex-1 grid grid-cols-3 gap-2">
+                <div className="flex-1 grid grid-cols-4 gap-2">
                   <div>
                     <label className="text-[10px] text-muted-foreground block mb-1">{t.timeInputLabel}</label>
                     <Input type="text" placeholder={t.mmssPlaceholder} value={split?.time || ''}
@@ -603,6 +617,18 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
                     <Input type="number" value={split?.avgHr ?? ''}
                       onChange={e => globalIndex >= 0 && updateSplit(globalIndex, 'avgHr', e.target.value)}
                       className="h-9 text-sm rounded-xl text-center" />
+                  </div>
+                  <div>
+                    {/* Recovery AFTER this rep — pre-filled (editable) from the
+                        matched Strava rest lap when available. Rest length is
+                        part of a threshold session's real shape (too little/
+                        too much recovery changes the lactate/pace response),
+                        so it's captured here instead of only shown once in
+                        the Strava view and lost. */}
+                    <label className="text-[10px] text-muted-foreground block mb-1">{t.restLapLabel}</label>
+                    <Input type="text" dir="ltr" placeholder="1:30" value={split?.rest || ''}
+                      onChange={e => globalIndex >= 0 && updateSplit(globalIndex, 'rest', e.target.value)}
+                      className="h-9 text-sm rounded-xl" />
                   </div>
                 </div>
               )

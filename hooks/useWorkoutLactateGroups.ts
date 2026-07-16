@@ -23,6 +23,10 @@ export interface WorkoutRepEntry {
   lactate?: number
   pace?: string
   time?: string
+  /** Recovery duration after this rep (e.g. "1:30") — rest length affects
+   *  a threshold session's lactate/pace response, so it travels with the
+   *  rest of the rep's data instead of being dropped after entry. */
+  rest?: string
 }
 
 export interface WorkoutLactateLog {
