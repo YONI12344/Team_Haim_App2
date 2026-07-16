@@ -662,8 +662,16 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
       <div className="border-t border-border">
         {(() => {
           const stravaForDate = weekLogs.find(l => l.date === w.scheduledDate && l.source === 'strava')
+          // The "no assignedWorkoutId" fallback only makes sense on a day
+          // with exactly one workout (legacy logs saved before
+          // assignedWorkoutId was tracked at all) — on a multi-workout day
+          // (morning + evening, or run + gym) an orphaned log would
+          // otherwise get attributed to EVERY workout that day via this
+          // same fallback, showing the same completed distance under all
+          // of them even though only one was actually done.
+          const isSingleWorkoutDay = getWorkoutsForDay(new Date(w.scheduledDate)).length <= 1
           const hasManualLog = weekLogs.find(l =>
-            (l.assignedWorkoutId === w.id || (!l.assignedWorkoutId && l.date === w.scheduledDate))
+            (l.assignedWorkoutId === w.id || (isSingleWorkoutDay && !l.assignedWorkoutId && l.date === w.scheduledDate))
             && !!l.actualDistance && !isActivityLog(l)
           )
           const formOpen = openLogForms.has(w.id)
@@ -862,12 +870,19 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                   shouldComplete = plannedDist === 0 || totalRunKm >= plannedDist * 0.7
                 }
 
+                // Always link this log to whichever candidate it best
+                // matches, even when the distance doesn't clear the
+                // completion bar below — leaving it unlinked would make it
+                // an "orphan" log with no assignedWorkoutId, and on a
+                // multi-workout day (morning + evening, or run + gym) EVERY
+                // candidate's own orphan-log fallback lookup would then
+                // attribute this SAME log to itself, showing the same
+                // distance under both workout cards at once even though
+                // only one was actually done. Denormalizes comparisonGroup
+                // too, so this pools into the Lab's workout-trend comparison.
+                await updateDoc(logRef, { assignedWorkoutId: match.id, comparisonGroup: match.data().workout?.comparisonGroup || null })
                 if (shouldComplete) {
                   await updateDoc(doc(db, 'assignedWorkouts', match.id), { status: 'completed', completedAt: serverTimestamp() })
-                  // Denormalize the matched workout's comparisonGroup so this
-                  // Strava-synced log also pools into the Lab's workout-trend
-                  // comparison, not just logs entered through the log form.
-                  await updateDoc(logRef, { assignedWorkoutId: match.id, comparisonGroup: match.data().workout?.comparisonGroup || null })
                   setAssignedWorkouts(prev => prev.map(w => w.id === match.id ? { ...w, status: 'completed' } : w))
                 }
               }
@@ -1476,8 +1491,12 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
   const renderNavyWorkoutBlock = (w: AssignedWorkout, isMulti: boolean, idx: number, dateStr: string) => {
     const wEff = getEffectiveStatus(w)
     const wSelected = selectedWorkoutId === w.id
+    // The "no assignedWorkoutId" fallback only applies on a single-workout
+    // day (isMulti false) — on a multi-workout day an orphaned log would
+    // otherwise get attributed to every workout that day via this same
+    // fallback, showing the same completed distance under all of them.
     const wLog = weekLogs.find(l => l.assignedWorkoutId === w.id && !!l.actualDistance && !isActivityLog(l))
-      || weekLogs.find(l => !l.assignedWorkoutId && l.date === dateStr && !!l.actualDistance && !isActivityLog(l))
+      || weekLogs.find(l => !isMulti && !l.assignedWorkoutId && l.date === dateStr && !!l.actualDistance && !isActivityLog(l))
     const wMsg = coachMessages.find(m => m.assignedWorkoutId === w.id)
     const stravaThisDay = weekLogs.find(l => l.date === dateStr && l.source === 'strava')
     const stravaMatch = computeStravaMatch(w, dateStr)
