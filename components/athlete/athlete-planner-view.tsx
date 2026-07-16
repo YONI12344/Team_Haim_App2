@@ -26,7 +26,8 @@ import { WorkoutLogForm } from '@/components/athlete/workout-log-form'
 import { personalTargetRangeForLevel, personalTargetRangeWithBaseline, formatTargetRange, paceToSec, secToPace } from '@/lib/physiology'
 import { useLatestStepTest } from '@/hooks/useLatestStepTest'
 import { useWorkoutLactateGroups, latestSessionSteps, groupKeyFor } from '@/hooks/useWorkoutLactateGroups'
-import { expectedRepMetersForWorkout, scoreActivityFitForReps, buildRepDisplayRows } from '@/lib/strava-lap-matching'
+import { expectedRepMetersForWorkout, scoreActivityFitForReps } from '@/lib/strava-lap-matching'
+import { SplitsTable } from '@/components/shared/splits-table'
 import { isCoachEmail } from '@/lib/constants'
 import { ManualLogCard } from '@/components/shared/manual-log-card'
 import { useDaysOff } from '@/hooks/useDaysOff'
@@ -1096,91 +1097,6 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
   }
 
 
-  // A structured workout's real rep pace has to come from the workout's
-  // own planned distance, not the device's raw per-lap distance: a
-  // treadmill has no GPS at all (distance-per-lap is just an
-  // accelerometer estimate), and a track's short reps are exactly where
-  // GPS distance is noisiest. Showing the raw per-lap Strava data here
-  // would just repeat the same wrong pace the athlete's watch already
-  // showed live — so whenever the matched workout has a known rep
-  // structure, laps are first re-grouped by buildRepDisplayRows (which
-  // combines auto-laps into whole reps, computes pace from elapsed time ÷
-  // planned distance to hit the same ~90% of planned distance per rep,
-  // AND keeps every rest/recovery lap as its own row instead of quietly
-  // dropping it) and shown as one row per rep/rest instead of one row per
-  // raw device lap. A continuous run (no rep structure) still shows the
-  // raw per-lap splits as before.
-  const SplitsTable = ({ splitLogs, matchedWorkout, referencePace }: { splitLogs: any[]; matchedWorkout?: AssignedWorkout; referencePace?: string }) => {
-    const expectedMeters = expectedRepMetersForWorkout(matchedWorkout?.workout)
-    const displayRows = expectedMeters.length > 0
-      ? buildRepDisplayRows(splitLogs.map((s: any) => ({ distanceKm: s.distanceKm, time: s.time, heartRate: s.heartRate })), expectedMeters)
-      : null
-
-    let repCounter = 0
-    const rows = displayRows
-      ? displayRows.map(row => {
-          if (row.kind === 'rest') {
-            return { label: t.restLapLabel, time: row.time, pace: '', heartRate: row.heartRate, targetLabel: '—', isRest: true }
-          }
-          repCounter++
-          return {
-            label: String(repCounter),
-            time: secToPace(row.elapsedSec),
-            pace: row.pace,
-            heartRate: row.heartRate,
-            targetLabel: row.targetMeters ? (row.targetMeters >= 1000 ? `${(row.targetMeters / 1000).toFixed(row.targetMeters % 1000 === 0 ? 0 : 1)}k` : `${row.targetMeters}m`) : '—',
-            isRest: false,
-          }
-        })
-      : splitLogs.map((s: any, i: number) => ({
-          label: String(i + 1),
-          time: s.time,
-          pace: s.pace || '',
-          heartRate: s.heartRate || null,
-          targetLabel: (s.paceZone || s.notes?.replace('Zone ', '')) ? `Z${s.paceZone || s.notes?.replace('Zone ', '')}` : '—',
-          isRest: false,
-        }))
-
-    return (
-      <div className="rounded-lg border border-border overflow-hidden">
-        <table className="w-full table-fixed text-[10px]" dir="ltr">
-          <colgroup>
-            <col style={{ width: '14%' }} />
-            <col style={{ width: '22%' }} />
-            <col style={{ width: '24%' }} />
-            <col style={{ width: '22%' }} />
-            <col style={{ width: '18%' }} />
-          </colgroup>
-          <thead>
-            <tr className="bg-[#0a1628]/5">
-              <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{displayRows ? '#' : 'km'}</th>
-              <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{t.timeInputLabel}</th>
-              <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{t.tempoLabel}</th>
-              <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{t.heartRateLabel}</th>
-              <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{displayRows ? t.targetDistanceLabel : 'Zone'}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, i) => {
-              const pace = row.pace?.replace('/km', '') || '—'
-              const hr = row.heartRate ?? '—'
-              const isfast = !row.isRest && row.pace && parseFloat(row.pace) < parseFloat(referencePace || '99')
-              return (
-                <tr key={i} className={cn('border-t border-border/40', row.isRest ? 'bg-gray-50' : i % 2 === 0 ? 'bg-white' : 'bg-muted/20')}>
-                  <td className={cn('py-2 text-center font-bold truncate px-0.5', row.isRest ? 'text-gray-400 text-[9px]' : 'text-[#0a1628]')}>{row.label}</td>
-                  <td className={cn('py-2 text-center font-mono', row.isRest && 'text-gray-400')}>{row.time}</td>
-                  <td className={cn('py-2 text-center font-mono font-semibold', row.isRest ? 'text-gray-300' : isfast ? 'text-emerald-600' : 'text-[#0a1628]')}>{row.isRest ? '—' : pace}</td>
-                  <td className={cn('py-2 text-center font-mono', row.isRest ? 'text-gray-400' : typeof hr === 'number' && hr > 160 ? 'text-red-500' : typeof hr === 'number' && hr > 140 ? 'text-orange-500' : 'text-[#0a1628]')}>{hr}</td>
-                  <td className={cn('py-2 text-center font-bold', row.isRest ? 'text-gray-300' : 'text-emerald-600')}>{row.targetLabel}</td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-    )
-  }
-
   const StravaCard = ({ log, dayWorkouts = [] }: { log: WeekLog; dayWorkouts?: AssignedWorkout[] }) => {
     const kindInfo = getActivityInfo(log)
     const isManual = log.source === 'manual'
@@ -1362,7 +1278,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
           {log.splitLogs && log.splitLogs.length > 0 && (
             <div>
               <p className="text-sm font-bold text-navy mb-2">{t.kmSplitsLabel}</p>
-              <SplitsTable splitLogs={log.splitLogs} matchedWorkout={dayWorkouts.find(w => w.id === log.assignedWorkoutId)} referencePace={log.actualPace} />
+              <SplitsTable splitLogs={log.splitLogs} matchedWorkout={dayWorkouts.find(w => w.id === log.assignedWorkoutId)?.workout} referencePace={log.actualPace} />
               <p className="text-[10px] text-muted-foreground mt-1 text-center">{t.paceColorHint}</p>
             </div>
           )}
@@ -1602,7 +1518,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               </button>
               {showSplits && (
                 <div className="px-3.5 pb-3">
-                  <SplitsTable splitLogs={log.splitLogs} matchedWorkout={dayWorkouts.find(w => w.id === log.assignedWorkoutId)} referencePace={log.actualPace} />
+                  <SplitsTable splitLogs={log.splitLogs} matchedWorkout={dayWorkouts.find(w => w.id === log.assignedWorkoutId)?.workout} referencePace={log.actualPace} />
                 </div>
               )}
             </div>
@@ -1753,7 +1669,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
         </button>
         {showSplits && (
           <div className="px-3.5 pb-3">
-            <SplitsTable splitLogs={mainLog.splitLogs} matchedWorkout={dayWorkouts.find(w => w.id === mainLog.assignedWorkoutId)} referencePace={mainLog.actualPace} />
+            <SplitsTable splitLogs={mainLog.splitLogs} matchedWorkout={dayWorkouts.find(w => w.id === mainLog.assignedWorkoutId)?.workout} referencePace={mainLog.actualPace} />
           </div>
         )}
       </div>
