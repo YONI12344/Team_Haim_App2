@@ -29,7 +29,6 @@ import { useWorkoutLactateGroups, latestSessionSteps, groupKeyFor } from '@/hook
 import { expectedRepMetersForWorkout, scoreActivityFitForReps } from '@/lib/strava-lap-matching'
 import { isCoachEmail } from '@/lib/constants'
 import { ManualLogCard } from '@/components/shared/manual-log-card'
-import { MarkDayOffDialog } from '@/components/shared/mark-day-off-dialog'
 import { useDaysOff } from '@/hooks/useDaysOff'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { AddActivityDialog } from '@/components/athlete/add-activity-dialog'
@@ -179,9 +178,8 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
   const isCoachViewer = isCoachEmail(user?.email)
   const { steps: latestSteps } = useLatestStepTest(athleteId)
   const { grouped: workoutGroups } = useWorkoutLactateGroups(athleteId)
-  const { dayOffFor, markDayOff, removeDayOff } = useDaysOff(athleteId)
-  const [markDayOffOpen, setMarkDayOffOpen] = useState(false)
-  const [markDayOffDate, setMarkDayOffDate] = useState<string>(() => format(new Date(), 'yyyy-MM-dd'))
+  // Read-only here — only the coach can mark/undo a day off (athlete-planner.tsx)
+  const { dayOffFor } = useDaysOff(athleteId)
   const [editingTargetId, setEditingTargetId] = useState<string | null>(null)
   const [targetEditFields, setTargetEditFields] = useState({ paceMin: '', paceMax: '', hrMin: '', hrMax: '' })
   const [savingTargetOverride, setSavingTargetOverride] = useState(false)
@@ -1491,10 +1489,12 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
     )
   }
 
-  /** A date range the athlete/coach marked as no-workout (sick/trip/other) —
-   *  shown instead of the rest-day hero so it's clear this was intentional,
-   *  not a missed workout. Reminders are already suppressed server-side for
-   *  this range (see app/api/send-morning-reminders, send-evening-reminders). */
+  /** A date range the COACH marked as no-workout (sick/trip/other) — shown
+   *  instead of the rest-day hero so it's clear this was intentional, not a
+   *  missed workout. Read-only here: only the coach can mark/undo a day off
+   *  (see athlete-planner.tsx) — the athlete just sees the result.
+   *  Reminders are already suppressed server-side for this range (see
+   *  app/api/send-morning-reminders, send-evening-reminders). */
   const renderDayOffCard = (dateStr: string) => {
     const dayOff = dayOffFor(dateStr)
     if (!dayOff) return null
@@ -1505,14 +1505,6 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
       <div className="bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 rounded-3xl p-6 text-center space-y-2">
         <p className="text-xl font-bold text-white">{title}</p>
         {dayOff.note && <p className="text-sm text-white/60" dir="auto">{dayOff.note}</p>}
-        <button
-          onClick={async () => {
-            try { await removeDayOff(dayOff.id); toast.success(t.dayOffToastRemoved) }
-            catch (e) { console.error(e); toast.error(t.savingError) }
-          }}
-          className="text-xs font-semibold text-white/50 hover:text-white/80 underline underline-offset-2 mt-1">
-          {t.dayOffUndoBtn}
-        </button>
       </div>
     )
   }
@@ -1751,16 +1743,9 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             {t.addActivityBtn}
           </button>
         )
-        const markDayOffButton = (
-          <button
-            onClick={() => { setMarkDayOffDate(dateStr); setMarkDayOffOpen(true) }}
-            className="w-full h-10 rounded-2xl text-gray-400 hover:text-[#0a1628] text-xs font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98]">
-            {t.markDayOffBtn}
-          </button>
-        )
         const dayOffCard = renderDayOffCard(dateStr)
 
-        // ── Day off (sick/trip/other) ──
+        // ── Day off (sick/trip/other) — coach-set, read-only here ──
         if (dayOffCard) return (
           <div className="space-y-3">
             {dayOffCard}
@@ -1782,7 +1767,6 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               <p className="text-sm text-white/40">{t.restDaySubtitle}</p>
             </div>
             {addActivityButton}
-            {markDayOffButton}
           </div>
         )
 
@@ -1795,7 +1779,6 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               </div>
             )}
             {addActivityButton}
-            {markDayOffButton}
           </div>
         )
       })()}
@@ -1874,13 +1857,6 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                 {t.addActivityBtn}
               </button>
             )
-            const markDayOffButton = (
-              <button
-                onClick={() => { setMarkDayOffDate(dayStr); setMarkDayOffOpen(true) }}
-                className="w-full h-10 rounded-2xl text-gray-400 hover:text-[#0a1628] text-xs font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98]">
-                {t.markDayOffBtn}
-              </button>
-            )
             const dayOffCard = renderDayOffCard(dayStr)
             if (dayOffCard) return (
               <div className="space-y-3">
@@ -1900,7 +1876,6 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                   <p className="text-sm text-gray-400">{format(selectedWeekDay,'EEEE, d MMMM')}</p>
                 </div>
                 {addActivityButton}
-                {markDayOffButton}
               </div>
             )
             return (
@@ -1917,7 +1892,6 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                   </div>
                 )}
                 {addActivityButton}
-                {markDayOffButton}
               </div>
             )
           })()}
@@ -2129,20 +2103,6 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
           }}
         />
       )}
-      <MarkDayOffDialog
-        open={markDayOffOpen}
-        onOpenChange={setMarkDayOffOpen}
-        defaultDate={markDayOffDate}
-        onSubmit={async (payload) => {
-          try {
-            await markDayOff({ ...payload, createdBy: user?.id || '' })
-            toast.success(t.dayOffToastAdded)
-          } catch (e) {
-            console.error(e)
-            toast.error(t.savingError)
-          }
-        }}
-      />
     </div>
   )
 }
