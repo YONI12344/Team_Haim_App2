@@ -65,11 +65,22 @@ export interface MatchedLap { pace: string; heartRate: number | null }
  * shorter than the smallest rep distance in this workout — a warmup
  * stride, a GPS-blip fragment, etc.), then accumulates consecutive real
  * laps — summing their distance AND their time — until the total reaches
- * ~90% of that rep's expected distance. The rep's pace is then computed
- * from the COMBINED time ÷ COMBINED distance (not from any single lap's
- * own pace), and its HR is the time-weighted average across whichever laps
- * got combined. A rep with no known expected distance (a duration-based
- * rep) just takes the next single non-filler lap, same as before.
+ * ~90% of that rep's expected distance. The device's own per-lap distance
+ * is only trusted for THAT grouping decision, though — the rep's actual
+ * pace is computed from the COMBINED time ÷ the rep's PLANNED distance,
+ * not the device's summed distance. On a treadmill there's no GPS at all,
+ * so the watch's distance-per-lap is just an accelerometer estimate (its
+ * live pace readout is the part athletes already know not to trust); on a
+ * track, short reps are exactly the case where GPS distance is noisiest
+ * (satellite smoothing/lag matters more the shorter the rep). Either way,
+ * the workout's own planned distance is the one number we actually know is
+ * right — an athlete following the plan runs to that distance and hits lap
+ * at the right moment, so combined elapsed time ÷ planned distance is the
+ * true pace even when the device's own distance for those same laps is
+ * off. Its HR is still the time-weighted average across whichever laps got
+ * combined. A rep with no known expected distance (a duration-based rep)
+ * just takes the next single non-filler lap, same as before — there's no
+ * planned distance to fall back on there.
  *
  * Warmup/cooldown/strides are never explicitly labeled in Strava's lap
  * data, so they're inferred: a slow lap (jogging pace) is caught by the
@@ -133,7 +144,7 @@ export function matchLapsToReps(laps: RawLap[], expectedMeters: (number | null)[
       if (accMeters >= target * 0.9) break
     }
     results.push(used > 0
-      ? { pace: secToPace(accSec / (accMeters / 1000)), heartRate: hrWeight > 0 ? Math.round(hrWeighted / hrWeight) : null }
+      ? { pace: secToPace(accSec / (target / 1000)), heartRate: hrWeight > 0 ? Math.round(hrWeighted / hrWeight) : null }
       : null)
   }
   return results
