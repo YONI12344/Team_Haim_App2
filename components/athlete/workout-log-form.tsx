@@ -590,7 +590,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
               // workout over the (possibly months-old) lab test — the target
               // should self-adapt session to session.
               const recentRange = !targetOverride
-                ? personalTargetRangeWithBaseline(latestSessionSteps(workoutGroups.get(groupKeyFor(workout, workoutId)), existingLog?.id), latestSteps, workout.targetThresholdLevel)
+                ? personalTargetRangeWithBaseline(latestSessionSteps(workoutGroups.get(groupKeyFor(workout, workoutId)), existingLog?.id, latestSteps), latestSteps, workout.targetThresholdLevel)
                 : null
               const source: 'override' | 'recent' | 'lab' = targetOverride ? 'override' : recentRange ? 'recent' : 'lab'
               const range = targetOverride

@@ -15,7 +15,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { format } from 'date-fns'
-import { paceToSec, secToPace, personalTargetRangeForLevel, personalTargetRangeWithBaseline, type LactateStep, type PersonalTargetRange } from '@/lib/physiology'
+import { paceToSec, secToPace, personalTargetRangeForLevel, personalTargetRangeWithBaseline, estimateLactateFromHr, type LactateStep, type PersonalTargetRange } from '@/lib/physiology'
 import type { CurveInput } from '@/components/coach/lactate-multi-curve-chart'
 
 export interface WorkoutRepEntry {
@@ -91,22 +91,37 @@ export function groupKeyFor(workout: DistanceSource | null | undefined, workoutI
  *  measurement instead of being paired across different reps. Shared by
  *  the workout gallery, the Lab overview chart, and the per-workout
  *  deep-dive so all three build curves identically. */
-export function buildSessionCurves(group: WorkoutLactateGroup): CurveInput[] {
+export function buildSessionCurves(group: WorkoutLactateGroup, baselineSteps?: LactateStep[] | null): CurveInput[] {
+  const canEstimate = !!baselineSteps && baselineSteps.length >= 2
   return group.logs
-    .map((log, i) => ({
-      id: log.id,
-      label: format(new Date(log.date), 'd/M/yy'),
-      color: SESSION_COLORS[i % SESSION_COLORS.length],
-      sourceType: 'workout' as const,
-      // Requires an actual lactate reading per rep — this feeds the
-      // pace/HR-vs-LACTATE chart specifically, so a session logged without
-      // any testing (pace/HR only) has nothing to plot here. It still
-      // belongs in the group (see hasLactate above) for the time-based
-      // pace/HR trend shown instead when a group has no lactate at all.
-      points: (log.splitLogs || [])
-        .filter(r => r.lactate)
-        .map(r => ({ pace: r.pace ?? null, hr: r.avgHr ?? null, lactate: r.lactate ?? 0, label: format(new Date(log.date), 'd/M') })),
-    }))
+    .map((log, i) => {
+      let anyEstimated = false
+      const points = (log.splitLogs || [])
+        .map(r => {
+          if (r.lactate) return { pace: r.pace ?? null, hr: r.avgHr ?? null, lactate: r.lactate, label: format(new Date(log.date), 'd/M') }
+          // No direct reading for this rep — estimate lactate from HR using
+          // the baseline test's own HR→lactate relationship (see
+          // estimateLactateFromHr), so an untested threshold session still
+          // has real points on the lactate curve instead of none at all.
+          if (canEstimate && r.avgHr) {
+            const est = estimateLactateFromHr(baselineSteps!, r.avgHr)
+            if (est != null) {
+              anyEstimated = true
+              return { pace: r.pace ?? null, hr: r.avgHr ?? null, lactate: est, label: format(new Date(log.date), 'd/M') }
+            }
+          }
+          return null
+        })
+        .filter((p): p is NonNullable<typeof p> => p != null)
+      return {
+        id: log.id,
+        label: format(new Date(log.date), 'd/M/yy'),
+        color: SESSION_COLORS[i % SESSION_COLORS.length],
+        sourceType: 'workout' as const,
+        points,
+        lactateEstimated: anyEstimated,
+      }
+    })
     .filter(c => c.points.length > 0)
 }
 
@@ -118,18 +133,33 @@ export function buildSessionCurves(group: WorkoutLactateGroup): CurveInput[] {
  * never references itself as "the previous one"). Returns [] when there's
  * no qualifying prior session.
  */
-export function latestSessionSteps(group: WorkoutLactateGroup | undefined, excludeLogId?: string): LactateStep[] {
+export function latestSessionSteps(
+  group: WorkoutLactateGroup | undefined,
+  excludeLogId?: string,
+  baselineSteps?: LactateStep[] | null,
+): LactateStep[] {
   if (!group) return []
   const candidates = group.logs.filter(l => l.id !== excludeLogId)
-  // Prefer the most recent session that actually has lactate data — now
-  // that untested sessions of the same workout are also in this group (see
-  // hasLactate above), the truly latest log might have none, which would
-  // silently lose a still-relevant prior tested session as the reference.
-  // Falls back to the true latest (untested) session only if none were ever tested.
+  const canEstimate = !!baselineSteps && baselineSteps.length >= 2
+  // Prefer the most recent session with a real lactate reading; next, one
+  // that at least has HR (so estimateLactateFromHr below has something to
+  // work with) if a baseline test is available to estimate against;
+  // otherwise the true latest session, whatever it has. Now that untested
+  // sessions of the same workout are also in this group (see hasLactate
+  // above), the truly latest log might have neither, which would silently
+  // lose a still-relevant prior tested/HR session as the reference.
   const withLactate = candidates.filter(l => (l.splitLogs || []).some(r => r.lactate))
-  const last = withLactate[withLactate.length - 1] ?? candidates[candidates.length - 1]
+  const withHr = canEstimate ? candidates.filter(l => (l.splitLogs || []).some(r => r.avgHr)) : []
+  const last = withLactate[withLactate.length - 1] ?? withHr[withHr.length - 1] ?? candidates[candidates.length - 1]
   if (!last) return []
-  return (last.splitLogs || []).map(r => ({ pace: r.pace ?? '', hr: r.avgHr ?? null, lactate: r.lactate ?? 0 }))
+  return (last.splitLogs || []).map(r => {
+    if (r.lactate) return { pace: r.pace ?? '', hr: r.avgHr ?? null, lactate: r.lactate }
+    if (canEstimate && r.avgHr) {
+      const est = estimateLactateFromHr(baselineSteps!, r.avgHr)
+      if (est != null) return { pace: r.pace ?? '', hr: r.avgHr ?? null, lactate: est }
+    }
+    return { pace: r.pace ?? '', hr: r.avgHr ?? null, lactate: 0 }
+  })
 }
 
 /**
@@ -150,7 +180,7 @@ export function currentWorkoutThresholds(
   group: WorkoutLactateGroup | undefined,
   baselineSteps?: LactateStep[] | null,
 ): Record<'T1' | 'T2' | 'T3', PersonalTargetRange | null> {
-  const steps = latestSessionSteps(group)
+  const steps = latestSessionSteps(group, undefined, baselineSteps)
   if (baselineSteps && baselineSteps.length >= 2) {
     return {
       T1: personalTargetRangeWithBaseline(steps, baselineSteps, 'T1'),

@@ -97,7 +97,13 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
     ...(baselineCurve ? [{ id: 'baseline', title: t.labBaselineTest, curves: [baselineCurve] }] : []),
     ...workoutOptions.map(o => {
       const group = grouped.get(o.id)!
-      const curves = buildSessionCurves(group)
+      // baselineSteps lets an untested session's reps still land on this
+      // curve — buildSessionCurves estimates lactate from HR via the
+      // baseline's own HR→lactate relationship wherever a rep has no direct
+      // reading (see estimateLactateFromHr in lib/physiology.ts).
+      const curves = buildSessionCurves(group, baselineSteps).map(c => c.lactateEstimated
+        ? { ...c, label: `${c.label}${t.labEstimateSuffix}` }
+        : c)
       return {
         id: o.id,
         title: o.title,
@@ -108,9 +114,9 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
         // that's only ever been logged without lactate testing still has a
         // real session count (used for the pace/HR trend chart below).
         sessionCount: group.logs.length,
-        // No session in this group has ever had a lactate reading — nothing
-        // to plot on the pace/HR-vs-lactate axis, so build the pace/HR
-        // -over-time trend from the raw logs instead.
+        // Truly nothing to plot on the lactate axis (no direct reading AND
+        // no baseline test to estimate from, or no HR either) — fall back
+        // to the plain pace/HR-over-time trend built from the raw logs.
         trendPoints: curves.length === 0 ? toTrendPoints(group) : undefined,
       }
     }),

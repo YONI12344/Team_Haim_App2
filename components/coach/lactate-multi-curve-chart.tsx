@@ -47,6 +47,11 @@ export interface CurveInput {
   color: string
   sourceType: 'test' | 'workout'
   points: CurvePoint[]
+  /** True when some/all of this curve's lactate values were estimated from
+   *  HR via the baseline test's HR→lactate relationship (see
+   *  estimateLactateFromHr in lib/physiology.ts) rather than measured
+   *  directly — the session had no lactate testing done. */
+  lactateEstimated?: boolean
 }
 
 export type AxisMode = 'paceVsLactate' | 'hrVsLactate' | 'dual'

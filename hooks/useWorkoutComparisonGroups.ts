@@ -14,7 +14,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react'
-import { collection, getDocs, query, where } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { paceToSec, secToPace } from '@/lib/physiology'
 
@@ -26,7 +26,16 @@ export interface ComparisonLogEntry {
   actualPace?: string
   averageHeartRate?: number
   effort?: number | null
+  durationMin?: number
+  assignedWorkoutId?: string
+  workoutId?: string
   splitLogs?: { avgHr?: number; pace?: string }[]
+  /** Prescribed rest for this session, e.g. "90 שנ'" — from the workout
+   *  snapshot that was actually assigned that day (assignedWorkouts.workout),
+   *  falling back to the current template if that's unavailable. Only set
+   *  when the workout actually has structured rest between reps (an
+   *  interval-type session) — a continuous session (fartlek etc.) has none. */
+  restLabel?: string | null
 }
 
 export interface WorkoutComparisonGroup {
@@ -60,6 +69,31 @@ export interface ComparisonPoint {
   hr: number | null
   distance?: number
   effort?: number | null
+  /** Minutes, from the log if recorded (Strava), else estimated from
+   *  distance × pace when both are present. */
+  durationMin?: number | null
+  restLabel?: string | null
+}
+
+/** distance(km) × pace(sec/km) → whole minutes, for a session with no
+ *  directly-logged duration (e.g. a manually-entered fartlek). */
+function estimateDurationMin(distanceKm?: number, paceSec?: number | null): number | null {
+  if (!distanceKm || !paceSec) return null
+  return Math.round((distanceKm * paceSec) / 60)
+}
+
+/** The workout's own prescribed rest, only when it's actually an
+ *  interval-type session (more than one rep, with a real rest value set) —
+ *  a continuous session (fartlek, easy run, tempo) has no such field filled
+ *  in at all, which is exactly how it's told apart from an interval one. */
+function restLabelFromWorkout(workout: any): string | null {
+  if (!workout?.sets?.length) return null
+  for (const s of workout.sets) {
+    const reps = s?.reps || 1
+    const rest = (s?.restBetweenReps || s?.restAfterSet || '').toString().trim()
+    if (reps > 1 && rest) return rest
+  }
+  return null
 }
 
 /** One data point per session, oldest to newest — the shape the trend chart
@@ -76,6 +110,8 @@ export function buildComparisonPoints(group: WorkoutComparisonGroup): Comparison
       hr,
       distance: log.actualDistance,
       effort: log.effort,
+      durationMin: log.durationMin ?? estimateDurationMin(log.actualDistance, paceSec),
+      restLabel: log.restLabel ?? null,
     }
   })
 }
@@ -90,10 +126,31 @@ export function useWorkoutComparisonGroups(athleteId: string) {
       setLoading(true)
       try {
         const snap = await getDocs(query(collection(db, 'logs'), where('athleteId', '==', athleteId)))
-        const docs = snap.docs
+        const raw = snap.docs
           .map(d => ({ id: d.id, ...(d.data() as any) }))
           .filter(d => !!d.comparisonGroup)
           .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+
+        // The prescribed rest for each session comes from the workout
+        // snapshot actually assigned that day (assignedWorkouts.workout),
+        // not the current template, in case the coach has since edited it —
+        // falling back to the current template only when there's no
+        // assignedWorkoutId to look up (e.g. an old or Strava-matched log).
+        const awIds = Array.from(new Set(raw.filter(d => d.assignedWorkoutId).map(d => d.assignedWorkoutId as string)))
+        const templateIds = Array.from(new Set(raw.filter(d => !d.assignedWorkoutId && d.workoutId).map(d => d.workoutId as string)))
+        const [awDocs, templateDocs] = await Promise.all([
+          Promise.all(awIds.map(id => getDoc(doc(db, 'assignedWorkouts', id)).catch(() => null))),
+          Promise.all(templateIds.map(id => getDoc(doc(db, 'workouts', id)).catch(() => null))),
+        ])
+        const awWorkoutMap = new Map<string, any>()
+        awDocs.forEach((s, i) => { if (s?.exists()) awWorkoutMap.set(awIds[i], s.data()?.workout) })
+        const templateMap = new Map<string, any>()
+        templateDocs.forEach((s, i) => { if (s?.exists()) templateMap.set(templateIds[i], s.data()) })
+
+        const docs = raw.map(d => {
+          const workout = d.assignedWorkoutId ? awWorkoutMap.get(d.assignedWorkoutId) : templateMap.get(d.workoutId)
+          return { ...d, restLabel: restLabelFromWorkout(workout) }
+        })
         setLogs(docs)
       } catch (e) { console.error(e) }
       finally { setLoading(false) }

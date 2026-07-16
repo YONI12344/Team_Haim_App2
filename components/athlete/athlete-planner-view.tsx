@@ -492,7 +492,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
     // workout over the (possibly months-old) lab test — the target
     // self-adapts session to session.
     const recent = targetLevel && !w.targetOverride
-      ? personalTargetRangeWithBaseline(latestSessionSteps(workoutGroups.get(groupKeyFor(w.workout, w.workoutId))), latestSteps, targetLevel)
+      ? personalTargetRangeWithBaseline(latestSessionSteps(workoutGroups.get(groupKeyFor(w.workout, w.workoutId)), undefined, latestSteps), latestSteps, targetLevel)
       : null
     const source: 'override' | 'recent' | 'lab' = w.targetOverride ? 'override' : recent ? 'recent' : 'lab'
     const auto = targetLevel ? (recent || personalTargetRangeForLevel(latestSteps, targetLevel)) : null

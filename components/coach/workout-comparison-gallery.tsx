@@ -50,6 +50,10 @@ export function WorkoutComparisonGallery({ athleteId }: { athleteId: string }) {
           const group = grouped.get(opt.id)!
           const points = buildComparisonPoints(group)
           const isOpen = expandedId === opt.id
+          // Interval-type sessions (structured rest between reps) compare
+          // rest prescribed session-to-session; a continuous session
+          // (fartlek etc., no rest field at all) compares duration instead.
+          const hasRest = points.some(p => p.restLabel)
           return (
             <Card key={opt.id} className="min-w-0">
               <button onClick={() => setExpandedId(p => p === opt.id ? null : opt.id)}
@@ -76,19 +80,35 @@ export function WorkoutComparisonGallery({ athleteId }: { athleteId: string }) {
                           <th className="text-left font-medium py-1 pr-2">{t.labTrendTableDistance}</th>
                           <th className="text-left font-medium py-1 pr-2">{t.labTrendTablePace}</th>
                           <th className="text-left font-medium py-1 pr-2">{t.labTrendTableHr}</th>
+                          {hasRest ? (
+                            <th className="text-left font-medium py-1 pr-2">{t.labTrendTableRest}</th>
+                          ) : (
+                            <th className="text-left font-medium py-1 pr-2">{t.labTrendTableDuration}</th>
+                          )}
                           <th className="text-left font-medium py-1">{t.labTrendTableEffort}</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {points.map(p => (
-                          <tr key={p.logId} className="border-b border-border/50 last:border-0">
-                            <td className="py-1 pr-2 whitespace-nowrap">{format(new Date(p.date), 'd/M/yy')}</td>
-                            <td className="py-1 pr-2">{p.distance != null ? `${p.distance} ק"מ` : '—'}</td>
-                            <td className="py-1 pr-2" dir="ltr">{p.pace ?? '—'}</td>
-                            <td className="py-1 pr-2">{p.hr ?? '—'}</td>
-                            <td className="py-1">{p.effort ?? '—'}</td>
-                          </tr>
-                        ))}
+                        {points.map((p, i) => {
+                          const prevRest = i > 0 ? points[i - 1].restLabel : undefined
+                          const restChanged = hasRest && prevRest !== undefined && p.restLabel !== prevRest
+                          return (
+                            <tr key={p.logId} className="border-b border-border/50 last:border-0">
+                              <td className="py-1 pr-2 whitespace-nowrap">{format(new Date(p.date), 'd/M/yy')}</td>
+                              <td className="py-1 pr-2">{p.distance != null ? `${p.distance} ק"מ` : '—'}</td>
+                              <td className="py-1 pr-2" dir="ltr">{p.pace ?? '—'}</td>
+                              <td className="py-1 pr-2">{p.hr ?? '—'}</td>
+                              {hasRest ? (
+                                <td className={cn('py-1 pr-2', restChanged && 'font-bold text-navy')}>
+                                  {p.restLabel ?? '—'}{restChanged && ' *'}
+                                </td>
+                              ) : (
+                                <td className="py-1 pr-2">{p.durationMin != null ? `${p.durationMin} ${t.labTrendTableMin}` : '—'}</td>
+                              )}
+                              <td className="py-1">{p.effort ?? '—'}</td>
+                            </tr>
+                          )
+                        })}
                       </tbody>
                     </table>
                   </div>

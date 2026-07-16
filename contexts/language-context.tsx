@@ -860,6 +860,9 @@ export interface Translations {
   labTrendTableHr: string
   labTrendTableEffort: string
   labNoLactateYetTrend: string
+  labTrendTableRest: string
+  labTrendTableDuration: string
+  labTrendTableMin: string
 }
 
 const translations: Record<Language, Translations> = {
@@ -1672,6 +1675,9 @@ const translations: Record<Language, Translations> = {
     labTrendTableHr: 'HR',
     labTrendTableEffort: 'Effort',
     labNoLactateYetTrend: 'Not tested yet — showing pace/HR trend instead',
+    labTrendTableRest: 'Rest',
+    labTrendTableDuration: 'Duration',
+    labTrendTableMin: 'min',
   },
   he: {
     teamHaim: 'Team Haim',
@@ -2477,6 +2483,9 @@ const translations: Record<Language, Translations> = {
     labTrendTableHr: 'דופק',
     labTrendTableEffort: 'מאמץ',
     labNoLactateYetTrend: 'עדיין לא נבדק לקטט — מוצגת מגמת קצב/דופק',
+    labTrendTableRest: 'מנוחה',
+    labTrendTableDuration: 'משך',
+    labTrendTableMin: 'דק׳',
   },
 }
 

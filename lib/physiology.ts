@@ -408,6 +408,34 @@ export function interpolateAtLactate(steps: LactateStep[], target: number): Thre
   return null
 }
 
+/**
+ * Estimate a lactate value from HR using the athlete's real baseline step
+ * test's own HR→lactate relationship (linear interpolation between the two
+ * bracketing measured points) — used when a threshold workout rep has HR
+ * but wasn't tested for lactate, so it can still be placed on the real
+ * lactate curve (with T1/T2/T3 markers) instead of being dropped from it.
+ * Clamps to the nearest endpoint's lactate for an HR outside the
+ * baseline's own tested range — still directionally useful, unlike
+ * returning null and losing the point entirely.
+ */
+export function estimateLactateFromHr(baselineSteps: LactateStep[], hr: number): number | null {
+  const pts = baselineSteps
+    .map(s => ({ hr: s.hr, lac: Number(s.lactate) }))
+    .filter((p): p is { hr: number; lac: number } => p.hr != null && isFinite(p.lac) && p.lac > 0)
+    .sort((a, b) => a.hr - b.hr)
+  if (pts.length < 2) return null
+  if (hr <= pts[0].hr) return pts[0].lac
+  if (hr >= pts[pts.length - 1].hr) return pts[pts.length - 1].lac
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i], b = pts[i + 1]
+    if (hr >= a.hr && hr <= b.hr) {
+      const f = b.hr === a.hr ? 0 : (hr - a.hr) / (b.hr - a.hr)
+      return Math.round((a.lac + (b.lac - a.lac) * f) * 10) / 10
+    }
+  }
+  return null
+}
+
 export interface ThresholdTriple {
   lt1: ThresholdPoint | null
   lt2: ThresholdPoint | null
