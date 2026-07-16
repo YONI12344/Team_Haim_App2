@@ -63,46 +63,58 @@ export interface MatchedLap {
   actualMeters: number | null
 }
 
+/** One row of a full, in-order rendering of a structured session's laps —
+ *  either a matched work rep, or a rest/recovery lap kept as-is (not
+ *  silently dropped) so the athlete still sees the recovery between reps. */
+export type DisplayRow =
+  | ({ kind: 'rep'; repIndex: number } & MatchedLap)
+  | { kind: 'rest'; time: string; heartRate: number | null; distanceMeters: number | null }
+
 /**
- * Matches Strava laps to workout reps by DISTANCE, not by raw position.
+ * Walks a Strava activity's raw laps in order and classifies every single
+ * one of them — either folded into a matched work rep, or kept as its own
+ * "rest" row — so nothing from the recording is ever silently dropped.
+ * matchLapsToReps (below) is just this same walk with the rest rows
+ * filtered back out, for the one caller (workout-log-form.tsx) that only
+ * wants the rep values themselves.
+ *
  * Some watches auto-lap at a fixed round distance (e.g. every 1km)
  * regardless of the workout's actual rep length, so a 1.6km rep can come
  * back as two laps (1km + 0.6km) instead of one — matched 1:1 by index,
- * that desyncs every rep after it. This also still has to skip real
- * rest/recovery laps (much slower pace) so they don't get folded into a
- * work rep's distance by mistake.
+ * that desyncs every rep after it. This also still has to tell real
+ * rest/recovery laps apart (much slower pace) so they don't get folded
+ * into a work rep's distance by mistake.
  *
- * For each rep (in order), skips any rest laps AND any "filler" laps (much
- * shorter than the smallest rep distance in this workout — a warmup
- * stride, a GPS-blip fragment, etc.), then accumulates consecutive real
- * laps — summing their distance AND their time — until the total reaches
- * ~90% of that rep's expected distance. The device's own per-lap distance
- * is only trusted for THAT grouping decision, though — the rep's actual
- * pace is computed from the COMBINED time ÷ the rep's PLANNED distance,
- * not the device's summed distance. On a treadmill there's no GPS at all,
- * so the watch's distance-per-lap is just an accelerometer estimate (its
- * live pace readout is the part athletes already know not to trust); on a
- * track, short reps are exactly the case where GPS distance is noisiest
- * (satellite smoothing/lag matters more the shorter the rep). Either way,
- * the workout's own planned distance is the one number we actually know is
- * right — an athlete following the plan runs to that distance and hits lap
- * at the right moment, so combined elapsed time ÷ planned distance is the
- * true pace even when the device's own distance for those same laps is
- * off. Its HR is still the time-weighted average across whichever laps got
- * combined. A rep with no known expected distance (a duration-based rep)
- * just takes the next single non-filler lap, same as before — there's no
- * planned distance to fall back on there.
+ * For each rep (in order), any rest laps encountered while looking for the
+ * next work lap are emitted as their own 'rest' rows (not dropped), and any
+ * "filler" laps (much shorter than the smallest rep distance in this
+ * workout — a warmup stride, a GPS-blip fragment) are skipped entirely
+ * (too short to be a real rep OR a meaningful rest). Real work laps are
+ * then accumulated — summing their distance AND their time — until the
+ * total reaches ~90% of that rep's expected distance. The device's own
+ * per-lap distance is only trusted for THAT grouping decision, though —
+ * the rep's actual pace is computed from the COMBINED time ÷ the rep's
+ * PLANNED distance, not the device's summed distance. On a treadmill
+ * there's no GPS at all, so the watch's distance-per-lap is just an
+ * accelerometer estimate (its live pace readout is the part athletes
+ * already know not to trust); on a track, short reps are exactly the case
+ * where GPS distance is noisiest (satellite smoothing/lag matters more the
+ * shorter the rep). Either way, the workout's own planned distance is the
+ * one number we actually know is right — an athlete following the plan
+ * runs to that distance and hits lap at the right moment, so combined
+ * elapsed time ÷ planned distance is the true pace even when the device's
+ * own distance for those same laps is off. Its HR is still the
+ * time-weighted average across whichever laps got combined. A rep with no
+ * known expected distance (a duration-based rep) just takes the next
+ * single non-filler lap, same as before — there's no planned distance to
+ * fall back on there.
  *
  * Warmup/cooldown/strides are never explicitly labeled in Strava's lap
  * data, so they're inferred: a slow lap (jogging pace) is caught by the
  * rest-pace check below; a short fast one (a stride) isn't slow but is far
  * too short to be a real rep, caught by the filler-distance check instead.
- * Either way they're skipped from the rep-matching entirely — they still
- * count toward the session's overall distance/duration (that comes from
- * the whole Strava activity, untouched by this function), just never fill
- * a specific rep's pace.
  */
-export function matchLapsToReps(laps: RawLap[], expectedMeters: (number | null)[]): (MatchedLap | null)[] {
+export function buildRepDisplayRows(laps: RawLap[], expectedMeters: (number | null)[]): DisplayRow[] {
   const parsed = laps.map(l => ({
     meters: l.distanceKm != null ? l.distanceKm * 1000 : null,
     sec: paceToSec(l.time),
@@ -126,20 +138,29 @@ export function matchLapsToReps(laps: RawLap[], expectedMeters: (number | null)[
   const isFiller = (p: typeof parsed[number]) =>
     minTarget != null && p.meters != null && p.meters < minTarget * 0.4
 
-  const results: (MatchedLap | null)[] = []
+  const pushRest = (p: typeof parsed[number]) => {
+    rows.push({ kind: 'rest', time: p.sec != null ? secToPace(p.sec) : '—', heartRate: p.heartRate, distanceMeters: p.meters })
+  }
+
+  const rows: DisplayRow[] = []
   let li = 0
+  let repIndex = 0
   for (const target of expectedMeters) {
-    while (li < parsed.length && (isRest(parsed[li]) || isFiller(parsed[li]))) li++
-    if (li >= parsed.length) { results.push(null); continue }
+    while (li < parsed.length && (isRest(parsed[li]) || isFiller(parsed[li]))) {
+      if (isRest(parsed[li])) pushRest(parsed[li])
+      li++
+    }
+    if (li >= parsed.length) { repIndex++; continue }
 
     if (!target) {
       // Duration-based rep — no expected distance to match against, so
       // just take the next lap as-is (previous 1:1 behavior).
       const p = parsed[li]
-      results.push(p.meters && p.sec
-        ? { pace: secToPace(paceOf(p)), heartRate: p.heartRate, elapsedSec: p.sec, targetMeters: null, actualMeters: p.meters }
-        : null)
+      if (p.meters && p.sec) {
+        rows.push({ kind: 'rep', repIndex, pace: secToPace(paceOf(p)), heartRate: p.heartRate, elapsedSec: p.sec, targetMeters: null, actualMeters: p.meters })
+      }
       li++
+      repIndex++
       continue
     }
 
@@ -156,13 +177,35 @@ export function matchLapsToReps(laps: RawLap[], expectedMeters: (number | null)[
       li++
       if (accMeters >= target * 0.9) break
     }
-    results.push(used > 0
-      ? {
-          pace: secToPace(accSec / (target / 1000)),
-          heartRate: hrWeight > 0 ? Math.round(hrWeighted / hrWeight) : null,
-          elapsedSec: accSec, targetMeters: target, actualMeters: accMeters,
-        }
-      : null)
+    if (used > 0) {
+      rows.push({
+        kind: 'rep', repIndex,
+        pace: secToPace(accSec / (target / 1000)),
+        heartRate: hrWeight > 0 ? Math.round(hrWeighted / hrWeight) : null,
+        elapsedSec: accSec, targetMeters: target, actualMeters: accMeters,
+      })
+    }
+    repIndex++
+  }
+  // Anything left over after the last rep (a final rest/cooldown lap) —
+  // show it too rather than dropping it silently.
+  while (li < parsed.length) {
+    if (isRest(parsed[li])) pushRest(parsed[li])
+    li++
+  }
+  return rows
+}
+
+/** Just the matched rep values, one per expected rep (null where a rep
+ *  couldn't be matched at all) — the shape workout-log-form.tsx's
+ *  rep-entry pre-fill wants, with every rest row filtered back out. */
+export function matchLapsToReps(laps: RawLap[], expectedMeters: (number | null)[]): (MatchedLap | null)[] {
+  const results: (MatchedLap | null)[] = new Array(expectedMeters.length).fill(null)
+  for (const row of buildRepDisplayRows(laps, expectedMeters)) {
+    if (row.kind === 'rep') {
+      const { kind, repIndex, ...rest } = row
+      results[repIndex] = rest
+    }
   }
   return results
 }

@@ -26,7 +26,7 @@ import { WorkoutLogForm } from '@/components/athlete/workout-log-form'
 import { personalTargetRangeForLevel, personalTargetRangeWithBaseline, formatTargetRange, paceToSec, secToPace } from '@/lib/physiology'
 import { useLatestStepTest } from '@/hooks/useLatestStepTest'
 import { useWorkoutLactateGroups, latestSessionSteps, groupKeyFor } from '@/hooks/useWorkoutLactateGroups'
-import { expectedRepMetersForWorkout, scoreActivityFitForReps, matchLapsToReps } from '@/lib/strava-lap-matching'
+import { expectedRepMetersForWorkout, scoreActivityFitForReps, buildRepDisplayRows } from '@/lib/strava-lap-matching'
 import { isCoachEmail } from '@/lib/constants'
 import { ManualLogCard } from '@/components/shared/manual-log-card'
 import { useDaysOff } from '@/hooks/useDaysOff'
@@ -1103,67 +1103,75 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
   // GPS distance is noisiest. Showing the raw per-lap Strava data here
   // would just repeat the same wrong pace the athlete's watch already
   // showed live — so whenever the matched workout has a known rep
-  // structure, laps are first re-grouped by matchLapsToReps (which
-  // combines auto-laps into whole reps and computes pace from elapsed
-  // time ÷ planned distance) and shown as one row per REP instead of one
-  // row per raw device lap. A continuous run (no rep structure) still
-  // shows the raw per-lap splits as before.
+  // structure, laps are first re-grouped by buildRepDisplayRows (which
+  // combines auto-laps into whole reps, computes pace from elapsed time ÷
+  // planned distance to hit the same ~90% of planned distance per rep,
+  // AND keeps every rest/recovery lap as its own row instead of quietly
+  // dropping it) and shown as one row per rep/rest instead of one row per
+  // raw device lap. A continuous run (no rep structure) still shows the
+  // raw per-lap splits as before.
   const SplitsTable = ({ splitLogs, matchedWorkout, referencePace }: { splitLogs: any[]; matchedWorkout?: AssignedWorkout; referencePace?: string }) => {
     const expectedMeters = expectedRepMetersForWorkout(matchedWorkout?.workout)
-    const repMatched = expectedMeters.length > 0
-      ? matchLapsToReps(splitLogs.map((s: any) => ({ distanceKm: s.distanceKm, time: s.time, heartRate: s.heartRate })), expectedMeters)
+    const displayRows = expectedMeters.length > 0
+      ? buildRepDisplayRows(splitLogs.map((s: any) => ({ distanceKm: s.distanceKm, time: s.time, heartRate: s.heartRate })), expectedMeters)
       : null
 
-    const rows = (repMatched || splitLogs).map((entry: any, i: number) => {
-      if (repMatched) {
-        const m = entry
-        return {
-          time: m ? secToPace(m.elapsedSec) : '—',
-          pace: m ? m.pace : '',
-          heartRate: m?.heartRate ?? null,
-          targetLabel: m?.targetMeters ? (m.targetMeters >= 1000 ? `${(m.targetMeters / 1000).toFixed(m.targetMeters % 1000 === 0 ? 0 : 1)}k` : `${m.targetMeters}m`) : '—',
-        }
-      }
-      const s = entry
-      return {
-        time: s.time,
-        pace: s.pace || '',
-        heartRate: s.heartRate || null,
-        targetLabel: s.paceZone || s.notes?.replace('Zone ', '') ? `Z${s.paceZone || s.notes?.replace('Zone ', '')}` : '—',
-      }
-    })
+    let repCounter = 0
+    const rows = displayRows
+      ? displayRows.map(row => {
+          if (row.kind === 'rest') {
+            return { label: t.restLapLabel, time: row.time, pace: '', heartRate: row.heartRate, targetLabel: '—', isRest: true }
+          }
+          repCounter++
+          return {
+            label: String(repCounter),
+            time: secToPace(row.elapsedSec),
+            pace: row.pace,
+            heartRate: row.heartRate,
+            targetLabel: row.targetMeters ? (row.targetMeters >= 1000 ? `${(row.targetMeters / 1000).toFixed(row.targetMeters % 1000 === 0 ? 0 : 1)}k` : `${row.targetMeters}m`) : '—',
+            isRest: false,
+          }
+        })
+      : splitLogs.map((s: any, i: number) => ({
+          label: String(i + 1),
+          time: s.time,
+          pace: s.pace || '',
+          heartRate: s.heartRate || null,
+          targetLabel: (s.paceZone || s.notes?.replace('Zone ', '')) ? `Z${s.paceZone || s.notes?.replace('Zone ', '')}` : '—',
+          isRest: false,
+        }))
 
     return (
       <div className="rounded-lg border border-border overflow-hidden">
         <table className="w-full table-fixed text-[10px]" dir="ltr">
           <colgroup>
-            <col style={{ width: '12%' }} />
+            <col style={{ width: '14%' }} />
             <col style={{ width: '22%' }} />
             <col style={{ width: '24%' }} />
-            <col style={{ width: '24%' }} />
+            <col style={{ width: '22%' }} />
             <col style={{ width: '18%' }} />
           </colgroup>
           <thead>
             <tr className="bg-[#0a1628]/5">
-              <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{repMatched ? '#' : 'km'}</th>
+              <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{displayRows ? '#' : 'km'}</th>
               <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{t.timeInputLabel}</th>
               <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{t.tempoLabel}</th>
               <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{t.heartRateLabel}</th>
-              <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{repMatched ? t.targetDistanceLabel : 'Zone'}</th>
+              <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{displayRows ? t.targetDistanceLabel : 'Zone'}</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row, i) => {
               const pace = row.pace?.replace('/km', '') || '—'
               const hr = row.heartRate ?? '—'
-              const isfast = row.pace && parseFloat(row.pace) < parseFloat(referencePace || '99')
+              const isfast = !row.isRest && row.pace && parseFloat(row.pace) < parseFloat(referencePace || '99')
               return (
-                <tr key={i} className={cn('border-t border-border/40', i % 2 === 0 ? 'bg-white' : 'bg-muted/20')}>
-                  <td className="py-2 text-center font-bold text-[#0a1628]">{i + 1}</td>
-                  <td className="py-2 text-center font-mono">{row.time}</td>
-                  <td className={cn('py-2 text-center font-mono font-semibold', isfast ? 'text-emerald-600' : 'text-[#0a1628]')}>{pace}</td>
-                  <td className={cn('py-2 text-center font-mono', typeof hr === 'number' && hr > 160 ? 'text-red-500' : typeof hr === 'number' && hr > 140 ? 'text-orange-500' : 'text-[#0a1628]')}>{hr}</td>
-                  <td className="py-2 text-center font-bold text-emerald-600">{row.targetLabel}</td>
+                <tr key={i} className={cn('border-t border-border/40', row.isRest ? 'bg-gray-50' : i % 2 === 0 ? 'bg-white' : 'bg-muted/20')}>
+                  <td className={cn('py-2 text-center font-bold truncate px-0.5', row.isRest ? 'text-gray-400 text-[9px]' : 'text-[#0a1628]')}>{row.label}</td>
+                  <td className={cn('py-2 text-center font-mono', row.isRest && 'text-gray-400')}>{row.time}</td>
+                  <td className={cn('py-2 text-center font-mono font-semibold', row.isRest ? 'text-gray-300' : isfast ? 'text-emerald-600' : 'text-[#0a1628]')}>{row.isRest ? '—' : pace}</td>
+                  <td className={cn('py-2 text-center font-mono', row.isRest ? 'text-gray-400' : typeof hr === 'number' && hr > 160 ? 'text-red-500' : typeof hr === 'number' && hr > 140 ? 'text-orange-500' : 'text-[#0a1628]')}>{hr}</td>
+                  <td className={cn('py-2 text-center font-bold', row.isRest ? 'text-gray-300' : 'text-emerald-600')}>{row.targetLabel}</td>
                 </tr>
               )
             })}
@@ -1721,7 +1729,12 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
     const segmentChips = (
       <div className="px-3.5 pb-2 flex items-center gap-1.5 flex-wrap">
         {sortedByTime.map(l => (
-          <span key={l.id} className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full border',
+          // Falls back to the raw Strava/Garmin lap name when there's no
+          // distance/duration to show (e.g. a structured-workout step like
+          // "תיעוד לפני אינטרוול") — those can run long, so this always
+          // truncates instead of stretching the chip past the phone's
+          // width and breaking the row layout.
+          <span key={l.id} className={cn('max-w-[45vw] truncate text-[10px] font-semibold px-2 py-0.5 rounded-full border',
             l.id === mainLog.id ? 'bg-[#c9a84c]/15 text-[#c9a84c] border-[#c9a84c]/30' : 'bg-gray-50 text-gray-500 border-gray-200')}>
             {l.id === mainLog.id && `${t.mainEventBadge} · `}
             {l.actualDistance ? `${l.actualDistance} km` : (formatDurationMin(l.durationMin, isRTL) || l.stravaName)}

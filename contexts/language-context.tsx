@@ -673,6 +673,7 @@ export interface Translations {
   mainEventBadge: string
   segmentsCountLabel: string
   targetDistanceLabel: string
+  restLapLabel: string
   workoutDetailsCta: string
   closeCta: string
   weekKmDoneLabel: string
@@ -1527,6 +1528,7 @@ const translations: Record<Language, Translations> = {
     mainEventBadge: 'Main',
     segmentsCountLabel: 'segments',
     targetDistanceLabel: 'Target',
+    restLapLabel: 'Rest',
     workoutDetailsCta: 'Workout details ›',
     closeCta: 'Close ✕',
     weekKmDoneLabel: 'km done',
@@ -2359,6 +2361,7 @@ const translations: Record<Language, Translations> = {
     mainEventBadge: 'עיקרי',
     segmentsCountLabel: 'קטעים',
     targetDistanceLabel: 'יעד',
+    restLapLabel: 'מנוחה',
     workoutDetailsCta: 'פרטי אימון ›',
     closeCta: 'סגור ✕',
     weekKmDoneLabel: 'ק"מ בוצע',
