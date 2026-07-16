@@ -599,7 +599,13 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
             const renderRepInputs = (globalIndex: number) => {
               const split = splitLogs[globalIndex]
               return (
-                <div className="flex-1 grid grid-cols-4 gap-2">
+                // 2×2 instead of 4-in-a-row — this sits next to a fixed-width
+                // rep-number label, so on a real phone 4 columns left each
+                // input only ~50-60px wide: barely enough room for the
+                // rounded-xl corners to read as circles clipping the value
+                // down to 1-2 characters. Two columns per row gives each
+                // input roughly double the width.
+                <div className="flex-1 grid grid-cols-2 gap-2">
                   <div>
                     <label className="text-[10px] text-muted-foreground block mb-1">{t.timeInputLabel}</label>
                     <Input type="text" placeholder={t.mmssPlaceholder} value={split?.time || ''}
