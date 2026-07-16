@@ -139,12 +139,24 @@ export function buildRepDisplayRows(laps: RawLap[], expectedMeters: (number | nu
   }
 
   // The smallest rep distance this workout actually calls for (e.g. 800 for
-  // "10×800") — a lap under 40% of that is too short to be a real rep no
-  // matter how fast it was run, so it must be a stride/fragment instead.
+  // "10×800") — a lap under 15% of that is too short to be a meaningful
+  // fragment of ANY rep (a warmup stride, a GPS blip), so it must be
+  // filler. This was previously 40%, which sounds reasonable in the
+  // abstract but is provably wrong against real data: a mile-repeat
+  // session's own raw laps split a single 1.6km rep into legitimate
+  // sub-laps around 400-1000m each (610m, 400m, 410m — an athlete lapping
+  // mid-rep on the track to check a split, or the watch's own auto-lap
+  // behavior) — every one of which is UNDER 40% of 1600m (640m) despite
+  // being 100% real rep data, so they were silently discarded as "junk"
+  // right alongside a genuine 20m/4-second glitch lap. That's what turned
+  // a real ~5:14 mile rep into an impossible sub-2:00 one: the discarded
+  // sub-laps carried most of the rep's actual elapsed time. 15% (240m for
+  // a 1600m target) sits safely below every real sub-lap seen in that
+  // data and comfortably above the actual junk (a few tens of meters).
   const targets = expectedMeters.filter((m): m is number => m != null && m > 0)
   const minTarget = targets.length ? Math.min(...targets) : null
   const isFiller = (p: typeof parsed[number]) =>
-    minTarget != null && p.meters != null && p.meters < minTarget * 0.4
+    minTarget != null && p.meters != null && p.meters < minTarget * 0.15
 
   // An accidental double-tap of the lap button mid-rep — reported directly:
   // "a lap of 4 sec in the middle of the workout by mistake". isFiller only
