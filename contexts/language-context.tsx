@@ -667,6 +667,9 @@ export interface Translations {
   workoutDeleted: string
   stravaSyncTitle: string
   stravaRateLimitError: string
+  totalSessionVolumeLabel: string
+  warmupSegmentLabel: string
+  cooldownSegmentLabel: string
   workoutDetailsCta: string
   closeCta: string
   weekKmDoneLabel: string
@@ -1515,6 +1518,9 @@ const translations: Record<Language, Translations> = {
     workoutDeleted: 'Workout deleted',
     stravaSyncTitle: 'Sync Strava',
     stravaRateLimitError: "Strava's API rate limit was hit — wait about 15 minutes and try syncing again.",
+    totalSessionVolumeLabel: 'Total session',
+    warmupSegmentLabel: 'Warm-up',
+    cooldownSegmentLabel: 'Cool-down',
     workoutDetailsCta: 'Workout details ›',
     closeCta: 'Close ✕',
     weekKmDoneLabel: 'km done',
@@ -2341,6 +2347,9 @@ const translations: Record<Language, Translations> = {
     workoutDeleted: 'אימון נמחק',
     stravaSyncTitle: 'סנכרן Strava',
     stravaRateLimitError: 'הגעת למגבלת הבקשות של Strava — המתן כ-15 דקות ונסה לסנכרן שוב.',
+    totalSessionVolumeLabel: 'סה"כ אימון',
+    warmupSegmentLabel: 'חימום',
+    cooldownSegmentLabel: 'שחרור',
     workoutDetailsCta: 'פרטי אימון ›',
     closeCta: 'סגור ✕',
     weekKmDoneLabel: 'ק"מ בוצע',

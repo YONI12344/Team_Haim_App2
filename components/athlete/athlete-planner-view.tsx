@@ -129,6 +129,7 @@ interface WeekLog {
   stravaType?: string
   activityType?: string
   durationMin?: number
+  startTime?: string
 }
 
 function mapLogDoc(d: { id: string; data: () => any }): WeekLog {
@@ -152,6 +153,7 @@ function mapLogDoc(d: { id: string; data: () => any }): WeekLog {
     stravaType: v.stravaType,
     activityType: v.activityType,
     durationMin: v.durationMin,
+    startTime: v.startTime,
   }
 }
 
@@ -1094,7 +1096,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
   }
 
 
-  const StravaCard = ({ log }: { log: WeekLog }) => {
+  const StravaCard = ({ log, siblings = [] }: { log: WeekLog; siblings?: WeekLog[] }) => {
     const kindInfo = getActivityInfo(log)
     const isManual = log.source === 'manual'
     const displayName = log.stravaName || activityLabel(kindInfo.kind, isRTL)
@@ -1130,12 +1132,26 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
           feedbackStatus: 'done',
         }
         await updateDoc(doc(db, 'logs', log.id), { ...changes, updatedAt: serverTimestamp() })
-        setWeekLogs(prev => prev.map(l => l.id === log.id ? {
-          ...l, effort: pendingEffort, comment: pendingComment, feedbackStatus: 'done',
-          actualDistance: changes.actualDistance ?? undefined,
-          actualPace: changes.actualPace ?? undefined,
-          durationMin: changes.durationMin ?? undefined,
-        } : l))
+        // Per the "one feedback prompt for the whole session" spec: a
+        // merged session (warmup + main event + cooldown, each its own
+        // Strava activity) only ever shows ONE feedback prompt, on the
+        // main event — submitting it also marks the warmup/cooldown
+        // segments as accounted for (same effort/comment), so they don't
+        // separately surface as "awaiting feedback" anywhere else.
+        await Promise.all(siblings.map(s =>
+          updateDoc(doc(db, 'logs', s.id), { effort: pendingEffort, comment: pendingComment, feedbackStatus: 'done', updatedAt: serverTimestamp() })
+        ))
+        const siblingIds = new Set(siblings.map(s => s.id))
+        setWeekLogs(prev => prev.map(l => {
+          if (l.id === log.id) return {
+            ...l, effort: pendingEffort, comment: pendingComment, feedbackStatus: 'done',
+            actualDistance: changes.actualDistance ?? undefined,
+            actualPace: changes.actualPace ?? undefined,
+            durationMin: changes.durationMin ?? undefined,
+          }
+          if (siblingIds.has(l.id)) return { ...l, effort: pendingEffort, comment: pendingComment, feedbackStatus: 'done' }
+          return l
+        }))
         setShowForm(false)
         toast.success(t.workoutSaved)
         // Notify coach of Strava feedback (fire-and-forget)
@@ -1677,6 +1693,42 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
     )
   }
 
+  /**
+   * Consolidates a workout's several Strava fragments (warmup + main event
+   * + cooldown, each recorded as its own activity) into one session: total
+   * distance/duration summed across all of them, the "main event" picked
+   * out as whichever fragment has the fastest average pace (a real warmup
+   * or cooldown is always easier than the actual effort), and the
+   * chronologically-earlier/later fragments labeled as warmup/cooldown.
+   */
+  const buildMergedSession = (logs: WeekLog[]) => {
+    const sorted = [...logs].sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''))
+    const totalDistanceKm = Math.round(sorted.reduce((s, l) => s + (l.actualDistance || 0), 0) * 100) / 100
+    const totalDurationMin = sorted.reduce((s, l) => s + (l.durationMin || 0), 0)
+    const paceSecOf = (l: WeekLog) => paceToSec(l.actualPace) ?? Infinity
+    const mainEvent = sorted.reduce((best, l) => paceSecOf(l) < paceSecOf(best) ? l : best, sorted[0])
+    const mainIdx = sorted.indexOf(mainEvent)
+    return {
+      totalDistanceKm, totalDurationMin, mainEvent,
+      warmupSegments: sorted.slice(0, mainIdx),
+      cooldownSegments: sorted.slice(mainIdx + 1),
+      siblings: sorted.filter(l => l.id !== mainEvent.id),
+    }
+  }
+
+  /** Non-interactive summary line for a warmup/cooldown fragment within a
+   *  merged session — just enough context (distance, pace) to explain
+   *  what it was, no separate feedback prompt of its own. */
+  const MergedSegmentLine = ({ label, log }: { label: string; log: WeekLog }) => (
+    <div className="flex items-center justify-between px-4 py-1.5 text-xs text-muted-foreground" dir="rtl">
+      <span className="font-semibold">{label}</span>
+      <span dir="ltr">
+        {log.actualDistance ? `${log.actualDistance} km` : ''}
+        {log.actualPace ? ` · ${log.actualPace}` : ''}
+      </span>
+    </div>
+  )
+
   const renderNavyWorkoutBlock = (w: AssignedWorkout, isMulti: boolean, idx: number, dateStr: string, matchedActivities: WeekLog[] = []) => {
     const wEff = getEffectiveStatus(w)
     const wSelected = selectedWorkoutId === w.id
@@ -1836,8 +1888,30 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             (via assignedWorkoutId) — shown right here instead of in a
             generic list below every workout of the day, so the morning
             workout only ever shows the morning's own Strava data and the
-            evening workout only its own. */}
-        {matchedActivities.map(log => <StravaCard key={log.id} log={log} />)}
+            evening workout only its own. Warmup + main event + cooldown
+            recorded as separate activities are consolidated into ONE
+            session: a single total-volume summary, the main event as the
+            one full interactive card (its own real splits + the single
+            feedback prompt for the whole session), warmup/cooldown as
+            plain summary lines with no separate prompt of their own. */}
+        {matchedActivities.length > 1 ? (() => {
+          const merged = buildMergedSession(matchedActivities)
+          return (
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="px-4 py-2.5 bg-muted/20 border-b border-gray-100 flex items-center justify-between" dir="rtl">
+                <span className="text-xs font-bold text-[#0a1628]">{t.totalSessionVolumeLabel}</span>
+                <span className="text-xs font-bold text-[#0a1628]" dir="ltr">
+                  {merged.totalDistanceKm} km · {merged.totalDurationMin} min
+                </span>
+              </div>
+              {merged.warmupSegments.map(log => <MergedSegmentLine key={log.id} label={t.warmupSegmentLabel} log={log} />)}
+              <StravaCard log={merged.mainEvent} siblings={merged.siblings} />
+              {merged.cooldownSegments.map(log => <MergedSegmentLine key={log.id} label={t.cooldownSegmentLabel} log={log} />)}
+            </div>
+          )
+        })() : (
+          matchedActivities.map(log => <StravaCard key={log.id} log={log} />)
+        )}
       </div>
     )
   }
