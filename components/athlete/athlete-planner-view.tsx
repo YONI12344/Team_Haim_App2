@@ -1094,7 +1094,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
   }
 
 
-  const StravaCard = ({ log }: { log: WeekLog }) => {
+  const StravaCard = ({ log, dayWorkouts = [] }: { log: WeekLog; dayWorkouts?: AssignedWorkout[] }) => {
     const kindInfo = getActivityInfo(log)
     const isManual = log.source === 'manual'
     const displayName = log.stravaName || activityLabel(kindInfo.kind, isRTL)
@@ -1172,6 +1172,39 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
         setWeekLogs(prev => prev.filter(l => l.id !== log.id))
         toast.success(t.workoutDeleted)
       } catch(e) { console.error(e); toast.error(t.errorDeleting) }
+    }
+
+    // Manual override — auto-matching (session tag / rep-fit / distance /
+    // chronological order) is only ever a best-effort guess; this lets the
+    // athlete or coach directly fix it in one tap instead of waiting on
+    // another sync. Setting matchTier: 3 marks it as confidently final, so
+    // a future sync's low-confidence repair pass never second-guesses it.
+    const [reassigning, setReassigning] = useState(false)
+    const handleReassign = async (newWorkoutId: string) => {
+      const prevWorkoutId = log.assignedWorkoutId || null
+      if (newWorkoutId === (prevWorkoutId || '')) return
+      setReassigning(true)
+      try {
+        const { doc, updateDoc, serverTimestamp } = await import('firebase/firestore')
+        const { db } = await import('@/lib/firebase')
+        const newWorkout = newWorkoutId ? dayWorkouts.find(w => w.id === newWorkoutId) : undefined
+        await updateDoc(doc(db, 'logs', log.id), {
+          assignedWorkoutId: newWorkoutId || null,
+          comparisonGroup: newWorkout?.workout?.comparisonGroup || null,
+          matchTier: 3,
+        })
+        if (newWorkoutId) {
+          await updateDoc(doc(db, 'assignedWorkouts', newWorkoutId), { status: 'completed', completedAt: serverTimestamp() })
+          setAssignedWorkouts(prev => prev.map(w => w.id === newWorkoutId ? { ...w, status: 'completed' } : w))
+        }
+        if (prevWorkoutId && prevWorkoutId !== newWorkoutId) {
+          await updateDoc(doc(db, 'assignedWorkouts', prevWorkoutId), { status: 'scheduled', completedAt: null })
+          setAssignedWorkouts(prev => prev.map(w => w.id === prevWorkoutId ? { ...w, status: 'scheduled' } : w))
+        }
+        setWeekLogs(prev => prev.map(l => l.id === log.id ? { ...l, assignedWorkoutId: newWorkoutId || undefined } : l))
+        toast.success(t.reassignedToast)
+      } catch (e) { console.error(e); toast.error(t.savingError) }
+      finally { setReassigning(false) }
     }
 
     const DetailsModal = () => (
@@ -1328,6 +1361,24 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             </div>
           </div>
 
+          {/* Manual "assign to workout" override — auto-matching is only
+              ever a best-effort guess; this fixes it in one tap. */}
+          {dayWorkouts.length > 0 && (
+            <div className="px-3.5 pb-2 flex items-center gap-1.5">
+              <span className="text-[10px] text-muted-foreground flex-shrink-0">{t.assignToWorkoutLabel}</span>
+              <select
+                value={log.assignedWorkoutId || ''}
+                disabled={reassigning}
+                onChange={e => handleReassign(e.target.value)}
+                className="flex-1 min-w-0 text-[11px] font-semibold text-navy bg-gray-50 border border-gray-200 rounded-full px-2 py-1 disabled:opacity-50">
+                <option value="">{t.noWorkoutOption}</option>
+                {dayWorkouts.map(w => (
+                  <option key={w.id} value={w.id}>{w.workout?.title || t.workouts}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Expandable effort form */}
           {showForm && (
             <div className="border-t border-border/50">
@@ -1439,6 +1490,23 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             <button onClick={() => setShowDetails(true)} className="text-[10px] text-[#0a1628]/50 hover:text-[#0a1628] flex-shrink-0 font-medium border border-gray-200 rounded-full px-2 py-0.5 transition-colors">{t.detailsBtn}</button>
             <button onClick={handleDelete} className="h-6 w-6 rounded-full flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors flex-shrink-0 text-sm">✕</button>
           </div>
+          {/* Manual "assign to workout" override — auto-matching is only
+              ever a best-effort guess; this fixes it in one tap. */}
+          {dayWorkouts.length > 0 && (
+            <div className="px-3.5 pb-2 flex items-center gap-1.5">
+              <span className="text-[10px] text-muted-foreground flex-shrink-0">{t.assignToWorkoutLabel}</span>
+              <select
+                value={log.assignedWorkoutId || ''}
+                disabled={reassigning}
+                onChange={e => handleReassign(e.target.value)}
+                className="flex-1 min-w-0 text-[11px] font-semibold text-navy bg-gray-50 border border-gray-200 rounded-full px-2 py-1 disabled:opacity-50">
+                <option value="">{t.noWorkoutOption}</option>
+                {dayWorkouts.map(w => (
+                  <option key={w.id} value={w.id}>{w.workout?.title || t.workouts}</option>
+                ))}
+              </select>
+            </div>
+          )}
           {/* Stats grid */}
           {(log.actualDistance || log.actualPace || log.averageHeartRate || log.elevationGain || durationDisplay) && (
             <div className="px-3.5 pb-3 grid grid-cols-3 gap-1.5">
@@ -1677,7 +1745,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
     )
   }
 
-  const renderNavyWorkoutBlock = (w: AssignedWorkout, isMulti: boolean, idx: number, dateStr: string, matchedActivities: WeekLog[] = []) => {
+  const renderNavyWorkoutBlock = (w: AssignedWorkout, isMulti: boolean, idx: number, dateStr: string, matchedActivities: WeekLog[] = [], dayWorkouts: AssignedWorkout[] = []) => {
     const wEff = getEffectiveStatus(w)
     const wSelected = selectedWorkoutId === w.id
     // The "no assignedWorkoutId" fallback only applies on a single-workout
@@ -1837,7 +1905,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             generic list below every workout of the day, so the morning
             workout only ever shows the morning's own Strava data and the
             evening workout only its own. */}
-        {matchedActivities.map(log => <StravaCard key={log.id} log={log} />)}
+        {matchedActivities.map(log => <StravaCard key={log.id} log={log} dayWorkouts={dayWorkouts} />)}
       </div>
     )
   }
@@ -1938,10 +2006,10 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
         if (dayOffCard) return (
           <div className="space-y-3">
             {dayOffCard}
-            {dayWs.map((w, idx) => renderNavyWorkoutBlock(w, dayWs.length > 1, idx, dateStr, matchedActivitiesFor(w)))}
+            {dayWs.map((w, idx) => renderNavyWorkoutBlock(w, dayWs.length > 1, idx, dateStr, matchedActivitiesFor(w), dayWs))}
             {unmatchedActivities.length > 0 && (
               <div className="space-y-1.5">
-                {unmatchedActivities.map(log => <StravaCard key={log.id} log={log} />)}
+                {unmatchedActivities.map(log => <StravaCard key={log.id} log={log} dayWorkouts={dayWs} />)}
               </div>
             )}
           </div>
@@ -1961,10 +2029,10 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
 
         return (
           <div className="space-y-3">
-            {dayWs.map((w, idx) => renderNavyWorkoutBlock(w, dayWs.length > 1, idx, dateStr, matchedActivitiesFor(w)))}
+            {dayWs.map((w, idx) => renderNavyWorkoutBlock(w, dayWs.length > 1, idx, dateStr, matchedActivitiesFor(w), dayWs))}
             {unmatchedActivities.length > 0 && (
               <div className="space-y-1.5">
-                {unmatchedActivities.map(log => <StravaCard key={log.id} log={log} />)}
+                {unmatchedActivities.map(log => <StravaCard key={log.id} log={log} dayWorkouts={dayWs} />)}
               </div>
             )}
             {addActivityButton}
@@ -2053,10 +2121,10 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             if (dayOffCard) return (
               <div className="space-y-3">
                 {dayOffCard}
-                {dayWs.map((w, i) => renderNavyWorkoutBlock(w, dayWs.length > 1, i, dayStr, matchedActivitiesForDay(w)))}
+                {dayWs.map((w, i) => renderNavyWorkoutBlock(w, dayWs.length > 1, i, dayStr, matchedActivitiesForDay(w), dayWs))}
                 {unmatchedActivitiesDay.length > 0 && (
                   <div className="space-y-1.5">
-                    {unmatchedActivitiesDay.map(log => <StravaCard key={log.id} log={log} />)}
+                    {unmatchedActivitiesDay.map(log => <StravaCard key={log.id} log={log} dayWorkouts={dayWs} />)}
                   </div>
                 )}
               </div>
@@ -2072,7 +2140,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             )
             return (
               <div className="space-y-3">
-                {dayWs.map((w, i) => renderNavyWorkoutBlock(w, dayWs.length > 1, i, dayStr, matchedActivitiesForDay(w)))}
+                {dayWs.map((w, i) => renderNavyWorkoutBlock(w, dayWs.length > 1, i, dayStr, matchedActivitiesForDay(w), dayWs))}
                 {unmatchedActivitiesDay.length > 0 && (
                   <div className="space-y-3">
                     <div className="flex items-center gap-3">
@@ -2080,7 +2148,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                       <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{t.workouts}</span>
                       <div className="flex-1 border-t border-gray-100" />
                     </div>
-                    {unmatchedActivitiesDay.map(log => <StravaCard key={log.id} log={log} />)}
+                    {unmatchedActivitiesDay.map(log => <StravaCard key={log.id} log={log} dayWorkouts={dayWs} />)}
                   </div>
                 )}
                 {addActivityButton}
