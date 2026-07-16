@@ -64,12 +64,19 @@ export async function POST(request: NextRequest) {
     const results = fullActivities.map((activity) => {
       const date = activity.start_date_local.split('T')[0]
       const distanceKm = Math.round((activity.distance / 1000) * 100) / 100
-      const durationMin = Math.round(activity.moving_time / 60)
+      // Strava's moving_time silently drops anything it detects as "not
+      // moving" (a traffic light, tying a shoelace) — elapsed_time is the
+      // real wall-clock duration, which is what the athlete's own watch
+      // displays as the activity's time/average pace. Using moving_time
+      // here made the app's average pace look faster than what the
+      // athlete actually saw on their wrist for the exact same run.
+      const elapsedTime = activity.elapsed_time || activity.moving_time
+      const durationMin = Math.round(elapsedTime / 60)
 
       // Calculate average pace
       let avgPace = ''
       if (activity.distance > 0) {
-        const paceSecPerKm = activity.moving_time / (activity.distance / 1000)
+        const paceSecPerKm = elapsedTime / (activity.distance / 1000)
         const paceMin = Math.floor(paceSecPerKm / 60)
         const paceSec = Math.round(paceSecPerKm % 60)
         avgPace = `${paceMin}:${paceSec.toString().padStart(2, '0')}/km`
@@ -80,12 +87,13 @@ export async function POST(request: NextRequest) {
       const splits = laps.length > 1 ? laps : ((activity as any).splits_metric || [])
       const isLapBased = laps.length > 1
       const splitLogs = splits.slice(0, 40).map((split: any, i: number) => {
+        const splitElapsed = split.elapsed_time || split.moving_time
         const splitDistKm = split.distance / 1000
-        const splitPaceSecPerKm = split.moving_time / splitDistKm
+        const splitPaceSecPerKm = splitElapsed / splitDistKm
         const splitPaceMin = Math.floor(splitPaceSecPerKm / 60)
         const splitPaceSec = Math.round(splitPaceSecPerKm % 60)
-        const splitMin = Math.floor(split.moving_time / 60)
-        const splitSec = Math.round(split.moving_time % 60)
+        const splitMin = Math.floor(splitElapsed / 60)
+        const splitSec = Math.round(splitElapsed % 60)
         return {
           setIndex: 0,
           repIndex: i,

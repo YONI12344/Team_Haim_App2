@@ -672,6 +672,7 @@ export interface Translations {
   reassignedToast: string
   mainEventBadge: string
   segmentsCountLabel: string
+  targetDistanceLabel: string
   workoutDetailsCta: string
   closeCta: string
   weekKmDoneLabel: string
@@ -1525,6 +1526,7 @@ const translations: Record<Language, Translations> = {
     reassignedToast: 'Reassigned ✓',
     mainEventBadge: 'Main',
     segmentsCountLabel: 'segments',
+    targetDistanceLabel: 'Target',
     workoutDetailsCta: 'Workout details ›',
     closeCta: 'Close ✕',
     weekKmDoneLabel: 'km done',
@@ -2356,6 +2358,7 @@ const translations: Record<Language, Translations> = {
     reassignedToast: 'השיוך עודכן ✓',
     mainEventBadge: 'עיקרי',
     segmentsCountLabel: 'קטעים',
+    targetDistanceLabel: 'יעד',
     workoutDetailsCta: 'פרטי אימון ›',
     closeCta: 'סגור ✕',
     weekKmDoneLabel: 'ק"מ בוצע',

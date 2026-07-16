@@ -26,7 +26,7 @@ import { WorkoutLogForm } from '@/components/athlete/workout-log-form'
 import { personalTargetRangeForLevel, personalTargetRangeWithBaseline, formatTargetRange, paceToSec, secToPace } from '@/lib/physiology'
 import { useLatestStepTest } from '@/hooks/useLatestStepTest'
 import { useWorkoutLactateGroups, latestSessionSteps, groupKeyFor } from '@/hooks/useWorkoutLactateGroups'
-import { expectedRepMetersForWorkout, scoreActivityFitForReps } from '@/lib/strava-lap-matching'
+import { expectedRepMetersForWorkout, scoreActivityFitForReps, matchLapsToReps } from '@/lib/strava-lap-matching'
 import { isCoachEmail } from '@/lib/constants'
 import { ManualLogCard } from '@/components/shared/manual-log-card'
 import { useDaysOff } from '@/hooks/useDaysOff'
@@ -1096,6 +1096,83 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
   }
 
 
+  // A structured workout's real rep pace has to come from the workout's
+  // own planned distance, not the device's raw per-lap distance: a
+  // treadmill has no GPS at all (distance-per-lap is just an
+  // accelerometer estimate), and a track's short reps are exactly where
+  // GPS distance is noisiest. Showing the raw per-lap Strava data here
+  // would just repeat the same wrong pace the athlete's watch already
+  // showed live — so whenever the matched workout has a known rep
+  // structure, laps are first re-grouped by matchLapsToReps (which
+  // combines auto-laps into whole reps and computes pace from elapsed
+  // time ÷ planned distance) and shown as one row per REP instead of one
+  // row per raw device lap. A continuous run (no rep structure) still
+  // shows the raw per-lap splits as before.
+  const SplitsTable = ({ splitLogs, matchedWorkout, referencePace }: { splitLogs: any[]; matchedWorkout?: AssignedWorkout; referencePace?: string }) => {
+    const expectedMeters = expectedRepMetersForWorkout(matchedWorkout?.workout)
+    const repMatched = expectedMeters.length > 0
+      ? matchLapsToReps(splitLogs.map((s: any) => ({ distanceKm: s.distanceKm, time: s.time, heartRate: s.heartRate })), expectedMeters)
+      : null
+
+    const rows = (repMatched || splitLogs).map((entry: any, i: number) => {
+      if (repMatched) {
+        const m = entry
+        return {
+          time: m ? secToPace(m.elapsedSec) : '—',
+          pace: m ? m.pace : '',
+          heartRate: m?.heartRate ?? null,
+          targetLabel: m?.targetMeters ? (m.targetMeters >= 1000 ? `${(m.targetMeters / 1000).toFixed(m.targetMeters % 1000 === 0 ? 0 : 1)}k` : `${m.targetMeters}m`) : '—',
+        }
+      }
+      const s = entry
+      return {
+        time: s.time,
+        pace: s.pace || '',
+        heartRate: s.heartRate || null,
+        targetLabel: s.paceZone || s.notes?.replace('Zone ', '') ? `Z${s.paceZone || s.notes?.replace('Zone ', '')}` : '—',
+      }
+    })
+
+    return (
+      <div className="rounded-lg border border-border overflow-hidden">
+        <table className="w-full table-fixed text-[10px]" dir="ltr">
+          <colgroup>
+            <col style={{ width: '12%' }} />
+            <col style={{ width: '22%' }} />
+            <col style={{ width: '24%' }} />
+            <col style={{ width: '24%' }} />
+            <col style={{ width: '18%' }} />
+          </colgroup>
+          <thead>
+            <tr className="bg-[#0a1628]/5">
+              <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{repMatched ? '#' : 'km'}</th>
+              <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{t.timeInputLabel}</th>
+              <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{t.tempoLabel}</th>
+              <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{t.heartRateLabel}</th>
+              <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{repMatched ? t.targetDistanceLabel : 'Zone'}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => {
+              const pace = row.pace?.replace('/km', '') || '—'
+              const hr = row.heartRate ?? '—'
+              const isfast = row.pace && parseFloat(row.pace) < parseFloat(referencePace || '99')
+              return (
+                <tr key={i} className={cn('border-t border-border/40', i % 2 === 0 ? 'bg-white' : 'bg-muted/20')}>
+                  <td className="py-2 text-center font-bold text-[#0a1628]">{i + 1}</td>
+                  <td className="py-2 text-center font-mono">{row.time}</td>
+                  <td className={cn('py-2 text-center font-mono font-semibold', isfast ? 'text-emerald-600' : 'text-[#0a1628]')}>{pace}</td>
+                  <td className={cn('py-2 text-center font-mono', typeof hr === 'number' && hr > 160 ? 'text-red-500' : typeof hr === 'number' && hr > 140 ? 'text-orange-500' : 'text-[#0a1628]')}>{hr}</td>
+                  <td className="py-2 text-center font-bold text-emerald-600">{row.targetLabel}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    )
+  }
+
   const StravaCard = ({ log, dayWorkouts = [] }: { log: WeekLog; dayWorkouts?: AssignedWorkout[] }) => {
     const kindInfo = getActivityInfo(log)
     const isManual = log.source === 'manual'
@@ -1277,51 +1354,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
           {log.splitLogs && log.splitLogs.length > 0 && (
             <div>
               <p className="text-sm font-bold text-navy mb-2">{t.kmSplitsLabel}</p>
-              <div className="rounded-lg border border-border overflow-hidden">
-                <table className="w-full table-fixed text-[10px]" dir="ltr">
-                  <colgroup>
-                    <col style={{ width: '12%' }} />
-                    <col style={{ width: '22%' }} />
-                    <col style={{ width: '24%' }} />
-                    <col style={{ width: '24%' }} />
-                    <col style={{ width: '18%' }} />
-                  </colgroup>
-                  <thead>
-                    <tr className="bg-navy/5">
-                      <th className="py-1.5 text-center font-bold text-navy whitespace-nowrap">km</th>
-                      <th className="py-1.5 text-center font-bold text-navy whitespace-nowrap">{t.timeInputLabel}</th>
-                      <th className="py-1.5 text-center font-bold text-navy whitespace-nowrap">{t.tempoLabel}</th>
-                      <th className="py-1.5 text-center font-bold text-navy whitespace-nowrap">{t.heartRateLabel}</th>
-                      <th className="py-1.5 text-center font-bold text-navy whitespace-nowrap">Zone</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {log.splitLogs.map((s: any, i: number) => {
-                      const pace = s.pace?.replace('/km', '') || '—'
-                      const zone = s.paceZone || s.notes?.replace('Zone ', '') || '—'
-                      const hr = s.heartRate || '—'
-                      const isfast = s.pace && parseFloat(s.pace) < parseFloat(log.actualPace || '99')
-                      return (
-                        <tr
-                          key={i}
-                          className={cn(
-                            'border-t border-border/40',
-                            i % 2 === 0 ? 'bg-white' : 'bg-muted/20'
-                          )}
-                        >
-                          <td className="py-2 text-center font-bold text-navy">{i + 1}</td>
-                          <td className="py-2 text-center font-mono">{s.time}</td>
-                          <td className={cn('py-2 text-center font-mono font-semibold', isfast ? 'text-emerald-600' : 'text-navy')}>{pace}</td>
-                          <td className={cn('py-2 text-center font-mono', hr !== '—' && hr > 160 ? 'text-red-500' : hr !== '—' && hr > 140 ? 'text-orange-500' : 'text-navy')}>{hr}</td>
-                          <td className={cn('py-2 text-center font-bold', zone === '5' || zone === '4' ? 'text-red-500' : zone === '3' ? 'text-orange-500' : zone === '2' ? 'text-amber-500' : 'text-emerald-600')}>
-                            {zone === '—' ? '—' : `Z${zone}`}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              <SplitsTable splitLogs={log.splitLogs} matchedWorkout={dayWorkouts.find(w => w.id === log.assignedWorkoutId)} referencePace={log.actualPace} />
               <p className="text-[10px] text-muted-foreground mt-1 text-center">{t.paceColorHint}</p>
             </div>
           )}
@@ -1561,45 +1594,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               </button>
               {showSplits && (
                 <div className="px-3.5 pb-3">
-                  <div className="rounded-lg border border-border overflow-hidden">
-                    <table className="w-full table-fixed text-[10px]" dir="ltr">
-                      <colgroup>
-                        <col style={{ width: '12%' }} />
-                        <col style={{ width: '22%' }} />
-                        <col style={{ width: '24%' }} />
-                        <col style={{ width: '24%' }} />
-                        <col style={{ width: '18%' }} />
-                      </colgroup>
-                      <thead>
-                        <tr className="bg-[#0a1628]/5">
-                          <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">km</th>
-                          <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{t.timeInputLabel}</th>
-                          <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{t.tempoLabel}</th>
-                          <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{t.heartRateLabel}</th>
-                          <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">Zone</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {log.splitLogs.map((s: any, i: number) => {
-                          const pace = s.pace?.replace('/km', '') || '—'
-                          const zone = s.paceZone || s.notes?.replace('Zone ', '') || '—'
-                          const hr = s.heartRate || '—'
-                          const isfast = s.pace && parseFloat(s.pace) < parseFloat(log.actualPace || '99')
-                          return (
-                            <tr key={i} className={cn('border-t border-border/40', i % 2 === 0 ? 'bg-white' : 'bg-muted/20')}>
-                              <td className="py-2 text-center font-bold text-[#0a1628]">{i + 1}</td>
-                              <td className="py-2 text-center font-mono">{s.time}</td>
-                              <td className={cn('py-2 text-center font-mono font-semibold', isfast ? 'text-emerald-600' : 'text-[#0a1628]')}>{pace}</td>
-                              <td className={cn('py-2 text-center font-mono', hr !== '—' && hr > 160 ? 'text-red-500' : hr !== '—' && hr > 140 ? 'text-orange-500' : 'text-[#0a1628]')}>{hr}</td>
-                              <td className={cn('py-2 text-center font-bold', zone === '5' || zone === '4' ? 'text-red-500' : zone === '3' ? 'text-orange-500' : zone === '2' ? 'text-amber-500' : 'text-emerald-600')}>
-                                {zone === '—' ? '—' : `Z${zone}`}
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                  <SplitsTable splitLogs={log.splitLogs} matchedWorkout={dayWorkouts.find(w => w.id === log.assignedWorkoutId)} referencePace={log.actualPace} />
                 </div>
               )}
             </div>
@@ -1745,45 +1740,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
         </button>
         {showSplits && (
           <div className="px-3.5 pb-3">
-            <div className="rounded-lg border border-border overflow-hidden">
-              <table className="w-full table-fixed text-[10px]" dir="ltr">
-                <colgroup>
-                  <col style={{ width: '12%' }} />
-                  <col style={{ width: '22%' }} />
-                  <col style={{ width: '24%' }} />
-                  <col style={{ width: '24%' }} />
-                  <col style={{ width: '18%' }} />
-                </colgroup>
-                <thead>
-                  <tr className="bg-[#0a1628]/5">
-                    <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">km</th>
-                    <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{t.timeInputLabel}</th>
-                    <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{t.tempoLabel}</th>
-                    <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{t.heartRateLabel}</th>
-                    <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">Zone</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {mainLog.splitLogs.map((s: any, i: number) => {
-                    const pace = s.pace?.replace('/km', '') || '—'
-                    const zone = s.paceZone || s.notes?.replace('Zone ', '') || '—'
-                    const hr = s.heartRate || '—'
-                    const isfast = s.pace && parseFloat(s.pace) < parseFloat(mainLog.actualPace || '99')
-                    return (
-                      <tr key={i} className={cn('border-t border-border/40', i % 2 === 0 ? 'bg-white' : 'bg-muted/20')}>
-                        <td className="py-2 text-center font-bold text-[#0a1628]">{i + 1}</td>
-                        <td className="py-2 text-center font-mono">{s.time}</td>
-                        <td className={cn('py-2 text-center font-mono font-semibold', isfast ? 'text-emerald-600' : 'text-[#0a1628]')}>{pace}</td>
-                        <td className={cn('py-2 text-center font-mono', hr !== '—' && hr > 160 ? 'text-red-500' : hr !== '—' && hr > 140 ? 'text-orange-500' : 'text-[#0a1628]')}>{hr}</td>
-                        <td className={cn('py-2 text-center font-bold', zone === '5' || zone === '4' ? 'text-red-500' : zone === '3' ? 'text-orange-500' : zone === '2' ? 'text-amber-500' : 'text-emerald-600')}>
-                          {zone === '—' ? '—' : `Z${zone}`}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <SplitsTable splitLogs={mainLog.splitLogs} matchedWorkout={dayWorkouts.find(w => w.id === mainLog.assignedWorkoutId)} referencePace={mainLog.actualPace} />
           </div>
         )}
       </div>

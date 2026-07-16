@@ -50,7 +50,18 @@ export function expectedRepMetersForWorkout(
 }
 
 export interface RawLap { distanceKm?: number; time?: string; heartRate?: number | null }
-export interface MatchedLap { pace: string; heartRate: number | null }
+export interface MatchedLap {
+  pace: string
+  heartRate: number | null
+  /** Real combined elapsed time (seconds) across whichever laps made up this rep. */
+  elapsedSec: number
+  /** The workout's own planned distance for this rep (meters), if known — this is
+   *  what pace above is actually computed from, not the device's own measured distance. */
+  targetMeters: number | null
+  /** The device's own summed/measured distance (meters) for these laps — kept around
+   *  for display only (e.g. showing "~1.9km measured" alongside the trusted 2000m). */
+  actualMeters: number | null
+}
 
 /**
  * Matches Strava laps to workout reps by DISTANCE, not by raw position.
@@ -125,7 +136,9 @@ export function matchLapsToReps(laps: RawLap[], expectedMeters: (number | null)[
       // Duration-based rep — no expected distance to match against, so
       // just take the next lap as-is (previous 1:1 behavior).
       const p = parsed[li]
-      results.push(p.meters && p.sec ? { pace: secToPace(paceOf(p)), heartRate: p.heartRate } : null)
+      results.push(p.meters && p.sec
+        ? { pace: secToPace(paceOf(p)), heartRate: p.heartRate, elapsedSec: p.sec, targetMeters: null, actualMeters: p.meters }
+        : null)
       li++
       continue
     }
@@ -144,7 +157,11 @@ export function matchLapsToReps(laps: RawLap[], expectedMeters: (number | null)[
       if (accMeters >= target * 0.9) break
     }
     results.push(used > 0
-      ? { pace: secToPace(accSec / (target / 1000)), heartRate: hrWeight > 0 ? Math.round(hrWeighted / hrWeight) : null }
+      ? {
+          pace: secToPace(accSec / (target / 1000)),
+          heartRate: hrWeight > 0 ? Math.round(hrWeighted / hrWeight) : null,
+          elapsedSec: accSec, targetMeters: target, actualMeters: accMeters,
+        }
       : null)
   }
   return results
