@@ -735,19 +735,21 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
         let saved = 0
 
         // First pass: save/find each activity's log doc. A log with a
-        // LOW-confidence link (distance-only, or no candidate at all) is
-        // still eligible to be re-matched below — a confidently-linked one
-        // (session tag or rep-fit match) is left alone. This lets an
-        // already-wrong link from before this fix (or before a sibling
-        // activity existed to compare against) self-correct on the next
-        // sync, instead of being frozen forever the moment it's first set.
+        // LOW-confidence link (distance-only, rep-fit, or no candidate at
+        // all) is still eligible to be re-matched below — only an explicit
+        // SESSION TAG match (tier 3) is trusted as final. Rep-fit (tier 2)
+        // isn't reliable enough to freeze forever: a short warmup can
+        // coincidentally score a nonzero rep-fit against the WRONG
+        // candidate, and once that happened before the session-inference
+        // fix existed, it would otherwise never get another chance to
+        // re-match now that a better signal (session) is available.
         const toMatch: { activity: any; logRef: any }[] = []
         for (const activity of data.activities) {
           const existing = await getDocs(query(collection(db, 'logs'), where('stravaActivityId', '==', activity.stravaActivityId), where('athleteId', '==', athleteId)))
           let logRef
           if (!existing.empty) {
             const existingDoc = existing.docs[0]
-            if (existingDoc.data().assignedWorkoutId && (existingDoc.data().matchTier ?? 0) >= 2) continue
+            if (existingDoc.data().assignedWorkoutId && (existingDoc.data().matchTier ?? 0) >= 3) continue
             logRef = existingDoc.ref
           } else {
             logRef = await addDoc(collection(db, 'logs'), {
