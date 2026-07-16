@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useLanguage } from '@/contexts/language-context'
-import { SplitsTable } from '@/components/shared/splits-table'
 
 interface SplitRow {
   setIndex: number
@@ -104,14 +103,14 @@ export function ManualLogCard({
             {showSplits ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
           </button>
           {showSplits && (
-            <div className="px-3.5 pb-3 space-y-3">
+            <div className="px-3.5 pb-3 space-y-0.5">
               {Array.from(new Set(validSplits.map(s => s.setIndex))).map(si => {
                 const items = validSplits.filter(s => s.setIndex === si)
                 return (
-                  <div key={si}>
-                    <p className="text-xs font-semibold text-[#0a1628] mb-1.5">{t.setLabelPrefix} {Number(si) + 1}</p>
-                    <SplitsTable splitLogs={items} referencePace={pace} />
-                  </div>
+                  <p key={si} className="text-xs text-gray-500">
+                    <span className="font-semibold text-[#0a1628]">{t.setLabelPrefix} {Number(si) + 1}:</span>{' '}
+                    {items.map(s => `${s.distance ? `${s.distance} ${s.time}` : s.time}${s.rest ? ` (+${s.rest})` : ''}`).join(' · ')}
+                  </p>
                 )
               })}
             </div>
