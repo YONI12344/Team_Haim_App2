@@ -25,8 +25,8 @@ import { toast } from 'sonner'
 import { WorkoutLogForm } from '@/components/athlete/workout-log-form'
 import { personalTargetRangeForLevel, personalTargetRangeWithBaseline, formatTargetRange, paceToSec, secToPace } from '@/lib/physiology'
 import { useLatestStepTest } from '@/hooks/useLatestStepTest'
-import { useWorkoutLactateGroups, latestSessionSteps, groupKeyFor, inferThresholdDistance } from '@/hooks/useWorkoutLactateGroups'
-import { expectedRepMetersForWorkout, scoreActivityFitForReps, buildRepDisplayRows } from '@/lib/strava-lap-matching'
+import { useWorkoutLactateGroups, latestSessionSteps, groupKeyFor } from '@/hooks/useWorkoutLactateGroups'
+import { expectedRepMetersForWorkout, scoreActivityFitForReps } from '@/lib/strava-lap-matching'
 import { SplitsTable } from '@/components/shared/splits-table'
 import { isCoachEmail } from '@/lib/constants'
 import { ManualLogCard } from '@/components/shared/manual-log-card'
@@ -1059,78 +1059,6 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                 await updateDoc(doc(db, 'assignedWorkouts', match.id), { status: 'completed', completedAt: serverTimestamp() })
                 setAssignedWorkouts(prev => prev.map(w => w.id === match.id ? { ...w, status: 'completed' } : w))
               }
-            }
-
-            // Lab backfill — a Strava-synced log's workoutId is only ever
-            // the synthetic `strava_<activityId>` placeholder set at
-            // creation (see the addDoc above), and it never gets
-            // thresholdDistance/hasLactate — so useWorkoutLactateGroups
-            // (the Lab) never sees an auto-synced threshold session at
-            // all, no matter how good its rep data is.
-            //
-            // A previous attempt at this (reverted) guarded itself with
-            // `expectedRepMetersForWorkout(workout).length > 0`, which is
-            // true for ANY workout with a non-empty `sets` array — a gym
-            // set of 12 squats or an easy run's duration-based warmup/
-            // cooldown "sets" both qualify just as much as a real "5×1000m"
-            // threshold session, since that function only checks whether
-            // sets exist, not whether they carry a real distance. That let
-            // the backfill misfire on workout types it was never meant to
-            // touch, overwriting their splitLogs/workoutId and breaking the
-            // athlete's own previously-correct Strava display for them.
-            //
-            // inferThresholdDistance is the SAME check the Lab itself uses
-            // to decide "does this workout belong in the threshold view" —
-            // reusing it here (instead of re-deriving a similar-looking
-            // but different condition) guarantees this backfill only ever
-            // fires for a workout the Lab would actually want, by
-            // construction. The extra expectedMeters.some(...) check is a
-            // second belt-and-braces guard that there's a real distance
-            // target to build rep rows from at all.
-            //
-            // Only the MAIN event fragment of a multi-fragment session
-            // (warmup+main+cooldown) gets this — the longest-distance
-            // activity among everything matched to this workout this sync.
-            // Warmup/cooldown fragments are left as plain Strava logs.
-            for (const matchId of new Set(tentative.map(t => t.match.id))) {
-              const group = tentative.filter(t => t.match.id === matchId)
-              const match = group[0].match
-              const workoutData = match.data().workout
-              const thresholdDistance = inferThresholdDistance(workoutData)
-              if (thresholdDistance == null) continue // not a real distance-based threshold workout
-              const expectedMeters = expectedRepMetersForWorkout(workoutData)
-              if (!expectedMeters.some(m => m != null)) continue // no real distance targets to build reps from
-              const mainEntry = group.reduce((best, g) => (g.activity.distanceKm || 0) > (best.activity.distanceKm || 0) ? g : best)
-              const rows = buildRepDisplayRows(
-                (mainEntry.activity.splitLogs || []).map((s: any) => ({ distanceKm: s.distanceKm, time: s.time, heartRate: s.heartRate })),
-                expectedMeters,
-              )
-              const newSplitLogs: any[] = []
-              let lastRepEntry: any = null
-              for (const row of rows) {
-                if (row.kind === 'rep') {
-                  lastRepEntry = {
-                    setIndex: 0, repIndex: row.repIndex,
-                    distance: row.targetMeters ? `${row.targetMeters}m` : '',
-                    time: secToPace(row.elapsedSec),
-                    pace: row.pace,
-                    avgHr: row.heartRate ?? null,
-                    lactate: null,
-                    rest: '',
-                  }
-                  newSplitLogs.push(lastRepEntry)
-                } else if (lastRepEntry && !lastRepEntry.rest) {
-                  lastRepEntry.rest = row.time
-                }
-              }
-              if (newSplitLogs.length === 0) continue
-              await updateDoc(mainEntry.logRef, {
-                workoutId: match.data().workoutId,
-                workoutTitle: workoutData?.title || null,
-                thresholdDistance,
-                hasLactate: false,
-                splitLogs: newSplitLogs,
-              })
             }
 
             // A repaired log's match can move to a DIFFERENT workout than
