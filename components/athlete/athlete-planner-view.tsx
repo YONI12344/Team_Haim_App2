@@ -1677,7 +1677,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
     )
   }
 
-  const renderNavyWorkoutBlock = (w: AssignedWorkout, isMulti: boolean, idx: number, dateStr: string) => {
+  const renderNavyWorkoutBlock = (w: AssignedWorkout, isMulti: boolean, idx: number, dateStr: string, matchedActivities: WeekLog[] = []) => {
     const wEff = getEffectiveStatus(w)
     const wSelected = selectedWorkoutId === w.id
     // The "no assignedWorkoutId" fallback only applies on a single-workout
@@ -1832,6 +1832,12 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             }}
           />
         )}
+        {/* Strava activity/activities matched to THIS specific workout
+            (via assignedWorkoutId) — shown right here instead of in a
+            generic list below every workout of the day, so the morning
+            workout only ever shows the morning's own Strava data and the
+            evening workout only its own. */}
+        {matchedActivities.map(log => <StravaCard key={log.id} log={log} />)}
       </div>
     )
   }
@@ -1908,6 +1914,14 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
         const dayWs = getWorkoutsForDay(currentDate)
         const dateStr = format(currentDate, 'yyyy-MM-dd')
         const activitiesToday = weekLogs.filter(l => l.date === dateStr && isActivityLog(l))
+        // Each workout only shows the Strava activity/activities actually
+        // matched to IT (via assignedWorkoutId) — the morning workout
+        // never shows the evening's data and vice versa. Anything left
+        // over (not yet matched to any of today's workouts) still shows
+        // as a generic list below everything, same as before.
+        const matchedActivitiesFor = (w: AssignedWorkout) => activitiesToday.filter(l => l.assignedWorkoutId === w.id)
+        const matchedIds = new Set(dayWs.flatMap(w => matchedActivitiesFor(w).map(l => l.id)))
+        const unmatchedActivities = activitiesToday.filter(l => !matchedIds.has(l.id))
         const mainW = dayWs[0] || null
 
         const addActivityButton = (
@@ -1924,10 +1938,10 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
         if (dayOffCard) return (
           <div className="space-y-3">
             {dayOffCard}
-            {dayWs.map((w, idx) => renderNavyWorkoutBlock(w, dayWs.length > 1, idx, dateStr))}
-            {activitiesToday.length > 0 && (
+            {dayWs.map((w, idx) => renderNavyWorkoutBlock(w, dayWs.length > 1, idx, dateStr, matchedActivitiesFor(w)))}
+            {unmatchedActivities.length > 0 && (
               <div className="space-y-1.5">
-                {activitiesToday.map(log => <StravaCard key={log.id} log={log} />)}
+                {unmatchedActivities.map(log => <StravaCard key={log.id} log={log} />)}
               </div>
             )}
           </div>
@@ -1947,10 +1961,10 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
 
         return (
           <div className="space-y-3">
-            {dayWs.map((w, idx) => renderNavyWorkoutBlock(w, dayWs.length > 1, idx, dateStr))}
-            {activitiesToday.length > 0 && (
+            {dayWs.map((w, idx) => renderNavyWorkoutBlock(w, dayWs.length > 1, idx, dateStr, matchedActivitiesFor(w)))}
+            {unmatchedActivities.length > 0 && (
               <div className="space-y-1.5">
-                {activitiesToday.map(log => <StravaCard key={log.id} log={log} />)}
+                {unmatchedActivities.map(log => <StravaCard key={log.id} log={log} />)}
               </div>
             )}
             {addActivityButton}
@@ -2024,6 +2038,9 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             const dayWs = getWorkoutsForDay(selectedWeekDay)
             const dayStr = format(selectedWeekDay, 'yyyy-MM-dd')
             const activitiesDay = weekLogs.filter(l => l.date === dayStr && isActivityLog(l))
+            const matchedActivitiesForDay = (w: AssignedWorkout) => activitiesDay.filter(l => l.assignedWorkoutId === w.id)
+            const matchedDayIds = new Set(dayWs.flatMap(w => matchedActivitiesForDay(w).map(l => l.id)))
+            const unmatchedActivitiesDay = activitiesDay.filter(l => !matchedDayIds.has(l.id))
             const addActivityButton = (
               <button
                 onClick={() => { setAddActivityDate(dayStr); setAddActivityOpen(true) }}
@@ -2036,10 +2053,10 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             if (dayOffCard) return (
               <div className="space-y-3">
                 {dayOffCard}
-                {dayWs.map((w, i) => renderNavyWorkoutBlock(w, dayWs.length > 1, i, dayStr))}
-                {activitiesDay.length > 0 && (
+                {dayWs.map((w, i) => renderNavyWorkoutBlock(w, dayWs.length > 1, i, dayStr, matchedActivitiesForDay(w)))}
+                {unmatchedActivitiesDay.length > 0 && (
                   <div className="space-y-1.5">
-                    {activitiesDay.map(log => <StravaCard key={log.id} log={log} />)}
+                    {unmatchedActivitiesDay.map(log => <StravaCard key={log.id} log={log} />)}
                   </div>
                 )}
               </div>
@@ -2055,15 +2072,15 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             )
             return (
               <div className="space-y-3">
-                {dayWs.map((w, i) => renderNavyWorkoutBlock(w, dayWs.length > 1, i, dayStr))}
-                {activitiesDay.length > 0 && (
+                {dayWs.map((w, i) => renderNavyWorkoutBlock(w, dayWs.length > 1, i, dayStr, matchedActivitiesForDay(w)))}
+                {unmatchedActivitiesDay.length > 0 && (
                   <div className="space-y-3">
                     <div className="flex items-center gap-3">
                       <div className="flex-1 border-t border-gray-100" />
                       <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{t.workouts}</span>
                       <div className="flex-1 border-t border-gray-100" />
                     </div>
-                    {activitiesDay.map(log => <StravaCard key={log.id} log={log} />)}
+                    {unmatchedActivitiesDay.map(log => <StravaCard key={log.id} log={log} />)}
                   </div>
                 )}
                 {addActivityButton}
