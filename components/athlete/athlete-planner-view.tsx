@@ -735,20 +735,21 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
       const data = await res.json()
       if (data.success) {
         let saved = 0
+
+        // First pass: save/find each activity's log doc. A log with a
+        // LOW-confidence link (distance-only, or no candidate at all) is
+        // still eligible to be re-matched below — a confidently-linked one
+        // (session tag or rep-fit match) is left alone. This lets an
+        // already-wrong link from before this fix (or before a sibling
+        // activity existed to compare against) self-correct on the next
+        // sync, instead of being frozen forever the moment it's first set.
+        const toMatch: { activity: any; logRef: any }[] = []
         for (const activity of data.activities) {
           const existing = await getDocs(query(collection(db, 'logs'), where('stravaActivityId', '==', activity.stravaActivityId), where('athleteId', '==', athleteId)))
-          // A log already exists for this Strava activity — if it's already
-          // linked to a specific workout, there's nothing to do. If it's
-          // NOT linked (e.g. it was created by a sync that ran before the
-          // matching logic below existed, or a case where a confident match
-          // couldn't be made at the time), fall through and re-run the
-          // matching to repair it — otherwise it stays wrong/unlinked
-          // forever just because this same activity was already seen once,
-          // even after the matching logic itself gets fixed.
           let logRef
           if (!existing.empty) {
             const existingDoc = existing.docs[0]
-            if (existingDoc.data().assignedWorkoutId) continue
+            if (existingDoc.data().assignedWorkoutId && (existingDoc.data().matchTier ?? 0) >= 2) continue
             logRef = existingDoc.ref
           } else {
             logRef = await addDoc(collection(db, 'logs'), {
@@ -793,112 +794,126 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               } catch {}
             })()
           }
-          // Smart auto-complete: match this activity to the RIGHT workout when
-          // the day has more than one (e.g. easy run AM + gym PM) — using the
-          // workout's session (am/pm) vs. this activity's actual start time,
-          // and linking the log to that specific workout via assignedWorkoutId
-          // so the dashboard never has to guess which one it belongs to.
+          toMatch.push({ activity, logRef })
+        }
+
+        // Smart auto-complete, grouped by date so same-day activities can
+        // be reconciled together — a warmup/cooldown recorded as a
+        // SEPARATE Strava activity from the main set has no rep structure
+        // and a small distance of its own, so matched independently it can
+        // land on a completely different scheduled workout later that day
+        // just because that workout's plan happens to be a closer distance.
+        const byDate = new Map<string, typeof toMatch>()
+        for (const item of toMatch) {
+          if (!byDate.has(item.activity.date)) byDate.set(item.activity.date, [])
+          byDate.get(item.activity.date)!.push(item)
+        }
+
+        for (const [date, dayItems] of byDate) {
           try {
-            const isRunAct = STRAVA_RUNNING_TYPES.includes(activity.stravaType || 'Run')
-            const isGymAct = STRAVA_GYM_TYPES.includes(activity.stravaType || '')
-            const isSwimAct = activity.stravaType === 'Swim'
-            const isBikeAct = ['Ride', 'VirtualRide', 'MountainBikeRide', 'GravelRide', 'EBikeRide'].includes(activity.stravaType || '')
+            const isRunAct = (a: any) => STRAVA_RUNNING_TYPES.includes(a.stravaType || 'Run')
+            const isGymAct = (a: any) => STRAVA_GYM_TYPES.includes(a.stravaType || '')
+            const isSwimAct = (a: any) => a.stravaType === 'Swim'
+            const isBikeAct = (a: any) => ['Ride', 'VirtualRide', 'MountainBikeRide', 'GravelRide', 'EBikeRide'].includes(a.stravaType || '')
             const awSnap = await getDocs(query(
               collection(db, 'assignedWorkouts'),
               where('athleteId', '==', athleteId),
-              where('scheduledDate', '==', activity.date)
+              where('scheduledDate', '==', date)
             ))
-            if (!awSnap.empty) {
-              // This activity's session, from its actual local start time
+            if (awSnap.empty) continue
+
+            // Phase 1 — each activity's OWN best match, independent of its
+            // same-day siblings. tier: 3=explicit session tag, 2=rep-fit,
+            // 1=distance closeness, 0=only candidate / no signal at all.
+            type Tentative = { activity: any; logRef: any; match: any; tier: number }
+            const tentative: Tentative[] = []
+            for (const { activity, logRef } of dayItems) {
+              const candidates = awSnap.docs.filter(aw => {
+                if (aw.data().status === 'completed') return false
+                const wType = aw.data().workout?.type || ''
+                const isStrengthW = ['strength', 'cross_training'].includes(wType)
+                if (isStrengthW) return isGymAct(activity)
+                if (wType === 'swim') return isSwimAct(activity)
+                if (wType === 'bike') return isBikeAct(activity)
+                return isRunAct(activity)
+              })
+              if (candidates.length === 0) continue
+
               let activitySession: 'am' | 'pm' | null = null
               if (activity.startTime) {
                 const hourPart = String(activity.startTime).split('T')[1]
                 const hour = hourPart ? parseInt(hourPart.split(':')[0], 10) : NaN
                 if (!isNaN(hour)) activitySession = hour < 14 ? 'am' : 'pm'
               }
+              const bySession = activitySession ? candidates.find(aw => aw.data().session === activitySession) : undefined
+              const byRepFit = !bySession && candidates.length > 1
+                ? candidates.reduce<{ aw: typeof candidates[number]; score: number } | null>((best, aw) => {
+                    const expectedMeters = expectedRepMetersForWorkout(aw.data().workout)
+                    if (expectedMeters.length === 0) return best
+                    const score = scoreActivityFitForReps(activity.splitLogs || [], expectedMeters)
+                    if (score === 0) return best
+                    return (!best || score > best.score) ? { aw, score } : best
+                  }, null)?.aw
+                : undefined
+              const byDistance = !bySession && !byRepFit && candidates.length > 1
+                ? candidates.reduce<{ aw: typeof candidates[number]; diff: number } | null>((best, aw) => {
+                    const plannedKm = aw.data().workout?.distance
+                    if (plannedKm == null) return best
+                    const diff = Math.abs(plannedKm - activity.distanceKm)
+                    return (!best || diff < best.diff) ? { aw, diff } : best
+                  }, null)?.aw
+                : undefined
+              const match = bySession || byRepFit || byDistance || candidates[0]
+              const tier = bySession ? 3 : byRepFit ? 2 : byDistance ? 1 : 0
+              tentative.push({ activity, logRef, match, tier })
+            }
 
-              // Candidates matching this activity's discipline, not yet completed
-              const candidates = awSnap.docs.filter(aw => {
-                if (aw.data().status === 'completed') return false
-                const wType = aw.data().workout?.type || ''
-                const isStrengthW = ['strength', 'cross_training'].includes(wType)
-                if (isStrengthW) return isGymAct
-                if (wType === 'swim') return isSwimAct
-                if (wType === 'bike') return isBikeAct
-                return isRunAct
-              })
+            // Phase 2 — reconcile same-day activities that started close
+            // together in time (within 3 hours of the previous one ending)
+            // as ONE physical training block: they must all agree on
+            // whichever match has the strongest evidence in the group,
+            // instead of a low-confidence fragment (the warmup) drifting
+            // off to a different scheduled workout on its own.
+            const sorted = [...tentative].sort((a, b) => (a.activity.startTime || '').localeCompare(b.activity.startTime || ''))
+            const clusters: Tentative[][] = []
+            for (const t of sorted) {
+              const startMs = t.activity.startTime ? new Date(t.activity.startTime).getTime() : null
+              const last = clusters[clusters.length - 1]
+              const lastT = last?.[last.length - 1]
+              const lastEndMs = lastT?.activity.startTime
+                ? new Date(lastT.activity.startTime).getTime() + (lastT.activity.durationMin || 0) * 60000
+                : null
+              if (last && startMs != null && lastEndMs != null && (startMs - lastEndMs) <= 3 * 3600 * 1000) {
+                last.push(t)
+              } else {
+                clusters.push([t])
+              }
+            }
+            for (const cluster of clusters) {
+              if (cluster.length < 2) continue
+              const winner = cluster.reduce((best, t) => (!best || t.tier > best.tier) ? t : best, null as Tentative | null)!
+              for (const t of cluster) { t.match = winner.match; t.tier = winner.tier }
+            }
 
-              if (candidates.length > 0) {
-                // Prefer a same-session (am/pm) match. When that's not
-                // conclusive — no startTime on the activity, or the coach
-                // never tagged a session on either workout — prefer
-                // whichever candidate's OWN rep structure this activity's
-                // laps actually fit (e.g. a separately-recorded warmup/
-                // cooldown run won't have laps near any rep distance, so it
-                // loses to the real interval workout even if its distance
-                // happens to look closer). Only fall back to raw distance
-                // closeness when neither candidate has a rep structure to
-                // score against (continuous workouts) or scores tie.
-                const bySession = activitySession ? candidates.find(aw => aw.data().session === activitySession) : undefined
-                const byRepFit = !bySession && candidates.length > 1
-                  ? candidates.reduce<{ aw: typeof candidates[number]; score: number } | null>((best, aw) => {
-                      const expectedMeters = expectedRepMetersForWorkout(aw.data().workout)
-                      if (expectedMeters.length === 0) return best
-                      const score = scoreActivityFitForReps(activity.splitLogs || [], expectedMeters)
-                      if (score === 0) return best
-                      return (!best || score > best.score) ? { aw, score } : best
-                    }, null)?.aw
-                  : undefined
-                const byDistance = !bySession && !byRepFit && candidates.length > 1
-                  ? candidates.reduce<{ aw: typeof candidates[number]; diff: number } | null>((best, aw) => {
-                      const plannedKm = aw.data().workout?.distance
-                      if (plannedKm == null) return best
-                      const diff = Math.abs(plannedKm - activity.distanceKm)
-                      return (!best || diff < best.diff) ? { aw, diff } : best
-                    }, null)?.aw
-                  : undefined
-                const match = bySession || byRepFit || byDistance || candidates[0]
-                const wType = match.data().workout?.type || ''
-                const isStrengthW = ['strength', 'cross_training'].includes(wType)
-                const plannedDist = match.data().workout?.distance ?? 0
-
-                let shouldComplete = false
-                if (isStrengthW || wType === 'swim' || wType === 'bike') {
-                  shouldComplete = true // discipline already confirmed via candidates filter
-                } else if (candidates.length > 1) {
-                  // Several run-type workouts today — judge this single activity
-                  // against the one it's matched to, not the day's total
-                  shouldComplete = plannedDist === 0 || activity.distanceKm >= plannedDist * 0.7
-                } else {
-                  // Only one run-type workout today — use the day's aggregate
-                  // (handles a single run split across two Strava activities)
-                  const dateLogsSnap = await getDocs(query(
-                    collection(db, 'logs'),
-                    where('athleteId', '==', athleteId),
-                    where('date', '==', activity.date),
-                    where('source', '==', 'strava')
-                  ))
-                  const totalRunKm = dateLogsSnap.docs
-                    .filter(d => { const t = d.data().stravaType; return !t || STRAVA_RUNNING_TYPES.includes(t) })
-                    .reduce((s, d) => s + (d.data().actualDistance || 0), 0)
-                  shouldComplete = plannedDist === 0 || totalRunKm >= plannedDist * 0.7
-                }
-
-                // Always link this log to whichever candidate it best
-                // matches, even when the distance doesn't clear the
-                // completion bar below — leaving it unlinked would make it
-                // an "orphan" log with no assignedWorkoutId, and on a
-                // multi-workout day (morning + evening, or run + gym) EVERY
-                // candidate's own orphan-log fallback lookup would then
-                // attribute this SAME log to itself, showing the same
-                // distance under both workout cards at once even though
-                // only one was actually done. Denormalizes comparisonGroup
-                // too, so this pools into the Lab's workout-trend comparison.
-                await updateDoc(logRef, { assignedWorkoutId: match.id, comparisonGroup: match.data().workout?.comparisonGroup || null })
-                if (shouldComplete) {
-                  await updateDoc(doc(db, 'assignedWorkouts', match.id), { status: 'completed', completedAt: serverTimestamp() })
-                  setAssignedWorkouts(prev => prev.map(w => w.id === match.id ? { ...w, status: 'completed' } : w))
-                }
+            // Phase 3 — write the final decision for each activity.
+            for (const { activity, logRef, match, tier } of tentative) {
+              const wType = match.data().workout?.type || ''
+              const isStrengthW = ['strength', 'cross_training'].includes(wType)
+              const plannedDist = match.data().workout?.distance ?? 0
+              let shouldComplete = false
+              if (isStrengthW || wType === 'swim' || wType === 'bike') {
+                shouldComplete = true // discipline already confirmed via candidates filter
+              } else {
+                // Sum distance across every activity THIS sync matched to
+                // the same workout (covers both "several workouts today"
+                // and "one workout split into warmup + main" cases).
+                const matchedKm = tentative.filter(t => t.match.id === match.id).reduce((s, t) => s + (t.activity.distanceKm || 0), 0)
+                shouldComplete = plannedDist === 0 || matchedKm >= plannedDist * 0.7
+              }
+              await updateDoc(logRef, { assignedWorkoutId: match.id, comparisonGroup: match.data().workout?.comparisonGroup || null, matchTier: tier })
+              if (shouldComplete) {
+                await updateDoc(doc(db, 'assignedWorkouts', match.id), { status: 'completed', completedAt: serverTimestamp() })
+                setAssignedWorkouts(prev => prev.map(w => w.id === match.id ? { ...w, status: 'completed' } : w))
               }
             }
           } catch (e) { console.error('Smart auto-complete failed:', e) }
