@@ -737,48 +737,62 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
         let saved = 0
         for (const activity of data.activities) {
           const existing = await getDocs(query(collection(db, 'logs'), where('stravaActivityId', '==', activity.stravaActivityId), where('athleteId', '==', athleteId)))
-          if (!existing.empty) continue
-          const logRef = await addDoc(collection(db, 'logs'), {
-            athleteId,
-            workoutId: `strava_${activity.stravaActivityId}`,
-            stravaActivityId: activity.stravaActivityId,
-            startTime: activity.startTime || null,
-            stravaName: activity.stravaName || '',
-            date: activity.date,
-            actualDistance: activity.distanceKm,
-            actualPace: activity.avgPace,
-            durationMin: activity.durationMin || null,
-            effort: null,
-            comment: '',
-            splitLogs: activity.splitLogs || [],
-            averageHeartRate: activity.averageHeartRate || null,
-            elevationGain: activity.elevationGain || null,
-            stravaType: activity.stravaType || '',
-            source: 'strava',
-            feedbackStatus: 'pending',
-            createdAt: serverTimestamp(),
-          })
-          saved++
-          // Notify coach of Strava workout completion (fire-and-forget)
-          ;(async () => {
-            try {
-              const coachId = userSnap.data()?.coachId
-              const athleteName = userSnap.data()?.name || 'ספורטאי'
-              if (coachId && !userSnap.data()?.mutedByCoach) {
-                fetch('/api/send-notification', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    userId: coachId,
-                    title: `${athleteName} השלים אימון`,
-                    body: `${activity.stravaName || 'פעילות Strava'} · ${activity.distanceKm} ק"מ`,
-                    data: { type: 'workout_complete' },
-                    url: `/coach/athletes/${athleteId}/planner`,
-                  }),
-                }).catch(() => {})
-              }
-            } catch {}
-          })()
+          // A log already exists for this Strava activity — if it's already
+          // linked to a specific workout, there's nothing to do. If it's
+          // NOT linked (e.g. it was created by a sync that ran before the
+          // matching logic below existed, or a case where a confident match
+          // couldn't be made at the time), fall through and re-run the
+          // matching to repair it — otherwise it stays wrong/unlinked
+          // forever just because this same activity was already seen once,
+          // even after the matching logic itself gets fixed.
+          let logRef
+          if (!existing.empty) {
+            const existingDoc = existing.docs[0]
+            if (existingDoc.data().assignedWorkoutId) continue
+            logRef = existingDoc.ref
+          } else {
+            logRef = await addDoc(collection(db, 'logs'), {
+              athleteId,
+              workoutId: `strava_${activity.stravaActivityId}`,
+              stravaActivityId: activity.stravaActivityId,
+              startTime: activity.startTime || null,
+              stravaName: activity.stravaName || '',
+              date: activity.date,
+              actualDistance: activity.distanceKm,
+              actualPace: activity.avgPace,
+              durationMin: activity.durationMin || null,
+              effort: null,
+              comment: '',
+              splitLogs: activity.splitLogs || [],
+              averageHeartRate: activity.averageHeartRate || null,
+              elevationGain: activity.elevationGain || null,
+              stravaType: activity.stravaType || '',
+              source: 'strava',
+              feedbackStatus: 'pending',
+              createdAt: serverTimestamp(),
+            })
+            saved++
+            // Notify coach of Strava workout completion (fire-and-forget)
+            ;(async () => {
+              try {
+                const coachId = userSnap.data()?.coachId
+                const athleteName = userSnap.data()?.name || 'ספורטאי'
+                if (coachId && !userSnap.data()?.mutedByCoach) {
+                  fetch('/api/send-notification', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      userId: coachId,
+                      title: `${athleteName} השלים אימון`,
+                      body: `${activity.stravaName || 'פעילות Strava'} · ${activity.distanceKm} ק"מ`,
+                      data: { type: 'workout_complete' },
+                      url: `/coach/athletes/${athleteId}/planner`,
+                    }),
+                  }).catch(() => {})
+                }
+              } catch {}
+            })()
+          }
           // Smart auto-complete: match this activity to the RIGHT workout when
           // the day has more than one (e.g. easy run AM + gym PM) — using the
           // workout's session (am/pm) vs. this activity's actual start time,
