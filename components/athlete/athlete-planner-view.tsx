@@ -768,6 +768,14 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
         // candidate, and once that happened before the session-inference
         // fix existed, it would otherwise never get another chance to
         // re-match now that a better signal (session) is available.
+        //
+        // That re-matching is only worth doing for RECENT activities,
+        // though — an old one's data isn't going to suddenly improve, so
+        // re-checking it on every single sync forever is pure waste (and
+        // log noise). Anything older than this just keeps its existing
+        // link, however low-confidence, permanently.
+        const REPAIR_WINDOW_DAYS = 7
+        const repairCutoffStr = new Date(Date.now() - REPAIR_WINDOW_DAYS * 86400000).toISOString().slice(0, 10)
         const toMatch: { activity: any; logRef: any; oldAssignedWorkoutId: string | null }[] = []
         for (const activity of data.activities) {
           const existing = await getDocs(query(collection(db, 'logs'), where('stravaActivityId', '==', activity.stravaActivityId), where('athleteId', '==', athleteId)))
@@ -775,7 +783,9 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
           let oldAssignedWorkoutId: string | null = null
           if (!existing.empty) {
             const existingDoc = existing.docs[0]
-            if (existingDoc.data().assignedWorkoutId && (existingDoc.data().matchTier ?? 0) >= 3) continue
+            const alreadyConfident = (existingDoc.data().matchTier ?? 0) >= 3
+            const tooOldToRepair = activity.date < repairCutoffStr
+            if (existingDoc.data().assignedWorkoutId && (alreadyConfident || tooOldToRepair)) continue
             oldAssignedWorkoutId = existingDoc.data().assignedWorkoutId || null
             logRef = existingDoc.ref
           } else {
@@ -856,7 +866,15 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             const tentative: Tentative[] = []
             for (const { activity, logRef, oldAssignedWorkoutId } of dayItems) {
               const candidates = awSnap.docs.filter(aw => {
-                if (aw.data().status === 'completed') return false
+                // A completed workout is normally excluded (don't steal it
+                // from whatever legitimately finished it) — UNLESS it's
+                // already this exact activity's own current link, in which
+                // case it must stay eligible for re-matching. Otherwise,
+                // re-evaluating a low-confidence link whose target happens
+                // to already be complete (by this very activity, from an
+                // earlier sync) would see only the OTHER workout left as a
+                // candidate and wrongly reassign there by elimination.
+                if (aw.data().status === 'completed' && aw.id !== oldAssignedWorkoutId) return false
                 const wType = aw.data().workout?.type || ''
                 const isStrengthW = ['strength', 'cross_training'].includes(wType)
                 if (isStrengthW) return isGymAct(activity)
