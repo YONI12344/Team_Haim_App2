@@ -843,7 +843,24 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                 const hour = hourPart ? parseInt(hourPart.split(':')[0], 10) : NaN
                 if (!isNaN(hour)) activitySession = hour < 14 ? 'am' : 'pm'
               }
-              const bySession = activitySession ? candidates.find(aw => aw.data().session === activitySession) : undefined
+              // The coach's UI only prompts for a session tag when a SECOND
+              // workout is added to an already-occupied day, so on a
+              // two-workout day often only ONE of them ever gets tagged —
+              // leaving the other with no session field at all, which then
+              // never matches here even though there's no real ambiguity:
+              // the untagged one must be the opposite session from the
+              // tagged one.
+              const effectiveSession = (aw: typeof candidates[number]): 'am' | 'pm' | 'other' | undefined => {
+                const own = aw.data().session
+                if (own) return own
+                if (candidates.length === 2) {
+                  const otherSession = candidates.find(c => c.id !== aw.id)?.data().session
+                  if (otherSession === 'am') return 'pm'
+                  if (otherSession === 'pm') return 'am'
+                }
+                return undefined
+              }
+              const bySession = activitySession ? candidates.find(aw => effectiveSession(aw) === activitySession) : undefined
               const byRepFit = !bySession && candidates.length > 1
                 ? candidates.reduce<{ aw: typeof candidates[number]; score: number } | null>((best, aw) => {
                     const expectedMeters = expectedRepMetersForWorkout(aw.data().workout)
@@ -863,6 +880,12 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                 : undefined
               const match = bySession || byRepFit || byDistance || candidates[0]
               const tier = bySession ? 3 : byRepFit ? 2 : byDistance ? 1 : 0
+              console.log('[strava-match] tentative', {
+                activity: activity.stravaName, stravaActivityId: activity.stravaActivityId,
+                startTime: activity.startTime, distanceKm: activity.distanceKm,
+                candidates: candidates.map(c => ({ id: c.id, title: c.data().workout?.title, session: c.data().session, plannedKm: c.data().workout?.distance })),
+                matchedTo: match.data().workout?.title, tier,
+              })
               tentative.push({ activity, logRef, match, tier })
             }
 
@@ -890,6 +913,12 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             for (const cluster of clusters) {
               if (cluster.length < 2) continue
               const winner = cluster.reduce((best, t) => (!best || t.tier > best.tier) ? t : best, null as Tentative | null)!
+              console.log('[strava-match] cluster reconciled', {
+                members: cluster.map(t => t.activity.stravaName),
+                winnerActivity: winner.activity.stravaName,
+                winnerMatch: winner.match.data().workout?.title,
+                winnerTier: winner.tier,
+              })
               for (const t of cluster) { t.match = winner.match; t.tier = winner.tier }
             }
 
@@ -908,6 +937,9 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                 const matchedKm = tentative.filter(t => t.match.id === match.id).reduce((s, t) => s + (t.activity.distanceKm || 0), 0)
                 shouldComplete = plannedDist === 0 || matchedKm >= plannedDist * 0.7
               }
+              console.log('[strava-match] final', {
+                activity: activity.stravaName, matchedTo: match.data().workout?.title, tier, shouldComplete,
+              })
               await updateDoc(logRef, { assignedWorkoutId: match.id, comparisonGroup: match.data().workout?.comparisonGroup || null, matchTier: tier })
               if (shouldComplete) {
                 await updateDoc(doc(db, 'assignedWorkouts', match.id), { status: 'completed', completedAt: serverTimestamp() })
