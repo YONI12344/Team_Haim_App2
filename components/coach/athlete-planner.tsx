@@ -568,6 +568,7 @@ export function AthletePlanner({ athleteId }: Props) {
     recovery: 'bg-emerald-100 text-emerald-700 border-emerald-200',
     long_run: 'bg-orange-100 text-orange-700 border-orange-200',
     tempo: 'bg-amber-100 text-amber-700 border-amber-200',
+    threshold: 'bg-pink-100 text-pink-700 border-pink-200',
     intervals: 'bg-amber-100 text-amber-700 border-amber-200',
     hill_repeats: 'bg-amber-100 text-amber-700 border-amber-200',
     fartlek: 'bg-amber-100 text-amber-700 border-amber-200',
@@ -582,11 +583,11 @@ export function AthletePlanner({ athleteId }: Props) {
 
   // Quick-assign sheet: type picker order + emoji
   const QUICK_TYPES: WorkoutType[] = [
-    'easy', 'intervals', 'tempo', 'long_run', 'hill_repeats', 'fartlek',
+    'easy', 'threshold', 'intervals', 'tempo', 'long_run', 'hill_repeats', 'fartlek',
     'recovery', 'strength', 'swim', 'bike', 'race', 'time_trial',
   ]
   const TYPE_EMOJI: Record<string, string> = {
-    easy: '🏃', intervals: '🔁', tempo: '⚡', long_run: '🛣️', hill_repeats: '⛰️',
+    easy: '🏃', threshold: '🎯', intervals: '🔁', tempo: '⚡', long_run: '🛣️', hill_repeats: '⛰️',
     fartlek: '🎲', recovery: '🌿', strength: '🏋️', cross_training: '🔀',
     swim: '🏊', bike: '🚴', race: '🏁', time_trial: '⏱️', rest: '😴',
   }

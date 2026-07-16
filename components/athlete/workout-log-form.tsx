@@ -736,7 +736,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
       {/* Distance + pace — editable even for Strava logs so the athlete can
           fix or add data Strava missed */}
       {stravaSource && (
-        <p className="text-xs text-muted-foreground -mb-3">{t.fixStravaDataHint}</p>
+        <p className="text-xs text-muted-foreground">{t.fixStravaDataHint}</p>
       )}
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
