@@ -135,13 +135,21 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
         // is reused across dates for recurring sessions, e.g. "20x400").
         let matchedDoc: any = undefined
         if (assignedWorkoutId) {
+          // A warmup/main-event/cooldown recorded as SEPARATE Strava
+          // activities can all legitimately share this same
+          // assignedWorkoutId (that's the whole point of the same-session
+          // clustering in athlete-planner-view.tsx) — picking an arbitrary
+          // one here (the old `limit(1)`) could just as easily grab the
+          // warmup's laps as the real effort's. The longest-distance one
+          // is the main event; that's the one whose laps should fill this
+          // workout's rep splits.
           const snap = await getDocs(query(
             collection(db, 'logs'),
             where('assignedWorkoutId', '==', assignedWorkoutId),
             where('athleteId', '==', athleteId),
-            limit(1)
           ))
-          matchedDoc = snap.docs[0]
+          matchedDoc = snap.docs.reduce((best: any, d: any) =>
+            (!best || (d.data().actualDistance || 0) > (best.data().actualDistance || 0)) ? d : best, undefined)
         }
 
         // Fall back to workoutId+athleteId+date (legacy logs saved before
