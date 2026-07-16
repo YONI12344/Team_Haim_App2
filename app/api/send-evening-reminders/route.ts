@@ -26,6 +26,10 @@ export async function GET(request: NextRequest) {
 
     const workouts = await fsQuery('assignedWorkouts', [], accessToken)
     const logs = await fsQuery('logs', [], accessToken)
+    const daysOff = await fsQuery('daysOff', [], accessToken)
+
+    const isDayOff = (athleteId: string, dateStr: string) =>
+      daysOff.some((d) => d.data.athleteId === athleteId && d.data.startDate <= dateStr && d.data.endDate >= dateStr)
 
     const athleteIds = new Set(
       workouts
@@ -45,6 +49,8 @@ export async function GET(request: NextRequest) {
       if (hour < 19 || hour > 21) continue
 
       const today = localDate(tz)
+      if (isDayOff(athleteId, today)) continue
+
       const hasTodayWorkout = workouts.some(
         (w) =>
           w.data.athleteId === athleteId &&

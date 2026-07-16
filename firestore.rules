@@ -112,6 +112,17 @@ service cloud.firestore {
       allow read, write: if isSelf(userId) || isCoach();
     }
 
+    // Days off (sick/trip/other) — either the athlete or the coach can mark
+    // a date range as no-workout, which suppresses reminder pushes.
+    match /daysOff/{docId} {
+      allow read: if request.auth != null
+        && (isCoach() || resource.data.athleteId == request.auth.uid);
+      allow create: if request.auth != null
+        && (isCoach() || request.resource.data.athleteId == request.auth.uid);
+      allow delete: if isCoach()
+        || (request.auth != null && resource.data.athleteId == request.auth.uid);
+    }
+
     // Scheduled reminder notifications (morning/evening cron jobs etc.)
     match /scheduledNotifications/{docId} {
       allow read: if request.auth != null

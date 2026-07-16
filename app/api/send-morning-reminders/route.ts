@@ -39,10 +39,16 @@ export async function GET(request: NextRequest) {
 
     const workouts = await fsQuery('assignedWorkouts', [], accessToken)
     const logs = await fsQuery('logs', [], accessToken)
+    const daysOff = await fsQuery('daysOff', [], accessToken)
 
     const athleteIds = new Set(
       workouts.map((w) => w.data.athleteId as string).filter(Boolean),
     )
+
+    // Athlete marked this date (sick/trip/other) as no-workout — suppress
+    // both the athlete's own reminder and the coach's "missed" alert for it.
+    const isDayOff = (athleteId: string, dateStr: string) =>
+      daysOff.some((d) => d.data.athleteId === athleteId && d.data.startDate <= dateStr && d.data.endDate >= dateStr)
 
     // The single coach account — fetched once, reused for every missed-workout alert below
     const coachRows = await fsQuery('users', [{ field: 'email', op: 'EQUAL', value: 'info.teamhaim@gmail.com' }], accessToken)
@@ -65,7 +71,7 @@ export async function GET(request: NextRequest) {
       // Coach alert: did the athlete leave yesterday's workout unfinished
       // with nothing logged? (skipped explicitly is not alerted — that's
       // an intentional choice, not a miss)
-      if (coachTokenDoc?.token && userDoc?.mutedByCoach !== true) {
+      if (coachTokenDoc?.token && userDoc?.mutedByCoach !== true && !isDayOff(athleteId, localYesterday(tz))) {
         const yesterday = localYesterday(tz)
         const yesterdayWorkout = workouts.find(
           (w) => w.data.athleteId === athleteId
@@ -93,6 +99,8 @@ export async function GET(request: NextRequest) {
           }
         }
       }
+
+      if (isDayOff(athleteId, today)) continue
 
       const todayWorkout = workouts.find(
         (w) => w.data.athleteId === athleteId && w.data.scheduledDate === today,

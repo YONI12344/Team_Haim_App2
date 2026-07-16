@@ -40,6 +40,8 @@ import { WorkoutBuilder } from '@/components/coach/workout-builder'
 import { AthletePlannerView } from '@/components/athlete/athlete-planner-view'
 import { useLanguage } from '@/contexts/language-context'
 import { toast } from 'sonner'
+import { MarkDayOffDialog } from '@/components/shared/mark-day-off-dialog'
+import { useDaysOff } from '@/hooks/useDaysOff'
 
 const WEEKDAY_KEYS = [
   'sunday','monday','tuesday','wednesday','thursday','friday','saturday',
@@ -112,6 +114,9 @@ export function AthletePlanner({ athleteId }: Props) {
 
   // Quick-assign sheet — opens when the coach taps a day on the calendar
   const [quickAssignDate, setQuickAssignDate] = useState<Date | null>(null)
+  const { dayOffFor, markDayOff, removeDayOff } = useDaysOff(athleteId)
+  const [markDayOffOpen, setMarkDayOffOpen] = useState(false)
+  const [markDayOffDate, setMarkDayOffDate] = useState<string>(() => format(new Date(), 'yyyy-MM-dd'))
   const [qaType, setQaType] = useState<WorkoutType | null>(null)
   const [qaTitle, setQaTitle] = useState('')
   const [qaDistance, setQaDistance] = useState('')
@@ -1853,8 +1858,34 @@ export function AthletePlanner({ athleteId }: Props) {
           {quickAssignDate && (() => {
             const qaDateStr = format(quickAssignDate, 'yyyy-MM-dd')
             const existingWs = getWorkoutsForDate2(qaDateStr)
+            const dayOff = dayOffFor(qaDateStr)
             return (
               <div className="space-y-4">
+                {/* Day off (sick/trip/other) — suppresses the athlete's
+                    reminders and the "missed workout" alert for this date */}
+                {dayOff ? (
+                  <div className="rounded-xl border border-navy/10 bg-navy/5 px-3 py-2 flex items-center justify-between gap-2">
+                    <p className="text-xs font-bold text-navy">
+                      {dayOff.reason === 'sick' ? t.dayOffCardTitleSick : dayOff.reason === 'trip' ? t.dayOffCardTitleTrip : t.dayOffCardTitleOther}
+                      {dayOff.note ? ` — ${dayOff.note}` : ''}
+                    </p>
+                    <button
+                      onClick={async () => {
+                        try { await removeDayOff(dayOff.id); toast.success(t.dayOffToastRemoved) }
+                        catch (e) { console.error(e); toast.error('שמירה נכשלה') }
+                      }}
+                      className="text-[11px] font-semibold text-navy/60 hover:text-navy underline underline-offset-2 flex-shrink-0">
+                      {t.dayOffUndoBtn}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { setMarkDayOffDate(qaDateStr); setQuickAssignDate(null); setMarkDayOffOpen(true) }}
+                    className="w-full text-xs font-semibold text-muted-foreground hover:text-navy px-2 py-1.5 rounded-xl border border-dashed border-border transition-all active:scale-[0.98]">
+                    {t.markDayOffBtn}
+                  </button>
+                )}
+
                 {/* Existing workouts that day */}
                 {existingWs.length > 0 && (
                   <div className="space-y-1.5">
@@ -2081,6 +2112,20 @@ export function AthletePlanner({ athleteId }: Props) {
           )}
         </DialogContent>
       </Dialog>
+      <MarkDayOffDialog
+        open={markDayOffOpen}
+        onOpenChange={setMarkDayOffOpen}
+        defaultDate={markDayOffDate}
+        onSubmit={async (payload) => {
+          try {
+            await markDayOff({ ...payload, createdBy: user?.id || '' })
+            toast.success(t.dayOffToastAdded)
+          } catch (e) {
+            console.error(e)
+            toast.error('שמירה נכשלה')
+          }
+        }}
+      />
     </div>
   )
 }

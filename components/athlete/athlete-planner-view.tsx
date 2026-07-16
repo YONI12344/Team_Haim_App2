@@ -28,6 +28,8 @@ import { useLatestStepTest } from '@/hooks/useLatestStepTest'
 import { useWorkoutLactateGroups, latestSessionSteps, groupKeyFor } from '@/hooks/useWorkoutLactateGroups'
 import { isCoachEmail } from '@/lib/constants'
 import { ManualLogCard } from '@/components/shared/manual-log-card'
+import { MarkDayOffDialog } from '@/components/shared/mark-day-off-dialog'
+import { useDaysOff } from '@/hooks/useDaysOff'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { AddActivityDialog } from '@/components/athlete/add-activity-dialog'
 import { MoveWorkoutDialog } from '@/components/athlete/move-workout-dialog'
@@ -176,6 +178,9 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
   const isCoachViewer = isCoachEmail(user?.email)
   const { steps: latestSteps } = useLatestStepTest(athleteId)
   const { grouped: workoutGroups } = useWorkoutLactateGroups(athleteId)
+  const { dayOffFor, markDayOff, removeDayOff } = useDaysOff(athleteId)
+  const [markDayOffOpen, setMarkDayOffOpen] = useState(false)
+  const [markDayOffDate, setMarkDayOffDate] = useState<string>(() => format(new Date(), 'yyyy-MM-dd'))
   const [editingTargetId, setEditingTargetId] = useState<string | null>(null)
   const [targetEditFields, setTargetEditFields] = useState({ paceMin: '', paceMax: '', hrMin: '', hrMax: '' })
   const [savingTargetOverride, setSavingTargetOverride] = useState(false)
@@ -1427,6 +1432,32 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
     )
   }
 
+  /** A date range the athlete/coach marked as no-workout (sick/trip/other) —
+   *  shown instead of the rest-day hero so it's clear this was intentional,
+   *  not a missed workout. Reminders are already suppressed server-side for
+   *  this range (see app/api/send-morning-reminders, send-evening-reminders). */
+  const renderDayOffCard = (dateStr: string) => {
+    const dayOff = dayOffFor(dateStr)
+    if (!dayOff) return null
+    const title = dayOff.reason === 'sick' ? t.dayOffCardTitleSick
+      : dayOff.reason === 'trip' ? t.dayOffCardTitleTrip
+      : t.dayOffCardTitleOther
+    return (
+      <div className="bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 rounded-3xl p-6 text-center space-y-2">
+        <p className="text-xl font-bold text-white">{title}</p>
+        {dayOff.note && <p className="text-sm text-white/60" dir="auto">{dayOff.note}</p>}
+        <button
+          onClick={async () => {
+            try { await removeDayOff(dayOff.id); toast.success(t.dayOffToastRemoved) }
+            catch (e) { console.error(e); toast.error(t.savingError) }
+          }}
+          className="text-xs font-semibold text-white/50 hover:text-white/80 underline underline-offset-2 mt-1">
+          {t.dayOffUndoBtn}
+        </button>
+      </div>
+    )
+  }
+
   const renderNavyWorkoutBlock = (w: AssignedWorkout, isMulti: boolean, idx: number, dateStr: string) => {
     const wEff = getEffectiveStatus(w)
     const wSelected = selectedWorkoutId === w.id
@@ -1657,6 +1688,27 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             {t.addActivityBtn}
           </button>
         )
+        const markDayOffButton = (
+          <button
+            onClick={() => { setMarkDayOffDate(dateStr); setMarkDayOffOpen(true) }}
+            className="w-full h-10 rounded-2xl text-gray-400 hover:text-[#0a1628] text-xs font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98]">
+            {t.markDayOffBtn}
+          </button>
+        )
+        const dayOffCard = renderDayOffCard(dateStr)
+
+        // ── Day off (sick/trip/other) ──
+        if (dayOffCard) return (
+          <div className="space-y-3">
+            {dayOffCard}
+            {dayWs.map((w, idx) => renderNavyWorkoutBlock(w, dayWs.length > 1, idx, dateStr))}
+            {activitiesToday.length > 0 && (
+              <div className="space-y-1.5">
+                {activitiesToday.map(log => <StravaCard key={log.id} log={log} />)}
+              </div>
+            )}
+          </div>
+        )
 
         // ── Rest day hero ──
         if (!mainW && activitiesToday.length === 0) return (
@@ -1667,6 +1719,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               <p className="text-sm text-white/40">{t.restDaySubtitle}</p>
             </div>
             {addActivityButton}
+            {markDayOffButton}
           </div>
         )
 
@@ -1679,6 +1732,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               </div>
             )}
             {addActivityButton}
+            {markDayOffButton}
           </div>
         )
       })()}
@@ -1695,6 +1749,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                 const hasPending = dayWs.some(w => getEffectiveStatus(w) === 'scheduled')
                 const isSelDay = isSameDay(day, selectedWeekDay)
                 const todayFlag = isToday(day)
+                const isOff = !!dayOffFor(format(day, 'yyyy-MM-dd'))
                 return (
                   <button key={di}
                     onClick={() => { setSelectedWeekDay(day); setSelectedWorkoutId(null) }}
@@ -1706,11 +1761,15 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                     <span className={cn('text-sm font-black', isSelDay ? 'text-white' : todayFlag ? 'text-[#0a1628]' : 'text-[#0a1628]/60')}>
                       {format(day,'d/M')}
                     </span>
-                    <span className={cn('w-1.5 h-1.5 rounded-full mt-1.5',
-                      dayWs.length === 0 ? 'opacity-0' :
-                      hasCompleted ? 'bg-emerald-500' :
-                      hasPending ? (isSelDay ? 'bg-[#c9a84c]' : 'bg-[#c9a84c]/70') : 'bg-gray-200'
-                    )} />
+                    {isOff ? (
+                      <span className="text-[10px] mt-1.5">🩹</span>
+                    ) : (
+                      <span className={cn('w-1.5 h-1.5 rounded-full mt-1.5',
+                        dayWs.length === 0 ? 'opacity-0' :
+                        hasCompleted ? 'bg-emerald-500' :
+                        hasPending ? (isSelDay ? 'bg-[#c9a84c]' : 'bg-[#c9a84c]/70') : 'bg-gray-200'
+                      )} />
+                    )}
                   </button>
                 )
               })}
@@ -1752,6 +1811,25 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                 {t.addActivityBtn}
               </button>
             )
+            const markDayOffButton = (
+              <button
+                onClick={() => { setMarkDayOffDate(dayStr); setMarkDayOffOpen(true) }}
+                className="w-full h-10 rounded-2xl text-gray-400 hover:text-[#0a1628] text-xs font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98]">
+                {t.markDayOffBtn}
+              </button>
+            )
+            const dayOffCard = renderDayOffCard(dayStr)
+            if (dayOffCard) return (
+              <div className="space-y-3">
+                {dayOffCard}
+                {dayWs.map((w, i) => renderNavyWorkoutBlock(w, dayWs.length > 1, i, dayStr))}
+                {activitiesDay.length > 0 && (
+                  <div className="space-y-1.5">
+                    {activitiesDay.map(log => <StravaCard key={log.id} log={log} />)}
+                  </div>
+                )}
+              </div>
+            )
             if (dayWs.length === 0 && activitiesDay.length === 0) return (
               <div className="space-y-3">
                 <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 text-center">
@@ -1759,6 +1837,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                   <p className="text-sm text-gray-400">{format(selectedWeekDay,'EEEE, d MMMM')}</p>
                 </div>
                 {addActivityButton}
+                {markDayOffButton}
               </div>
             )
             return (
@@ -1775,6 +1854,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                   </div>
                 )}
                 {addActivityButton}
+                {markDayOffButton}
               </div>
             )
           })()}
@@ -1986,6 +2066,20 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
           }}
         />
       )}
+      <MarkDayOffDialog
+        open={markDayOffOpen}
+        onOpenChange={setMarkDayOffOpen}
+        defaultDate={markDayOffDate}
+        onSubmit={async (payload) => {
+          try {
+            await markDayOff({ ...payload, createdBy: user?.id || '' })
+            toast.success(t.dayOffToastAdded)
+          } catch (e) {
+            console.error(e)
+            toast.error(t.savingError)
+          }
+        }}
+      />
     </div>
   )
 }

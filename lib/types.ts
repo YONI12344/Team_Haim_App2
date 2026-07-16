@@ -253,6 +253,25 @@ export interface AssignedWorkout {
   updatedAt: Date
 }
 
+export type DayOffReason = 'sick' | 'trip' | 'other'
+
+// A date range (inclusive, 'yyyy-MM-dd' strings, so plain string compares
+// work) an athlete or coach has marked as no-workout — sick, traveling,
+// etc. Suppresses the "log your workout" reminders for that range (see
+// app/api/send-morning-reminders and send-evening-reminders) and the
+// coach's "missed workout" alert, and the planner shows it in place of the
+// usual rest-day/workout card instead of leaving it looking like a miss.
+export interface DayOff {
+  id: string
+  athleteId: string
+  startDate: string
+  endDate: string
+  reason: DayOffReason
+  note?: string
+  createdBy: string
+  createdAt: Date
+}
+
 // Chat Message
 export interface ChatMessage {
   id: string

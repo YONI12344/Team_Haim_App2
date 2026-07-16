@@ -863,6 +863,24 @@ export interface Translations {
   labTrendTableRest: string
   labTrendTableDuration: string
   labTrendTableMin: string
+
+  // Days off (sick/trip/other) — suppress workout reminders for a date range
+  markDayOffBtn: string
+  markDayOffTitle: string
+  markDayOffDesc: string
+  markDayOffSubmit: string
+  dayOffReasonSick: string
+  dayOffReasonTrip: string
+  dayOffReasonOther: string
+  dayOffFromLabel: string
+  dayOffToLabel: string
+  dayOffNotePh: string
+  dayOffCardTitleSick: string
+  dayOffCardTitleTrip: string
+  dayOffCardTitleOther: string
+  dayOffUndoBtn: string
+  dayOffToastAdded: string
+  dayOffToastRemoved: string
 }
 
 const translations: Record<Language, Translations> = {
@@ -1678,6 +1696,23 @@ const translations: Record<Language, Translations> = {
     labTrendTableRest: 'Rest',
     labTrendTableDuration: 'Duration',
     labTrendTableMin: 'min',
+
+    markDayOffBtn: 'Mark day off',
+    markDayOffTitle: 'Mark day(s) off',
+    markDayOffDesc: 'No workout expected for this range — reminders will be skipped and the coach will see why.',
+    markDayOffSubmit: 'Save',
+    dayOffReasonSick: 'Sick',
+    dayOffReasonTrip: 'Trip',
+    dayOffReasonOther: 'Other',
+    dayOffFromLabel: 'From',
+    dayOffToLabel: 'To',
+    dayOffNotePh: 'Optional note...',
+    dayOffCardTitleSick: '🤒 Day off — sick',
+    dayOffCardTitleTrip: '✈️ Day off — traveling',
+    dayOffCardTitleOther: '📌 Day off',
+    dayOffUndoBtn: 'Undo',
+    dayOffToastAdded: 'Marked as a day off',
+    dayOffToastRemoved: 'Day off removed',
   },
   he: {
     teamHaim: 'Team Haim',
@@ -2486,6 +2521,23 @@ const translations: Record<Language, Translations> = {
     labTrendTableRest: 'מנוחה',
     labTrendTableDuration: 'משך',
     labTrendTableMin: 'דק׳',
+
+    markDayOffBtn: 'סמן יום חופש',
+    markDayOffTitle: 'סימון ימי חופש',
+    markDayOffDesc: 'אין אימון צפוי בטווח הזה — התזכורות ידלגו והמאמן יראה למה.',
+    markDayOffSubmit: 'שמור',
+    dayOffReasonSick: 'מחלה',
+    dayOffReasonTrip: 'נסיעה',
+    dayOffReasonOther: 'אחר',
+    dayOffFromLabel: 'מ-',
+    dayOffToLabel: 'עד',
+    dayOffNotePh: 'הערה (לא חובה)...',
+    dayOffCardTitleSick: '🤒 יום חופש — מחלה',
+    dayOffCardTitleTrip: '✈️ יום חופש — נסיעה',
+    dayOffCardTitleOther: '📌 יום חופש',
+    dayOffUndoBtn: 'ביטול',
+    dayOffToastAdded: 'סומן כיום חופש',
+    dayOffToastRemoved: 'יום החופש הוסר',
   },
 }
 
