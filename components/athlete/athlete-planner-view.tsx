@@ -919,11 +919,14 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             }
 
             // Phase 2 — reconcile same-day activities that started close
-            // together in time (within 3 hours of the previous one ending)
-            // as ONE physical training block: they must all agree on
-            // whichever match has the strongest evidence in the group,
-            // instead of a low-confidence fragment (the warmup) drifting
-            // off to a different scheduled workout on its own.
+            // together in time (within SAME_SESSION_GAP_HOURS of the
+            // previous one ending) as ONE physical training block: they
+            // must all agree on whichever match has the strongest evidence
+            // in the group, instead of a low-confidence fragment (a
+            // cooldown, say) drifting off to a different scheduled workout
+            // on its own. Two real, separate workouts (e.g. AM run + PM
+            // run) need at least this much of a gap to count as distinct.
+            const SAME_SESSION_GAP_HOURS = 4
             const sorted = [...tentative].sort((a, b) => (a.activity.startTime || '').localeCompare(b.activity.startTime || ''))
             const clusters: Tentative[][] = []
             for (const t of sorted) {
@@ -933,7 +936,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               const lastEndMs = lastT?.activity.startTime
                 ? new Date(lastT.activity.startTime).getTime() + (lastT.activity.durationMin || 0) * 60000
                 : null
-              if (last && startMs != null && lastEndMs != null && (startMs - lastEndMs) <= 3 * 3600 * 1000) {
+              if (last && startMs != null && lastEndMs != null && (startMs - lastEndMs) <= SAME_SESSION_GAP_HOURS * 3600 * 1000) {
                 last.push(t)
               } else {
                 clusters.push([t])
