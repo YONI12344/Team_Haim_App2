@@ -872,12 +872,74 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             ))
             if (awSnap.empty) continue
 
-            // Phase 1 — each activity's OWN best match, independent of its
-            // same-day siblings. tier: 3=explicit session tag, 2=rep-fit,
-            // 1=distance closeness, 0=only candidate / no signal at all.
+            // Two real, separate workouts (e.g. AM run + PM run) need at
+            // least this much of a gap to count as distinct sessions.
+            const SAME_SESSION_GAP_HOURS = 4
+            const buildTimeClusters = <T extends { activity: any }>(items: T[]): T[][] => {
+              const sorted = [...items].sort((a, b) => (a.activity.startTime || '').localeCompare(b.activity.startTime || ''))
+              const out: T[][] = []
+              for (const t of sorted) {
+                const startMs = t.activity.startTime ? new Date(t.activity.startTime).getTime() : null
+                const last = out[out.length - 1]
+                const lastT = last?.[last.length - 1]
+                const lastEndMs = lastT?.activity.startTime
+                  ? new Date(lastT.activity.startTime).getTime() + (lastT.activity.durationMin || 0) * 60000
+                  : null
+                if (last && startMs != null && lastEndMs != null && (startMs - lastEndMs) <= SAME_SESSION_GAP_HOURS * 3600 * 1000) {
+                  last.push(t)
+                } else {
+                  out.push([t])
+                }
+              }
+              return out
+            }
+
             type Tentative = { activity: any; logRef: any; match: any; tier: number; oldAssignedWorkoutId: string | null }
             const tentative: Tentative[] = []
-            for (const { activity, logRef, oldAssignedWorkoutId } of dayItems) {
+
+            // Pre-pass — pure chronological pairing. A real session's own
+            // internal Strava auto-laps can coincidentally fit a DIFFERENT
+            // workout's rep count better than the one it actually belongs
+            // to, which rep-fit/distance scoring alone can't tell apart.
+            // But when every activity today is a run, and the number of
+            // distinct time-separated sessions (grouped purely by the
+            // SAME_SESSION_GAP_HOURS rule, before any rep/distance
+            // reasoning) exactly matches the number of scheduled,
+            // not-yet-completed running workouts, there's a much more
+            // reliable signal available: pair them up by time order alone
+            // — the earliest session goes to whichever workout is
+            // earliest in the day (by session tag), and so on.
+            const runCandidates = awSnap.docs.filter(aw => {
+              if (aw.data().status === 'completed') return false
+              const wType = aw.data().workout?.type || ''
+              return !['strength', 'cross_training'].includes(wType) && wType !== 'swim' && wType !== 'bike'
+            })
+            const allRunToday = dayItems.every(item => isRunAct(item.activity))
+            const rawClusters = allRunToday ? buildTimeClusters(dayItems) : []
+            let handledChronologically = false
+            if (allRunToday && rawClusters.length > 1 && rawClusters.length === runCandidates.length) {
+              const sessionOrder = (aw: typeof runCandidates[number]) =>
+                aw.data().session === 'am' ? 0 : aw.data().session === 'pm' ? 1 : 2
+              const sortedCandidates = [...runCandidates].sort((a, b) => sessionOrder(a) - sessionOrder(b))
+              const sortedClusters = [...rawClusters].sort((a, b) => (a[0].activity.startTime || '').localeCompare(b[0].activity.startTime || ''))
+              for (let i = 0; i < sortedClusters.length; i++) {
+                const match = sortedCandidates[i]
+                for (const { activity, logRef, oldAssignedWorkoutId } of sortedClusters[i]) {
+                  console.log('[strava-match] chronological', {
+                    activity: activity.stravaName, startTime: activity.startTime,
+                    sessionIndex: i, matchedTo: match.data().workout?.title,
+                  })
+                  tentative.push({ activity, logRef, match, tier: 4, oldAssignedWorkoutId })
+                }
+              }
+              handledChronologically = true
+            }
+
+            // Phase 1 (fallback path only) — each activity's OWN best
+            // match, independent of its same-day siblings. tier:
+            // 3=explicit session tag, 2=rep-fit, 1=distance closeness,
+            // 0=only candidate / no signal at all.
+            for (const { activity, logRef, oldAssignedWorkoutId } of (handledChronologically ? [] : dayItems)) {
               const candidates = awSnap.docs.filter(aw => {
                 // A completed workout is normally excluded (don't steal it
                 // from whatever legitimately finished it) — UNLESS it's
@@ -949,40 +1011,26 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               tentative.push({ activity, logRef, match, tier, oldAssignedWorkoutId })
             }
 
-            // Phase 2 — reconcile same-day activities that started close
-            // together in time (within SAME_SESSION_GAP_HOURS of the
-            // previous one ending) as ONE physical training block: they
-            // must all agree on whichever match has the strongest evidence
-            // in the group, instead of a low-confidence fragment (a
-            // cooldown, say) drifting off to a different scheduled workout
-            // on its own. Two real, separate workouts (e.g. AM run + PM
-            // run) need at least this much of a gap to count as distinct.
-            const SAME_SESSION_GAP_HOURS = 4
-            const sorted = [...tentative].sort((a, b) => (a.activity.startTime || '').localeCompare(b.activity.startTime || ''))
-            const clusters: Tentative[][] = []
-            for (const t of sorted) {
-              const startMs = t.activity.startTime ? new Date(t.activity.startTime).getTime() : null
-              const last = clusters[clusters.length - 1]
-              const lastT = last?.[last.length - 1]
-              const lastEndMs = lastT?.activity.startTime
-                ? new Date(lastT.activity.startTime).getTime() + (lastT.activity.durationMin || 0) * 60000
-                : null
-              if (last && startMs != null && lastEndMs != null && (startMs - lastEndMs) <= SAME_SESSION_GAP_HOURS * 3600 * 1000) {
-                last.push(t)
-              } else {
-                clusters.push([t])
+            // Phase 2 (fallback path only) — reconcile same-day activities
+            // that started close together in time as ONE physical
+            // training block: they must all agree on whichever match has
+            // the strongest evidence in the group, instead of a
+            // low-confidence fragment (a cooldown, say) drifting off to a
+            // different scheduled workout on its own. Already handled by
+            // the chronological pre-pass above when that applied cleanly.
+            if (!handledChronologically) {
+              const clusters = buildTimeClusters(tentative)
+              for (const cluster of clusters) {
+                if (cluster.length < 2) continue
+                const winner = cluster.reduce((best, t) => (!best || t.tier > best.tier) ? t : best, null as Tentative | null)!
+                console.log('[strava-match] cluster reconciled', {
+                  members: cluster.map(t => t.activity.stravaName),
+                  winnerActivity: winner.activity.stravaName,
+                  winnerMatch: winner.match.data().workout?.title,
+                  winnerTier: winner.tier,
+                })
+                for (const t of cluster) { t.match = winner.match; t.tier = winner.tier }
               }
-            }
-            for (const cluster of clusters) {
-              if (cluster.length < 2) continue
-              const winner = cluster.reduce((best, t) => (!best || t.tier > best.tier) ? t : best, null as Tentative | null)!
-              console.log('[strava-match] cluster reconciled', {
-                members: cluster.map(t => t.activity.stravaName),
-                winnerActivity: winner.activity.stravaName,
-                winnerMatch: winner.match.data().workout?.title,
-                winnerTier: winner.tier,
-              })
-              for (const t of cluster) { t.match = winner.match; t.tier = winner.tier }
             }
 
             // Phase 3 — write the final decision for each activity.
