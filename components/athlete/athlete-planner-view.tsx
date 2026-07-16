@@ -1051,10 +1051,23 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                 const matchedKm = tentative.filter(t => t.match.id === match.id).reduce((s, t) => s + (t.activity.distanceKm || 0), 0)
                 shouldComplete = plannedDist === 0 || matchedKm >= plannedDist * 0.7
               }
+              // Only the MAIN (longest-distance) fragment of a multi-fragment
+              // session gets the workout's comparisonGroup tag — a
+              // warmup/cooldown recorded as its own separate Strava activity
+              // would otherwise pool into the SAME comparison-group trend
+              // (useWorkoutComparisonGroups has no way to tell them apart
+              // once tagged) and show its own short, slow pace as if it
+              // were another real session of the workout.
+              const clusterMates = tentative.filter(t => t.match.id === match.id)
+              const isMainFragment = clusterMates.every(t => (t.activity.distanceKm || 0) <= (activity.distanceKm || 0))
               console.log('[strava-match] final', {
-                activity: activity.stravaName, matchedTo: match.data().workout?.title, tier, shouldComplete,
+                activity: activity.stravaName, matchedTo: match.data().workout?.title, tier, shouldComplete, isMainFragment,
               })
-              await updateDoc(logRef, { assignedWorkoutId: match.id, comparisonGroup: match.data().workout?.comparisonGroup || null, matchTier: tier })
+              await updateDoc(logRef, {
+                assignedWorkoutId: match.id,
+                comparisonGroup: isMainFragment ? (match.data().workout?.comparisonGroup || null) : null,
+                matchTier: tier,
+              })
               if (shouldComplete) {
                 await updateDoc(doc(db, 'assignedWorkouts', match.id), { status: 'completed', completedAt: serverTimestamp() })
                 setAssignedWorkouts(prev => prev.map(w => w.id === match.id ? { ...w, status: 'completed' } : w))

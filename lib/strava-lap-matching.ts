@@ -146,6 +146,18 @@ export function buildRepDisplayRows(laps: RawLap[], expectedMeters: (number | nu
   const isFiller = (p: typeof parsed[number]) =>
     minTarget != null && p.meters != null && p.meters < minTarget * 0.4
 
+  // An accidental double-tap of the lap button mid-rep — reported directly:
+  // "a lap of 4 sec in the middle of the workout by mistake". isFiller only
+  // catches a short DISTANCE, but a glitch lap like this can still carry a
+  // meaningful (GPS-smoothed/buffered) distance despite lasting only a
+  // couple of seconds — no real rep fragment, at any pace a human can run,
+  // takes under ~8 seconds, so this is a second, independent junk check by
+  // TIME rather than distance. Only applied to distance-targeted reps
+  // below, never the duration-based branch (a genuinely short rep, e.g. a
+  // 15-second hill sprint, has its OWN duration as the target and must not
+  // be filtered out here).
+  const isGlitch = (p: typeof parsed[number]) => p.sec != null && p.sec < 8
+
   const pushRest = (p: typeof parsed[number]) => {
     rows.push({ kind: 'rest', time: p.sec != null ? secToPace(p.sec) : '—', heartRate: p.heartRate, distanceMeters: p.meters })
   }
@@ -154,7 +166,7 @@ export function buildRepDisplayRows(laps: RawLap[], expectedMeters: (number | nu
   let li = 0
   let repIndex = 0
   for (const target of expectedMeters) {
-    while (li < parsed.length && (isRest(parsed[li]) || isFiller(parsed[li]))) {
+    while (li < parsed.length && (isRest(parsed[li]) || isFiller(parsed[li]) || (target != null && isGlitch(parsed[li])))) {
       if (isRest(parsed[li])) pushRest(parsed[li])
       li++
     }
@@ -177,6 +189,7 @@ export function buildRepDisplayRows(laps: RawLap[], expectedMeters: (number | nu
       const p = parsed[li]
       if (isRest(p)) break // reached recovery — this rep's laps are done
       if (isFiller(p)) { li++; continue } // stride/fragment — skip, don't break
+      if (isGlitch(p)) { li++; continue } // accidental lap-button tap — skip, don't break
       if (p.meters == null || p.sec == null) { li++; continue }
       // Once the accumulated distance has already reached ~90% of this
       // rep's target, only keep consuming laps that still plausibly belong
