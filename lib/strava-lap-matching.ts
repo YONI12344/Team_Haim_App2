@@ -187,7 +187,22 @@ export function buildRepDisplayRows(laps: RawLap[], expectedMeters: (number | nu
     let accMeters = 0, accSec = 0, hrWeighted = 0, hrWeight = 0, used = 0
     while (li < parsed.length) {
       const p = parsed[li]
-      if (isRest(p)) break // reached recovery — this rep's laps are done
+      if (isRest(p)) {
+        // Only trust this as a REAL recovery period once the rep is
+        // already mostly done — a slow-reading lap (GPS signal loss on
+        // part of a track, a moment of dead legs mid-effort) can look just
+        // as "restlike" by pace while the rep itself is still far from
+        // finished. Breaking here unconditionally would end the rep with
+        // only a small fraction of its true elapsed time counted, and
+        // dividing that fraction by the FULL planned distance produces an
+        // impossibly fast pace — confirmed: a mile-repeat session kept
+        // showing sub-2:00/mile splits even after a full reset+resync,
+        // because a mid-rep glitch lap was ending accumulation early every
+        // single time, not a one-off stale-data issue.
+        if (accMeters >= target * 0.7) break
+        li++
+        continue // treat as a glitch, not a real rest — keep looking for the rep's real continuation
+      }
       if (isFiller(p)) { li++; continue } // stride/fragment — skip, don't break
       if (isGlitch(p)) { li++; continue } // accidental lap-button tap — skip, don't break
       if (p.meters == null || p.sec == null) { li++; continue }
