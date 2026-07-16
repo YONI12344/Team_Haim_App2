@@ -712,6 +712,31 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
     )
   }
 
+  /** Debug utility (coach-only): wipes every log AND resets every assigned
+   *  workout's status for the currently-viewed date, so repeated testing
+   *  (manual "Fill from Strava" saves, partial deletes, several sync
+   *  attempts) can't leave stale/duplicate data around to confuse the next
+   *  test. Not meant for real day-to-day use — just for verifying the
+   *  Strava-matching logic against a clean slate. */
+  const handleResetDayDebug = async () => {
+    if (!confirm(`מחיקת כל הנתונים של ${format(currentDate, 'd/M/yyyy')} — בטוח?`)) return
+    try {
+      const { doc, collection, deleteDoc, updateDoc, query, where, getDocs } = await import('firebase/firestore')
+      const { db } = await import('@/lib/firebase')
+      const dateStr = format(currentDate, 'yyyy-MM-dd')
+      const logsSnap = await getDocs(query(collection(db, 'logs'), where('athleteId', '==', athleteId), where('date', '==', dateStr)))
+      await Promise.all(logsSnap.docs.map(d => deleteDoc(d.ref)))
+      const awSnap = await getDocs(query(collection(db, 'assignedWorkouts'), where('athleteId', '==', athleteId), where('scheduledDate', '==', dateStr)))
+      await Promise.all(awSnap.docs.map(d => updateDoc(d.ref, { status: 'scheduled', completedAt: null })))
+      setAssignedWorkouts(prev => prev.map(w => w.scheduledDate === dateStr ? { ...w, status: 'scheduled' } : w))
+      setWeekLogs(prev => prev.filter(l => l.date !== dateStr))
+      toast.success(`נמחק: ${logsSnap.docs.length} לוגים, אופסו ${awSnap.docs.length} אימונים`)
+    } catch (e) {
+      console.error(e)
+      toast.error('איפוס נכשל')
+    }
+  }
+
   const handleStravaSync = async () => {
     if (!athleteId) return
     setStravaSyncing(true)
@@ -1778,6 +1803,13 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             )}
             <span className="text-xs font-bold text-[#FC4C02]">Strava</span>
           </button>
+          {isCoachViewer && viewMode === 'day' && (
+            <button onClick={handleResetDayDebug}
+              className="h-10 px-3 rounded-2xl bg-red-50 flex items-center gap-1.5 active:scale-95 transition-all flex-shrink-0"
+              title="איפוס נתוני היום (דיבוג)">
+              <span className="text-xs font-bold text-red-500">🧹 איפוס יום</span>
+            </button>
+          )}
           {!overrideAthleteId && athlete?.labVisibleToAthlete && (
             <Link href="/athlete/lab"
               className="h-10 px-3 rounded-2xl bg-[#0a1628]/5 flex items-center gap-1.5 active:scale-95 transition-all flex-shrink-0"
