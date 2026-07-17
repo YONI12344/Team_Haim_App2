@@ -106,15 +106,34 @@ export function buildSessionCurves(group: WorkoutLactateGroup, baselineSteps?: L
   return group.logs
     .map((log, i) => {
       let anyEstimated = false
+      // THIS session's own directly-measured reps, if there are enough of
+      // them (2+) to interpolate from — an athlete's HR→lactate
+      // relationship on the day can sit noticeably off from an older lab
+      // test (fitness/heat/fatigue/hydration all shift it), so a rep
+      // tested at 2.4 mmol next to an untested rep at a similar HR/pace is
+      // a far better reference for THAT rep than a lab test from a
+      // different day: reported directly — two reps tested at 2.1-2.4
+      // mmol, but the lab-test-based estimate put the other (untested,
+      // similar-effort) reps at ~1.4-1.7, visibly too low. Falls back to
+      // the lab test only when this session doesn't have its own 2+ real
+      // readings to anchor to.
+      const ownMeasured: LactateStep[] = (log.splitLogs || [])
+        .filter(r => r.lactate && r.avgHr != null)
+        .map(r => ({ pace: r.pace ?? '', hr: r.avgHr ?? null, lactate: r.lactate! }))
+      const canEstimateFromSession = ownMeasured.length >= 2
       const points = (log.splitLogs || [])
         .map(r => {
           if (r.lactate) return { pace: r.pace ?? null, hr: r.avgHr ?? null, lactate: r.lactate, label: format(new Date(log.date), 'd/M') }
-          // No direct reading for this rep — estimate lactate from HR using
-          // the baseline test's own HR→lactate relationship (see
-          // estimateLactateFromHr), so an untested threshold session still
-          // has real points on the lactate curve instead of none at all.
-          if (canEstimate && r.avgHr) {
-            const est = estimateLactateFromHr(baselineSteps!, r.avgHr)
+          // No direct reading for this rep — prefer estimating lactate from
+          // HR using THIS SAME SESSION's own measured reps when there are
+          // enough of them; otherwise fall back to the baseline lab test's
+          // HR→lactate relationship (see estimateLactateFromHr), so an
+          // untested threshold session still has real points on the
+          // lactate curve instead of none at all.
+          if (r.avgHr != null) {
+            const est = canEstimateFromSession
+              ? estimateLactateFromHr(ownMeasured, r.avgHr)
+              : (canEstimate ? estimateLactateFromHr(baselineSteps!, r.avgHr) : null)
             if (est != null) {
               anyEstimated = true
               return { pace: r.pace ?? null, hr: r.avgHr ?? null, lactate: est, label: format(new Date(log.date), 'd/M') }
