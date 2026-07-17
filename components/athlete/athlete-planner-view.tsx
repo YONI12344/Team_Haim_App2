@@ -766,19 +766,21 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
       const snap = await getDoc(doc(db, 'strava_connections', `strava_${stravaId}`))
       if (!snap.exists()) { toast.error(t.stravaConnectBtn); return }
       const stravaData = snap.data()
+      // The day currently being viewed (e.g. right after a coach's "reset
+      // day" debug + resync, specifically to force a fresh recompute)
+      // always gets the full detail+laps fetch regardless of the 7-day
+      // recency cutoff in the sync route — otherwise resyncing an older
+      // day silently falls back to sparse list data with no rep splits at
+      // all, and looks like a fix "didn't work" when really the real lap
+      // data was never even re-fetched. Also reused below to guard the Lab
+      // backfill against re-touching an unrelated day's already-good data.
+      const priorityDateStr = format(currentDate, 'yyyy-MM-dd')
       const res = await fetch('/api/strava/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: athleteId, accessToken: stravaData.accessToken, refreshToken: stravaData.refreshToken, expiresAt: stravaData.expiresAt,
-          // The day currently being viewed (e.g. right after a coach's
-          // "reset day" debug + resync, specifically to force a fresh
-          // recompute) always gets the full detail+laps fetch regardless
-          // of the 7-day recency cutoff below — otherwise resyncing an
-          // older day silently falls back to sparse list data with no rep
-          // splits at all, and looks like the fix "didn't work" when
-          // really the real lap data was never even re-fetched.
-          priorityDate: format(currentDate, 'yyyy-MM-dd'),
+          priorityDate: priorityDateStr,
         }),
       })
       const data = await res.json()
@@ -1124,6 +1126,18 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               const expectedMeters = expectedRepMetersForWorkout(workoutData)
               if (!expectedMeters.some(m => m != null)) continue // no real distance targets to build reps from
               const mainEntry = group.reduce((best, g) => (g.activity.distanceKm || 0) > (best.activity.distanceKm || 0) ? g : best)
+              // Once this log has already been backfilled (has its real
+              // thresholdDistance, not the synthetic placeholder), only
+              // redo it when THIS is the day actually being viewed/synced
+              // right now — an unrelated routine sync that happens to
+              // still list this activity among the last 30 must not
+              // rebuild splitLogs from whatever sparse/no lap data it gets
+              // for a non-priority day (see RECENT_DAYS in the sync route)
+              // and silently degrade an already-correct, possibly
+              // coach-edited session down to a worse one.
+              const existingSnap = await getDoc(mainEntry.logRef)
+              const existingData = existingSnap.data() as any
+              if (existingData?.thresholdDistance && date !== priorityDateStr) continue
               const rows = buildRepDisplayRows(
                 (mainEntry.activity.splitLogs || []).map((s: any) => ({ distanceKm: s.distanceKm, time: s.time, heartRate: s.heartRate })),
                 expectedMeters,
@@ -1133,9 +1147,8 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               // rebuilding splitLogs from the raw Strava laps on every sync
               // otherwise wiped it back to null each time, deleting a
               // manually-entered test the moment the next sync ran.
-              const existingSnap = await getDoc(mainEntry.logRef)
               const existingByRep = new Map<number, number>()
-              for (const s of ((existingSnap.data() as any)?.splitLogs || [])) {
+              for (const s of (existingData?.splitLogs || [])) {
                 if (s?.lactate && s.repIndex != null) existingByRep.set(s.repIndex, s.lactate)
               }
               const newSplitLogs: any[] = []

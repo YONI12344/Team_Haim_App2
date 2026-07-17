@@ -602,6 +602,65 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
               )
             })()}
           </div>
+
+          {/* Threshold workouts only — moved to the TOP of this section
+              instead of buried after a long list of rep rows, and given a
+              gold accent so it's not missed: asked once for the whole
+              session, not a box on every rep (which gets noisy for a
+              20-rep workout). "Yes" reveals a small add-a-reading list
+              keyed by rep number. */}
+          {workout?.type === 'threshold' && (
+          <div className="rounded-2xl border-2 border-gold/40 bg-gold/5 p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <p className="text-sm font-bold text-navy">🧪 {t.testedLactateQuestion}</p>
+              <div className="flex gap-1 bg-white rounded-xl p-0.5 border border-gold/30">
+                <button type="button" onClick={() => setTestedLactate(false)}
+                  className={cn('text-xs px-3 py-1 rounded-lg font-semibold transition-all',
+                    !testedLactate ? 'bg-gold text-navy shadow-sm' : 'text-muted-foreground')}>
+                  {t.no}
+                </button>
+                <button type="button" onClick={() => {
+                    setTestedLactate(true)
+                    if (lactateReadings.length === 0) setLactateReadings([{ repNumber: '', value: '' }])
+                  }}
+                  className={cn('text-xs px-3 py-1 rounded-lg font-semibold transition-all',
+                    testedLactate ? 'bg-gold text-navy shadow-sm' : 'text-muted-foreground')}>
+                  {t.yes}
+                </button>
+              </div>
+            </div>
+            {testedLactate && (
+              <div className="space-y-2">
+                <p className="text-[10px] text-muted-foreground">{t.repNumberHint} (1–{splitLogs.length})</p>
+                {lactateReadings.map((r, i) => (
+                  <div key={i} className="grid grid-cols-[1fr_1fr_2rem] gap-2 items-end">
+                    <div>
+                      <label className="text-[10px] text-muted-foreground block mb-1">{t.repNumberLabel}</label>
+                      <Input type="number" min="1" max={splitLogs.length} placeholder="1" value={r.repNumber}
+                        onChange={e => setLactateReadings(prev => prev.map((x, xi) => xi === i ? { ...x, repNumber: e.target.value } : x))}
+                        className="h-9 text-sm text-center bg-white" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-muted-foreground block mb-1">{t.lactateValueLabel}</label>
+                      <Input type="number" step="0.1" placeholder="3.5" value={r.value}
+                        onChange={e => setLactateReadings(prev => prev.map((x, xi) => xi === i ? { ...x, value: e.target.value } : x))}
+                        className="h-9 text-sm text-center bg-white" />
+                    </div>
+                    <button type="button" onClick={() => setLactateReadings(prev => prev.filter((_, xi) => xi !== i))}
+                      className="h-9 flex items-center justify-center text-gray-300 hover:text-red-400">
+                      <XIcon className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+                <Button type="button" variant="outline" size="sm" className="h-8 text-xs bg-white"
+                  onClick={() => setLactateReadings(prev => [...prev, { repNumber: '', value: '' }])}>
+                  <Plus className="h-3.5 w-3.5 mr-1" />{t.addReadingBtn}
+                </Button>
+              </div>
+            )}
+          </div>
+          )}
+
           {workout!.sets!.map((set, si) => {
             const intervals = (set as any).intervals
             const hasIntervals = intervals && intervals.length > 0
@@ -698,61 +757,6 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
               </div>
             )
           })}
-
-          {/* Threshold workouts only — asked once for the whole session, not
-              a box on every rep (which gets noisy for a 20-rep workout).
-              "Yes" reveals a small add-a-reading list keyed by rep number. */}
-          {workout?.type === 'threshold' && (
-          <div className="rounded-2xl border border-border p-4 space-y-3">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <p className="text-sm font-semibold text-navy">🧪 {t.testedLactateQuestion}</p>
-              <div className="flex gap-1 bg-muted rounded-xl p-0.5">
-                <button type="button" onClick={() => setTestedLactate(false)}
-                  className={cn('text-xs px-3 py-1 rounded-lg font-semibold transition-all',
-                    !testedLactate ? 'bg-white text-navy shadow-sm' : 'text-muted-foreground')}>
-                  {t.no}
-                </button>
-                <button type="button" onClick={() => {
-                    setTestedLactate(true)
-                    if (lactateReadings.length === 0) setLactateReadings([{ repNumber: '', value: '' }])
-                  }}
-                  className={cn('text-xs px-3 py-1 rounded-lg font-semibold transition-all',
-                    testedLactate ? 'bg-white text-navy shadow-sm' : 'text-muted-foreground')}>
-                  {t.yes}
-                </button>
-              </div>
-            </div>
-            {testedLactate && (
-              <div className="space-y-2">
-                <p className="text-[10px] text-muted-foreground">{t.repNumberHint} (1–{splitLogs.length})</p>
-                {lactateReadings.map((r, i) => (
-                  <div key={i} className="grid grid-cols-[1fr_1fr_2rem] gap-2 items-end">
-                    <div>
-                      <label className="text-[10px] text-muted-foreground block mb-1">{t.repNumberLabel}</label>
-                      <Input type="number" min="1" max={splitLogs.length} placeholder="1" value={r.repNumber}
-                        onChange={e => setLactateReadings(prev => prev.map((x, xi) => xi === i ? { ...x, repNumber: e.target.value } : x))}
-                        className="h-9 text-sm text-center" />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-muted-foreground block mb-1">{t.lactateValueLabel}</label>
-                      <Input type="number" step="0.1" placeholder="3.5" value={r.value}
-                        onChange={e => setLactateReadings(prev => prev.map((x, xi) => xi === i ? { ...x, value: e.target.value } : x))}
-                        className="h-9 text-sm text-center" />
-                    </div>
-                    <button type="button" onClick={() => setLactateReadings(prev => prev.filter((_, xi) => xi !== i))}
-                      className="h-9 flex items-center justify-center text-gray-300 hover:text-red-400">
-                      <XIcon className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
-                <Button type="button" variant="outline" size="sm" className="h-8 text-xs"
-                  onClick={() => setLactateReadings(prev => [...prev, { repNumber: '', value: '' }])}>
-                  <Plus className="h-3.5 w-3.5 mr-1" />{t.addReadingBtn}
-                </Button>
-              </div>
-            )}
-          </div>
-          )}
         </div>
       )}
 
