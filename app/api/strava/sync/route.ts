@@ -3,7 +3,7 @@ import { getStravaActivities, refreshStravaToken } from '@/lib/strava'
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, accessToken, refreshToken, expiresAt } = await request.json()
+    const { userId, accessToken, refreshToken, expiresAt, priorityDate } = await request.json()
 
     if (!userId || !accessToken) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -37,7 +37,15 @@ export async function POST(request: NextRequest) {
     // but still enough for date/distance/pace).
     const RECENT_DAYS = 7
     const cutoffMs = Date.now() - RECENT_DAYS * 24 * 60 * 60 * 1000
-    const isRecent = (a: typeof activities[number]) => new Date(a.start_date_local).getTime() >= cutoffMs
+    // The day the coach/athlete is actually looking at right now (e.g.
+    // right after a "reset day" debug + resync, specifically to force a
+    // fresh recompute) always gets the full fetch too, however old it is —
+    // otherwise resyncing an older day silently falls back to sparse list
+    // data with no rep splits at all, and a genuinely-fixed matching
+    // algorithm looks like it "didn't work" because the real lap data was
+    // never re-fetched in the first place.
+    const isRecent = (a: typeof activities[number]) =>
+      new Date(a.start_date_local).getTime() >= cutoffMs || a.start_date_local.split('T')[0] === priorityDate
 
     const fullActivities = await Promise.all(
       activities.map(async (activity) => {

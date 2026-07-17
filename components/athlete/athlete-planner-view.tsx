@@ -769,7 +769,17 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
       const res = await fetch('/api/strava/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: athleteId, accessToken: stravaData.accessToken, refreshToken: stravaData.refreshToken, expiresAt: stravaData.expiresAt }),
+        body: JSON.stringify({
+          userId: athleteId, accessToken: stravaData.accessToken, refreshToken: stravaData.refreshToken, expiresAt: stravaData.expiresAt,
+          // The day currently being viewed (e.g. right after a coach's
+          // "reset day" debug + resync, specifically to force a fresh
+          // recompute) always gets the full detail+laps fetch regardless
+          // of the 7-day recency cutoff below — otherwise resyncing an
+          // older day silently falls back to sparse list data with no rep
+          // splits at all, and looks like the fix "didn't work" when
+          // really the real lap data was never even re-fetched.
+          priorityDate: format(currentDate, 'yyyy-MM-dd'),
+        }),
       })
       const data = await res.json()
       if (data.success) {
