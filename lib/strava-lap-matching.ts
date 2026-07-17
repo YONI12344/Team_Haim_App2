@@ -309,6 +309,15 @@ export interface ResolvedRepRow {
    *  raw lap's own distance string for a continuous run with no rep
    *  structure — display-only. */
   distanceLabel: string
+  /** This rep's distance in meters (numeric) when known — the rep's own
+   *  planned target for a structured workout, the saved numeric distance
+   *  for an already rep-shaped log, or the raw lap distance for a
+   *  continuous run. Used to distance-weight an average pace across reps
+   *  of different lengths (e.g. threshold's 2000m + 1000m) instead of
+   *  averaging the pace values unweighted, which overweights the shorter
+   *  rep. Null when the distance is a duration ("3 min") rather than a
+   *  real distance, in which case callers fall back to an unweighted mean. */
+  meters: number | null
 }
 
 /**
@@ -343,6 +352,7 @@ export function resolveSessionRepRows(splitLogs: any[], workout: { sets?: any[];
   if (isRepShaped) {
     return splitLogs.map((s: any) => ({
       time: s.time || '', pace: s.pace || '', heartRate: s.avgHr ?? null, rest: s.rest || null, distanceLabel: s.distance || '',
+      meters: typeof s.distance === 'number' ? s.distance : null,
     }))
   }
   if (expectedMeters.length > 0) {
@@ -357,6 +367,7 @@ export function resolveSessionRepRows(splitLogs: any[], workout: { sets?: any[];
         lastRep = {
           time: secToPace(row.elapsedSec), pace: row.pace, heartRate: row.heartRate, rest: null,
           distanceLabel: row.targetMeters ? (row.targetMeters >= 1000 ? `${(row.targetMeters / 1000).toFixed(row.targetMeters % 1000 === 0 ? 0 : 1)}k` : `${row.targetMeters}m`) : '',
+          meters: row.targetMeters,
         }
         result.push(lastRep)
       } else if (lastRep && !lastRep.rest) {
@@ -368,5 +379,6 @@ export function resolveSessionRepRows(splitLogs: any[], workout: { sets?: any[];
   // Continuous run — no rep structure at all; each raw split IS its own row.
   return splitLogs.map((s: any) => ({
     time: s.time || '', pace: s.pace || '', heartRate: s.heartRate ?? null, rest: null, distanceLabel: s.distance || '',
+    meters: typeof s.distanceKm === 'number' ? s.distanceKm * 1000 : null,
   }))
 }

@@ -174,7 +174,7 @@ export function WorkoutComparisonGallery({ athleteId }: { athleteId: string }) {
             {/* The recharts trend chart keeps its light-theme colors — it
                 sits on its own white tile inside the dark card. */}
             <div className="rounded-xl bg-white p-2">
-              <WorkoutComparisonChart points={points} />
+              <WorkoutComparisonChart points={points} kind={kind} />
             </div>
             {renderSessionList(kind, points, card.color)}
           </div>

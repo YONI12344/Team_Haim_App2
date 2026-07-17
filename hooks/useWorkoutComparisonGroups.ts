@@ -176,7 +176,18 @@ export function buildComparisonPoints(group: WorkoutComparisonGroup): Comparison
     // the exact wrong-pace bug already fixed for the Strava box.
     const reps = resolveSessionRepRows(log.splitLogs || [], { sets: log.workoutSets, type: log.workoutType })
     const avgOf = (vals: number[]) => vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null
-    const avgRepPaceSec = avgOf(reps.map(r => paceToSec(r.pace)).filter((v): v is number => v != null))
+    // Distance-weighted, not a plain mean of the rep paces: a threshold
+    // session's reps aren't always equal length (e.g. 2000m then 1000m at
+    // different paces) — weighting by each rep's own distance gives the
+    // true overall pace (total distance ÷ total time), where an unweighted
+    // mean would let the shorter rep skew the result just as much as the
+    // longer one. Falls back to an unweighted mean when reps carry no
+    // numeric distance at all (e.g. a duration-based interval like "3 min").
+    const repPaces = reps.map(r => ({ paceSec: paceToSec(r.pace), meters: r.meters })).filter((r): r is { paceSec: number; meters: number | null } => r.paceSec != null)
+    const weighted = repPaces.filter(r => r.meters != null && r.meters > 0)
+    const avgRepPaceSec = weighted.length === repPaces.length && weighted.length > 0
+      ? Math.round(weighted.reduce((sum, r) => sum + r.paceSec * (r.meters as number), 0) / weighted.reduce((sum, r) => sum + (r.meters as number), 0))
+      : avgOf(repPaces.map(r => r.paceSec))
     const avgRepHr = avgOf(reps.map(r => r.heartRate).filter((v): v is number => v != null && v > 0))
     const avgRestSec = avgOf(reps.map(r => restStrToSec(r.rest)).filter((v): v is number => v != null))
     const repCount = reps.length || null

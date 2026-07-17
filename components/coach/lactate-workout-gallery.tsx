@@ -258,7 +258,7 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
 
         {isOpen && card.id !== 'baseline' && card.curves.length === 0 && (
           <CardContent className="px-3 pb-3">
-            <WorkoutComparisonChart points={card.trendPoints || []} />
+            <WorkoutComparisonChart points={card.trendPoints || []} kind="intervals" />
           </CardContent>
         )}
 

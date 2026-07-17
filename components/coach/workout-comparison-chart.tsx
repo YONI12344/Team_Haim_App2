@@ -23,35 +23,42 @@ import { format } from 'date-fns'
 import { secToPace } from '@/lib/physiology'
 import { cn } from '@/lib/utils'
 import { useLanguage } from '@/contexts/language-context'
-import type { ComparisonPoint } from '@/hooks/useWorkoutComparisonGroups'
+import type { ComparisonPoint, ComparisonSummaryKind } from '@/hooks/useWorkoutComparisonGroups'
 
 interface Props {
   points: ComparisonPoint[]
+  /** Interval/threshold sessions must plot the REP pace/HR (avgRepPaceSec/
+   *  avgRepHr — the fast running, excluding rest/warmup), not the overall
+   *  session average, which for a Strava-sourced activity includes the jog
+   *  recoveries and would understate how fast the reps themselves were. */
+  kind: ComparisonSummaryKind
 }
 
 /** paceSec negated so a plain ascending Y-axis reads slow-bottom/fast-top,
  *  matching the same convention used in the lactate chart. */
-function toRow(p: ComparisonPoint) {
+function toRow(p: ComparisonPoint, kind: ComparisonSummaryKind) {
+  const paceSec = kind === 'intervals' ? (p.avgRepPaceSec ?? p.paceSec) : p.paceSec
+  const hr = kind === 'intervals' ? (p.avgRepHr ?? p.hr) : p.hr
   return {
     x: p.date,
     label: format(new Date(p.date), 'd/M'),
-    paceNeg: p.paceSec != null ? -p.paceSec : null,
-    paceLabel: p.paceSec != null ? secToPace(p.paceSec) : '',
-    hr: p.hr,
-    hrLabel: p.hr != null ? String(Math.round(p.hr)) : '',
+    paceNeg: paceSec != null ? -paceSec : null,
+    paceLabel: paceSec != null ? secToPace(paceSec) : '',
+    hr,
+    hrLabel: hr != null ? String(Math.round(hr)) : '',
   }
 }
 
 /** Pads a tight numeric range so the top/bottom point labels never sit
- *  flush against the chart edge, and rounds the tick step so the Y axis
- *  shows 3-4 clean values instead of recharts' default (which crowds
- *  together when the whole range spans only a few seconds/beats). */
+ *  flush against the chart edge, and rounds every bound to a whole number
+ *  so recharts' auto ticks never show a floating-point artifact (e.g.
+ *  "126.55000000000001") the way an unrounded domain did. */
 function paddedDomain(values: number[]): [number, number] {
   const min = Math.min(...values)
   const max = Math.max(...values)
   const span = Math.max(max - min, 1)
-  const pad = span * 0.35
-  return [min - pad, max + pad]
+  const pad = Math.max(1, Math.round(span * 0.35))
+  return [Math.round(min - pad), Math.round(max + pad)]
 }
 
 function DeltaBadge({ first, last, unit, lowerIsBetter, vsFirstLabel }: {
@@ -77,9 +84,9 @@ function DeltaBadge({ first, last, unit, lowerIsBetter, vsFirstLabel }: {
   )
 }
 
-export function WorkoutComparisonChart({ points }: Props) {
+export function WorkoutComparisonChart({ points, kind }: Props) {
   const { t } = useLanguage()
-  const rows = points.map(toRow)
+  const rows = points.map(p => toRow(p, kind))
   const paceVals = rows.map(r => r.paceNeg).filter((v): v is number => v != null)
   const hrVals = rows.map(r => r.hr).filter((v): v is number => v != null)
   const hasPace = paceVals.length > 0
@@ -104,6 +111,7 @@ export function WorkoutComparisonChart({ points }: Props) {
               <YAxis
                 domain={paceDomain}
                 tickCount={3}
+                allowDecimals={false}
                 tickFormatter={(v: number) => secToPace(-v)}
                 tick={{ fontSize: 10 }}
                 width={44}
@@ -128,7 +136,7 @@ export function WorkoutComparisonChart({ points }: Props) {
             <LineChart data={rows} margin={{ top: 22, right: 16, left: 8, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
               <XAxis dataKey="label" tick={{ fontSize: 10 }} />
-              <YAxis domain={hrDomain} tickCount={3} tick={{ fontSize: 10 }} width={36} />
+              <YAxis domain={hrDomain} tickCount={3} allowDecimals={false} tick={{ fontSize: 10 }} width={36} />
               <Tooltip />
               <Line type="monotone" dataKey="hr" stroke="#6b8fb5" strokeWidth={2.5} dot={{ r: 4, fill: '#6b8fb5' }} connectNulls>
                 <LabelList dataKey="hrLabel" position="top" style={{ fontSize: 11, fontWeight: 700, fill: '#4d6f92' }} />
