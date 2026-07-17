@@ -1416,8 +1416,10 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
           </div>
 
           {/* Manual "assign to workout" override — auto-matching is only
-              ever a best-effort guess; this fixes it in one tap. */}
-          {dayWorkouts.length > 0 && (
+              ever a best-effort guess; this fixes it in one tap. Coach-only:
+              an athlete reassigning their own workout could mark a workout
+              "completed" it wasn't, so this stays a coach tool. */}
+          {isCoachViewer && dayWorkouts.length > 0 && (
             <div className="px-3.5 pb-2 flex items-center gap-1.5">
               <span className="text-[10px] text-muted-foreground flex-shrink-0">{t.assignToWorkoutLabel}</span>
               <select
@@ -1545,8 +1547,10 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             <button onClick={handleDelete} className="h-6 w-6 rounded-full flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors flex-shrink-0 text-sm">✕</button>
           </div>
           {/* Manual "assign to workout" override — auto-matching is only
-              ever a best-effort guess; this fixes it in one tap. */}
-          {dayWorkouts.length > 0 && (
+              ever a best-effort guess; this fixes it in one tap. Coach-only:
+              an athlete reassigning their own workout could mark a workout
+              "completed" it wasn't, so this stays a coach tool. */}
+          {isCoachViewer && dayWorkouts.length > 0 && (
             <div className="px-3.5 pb-2 flex items-center gap-1.5">
               <span className="text-[10px] text-muted-foreground flex-shrink-0">{t.assignToWorkoutLabel}</span>
               <select
@@ -1721,7 +1725,9 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
       } catch (e) { console.error(e); toast.error(t.errorDeleting) }
     }
 
-    const assignSelect = dayWorkouts.length > 0 && (
+    // Coach-only — an athlete reassigning their own workout could mark one
+    // "completed" it wasn't, so this manual override stays a coach tool.
+    const assignSelect = isCoachViewer && dayWorkouts.length > 0 && (
       <div className="px-3.5 pb-2 flex items-center gap-1.5">
         <span className="text-[10px] text-muted-foreground flex-shrink-0">{t.assignToWorkoutLabel}</span>
         <select
