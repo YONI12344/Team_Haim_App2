@@ -436,6 +436,66 @@ export function estimateLactateFromHr(baselineSteps: LactateStep[], hr: number):
   return null
 }
 
+/**
+ * Estimate a rep's lactate from its PACE — not HR — for an untested rep in
+ * a session that has at least one of its own real (pace, lactate) readings.
+ * Pace is the more direct, reliable correlate for this (an athlete
+ * controls and hits a pace precisely; HR lags and drifts with fatigue,
+ * heat, cardiac drift), and "faster pace ⇒ higher lactate" is exactly the
+ * relationship being modeled.
+ *
+ * The estimate anchors on whichever of the session's own real points has
+ * the CLOSEST pace to the one being estimated (never an averaged/synthetic
+ * point — the same principle nearestWorkoutAnchor already uses for the
+ * outward T1/T2/T3 trend line), then walks to the target pace through the
+ * athlete's baseline lab test's own per-zone slopes (rest→T1, T1→T2,
+ * T2→T3) via projectAtLactate — i.e. today's actual result decides WHERE
+ * the curve sits, the lab test's shape decides how STEEPLY it moves away
+ * from that point. This is what makes a rep that ran faster than the
+ * tested one come out higher, and a slower one come out lower, instead of
+ * the old HR-based estimate's flat clamp to the nearest tested value for
+ * anything outside the tested range.
+ *
+ * projectAtLactate solves pace FROM a target lactate; since pace is
+ * monotonic in lactate by construction (each zone's slope has a fixed
+ * sign), the inverse (lactate FROM a target pace) is found by binary
+ * search over lactate instead of a messier piecewise-algebraic inversion.
+ */
+export function estimateLactateAtPace(
+  targetPaceSec: number,
+  workoutSteps: LactateStep[] | null | undefined,
+  baselineSteps: LactateStep[] | null | undefined,
+): number | null {
+  if (!workoutSteps || workoutSteps.length === 0 || !baselineSteps || baselineSteps.length < 2) return null
+  const valid = workoutValidSteps(workoutSteps)
+  const zones = baselineZones(baselineSteps)
+  if (valid.length === 0 || !zones) return null
+  const m1 = zoneSlope(zones.rest, zones.t1)
+  const m2 = zoneSlope(zones.t1, zones.t2)
+  const m3 = zoneSlope(zones.t2, zones.t3)
+
+  let anchor = valid[0]
+  let bestDiff = Math.abs(valid[0].paceSec - targetPaceSec)
+  for (const v of valid) {
+    const diff = Math.abs(v.paceSec - targetPaceSec)
+    if (diff < bestDiff) { bestDiff = diff; anchor = v }
+  }
+  if (bestDiff < 1) return Math.round(anchor.lac * 10) / 10 // already (almost) this exact pace
+
+  let lo = 0.3, hi = 12
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2
+    const proj = projectAtLactate(anchor, mid, zones, m1, m2, m3)
+    if (!proj) return null
+    // Faster pace (lower paceSec) ⇒ higher lactate — pace is a strictly
+    // decreasing function of lactate here, so this bisection converges.
+    if (proj.paceSec > targetPaceSec) lo = mid
+    else hi = mid
+  }
+  const result = (lo + hi) / 2
+  return Number.isFinite(result) && result > 0 ? Math.round(result * 10) / 10 : null
+}
+
 export interface ThresholdTriple {
   lt1: ThresholdPoint | null
   lt2: ThresholdPoint | null

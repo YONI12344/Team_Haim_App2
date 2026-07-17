@@ -15,7 +15,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { format } from 'date-fns'
-import { paceToSec, secToPace, personalTargetRangeForLevel, personalTargetRangeWithBaseline, estimateLactateFromHr, type LactateStep, type PersonalTargetRange } from '@/lib/physiology'
+import { paceToSec, secToPace, personalTargetRangeForLevel, personalTargetRangeWithBaseline, estimateLactateFromHr, estimateLactateAtPace, type LactateStep, type PersonalTargetRange } from '@/lib/physiology'
 import type { CurveInput } from '@/components/coach/lactate-multi-curve-chart'
 
 export interface WorkoutRepEntry {
@@ -106,38 +106,43 @@ export function buildSessionCurves(group: WorkoutLactateGroup, baselineSteps?: L
   return group.logs
     .map((log, i) => {
       let anyEstimated = false
-      // THIS session's own directly-measured reps, if there are enough of
-      // them (2+) to interpolate from — an athlete's HR→lactate
-      // relationship on the day can sit noticeably off from an older lab
-      // test (fitness/heat/fatigue/hydration all shift it), so a rep
-      // tested at 2.4 mmol next to an untested rep at a similar HR/pace is
-      // a far better reference for THAT rep than a lab test from a
-      // different day: reported directly — two reps tested at 2.1-2.4
-      // mmol, but the lab-test-based estimate put the other (untested,
-      // similar-effort) reps at ~1.4-1.7, visibly too low. Falls back to
-      // the lab test only when this session doesn't have its own 2+ real
-      // readings to anchor to.
+      // THIS session's own directly-measured reps — an athlete's
+      // pace/HR→lactate relationship on the day can sit noticeably off
+      // from an older lab test (fitness/heat/fatigue/hydration all shift
+      // it), so a rep tested at 2.4 mmol next to an untested rep at a
+      // similar pace/HR is a far better reference for THAT rep than a lab
+      // test from a different day: reported directly — two reps tested at
+      // 2.1-2.4 mmol, but the lab-test-based estimate put the other
+      // (untested, similar-effort) reps at ~1.4-1.7, visibly too low.
       const ownMeasured: LactateStep[] = (log.splitLogs || [])
-        .filter(r => r.lactate && r.avgHr != null)
+        .filter(r => r.lactate)
         .map(r => ({ pace: r.pace ?? '', hr: r.avgHr ?? null, lactate: r.lactate! }))
       const canEstimateFromSession = ownMeasured.length >= 2
       const points = (log.splitLogs || [])
         .map(r => {
           if (r.lactate) return { pace: r.pace ?? null, hr: r.avgHr ?? null, lactate: r.lactate, label: format(new Date(log.date), 'd/M') }
-          // No direct reading for this rep — prefer estimating lactate from
-          // HR using THIS SAME SESSION's own measured reps when there are
-          // enough of them; otherwise fall back to the baseline lab test's
-          // HR→lactate relationship (see estimateLactateFromHr), so an
-          // untested threshold session still has real points on the
-          // lactate curve instead of none at all.
-          if (r.avgHr != null) {
-            const est = canEstimateFromSession
+          // No direct reading for this rep. Preference order:
+          // 1. Pace-based, anchored on this session's own nearest real rep
+          //    and shaped by the baseline test's per-zone slopes
+          //    (estimateLactateAtPace) — pace is the more direct, reliable
+          //    correlate ("faster rep ⇒ higher lactate") than HR, which
+          //    lags and drifts with fatigue; this is what makes a faster
+          //    untested rep come out higher and a slower one lower,
+          //    instead of a flat clamp to the nearest tested value.
+          // 2. HR-interpolated between this session's own 2+ real
+          //    readings, when there's no baseline test to shape a pace
+          //    projection from.
+          // 3. HR-interpolated against the baseline test directly, when
+          //    this session has no real readings of its own at all.
+          const paceSec = paceToSec(r.pace)
+          const est = (ownMeasured.length >= 1 && canEstimate && paceSec != null)
+            ? estimateLactateAtPace(paceSec, ownMeasured, baselineSteps)
+            : canEstimateFromSession && r.avgHr != null
               ? estimateLactateFromHr(ownMeasured, r.avgHr)
-              : (canEstimate ? estimateLactateFromHr(baselineSteps!, r.avgHr) : null)
-            if (est != null) {
-              anyEstimated = true
-              return { pace: r.pace ?? null, hr: r.avgHr ?? null, lactate: est, label: format(new Date(log.date), 'd/M') }
-            }
+              : (canEstimate && r.avgHr != null ? estimateLactateFromHr(baselineSteps!, r.avgHr) : null)
+          if (est != null) {
+            anyEstimated = true
+            return { pace: r.pace ?? null, hr: r.avgHr ?? null, lactate: est, label: format(new Date(log.date), 'd/M') }
           }
           return null
         })
