@@ -310,6 +310,12 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
         if (!lap && !rest) return s
         return {
           ...s,
+          // elapsedSec was already being computed (it's exactly what
+          // SplitsTable shows as this rep's "time" in the Strava view) but
+          // was never actually copied into the form's own time field, so
+          // it always showed blank here even when the Strava box next to
+          // it displayed a real value.
+          time: s.time || (lap ? secToPace(lap.elapsedSec) : '') || '',
           pace: s.pace || lap?.pace || '',
           avgHr: s.avgHr || lap?.heartRate || undefined,
           rest: s.rest || rest || '',
