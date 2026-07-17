@@ -224,6 +224,12 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
   })
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day')
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null)
+  // Month grid's "which day is expanded below the calendar" — a day with
+  // 2+ workouts used to force-navigate to the full day view on tap, which
+  // felt like a jarring, unexpected jump. Now every day (1 workout, many,
+  // or activity-only) just expands in place below the grid, exactly like
+  // the week view's selectedWeekDay already does.
+  const [selectedMonthDay, setSelectedMonthDay] = useState<Date | null>(null)
   const [openLogForms, setOpenLogForms] = useState<Set<string>>(new Set())
   const [expandedToday, setExpandedToday] = useState(false)
   const [stravaSyncing, setStravaSyncing] = useState(false)
@@ -427,10 +433,6 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
     return assignedWorkouts.filter(w => w.scheduledDate>=from && w.scheduledDate<=to)
       .reduce((s,w) => s+(w.workout?.distance??0), 0)
   }, [assignedWorkouts, kmWeekStartsOn])
-
-  const selectedWorkout = useMemo(() =>
-    assignedWorkouts.find(w => w.id === selectedWorkoutId) || null
-  , [assignedWorkouts, selectedWorkoutId])
 
   /** A heuristic fallback for when there's no precise assignedWorkoutId
    *  match (wLog) yet — sums ALL of the date's activity logs of the same
@@ -2652,24 +2654,14 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                       // Done activities (Strava / manual) — shown even on days with no planned workout
                       const dayActivities = weekLogs.filter(l => l.date === dStr && isActivityLog(l))
                       const todayFlag = isToday(day)
-                      const selectedInDay = dayWs.some(w => w.id === selectedWorkoutId)
+                      const selectedInDay = !!selectedMonthDay && isSameDay(day, selectedMonthDay)
                       const hasUnreadMsg = dayWs.some(w => coachMessages.some(m => m.assignedWorkoutId === w.id && !m.read))
                       const clickable = inMonth && (dayWs.length > 0 || dayActivities.length > 0)
                       return (
                         <div key={di}
                           onClick={() => {
                             if (!clickable) return
-                            if (dayWs.length === 1) {
-                              const only = dayWs[0]
-                              setSelectedWorkoutId(prev => prev === only.id ? null : only.id)
-                            } else {
-                              // Multiple workouts (or activity-only) — the
-                              // month grid can only ever preview one workout
-                              // below it, so jump to day view where all of
-                              // them render in full.
-                              setCurrentDate(day)
-                              setViewMode('day')
-                            }
+                            setSelectedMonthDay(prev => prev && isSameDay(prev, day) ? null : day)
                           }}
                           className={cn(
                             'min-h-[64px] rounded-xl px-0.5 py-1.5 flex flex-col items-center gap-1 transition-all',
@@ -2684,20 +2676,26 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                             <span className={cn('text-[11px] font-semibold', inMonth ? 'text-[#0a1628]/70' : 'text-gray-300')}>{format(day,'d')}</span>
                           )}
                           {(dayWs.length > 0 || dayActivities.length > 0) && (
-                            <div className="w-full flex flex-col items-center gap-0.5 min-w-0">
-                              {/* Workout title chips — glanceable "what is this day" */}
-                              {dayWs.slice(0,2).map((w,i) => {
+                            <div className="w-full flex flex-col items-center gap-1 min-w-0">
+                              {/* Workout boxes — title + planned distance,
+                                  glanceable "what is this day" (mirrors the
+                                  coach's own calendar boxes), one box per
+                                  workout so a multi-workout day never gets
+                                  cut down to a vague "+N". */}
+                              {dayWs.slice(0,4).map((w,i) => {
                                 const done = getEffectiveStatus(w) === 'completed'
+                                const dist = w.workout?.distance
                                 return (
-                                  <span key={i} className={cn('w-full min-w-0 truncate text-center text-[8px] font-bold leading-[10px] rounded-md px-0.5 py-[3px]',
+                                  <span key={i} className={cn('w-full min-w-0 text-center leading-tight rounded-lg px-1 py-1',
                                     done ? 'bg-emerald-500/10 text-emerald-700' : TYPE_CHIP_COLORS[w.workout?.type] || 'bg-[#0a1628]/5 text-[#0a1628]/80'
                                   )}>
-                                    {done ? '✓ ' : ''}{shortWorkoutLabel(w)}
+                                    <span className="block truncate text-[9px] font-bold">{done ? '✓ ' : ''}{shortWorkoutLabel(w)}</span>
+                                    {dist ? <span className="block truncate text-[8px] font-semibold opacity-70">{dist} {isRTL ? 'ק"מ' : 'km'}</span> : null}
                                   </span>
                                 )
                               })}
-                              {dayWs.length > 2 && (
-                                <span className="text-[8px] font-bold leading-none text-[#c9a84c]">+{dayWs.length - 2}</span>
+                              {dayWs.length > 4 && (
+                                <span className="text-[8px] font-bold leading-none text-[#c9a84c]">+{dayWs.length - 4}</span>
                               )}
                               {/* Extra done activities beyond the plan */}
                               {dayWs.length === 0 && dayActivities.slice(0,3).map((l, i) => (
@@ -2722,15 +2720,34 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             </div>
           </div>
 
-          {/* Selected workout — date label + full premium card */}
-          {selectedWorkout && (
-            <div className="space-y-2">
-              <p className="text-xs font-bold text-[#c9a84c] uppercase tracking-widest px-1" dir="rtl">
-                {format(parseISO(selectedWorkout.scheduledDate),'EEEE · d MMMM')}
-              </p>
-              {renderNavyWorkoutBlock(selectedWorkout, false, 0, selectedWorkout.scheduledDate)}
-            </div>
-          )}
+          {/* Selected day — date label + every workout/activity that day,
+              in full (never just a single-workout preview, so a day with
+              2+ workouts reads exactly the same as one with a single
+              workout — no forced jump to the day view). */}
+          {selectedMonthDay && (() => {
+            const dayWs = getWorkoutsForDay(selectedMonthDay)
+            const dayStr = format(selectedMonthDay, 'yyyy-MM-dd')
+            const activitiesDay = weekLogs.filter(l => l.date === dayStr && isActivityLog(l))
+            const matchedActivitiesForDay = (w: AssignedWorkout) => activitiesDay.filter(l => l.assignedWorkoutId === w.id)
+            const matchedDayIds = new Set(dayWs.flatMap(w => matchedActivitiesForDay(w).map(l => l.id)))
+            const unmatchedActivitiesDay = activitiesDay.filter(l => !matchedDayIds.has(l.id))
+            if (dayWs.length === 0 && activitiesDay.length === 0) return null
+            return (
+              <div className="space-y-2">
+                <p className="text-xs font-bold text-[#c9a84c] uppercase tracking-widest px-1" dir="rtl">
+                  {format(selectedMonthDay,'EEEE · d MMMM')}
+                </p>
+                <div className="space-y-3">
+                  {dayWs.map((w, i) => renderNavyWorkoutBlock(w, dayWs.length > 1, i, dayStr, matchedActivitiesForDay(w), dayWs))}
+                  {unmatchedActivitiesDay.length > 0 && (
+                    <div className="space-y-1.5">
+                      {unmatchedActivitiesDay.map(log => <StravaCard key={log.id} log={log} dayWorkouts={dayWs} />)}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })()}
         </div>
       )}
 
