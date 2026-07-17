@@ -17,6 +17,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { paceToSec, secToPace } from '@/lib/physiology'
+import { resolveSessionRepRows } from '@/lib/strava-lap-matching'
 
 export interface ComparisonLogEntry {
   id: string
@@ -35,6 +36,12 @@ export interface ComparisonLogEntry {
    *  useWorkoutLactateGroups) so the gallery can bucket groups into one
    *  folder per type and pick a type-appropriate session summary. */
   workoutType?: string
+  /** The resolved workout's own `.sets` structure — needed to tell
+   *  resolveSessionRepRows what each rep's planned distance is, so an
+   *  interval session's splitLogs get the SAME raw-vs-rep-shaped
+   *  detection and regrouping the Strava box already applies, instead of
+   *  averaging raw un-regrouped per-lap Strava data directly. */
+  workoutSets?: any[]
   /** Prescribed rest for this session, e.g. "90 שנ'" — from the workout
    *  snapshot that was actually assigned that day (assignedWorkouts.workout),
    *  falling back to the current template if that's unavailable. Only set
@@ -161,16 +168,19 @@ function restLabelFromWorkout(workout: any): string | null {
 export function buildComparisonPoints(group: WorkoutComparisonGroup): ComparisonPoint[] {
   return group.logs.map(log => {
     const { paceSec, hr } = sessionSummary(log)
-    // Rep-level aggregates for the interval-type summary — all derived from
-    // the same splitLogs the log form / Strava matching already record.
-    const reps = log.splitLogs || []
+    // Rep-level aggregates for the interval-type summary — resolved
+    // through the SAME raw-vs-rep-shaped detection + regrouping the
+    // Strava box uses (resolveSessionRepRows), not a direct average of
+    // log.splitLogs: an interval-type (non-threshold) workout's splitLogs
+    // never go through the Lab backfill and stay as raw, un-regrouped
+    // per-lap Strava data forever, so averaging them directly reproduced
+    // the exact wrong-pace bug already fixed for the Strava box.
+    const reps = resolveSessionRepRows(log.splitLogs || [], { sets: log.workoutSets })
     const avgOf = (vals: number[]) => vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null
     const avgRepPaceSec = avgOf(reps.map(r => paceToSec(r.pace)).filter((v): v is number => v != null))
-    const avgRepHr = avgOf(reps.map(r => r.avgHr).filter((v): v is number => v != null && v > 0))
+    const avgRepHr = avgOf(reps.map(r => r.heartRate).filter((v): v is number => v != null && v > 0))
     const avgRestSec = avgOf(reps.map(r => restStrToSec(r.rest)).filter((v): v is number => v != null))
-    const repCount = reps.length
-      ? new Set(reps.map((r, i) => r.repIndex != null ? `${r.setIndex ?? 0}-${r.repIndex}` : `row-${i}`)).size
-      : null
+    const repCount = reps.length || null
     return {
       logId: log.id,
       date: log.date,
@@ -233,7 +243,7 @@ export function useWorkoutComparisonGroups(athleteId: string) {
           // truth for categorization), falling back to the day's assigned
           // snapshot for a log whose template has since been deleted.
           const workoutType = templateMap.get(d.workoutId)?.type ?? workout?.type
-          return { ...d, restLabel: restLabelFromWorkout(workout), workoutType }
+          return { ...d, restLabel: restLabelFromWorkout(workout), workoutType, workoutSets: workout?.sets }
         })
         setLogs(docs)
       } catch (e) { console.error(e) }

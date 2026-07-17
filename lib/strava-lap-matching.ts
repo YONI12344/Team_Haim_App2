@@ -284,3 +284,69 @@ export function scoreActivityFitForReps(laps: RawLap[], expectedMeters: (number 
   if (targets.length === 0) return 0
   return matchLapsToReps(laps, expectedMeters).filter(m => m != null).length
 }
+
+export interface ResolvedRepRow {
+  /** This rep's real combined elapsed time, e.g. "5:19". */
+  time: string
+  pace: string
+  heartRate: number | null
+  /** Rest immediately AFTER this rep, if any (e.g. "1:30"). */
+  rest: string | null
+  /** This rep's planned distance, already formatted (e.g. "1600m"), or the
+   *  raw lap's own distance string for a continuous run with no rep
+   *  structure — display-only. */
+  distanceLabel: string
+}
+
+/**
+ * THE single place that turns a log's `splitLogs` (whatever shape it
+ * happens to be in) into "one row per real rep" — shared by SplitsTable
+ * (the Strava box / saved-workout view) and useWorkoutComparisonGroups
+ * (the Lab's per-type session summaries), so there is exactly one
+ * implementation of "detect raw-vs-rep-shaped, regroup if needed" instead
+ * of two that can quietly drift apart. That drift already happened once:
+ * the comparison gallery averaged raw splitLogs directly, reproducing the
+ * exact wrong-pace bug already fixed for the Strava box, because an
+ * interval-type (non-threshold) workout's splitLogs never go through the
+ * Lab backfill and stay as raw, un-regrouped per-lap Strava data forever.
+ *
+ * splitLogs can arrive in either shape — see buildRepDisplayRows/SplitsTable
+ * for the full reasoning: raw per-lap Strava data (always carries a numeric
+ * `distanceKm`) gets regrouped via buildRepDisplayRows when the workout has
+ * a known rep structure; already rep-shaped data (from workout-log-form.tsx
+ * or the Lab backfill — never carries `distanceKm`) is used as-is; a
+ * continuous run with neither just returns its raw splits, one row each.
+ */
+export function resolveSessionRepRows(splitLogs: any[], workout: { sets?: any[] } | null | undefined): ResolvedRepRow[] {
+  const expectedMeters = expectedRepMetersForWorkout(workout)
+  const isRepShaped = splitLogs.length > 0 && splitLogs[0].distanceKm == null
+  if (isRepShaped) {
+    return splitLogs.map((s: any) => ({
+      time: s.time || '', pace: s.pace || '', heartRate: s.avgHr ?? null, rest: s.rest || null, distanceLabel: s.distance || '',
+    }))
+  }
+  if (expectedMeters.length > 0) {
+    const rows = buildRepDisplayRows(
+      splitLogs.map((s: any) => ({ distanceKm: s.distanceKm, time: s.time, heartRate: s.heartRate })),
+      expectedMeters,
+    )
+    const result: ResolvedRepRow[] = []
+    let lastRep: ResolvedRepRow | null = null
+    for (const row of rows) {
+      if (row.kind === 'rep') {
+        lastRep = {
+          time: secToPace(row.elapsedSec), pace: row.pace, heartRate: row.heartRate, rest: null,
+          distanceLabel: row.targetMeters ? (row.targetMeters >= 1000 ? `${(row.targetMeters / 1000).toFixed(row.targetMeters % 1000 === 0 ? 0 : 1)}k` : `${row.targetMeters}m`) : '',
+        }
+        result.push(lastRep)
+      } else if (lastRep && !lastRep.rest) {
+        lastRep.rest = row.time
+      }
+    }
+    return result
+  }
+  // Continuous run — no rep structure at all; each raw split IS its own row.
+  return splitLogs.map((s: any) => ({
+    time: s.time || '', pace: s.pace || '', heartRate: s.heartRate ?? null, rest: null, distanceLabel: s.distance || '',
+  }))
+}

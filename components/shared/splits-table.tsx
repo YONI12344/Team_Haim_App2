@@ -2,8 +2,7 @@
 
 import { cn } from '@/lib/utils'
 import { useLanguage } from '@/contexts/language-context'
-import { secToPace } from '@/lib/physiology'
-import { expectedRepMetersForWorkout, buildRepDisplayRows } from '@/lib/strava-lap-matching'
+import { expectedRepMetersForWorkout, resolveSessionRepRows } from '@/lib/strava-lap-matching'
 
 /**
  * The one rep/lap splits table used everywhere a workout's per-rep data is
@@ -50,30 +49,22 @@ export function SplitsTable({
 
   type Row = { label: string; time: string; pace: string; heartRate: number | string | null; targetLabel: string; isRest: boolean }
   let rows: Row[]
-  if (isRepShaped) {
+  if (isRepShaped || hasRepStructure) {
+    // resolveSessionRepRows is the single shared implementation of
+    // "detect raw-vs-rep-shaped, regroup via buildRepDisplayRows if
+    // needed" — also used by useWorkoutComparisonGroups so the Lab's
+    // per-type session summaries are computed from exactly the same
+    // corrected rep data this table displays, instead of a second,
+    // independent (and previously wrong) implementation.
     rows = []
-    splitLogs.forEach((s: any, i: number) => {
-      rows.push({ label: String(i + 1), time: s.time || '', pace: s.pace || '', heartRate: s.avgHr ?? null, targetLabel: s.distance || '—', isRest: false })
-      if (s.rest) rows.push({ label: t.restLapLabel, time: s.rest, pace: '', heartRate: null, targetLabel: '—', isRest: true })
+    resolveSessionRepRows(splitLogs, matchedWorkout).forEach((r, i) => {
+      rows.push({ label: String(i + 1), time: r.time, pace: r.pace, heartRate: r.heartRate, targetLabel: r.distanceLabel || '—', isRest: false })
+      if (r.rest) rows.push({ label: t.restLapLabel, time: r.rest, pace: '', heartRate: null, targetLabel: '—', isRest: true })
     })
-  } else if (hasRepStructure) {
-    let repCounter = 0
-    rows = buildRepDisplayRows(splitLogs.map((s: any) => ({ distanceKm: s.distanceKm, time: s.time, heartRate: s.heartRate })), expectedMeters)
-      .map(row => {
-        if (row.kind === 'rest') {
-          return { label: t.restLapLabel, time: row.time, pace: '', heartRate: row.heartRate, targetLabel: '—', isRest: true }
-        }
-        repCounter++
-        return {
-          label: String(repCounter),
-          time: secToPace(row.elapsedSec),
-          pace: row.pace,
-          heartRate: row.heartRate,
-          targetLabel: row.targetMeters ? (row.targetMeters >= 1000 ? `${(row.targetMeters / 1000).toFixed(row.targetMeters % 1000 === 0 ? 0 : 1)}k` : `${row.targetMeters}m`) : '—',
-          isRest: false,
-        }
-      })
   } else {
+    // Continuous run, raw per-km Strava splits — shows each split's pace
+    // zone (Strava's own effort classification) rather than a target
+    // distance, since there's no planned rep structure to compare against.
     rows = splitLogs.map((s: any, i: number) => ({
       label: String(i + 1),
       time: s.time,
