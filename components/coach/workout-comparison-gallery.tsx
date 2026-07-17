@@ -176,7 +176,7 @@ export function WorkoutComparisonGallery({ athleteId }: { athleteId: string }) {
             <div className="rounded-xl bg-white p-2">
               <WorkoutComparisonChart points={points} />
             </div>
-            {renderTable(kind, points)}
+            {renderSessionList(kind, points, card.color)}
           </div>
         )}
       </div>
@@ -260,90 +260,84 @@ export function WorkoutComparisonGallery({ athleteId }: { athleteId: string }) {
     )
   }
 
-  function renderTable(kind: ComparisonSummaryKind, points: ComparisonPoint[]) {
-    const th = 'text-left font-medium py-1 pr-2'
-    const td = 'py-1 pr-2'
-    if (kind === 'intervals') {
-      return (
-        <div className="overflow-x-auto">
-          <table className="w-full text-[11px] text-white/85">
-            <thead>
-              <tr className="text-white/50 border-b border-white/15">
-                <th className={th}>{t.labTrendTableDate}</th>
-                <th className={th}>{t.labStatAvgRepPace}</th>
-                <th className={th}>{t.labStatRepCount}</th>
-                <th className={th}>{t.labTrendTableRest}</th>
-                <th className={th}>{t.labTrendTableHr}</th>
-                <th className="text-left font-medium py-1">{t.labTrendTableEffort}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {points.map((p, i) => {
-                const rest = restCell(p)
-                const prevRest = i > 0 ? restCell(points[i - 1]) : undefined
-                const restChanged = prevRest !== undefined && rest !== prevRest
-                return (
-                  <tr key={p.logId} className="border-b border-white/10 last:border-0">
-                    <td className={cn(td, 'whitespace-nowrap')}>{format(new Date(p.date), 'd/M/yy')}</td>
-                    <td className={td} dir="ltr">{p.avgRepPace ?? p.pace ?? '—'}</td>
-                    <td className={td}>{p.repCount ?? '—'}</td>
-                    <td className={cn(td, restChanged && 'font-bold text-white')} dir="ltr">
-                      {rest ?? '—'}{restChanged && ' *'}
-                    </td>
-                    <td className={td}>{p.avgRepHr ?? p.hr ?? '—'}</td>
-                    <td className="py-1">{p.effort ?? '—'}</td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      )
+  /** Per-session cards instead of a cramped multi-column table — each
+   *  session is its own rounded box (colored top accent = the group's own
+   *  color) with labeled stat chips laid out in a mobile-friendly grid,
+   *  so a coach scanning on a phone can read one session at a glance
+   *  instead of scrolling a 6-column table sideways. */
+  function renderSessionList(kind: ComparisonSummaryKind, points: ComparisonPoint[], groupColor: string) {
+    const stat = (label: string, value: string | number | null | undefined, opts?: { color?: string; ltr?: boolean; changed?: boolean }) => (
+      <div className="rounded-lg bg-white/[0.06] px-2 py-1.5 min-w-0">
+        <p className="text-[8.5px] text-white/45 truncate">{label}</p>
+        <p className={cn('text-[12px] font-bold truncate', opts?.color ?? 'text-white', opts?.changed && 'underline decoration-2 underline-offset-2')} dir={opts?.ltr ? 'ltr' : undefined}>
+          {value ?? '—'}
+        </p>
+      </div>
+    )
+    const effortColor = (e?: number | string | null) => {
+      const n = typeof e === 'number' ? e : parseFloat(String(e ?? ''))
+      if (!Number.isFinite(n)) return 'text-white/60'
+      if (n >= 8) return 'text-rose-300'
+      if (n >= 6) return 'text-amber-300'
+      return 'text-emerald-300'
     }
-    // fartlek / long_run / generic: the generic session table — generic
-    // keeps its rest-vs-duration column switch; the continuous kinds
-    // (fartlek/long run) never have rest, so they naturally show duration.
-    const hasRest = kind === 'generic' && points.some(p => p.restLabel)
+    const hrColor = (hr?: number | null) => hr == null ? 'text-white' : hr > 160 ? 'text-rose-300' : hr > 140 ? 'text-amber-300' : 'text-white'
+
     return (
-      <div className="overflow-x-auto">
-        <table className="w-full text-[11px] text-white/85">
-          <thead>
-            <tr className="text-white/50 border-b border-white/15">
-              <th className={th}>{t.labTrendTableDate}</th>
-              <th className={th}>{t.labTrendTableDistance}</th>
-              <th className={th}>{t.labTrendTablePace}</th>
-              <th className={th}>{t.labTrendTableHr}</th>
-              {hasRest ? (
-                <th className={th}>{t.labTrendTableRest}</th>
-              ) : (
-                <th className={th}>{t.labTrendTableDuration}</th>
+      <div className="space-y-1.5">
+        {[...points].reverse().map((p, ri) => {
+          const i = points.length - 1 - ri
+          const isLatest = i === points.length - 1
+          if (kind === 'intervals') {
+            const rest = restCell(p)
+            const prevRest = i > 0 ? restCell(points[i - 1]) : undefined
+            const restChanged = prevRest !== undefined && rest !== prevRest
+            return (
+              <div key={p.logId} className="rounded-xl bg-white/[0.04] border-t-2 overflow-hidden" style={{ borderColor: groupColor }}>
+                <div className="px-2.5 pt-2 flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-white">{format(new Date(p.date), 'd/M/yy')}</span>
+                  {isLatest && <span className="text-[8.5px] font-bold text-[#c9a84c]">{t.labLatestSession}</span>}
+                </div>
+                <div className="p-2 grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                  {stat(t.labStatAvgRepPace, p.avgRepPace ?? p.pace, { color: 'text-[#c9a84c]', ltr: true })}
+                  {stat(t.labStatRepCount, p.repCount)}
+                  {stat(t.labTrendTableRest, rest, { ltr: true, changed: restChanged })}
+                  {stat(t.labTrendTableHr, p.avgRepHr ?? p.hr, { color: hrColor(p.avgRepHr ?? p.hr) })}
+                </div>
+                {p.effort != null && (
+                  <div className="px-2.5 pb-2">
+                    <span className={cn('text-[9px] font-bold', effortColor(p.effort))}>{t.labTrendTableEffort}: {p.effort}</span>
+                  </div>
+                )}
+              </div>
+            )
+          }
+          // fartlek / long_run / generic
+          const hasRest = kind === 'generic' && p.restLabel != null
+          const prevRest = i > 0 ? points[i - 1].restLabel : undefined
+          const restChanged = hasRest && prevRest !== undefined && p.restLabel !== prevRest
+          return (
+            <div key={p.logId} className="rounded-xl bg-white/[0.04] border-t-2 overflow-hidden" style={{ borderColor: groupColor }}>
+              <div className="px-2.5 pt-2 flex items-center justify-between">
+                <span className="text-[11px] font-bold text-white">{format(new Date(p.date), 'd/M/yy')}</span>
+                {isLatest && <span className="text-[8.5px] font-bold text-[#c9a84c]">{t.labLatestSession}</span>}
+              </div>
+              <div className="p-2 grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                {stat(t.labTrendTableDistance, p.distance != null ? `${p.distance} ${isRTL ? 'ק"מ' : 'km'}` : null, { color: 'text-[#c9a84c]' })}
+                {stat(t.labTrendTablePace, p.pace, { ltr: true })}
+                {stat(t.labTrendTableHr, p.hr, { color: hrColor(p.hr) })}
+                {hasRest
+                  ? stat(t.labTrendTableRest, p.restLabel, { changed: restChanged })
+                  : stat(t.labTrendTableDuration, p.durationMin != null ? `${p.durationMin} ${t.labTrendTableMin}` : null)}
+              </div>
+              {p.effort != null && (
+                <div className="px-2.5 pb-2">
+                  <span className={cn('text-[9px] font-bold', effortColor(p.effort))}>{t.labTrendTableEffort}: {p.effort}</span>
+                </div>
               )}
-              <th className="text-left font-medium py-1">{t.labTrendTableEffort}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {points.map((p, i) => {
-              const prevRest = i > 0 ? points[i - 1].restLabel : undefined
-              const restChanged = hasRest && prevRest !== undefined && p.restLabel !== prevRest
-              return (
-                <tr key={p.logId} className="border-b border-white/10 last:border-0">
-                  <td className={cn(td, 'whitespace-nowrap')}>{format(new Date(p.date), 'd/M/yy')}</td>
-                  <td className={td}>{p.distance != null ? `${p.distance} ${isRTL ? 'ק"מ' : 'km'}` : '—'}</td>
-                  <td className={td} dir="ltr">{p.pace ?? '—'}</td>
-                  <td className={td}>{p.hr ?? '—'}</td>
-                  {hasRest ? (
-                    <td className={cn(td, restChanged && 'font-bold text-white')}>
-                      {p.restLabel ?? '—'}{restChanged && ' *'}
-                    </td>
-                  ) : (
-                    <td className={td}>{p.durationMin != null ? `${p.durationMin} ${t.labTrendTableMin}` : '—'}</td>
-                  )}
-                  <td className="py-1">{p.effort ?? '—'}</td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+            </div>
+          )
+        })}
       </div>
     )
   }
