@@ -2475,44 +2475,45 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             <div className="flex gap-1 overflow-x-auto pb-1" style={{scrollbarWidth:'none'}} dir="rtl">
               {weekDays.map((day, di) => {
                 const dayWs = getWorkoutsForDay(day)
-                const hasCompleted = dayWs.some(w => getEffectiveStatus(w) === 'completed')
-                const hasPending = dayWs.some(w => getEffectiveStatus(w) === 'scheduled')
                 const isSelDay = isSameDay(day, selectedWeekDay)
                 const todayFlag = isToday(day)
                 const isOff = !!dayOffFor(format(day, 'yyyy-MM-dd'))
-                const pillLabel = dayWs.length > 0 ? shortWorkoutLabel(dayWs[0]) : null
                 return (
                   <button key={di}
                     onClick={() => { setSelectedWeekDay(day); setSelectedWorkoutId(null) }}
-                    className={cn('flex flex-col items-center py-2.5 px-1.5 rounded-2xl transition-all active:scale-95 flex-shrink-0 flex-1 min-w-[44px] max-w-[96px]',
-                      isSelDay ? 'bg-[#0a1628]' : todayFlag ? 'bg-[#0a1628]/5' : 'hover:bg-gray-50')}>
-                    <span className={cn('text-[10px] font-semibold mb-0.5', isSelDay ? 'text-white/50' : todayFlag ? 'text-[#c9a84c]' : 'text-gray-400')}>
+                    className={cn('flex flex-col items-center gap-1 py-2 px-1 rounded-2xl transition-all active:scale-95 flex-shrink-0 flex-1 min-w-[46px]',
+                      isSelDay ? 'bg-[#c9a84c]/10 ring-1 ring-[#c9a84c]/40' : todayFlag ? 'bg-[#0a1628]/5' : 'hover:bg-gray-50')}>
+                    <span className={cn('text-[9px] font-semibold', todayFlag ? 'text-[#c9a84c]' : 'text-gray-400')}>
                       {dayShortRot[di]}
                     </span>
-                    <span className={cn('text-sm font-black', isSelDay ? 'text-white' : todayFlag ? 'text-[#0a1628]' : 'text-[#0a1628]/60')}>
+                    <span className={cn('text-[12px] font-black', todayFlag ? 'text-[#0a1628]' : 'text-[#0a1628]/70')}>
                       {format(day,'d/M')}
                     </span>
                     {isOff ? (
-                      <span className="text-[10px] mt-1.5">🩹</span>
+                      <span className="text-[10px] mt-0.5">🩹</span>
+                    ) : dayWs.length > 0 ? (
+                      // Same colored-box-per-workout style as the month
+                      // grid — the type's own color (TYPE_CHIP_COLORS),
+                      // a short label so it fits a narrow mobile column,
+                      // and a ✓ once it's done — instead of a single dot
+                      // that told you nothing about what the day actually was.
+                      <div className="w-full flex flex-col gap-0.5 min-w-0">
+                        {dayWs.slice(0,2).map((w,i) => {
+                          const done = getEffectiveStatus(w) === 'completed'
+                          return (
+                            <span key={i} className={cn('w-full min-w-0 truncate text-center text-[7.5px] font-bold leading-[9px] rounded-md px-0.5 py-[3px]',
+                              done ? 'bg-emerald-500/10 text-emerald-700' : TYPE_CHIP_COLORS[w.workout?.type] || 'bg-[#0a1628]/5 text-[#0a1628]/70'
+                            )}>
+                              {done ? '✓ ' : ''}{shortWorkoutLabel(w)}
+                            </span>
+                          )
+                        })}
+                        {dayWs.length > 2 && (
+                          <span className="text-[7px] font-bold leading-none text-[#c9a84c]">+{dayWs.length - 2}</span>
+                        )}
+                      </div>
                     ) : (
-                      <>
-                        <span className={cn('w-1.5 h-1.5 rounded-full mt-1.5',
-                          dayWs.length === 0 ? 'opacity-0' :
-                          hasCompleted ? 'bg-emerald-500' :
-                          hasPending ? (isSelDay ? 'bg-[#c9a84c]' : 'bg-[#c9a84c]/70') : 'bg-gray-200'
-                        )} />
-                        {pillLabel && (
-                          <span className={cn('mt-1 w-full truncate text-center text-[8px] font-bold leading-tight',
-                            isSelDay ? 'text-white/70' : hasCompleted ? 'text-emerald-600' : 'text-[#0a1628]/60')}>
-                            {pillLabel}
-                          </span>
-                        )}
-                        {dayWs.length > 1 && (
-                          <span className="text-[8px] font-bold leading-tight text-[#c9a84c]">
-                            +{dayWs.length - 1}
-                          </span>
-                        )}
-                      </>
+                      <span className="w-1.5 h-1.5 rounded-full opacity-0 mt-1" />
                     )}
                   </button>
                 )
