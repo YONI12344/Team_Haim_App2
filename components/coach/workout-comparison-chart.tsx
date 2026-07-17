@@ -8,13 +8,20 @@
  * calendar time: pace and HR, one point per logged session, oldest to
  * newest. Unlike lactate-multi-curve-chart.tsx this has nothing to do with
  * lactate or a step test — X axis is the session date, not lactate mmol/L.
+ *
+ * Each point is labeled with its actual value directly on the chart (not
+ * just the Y axis) since a tight value range (e.g. 3:52-4:03) made recharts'
+ * auto-generated axis ticks crowd/overlap and unreadable — and a header
+ * delta badge states outright whether the athlete got faster/slower vs
+ * their first session, rather than making the coach read it off the line.
  */
 
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList,
 } from 'recharts'
 import { format } from 'date-fns'
 import { secToPace } from '@/lib/physiology'
+import { cn } from '@/lib/utils'
 import { useLanguage } from '@/contexts/language-context'
 import type { ComparisonPoint } from '@/hooks/useWorkoutComparisonGroups'
 
@@ -27,49 +34,105 @@ interface Props {
 function toRow(p: ComparisonPoint) {
   return {
     x: p.date,
-    label: format(new Date(p.date), 'd/M/yy'),
+    label: format(new Date(p.date), 'd/M'),
     paceNeg: p.paceSec != null ? -p.paceSec : null,
+    paceLabel: p.paceSec != null ? secToPace(p.paceSec) : '',
     hr: p.hr,
+    hrLabel: p.hr != null ? String(Math.round(p.hr)) : '',
   }
+}
+
+/** Pads a tight numeric range so the top/bottom point labels never sit
+ *  flush against the chart edge, and rounds the tick step so the Y axis
+ *  shows 3-4 clean values instead of recharts' default (which crowds
+ *  together when the whole range spans only a few seconds/beats). */
+function paddedDomain(values: number[]): [number, number] {
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+  const span = Math.max(max - min, 1)
+  const pad = span * 0.35
+  return [min - pad, max + pad]
+}
+
+function DeltaBadge({ first, last, unit, lowerIsBetter, vsFirstLabel }: {
+  first: number
+  last: number
+  unit: 'pace' | 'bpm'
+  lowerIsBetter: boolean
+  vsFirstLabel: string
+}) {
+  const delta = last - first
+  if (Math.abs(delta) < 1) {
+    return <span className="text-[10px] font-semibold text-muted-foreground">— {vsFirstLabel}</span>
+  }
+  const improved = lowerIsBetter ? delta < 0 : delta > 0
+  const magnitude = unit === 'pace' ? `${Math.round(Math.abs(delta))}${' '}${'שנ׳' /* seconds, short */}` : `${Math.round(Math.abs(delta))} bpm`
+  return (
+    <span className={cn(
+      'inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full',
+      improved ? 'bg-emerald-500/15 text-emerald-700' : 'bg-rose-500/15 text-rose-700',
+    )}>
+      {improved ? '▼' : '▲'} {magnitude} <span className="font-medium opacity-70">{vsFirstLabel}</span>
+    </span>
+  )
 }
 
 export function WorkoutComparisonChart({ points }: Props) {
   const { t } = useLanguage()
   const rows = points.map(toRow)
-  const hasPace = rows.some(r => r.paceNeg != null)
-  const hasHr = rows.some(r => r.hr != null)
+  const paceVals = rows.map(r => r.paceNeg).filter((v): v is number => v != null)
+  const hrVals = rows.map(r => r.hr).filter((v): v is number => v != null)
+  const hasPace = paceVals.length > 0
+  const hasHr = hrVals.length > 0
+  const paceDomain = hasPace ? paddedDomain(paceVals) : undefined
+  const hrDomain = hasHr ? paddedDomain(hrVals) : undefined
 
   return (
     <div className="space-y-4">
       {hasPace && (
         <div>
-          <p className="text-[11px] font-semibold text-muted-foreground mb-1">{t.labTrendPaceChart}</p>
-          <ResponsiveContainer width="100%" height={180}>
-            <LineChart data={rows} margin={{ top: 8, right: 12, left: 8, bottom: 4 }}>
+          <div className="flex items-center justify-between mb-1 flex-wrap gap-1">
+            <p className="text-[11px] font-semibold text-muted-foreground">{t.labTrendPaceChart}</p>
+            {paceVals.length > 1 && (
+              <DeltaBadge first={paceVals[0]} last={paceVals[paceVals.length - 1]} unit="pace" lowerIsBetter={false} vsFirstLabel={t.labTrendVsFirst} />
+            )}
+          </div>
+          <ResponsiveContainer width="100%" height={190}>
+            <LineChart data={rows} margin={{ top: 22, right: 16, left: 8, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
               <XAxis dataKey="label" tick={{ fontSize: 10 }} />
               <YAxis
-                domain={['dataMin', 'dataMax']}
+                domain={paceDomain}
+                tickCount={3}
                 tickFormatter={(v: number) => secToPace(-v)}
                 tick={{ fontSize: 10 }}
                 width={44}
               />
               <Tooltip formatter={(v: any) => secToPace(-v)} labelFormatter={(l) => l} />
-              <Line type="monotone" dataKey="paceNeg" stroke="#c9a84c" strokeWidth={2} dot={{ r: 3 }} connectNulls />
+              <Line type="monotone" dataKey="paceNeg" stroke="#c9a84c" strokeWidth={2.5} dot={{ r: 4, fill: '#c9a84c' }} connectNulls>
+                <LabelList dataKey="paceLabel" position="top" style={{ fontSize: 11, fontWeight: 700, fill: '#a8862f' }} />
+              </Line>
             </LineChart>
           </ResponsiveContainer>
         </div>
       )}
       {hasHr && (
         <div>
-          <p className="text-[11px] font-semibold text-muted-foreground mb-1">{t.labTrendHrChart}</p>
-          <ResponsiveContainer width="100%" height={180}>
-            <LineChart data={rows} margin={{ top: 8, right: 12, left: 8, bottom: 4 }}>
+          <div className="flex items-center justify-between mb-1 flex-wrap gap-1">
+            <p className="text-[11px] font-semibold text-muted-foreground">{t.labTrendHrChart}</p>
+            {hrVals.length > 1 && (
+              <DeltaBadge first={hrVals[0]} last={hrVals[hrVals.length - 1]} unit="bpm" lowerIsBetter={true} vsFirstLabel={t.labTrendVsFirst} />
+            )}
+          </div>
+          <ResponsiveContainer width="100%" height={190}>
+            <LineChart data={rows} margin={{ top: 22, right: 16, left: 8, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
               <XAxis dataKey="label" tick={{ fontSize: 10 }} />
-              <YAxis domain={['dataMin - 5', 'dataMax + 5']} tick={{ fontSize: 10 }} width={36} />
+              <YAxis domain={hrDomain} tickCount={3} tick={{ fontSize: 10 }} width={36} />
               <Tooltip />
-              <Line type="monotone" dataKey="hr" stroke="#6b8fb5" strokeWidth={2} dot={{ r: 3 }} connectNulls />
+              <Line type="monotone" dataKey="hr" stroke="#6b8fb5" strokeWidth={2.5} dot={{ r: 4, fill: '#6b8fb5' }} connectNulls>
+                <LabelList dataKey="hrLabel" position="top" style={{ fontSize: 11, fontWeight: 700, fill: '#4d6f92' }} />
+              </Line>
             </LineChart>
           </ResponsiveContainer>
         </div>

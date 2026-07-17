@@ -872,6 +872,7 @@ export interface Translations {
   labSessionsCount: string
   labTrendPaceChart: string
   labTrendHrChart: string
+  labTrendVsFirst: string
   labTrendTableDate: string
   labTrendTableDistance: string
   labTrendTablePace: string
@@ -1737,6 +1738,7 @@ const translations: Record<Language, Translations> = {
     labSessionsCount: 'sessions',
     labTrendPaceChart: 'Pace over time',
     labTrendHrChart: 'Heart rate over time',
+    labTrendVsFirst: 'vs first session',
     labTrendTableDate: 'Date',
     labTrendTableDistance: 'Distance',
     labTrendTablePace: 'Pace',
@@ -2594,6 +2596,7 @@ const translations: Record<Language, Translations> = {
     labSessionsCount: 'אימונים',
     labTrendPaceChart: 'קצב לאורך זמן',
     labTrendHrChart: 'דופק לאורך זמן',
+    labTrendVsFirst: 'לעומת המפגש הראשון',
     labTrendTableDate: 'תאריך',
     labTrendTableDistance: 'מרחק',
     labTrendTablePace: 'קצב',
