@@ -413,14 +413,26 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
     return 'scheduled'
   }, [weekLogs])
 
-  // Short glanceable label for the week/month grids — the workout's own title,
-  // falling back to distance / a generic word so a cell never renders empty.
-  const shortWorkoutLabel = useCallback((w: AssignedWorkout): string => {
-    const title = w.workout?.title?.trim()
-    if (title) return title
-    if (w.workout?.distance) return isRTL ? `${w.workout.distance} ק"מ` : `${w.workout.distance} km`
-    return isRTL ? 'אימון' : 'Workout'
-  }, [isRTL])
+  // Week/month grid label — the workout TYPE, short, not the free-text title:
+  // a real title ("אימון מרווחים בשדה התעופה") never fits a phone-width day
+  // cell and just gets clipped to noise ("...ri", "1600..."). The type word
+  // ("אינטרוולים", "קל", "טמפו"...) is short by construction and lets an
+  // athlete scan the month for "when was my last long run" by color+word.
+  const workoutTypeLabel = useCallback((type?: string): string => {
+    switch (type) {
+      case 'easy': return t.labFolderEasy
+      case 'long_run': return t.labFolderLongRun
+      case 'tempo': return t.labFolderTempo
+      case 'intervals': return t.labFolderInterval
+      case 'hill_repeats': return t.labFolderHillRepeats
+      case 'fartlek': return t.labFolderFartlek
+      case 'recovery': return t.labFolderRecovery
+      case 'race': return t.labFolderRace
+      case 'time_trial': return t.labFolderTimeTrial
+      case 'threshold': return t.labFolderThreshold
+      default: return t.labFolderOther
+    }
+  }, [t])
 
   const todayWorkouts = useMemo(() => getWorkoutsForDay(new Date()), [getWorkoutsForDay])
 
@@ -2493,18 +2505,20 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                       <span className="text-[10px] mt-0.5">🩹</span>
                     ) : dayWs.length > 0 ? (
                       // Same colored-box-per-workout style as the month
-                      // grid — the type's own color (TYPE_CHIP_COLORS),
-                      // a short label so it fits a narrow mobile column,
-                      // and a ✓ once it's done — instead of a single dot
-                      // that told you nothing about what the day actually was.
+                      // grid — the type's own color (TYPE_CHIP_COLORS)
+                      // always stays, done or not, so an athlete can scan
+                      // for "last long run" / "easy" by color regardless
+                      // of completion — only a small ✓ badge marks done,
+                      // it never recolors the whole box green.
                       <div className="w-full flex flex-col gap-0.5 min-w-0">
                         {dayWs.slice(0,2).map((w,i) => {
                           const done = getEffectiveStatus(w) === 'completed'
                           return (
-                            <span key={i} className={cn('w-full min-w-0 truncate text-center text-[7.5px] font-bold leading-[9px] rounded-md px-0.5 py-[3px]',
-                              done ? 'bg-emerald-500/10 text-emerald-700' : TYPE_CHIP_COLORS[w.workout?.type] || 'bg-[#0a1628]/5 text-[#0a1628]/70'
+                            <span key={i} className={cn('relative w-full min-w-0 truncate text-center text-[7.5px] font-bold leading-[9px] rounded-md px-0.5 py-[3px]',
+                              TYPE_CHIP_COLORS[w.workout?.type] || 'bg-[#0a1628]/5 text-[#0a1628]/70'
                             )}>
-                              {done ? '✓ ' : ''}{shortWorkoutLabel(w)}
+                              {done && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 text-white text-[6px] leading-[10px] flex items-center justify-center">✓</span>}
+                              {workoutTypeLabel(w.workout?.type)}
                             </span>
                           )
                         })}
@@ -2682,15 +2696,20 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                                   glanceable "what is this day" (mirrors the
                                   coach's own calendar boxes), one box per
                                   workout so a multi-workout day never gets
-                                  cut down to a vague "+N". */}
+                                  cut down to a vague "+N". The type's own
+                                  color always stays (done or not) so an
+                                  athlete can scan for "last long run" /
+                                  "easy" by color regardless of completion —
+                                  only a small ✓ badge marks done. */}
                               {dayWs.slice(0,4).map((w,i) => {
                                 const done = getEffectiveStatus(w) === 'completed'
                                 const dist = w.workout?.distance
                                 return (
-                                  <span key={i} className={cn('w-full min-w-0 text-center leading-tight rounded-lg px-1 py-1',
-                                    done ? 'bg-emerald-500/10 text-emerald-700' : TYPE_CHIP_COLORS[w.workout?.type] || 'bg-[#0a1628]/5 text-[#0a1628]/80'
+                                  <span key={i} className={cn('relative w-full min-w-0 text-center leading-tight rounded-lg px-1 py-1',
+                                    TYPE_CHIP_COLORS[w.workout?.type] || 'bg-[#0a1628]/5 text-[#0a1628]/80'
                                   )}>
-                                    <span className="block truncate text-[9px] font-bold">{done ? '✓ ' : ''}{shortWorkoutLabel(w)}</span>
+                                    {done && <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 text-white text-[8px] leading-[14px] flex items-center justify-center shadow-sm">✓</span>}
+                                    <span className="block truncate text-[9px] font-bold">{workoutTypeLabel(w.workout?.type)}</span>
                                     {dist ? <span className="block truncate text-[8px] font-semibold opacity-70">{dist} {isRTL ? 'ק"מ' : 'km'}</span> : null}
                                   </span>
                                 )
