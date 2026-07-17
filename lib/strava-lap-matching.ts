@@ -12,6 +12,19 @@
 
 import { paceToSec, secToPace } from '@/lib/physiology'
 
+/** Workout types that are genuinely structured/repeated — reps with real
+ *  rest between them, worth regrouping raw Strava laps into "one row per
+ *  rep" for. A fartlek or tempo run can ALSO have a `sets` array defined
+ *  (e.g. "8×2min pickups"), so `sets.length > 0` alone isn't a safe signal
+ *  for "show rep-grouped splits" — an athlete's finished fartlek/tempo/easy
+ *  run must keep showing its raw watch splits (pace/time exactly as
+ *  recorded), not be forced through rep/rest regrouping meant for real
+ *  interval sessions. Includes the legacy 'interval'/'repetition' values
+ *  old workout docs may still carry. Shared with
+ *  hooks/useWorkoutComparisonGroups.ts so the two never define this
+ *  differently. */
+export const STRUCTURED_WORKOUT_TYPES = new Set(['intervals', 'hill_repeats', 'threshold', 'time_trial', 'interval', 'repetition'])
+
 /** Best-effort meters from a free-text rep distance field (e.g. "1000m",
  *  "1600"). The coach always writes these in meters (same convention
  *  inferThresholdDistance relies on elsewhere) — returns null for a
@@ -313,12 +326,19 @@ export interface ResolvedRepRow {
  * splitLogs can arrive in either shape — see buildRepDisplayRows/SplitsTable
  * for the full reasoning: raw per-lap Strava data (always carries a numeric
  * `distanceKm`) gets regrouped via buildRepDisplayRows when the workout has
- * a known rep structure; already rep-shaped data (from workout-log-form.tsx
- * or the Lab backfill — never carries `distanceKm`) is used as-is; a
- * continuous run with neither just returns its raw splits, one row each.
+ * a known rep structure AND is a genuinely structured type
+ * (STRUCTURED_WORKOUT_TYPES) — a fartlek/tempo/easy run can also define a
+ * `sets` array (e.g. "8×2min pickups"), but a finished fartlek/tempo/easy
+ * run must keep showing its raw watch splits exactly as recorded, not be
+ * forced through rep/rest regrouping meant for real interval sessions.
+ * Already rep-shaped data (from workout-log-form.tsx or the Lab backfill —
+ * never carries `distanceKm`) is used as-is regardless of type, since it's
+ * literally saved in that shape already, nothing to decide. A continuous
+ * run (no rep structure, or a non-structured type) just returns its raw
+ * splits, one row each.
  */
-export function resolveSessionRepRows(splitLogs: any[], workout: { sets?: any[] } | null | undefined): ResolvedRepRow[] {
-  const expectedMeters = expectedRepMetersForWorkout(workout)
+export function resolveSessionRepRows(splitLogs: any[], workout: { sets?: any[]; type?: string } | null | undefined): ResolvedRepRow[] {
+  const expectedMeters = STRUCTURED_WORKOUT_TYPES.has(workout?.type || '') ? expectedRepMetersForWorkout(workout) : []
   const isRepShaped = splitLogs.length > 0 && splitLogs[0].distanceKm == null
   if (isRepShaped) {
     return splitLogs.map((s: any) => ({

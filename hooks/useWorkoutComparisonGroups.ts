@@ -17,7 +17,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { paceToSec, secToPace } from '@/lib/physiology'
-import { resolveSessionRepRows } from '@/lib/strava-lap-matching'
+import { resolveSessionRepRows, STRUCTURED_WORKOUT_TYPES } from '@/lib/strava-lap-matching'
 
 export interface ComparisonLogEntry {
   id: string
@@ -62,19 +62,18 @@ export interface WorkoutComparisonGroup {
 /** Which per-type summary shape a comparison group gets. */
 export type ComparisonSummaryKind = 'intervals' | 'fartlek' | 'long_run' | 'generic'
 
-/** Workout types that are structured/repeated (reps with rest between them)
- *  — including the legacy 'interval'/'repetition' values old workout docs
- *  may still carry (see lactate-workout-gallery.tsx's FOLDER_ORDER). */
-const INTERVAL_KIND_TYPES = new Set(['intervals', 'hill_repeats', 'threshold', 'time_trial', 'interval', 'repetition'])
-
 /**
  * Which summary shape this group gets. Primary signal is the workout's own
- * `type`; when the template is gone/untyped, fall back to the rest signal —
- * restLabelFromWorkout only ever sets restLabel for a session with reps>1
- * AND a real rest value, which is exactly what "interval-type" means here.
+ * `type` — reusing STRUCTURED_WORKOUT_TYPES from lib/strava-lap-matching.ts
+ * (the same set that decides whether SplitsTable shows rep-grouped splits
+ * at all) so the two can never disagree about what counts as an interval
+ * workout. When the template is gone/untyped, fall back to the rest
+ * signal — restLabelFromWorkout only ever sets restLabel for a session
+ * with reps>1 AND a real rest value, which is exactly what "interval-type"
+ * means here.
  */
 export function summaryKindForGroup(group: WorkoutComparisonGroup): ComparisonSummaryKind {
-  if (group.type && INTERVAL_KIND_TYPES.has(group.type)) return 'intervals'
+  if (group.type && STRUCTURED_WORKOUT_TYPES.has(group.type)) return 'intervals'
   if (group.type === 'fartlek') return 'fartlek'
   if (group.type === 'long_run') return 'long_run'
   if (!group.type && group.logs.some(l => l.restLabel)) return 'intervals'
@@ -175,7 +174,7 @@ export function buildComparisonPoints(group: WorkoutComparisonGroup): Comparison
     // never go through the Lab backfill and stay as raw, un-regrouped
     // per-lap Strava data forever, so averaging them directly reproduced
     // the exact wrong-pace bug already fixed for the Strava box.
-    const reps = resolveSessionRepRows(log.splitLogs || [], { sets: log.workoutSets })
+    const reps = resolveSessionRepRows(log.splitLogs || [], { sets: log.workoutSets, type: log.workoutType })
     const avgOf = (vals: number[]) => vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null
     const avgRepPaceSec = avgOf(reps.map(r => paceToSec(r.pace)).filter((v): v is number => v != null))
     const avgRepHr = avgOf(reps.map(r => r.heartRate).filter((v): v is number => v != null && v > 0))

@@ -2,7 +2,7 @@
 
 import { cn } from '@/lib/utils'
 import { useLanguage } from '@/contexts/language-context'
-import { expectedRepMetersForWorkout, resolveSessionRepRows } from '@/lib/strava-lap-matching'
+import { expectedRepMetersForWorkout, resolveSessionRepRows, STRUCTURED_WORKOUT_TYPES } from '@/lib/strava-lap-matching'
 
 /**
  * The one rep/lap splits table used everywhere a workout's per-rep data is
@@ -35,11 +35,18 @@ export function SplitsTable({
   splitLogs, matchedWorkout, referencePace,
 }: {
   splitLogs: any[]
-  matchedWorkout?: { sets?: any[] } | null
+  matchedWorkout?: { sets?: any[]; type?: string } | null
   referencePace?: string | null
 }) {
   const { t } = useLanguage()
-  const expectedMeters = expectedRepMetersForWorkout(matchedWorkout)
+  // A fartlek/tempo/easy run can ALSO define a `sets` array (e.g. "8×2min
+  // pickups"), so `sets.length > 0` alone isn't a safe signal for "show
+  // rep-grouped splits" — a finished fartlek/tempo/easy run must keep
+  // showing its raw watch splits exactly as recorded, not be forced
+  // through rep/rest regrouping meant for genuinely structured interval
+  // sessions (intervals/hill_repeats/threshold/time_trial).
+  const isStructuredType = STRUCTURED_WORKOUT_TYPES.has(matchedWorkout?.type || '')
+  const expectedMeters = isStructuredType ? expectedRepMetersForWorkout(matchedWorkout) : []
   // Raw Strava lap data always carries a numeric distanceKm (see
   // app/api/strava/sync/route.ts) — already-rep-shaped data (this backfill,
   // or workout-log-form.tsx's saved reps) never does, regardless of
