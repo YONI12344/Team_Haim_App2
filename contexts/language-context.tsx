@@ -881,6 +881,20 @@ export interface Translations {
   labTrendTableRest: string
   labTrendTableDuration: string
   labTrendTableMin: string
+  labFolderLongRun: string
+  labFolderFartlek: string
+  labFolderHillRepeats: string
+  labFolderTimeTrial: string
+  labFolderRecovery: string
+  labLatestSession: string
+  labStatAvgRepPace: string
+  labStatRepCount: string
+  labStatRest: string
+  labStatAvgRepHr: string
+  labStatAvgPace: string
+  labStatAvgHr: string
+  labStatDistance: string
+  labRestPlanned: string
 
   // Days off (sick/trip/other) — suppress workout reminders for a date range
   markDayOffBtn: string
@@ -1732,6 +1746,20 @@ const translations: Record<Language, Translations> = {
     labTrendTableRest: 'Rest',
     labTrendTableDuration: 'Duration',
     labTrendTableMin: 'min',
+    labFolderLongRun: 'Long runs',
+    labFolderFartlek: 'Fartlek',
+    labFolderHillRepeats: 'Hill repeats',
+    labFolderTimeTrial: 'Time trials',
+    labFolderRecovery: 'Recovery',
+    labLatestSession: 'Latest session',
+    labStatAvgRepPace: 'Avg rep pace',
+    labStatRepCount: 'Reps',
+    labStatRest: 'Rest',
+    labStatAvgRepHr: 'Rep HR',
+    labStatAvgPace: 'Avg pace',
+    labStatAvgHr: 'Avg HR',
+    labStatDistance: 'Distance',
+    labRestPlanned: 'planned',
 
     markDayOffBtn: 'Mark day off',
     markDayOffTitle: 'Mark day(s) off',
@@ -2575,6 +2603,20 @@ const translations: Record<Language, Translations> = {
     labTrendTableRest: 'מנוחה',
     labTrendTableDuration: 'משך',
     labTrendTableMin: 'דק׳',
+    labFolderLongRun: 'ריצות ארוכות',
+    labFolderFartlek: 'פארטלק',
+    labFolderHillRepeats: 'עליות',
+    labFolderTimeTrial: 'מבחני זמן',
+    labFolderRecovery: 'התאוששות',
+    labLatestSession: 'אימון אחרון',
+    labStatAvgRepPace: 'קצב ממוצע לחזרה',
+    labStatRepCount: 'חזרות',
+    labStatRest: 'מנוחה',
+    labStatAvgRepHr: 'דופק בחזרות',
+    labStatAvgPace: 'קצב ממוצע',
+    labStatAvgHr: 'דופק ממוצע',
+    labStatDistance: 'מרחק',
+    labRestPlanned: 'מתוכנן',
 
     markDayOffBtn: 'סמן יום חופש',
     markDayOffTitle: 'סימון ימי חופש',

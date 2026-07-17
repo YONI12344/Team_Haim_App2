@@ -29,7 +29,12 @@ export interface ComparisonLogEntry {
   durationMin?: number
   assignedWorkoutId?: string
   workoutId?: string
-  splitLogs?: { avgHr?: number; pace?: string }[]
+  splitLogs?: { avgHr?: number; pace?: string; rest?: string; setIndex?: number; repIndex?: number }[]
+  /** The workout template's own `type` (intervals/fartlek/long_run/…) —
+   *  looked up once per distinct workoutId (same batched-getDoc pattern as
+   *  useWorkoutLactateGroups) so the gallery can bucket groups into one
+   *  folder per type and pick a type-appropriate session summary. */
+  workoutType?: string
   /** Prescribed rest for this session, e.g. "90 שנ'" — from the workout
    *  snapshot that was actually assigned that day (assignedWorkouts.workout),
    *  falling back to the current template if that's unavailable. Only set
@@ -41,6 +46,32 @@ export interface ComparisonLogEntry {
 export interface WorkoutComparisonGroup {
   name: string
   logs: ComparisonLogEntry[]
+  /** The group's workout `type` — first one found among its logs' workout
+   *  templates. Drives the gallery's folder-by-type grouping and which
+   *  summary fields (interval vs fartlek vs long-run vs generic) apply. */
+  type?: string
+}
+
+/** Which per-type summary shape a comparison group gets. */
+export type ComparisonSummaryKind = 'intervals' | 'fartlek' | 'long_run' | 'generic'
+
+/** Workout types that are structured/repeated (reps with rest between them)
+ *  — including the legacy 'interval'/'repetition' values old workout docs
+ *  may still carry (see lactate-workout-gallery.tsx's FOLDER_ORDER). */
+const INTERVAL_KIND_TYPES = new Set(['intervals', 'hill_repeats', 'threshold', 'time_trial', 'interval', 'repetition'])
+
+/**
+ * Which summary shape this group gets. Primary signal is the workout's own
+ * `type`; when the template is gone/untyped, fall back to the rest signal —
+ * restLabelFromWorkout only ever sets restLabel for a session with reps>1
+ * AND a real rest value, which is exactly what "interval-type" means here.
+ */
+export function summaryKindForGroup(group: WorkoutComparisonGroup): ComparisonSummaryKind {
+  if (group.type && INTERVAL_KIND_TYPES.has(group.type)) return 'intervals'
+  if (group.type === 'fartlek') return 'fartlek'
+  if (group.type === 'long_run') return 'long_run'
+  if (!group.type && group.logs.some(l => l.restLabel)) return 'intervals'
+  return 'generic'
 }
 
 /** One session's headline pace/HR — prefers the logged overall actualPace /
@@ -73,6 +104,35 @@ export interface ComparisonPoint {
    *  distance × pace when both are present. */
   durationMin?: number | null
   restLabel?: string | null
+  /** Mean of this session's rep paces (splitLogs[].pace), sec/km — the
+   *  interval-type headline number, distinct from the overall actualPace
+   *  which includes warmup/rest for a Strava-sourced log. */
+  avgRepPaceSec?: number | null
+  avgRepPace?: string | null
+  /** Distinct reps logged this session — by (setIndex, repIndex) when the
+   *  rows carry them, else simply splitLogs.length. */
+  repCount?: number | null
+  /** Mean of splitLogs[].avgHr — HR during the reps themselves. */
+  avgRepHr?: number | null
+  /** Mean ACTUAL logged rest between reps (splitLogs[].rest, from Strava
+   *  rest laps or manual entry), in seconds — preferred over the prescribed
+   *  restLabel when present. */
+  avgRestSec?: number | null
+}
+
+/** A logged rest string → seconds: "1:30" (the secToPace format Strava
+ *  matching and manual entry both use) or a bare "90". */
+function restStrToSec(s?: string | null): number | null {
+  if (!s) return null
+  const trimmed = String(s).trim()
+  const asMinSec = paceToSec(trimmed)
+  if (asMinSec != null) return asMinSec
+  const bare = trimmed.match(/^\d+$/)
+  if (bare) {
+    const v = parseInt(trimmed, 10)
+    return v > 0 ? v : null
+  }
+  return null
 }
 
 /** distance(km) × pace(sec/km) → whole minutes, for a session with no
@@ -101,6 +161,16 @@ function restLabelFromWorkout(workout: any): string | null {
 export function buildComparisonPoints(group: WorkoutComparisonGroup): ComparisonPoint[] {
   return group.logs.map(log => {
     const { paceSec, hr } = sessionSummary(log)
+    // Rep-level aggregates for the interval-type summary — all derived from
+    // the same splitLogs the log form / Strava matching already record.
+    const reps = log.splitLogs || []
+    const avgOf = (vals: number[]) => vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null
+    const avgRepPaceSec = avgOf(reps.map(r => paceToSec(r.pace)).filter((v): v is number => v != null))
+    const avgRepHr = avgOf(reps.map(r => r.avgHr).filter((v): v is number => v != null && v > 0))
+    const avgRestSec = avgOf(reps.map(r => restStrToSec(r.rest)).filter((v): v is number => v != null))
+    const repCount = reps.length
+      ? new Set(reps.map((r, i) => r.repIndex != null ? `${r.setIndex ?? 0}-${r.repIndex}` : `row-${i}`)).size
+      : null
     return {
       logId: log.id,
       date: log.date,
@@ -112,6 +182,11 @@ export function buildComparisonPoints(group: WorkoutComparisonGroup): Comparison
       effort: log.effort,
       durationMin: log.durationMin ?? estimateDurationMin(log.actualDistance, paceSec),
       restLabel: log.restLabel ?? null,
+      avgRepPaceSec,
+      avgRepPace: avgRepPaceSec != null ? secToPace(avgRepPaceSec) : null,
+      repCount,
+      avgRepHr,
+      avgRestSec,
     }
   })
 }
@@ -137,7 +212,12 @@ export function useWorkoutComparisonGroups(athleteId: string) {
         // falling back to the current template only when there's no
         // assignedWorkoutId to look up (e.g. an old or Strava-matched log).
         const awIds = Array.from(new Set(raw.filter(d => d.assignedWorkoutId).map(d => d.assignedWorkoutId as string)))
-        const templateIds = Array.from(new Set(raw.filter(d => !d.assignedWorkoutId && d.workoutId).map(d => d.workoutId as string)))
+        // ALL distinct workoutIds — not just the assignedWorkoutId-less ones
+        // — because every log needs its template's `type` for the gallery's
+        // folder-by-type grouping (same batched-getDoc pattern as
+        // useWorkoutLactateGroups), even when its rest comes from the
+        // assigned-workout snapshot instead.
+        const templateIds = Array.from(new Set(raw.filter(d => d.workoutId).map(d => d.workoutId as string)))
         const [awDocs, templateDocs] = await Promise.all([
           Promise.all(awIds.map(id => getDoc(doc(db, 'assignedWorkouts', id)).catch(() => null))),
           Promise.all(templateIds.map(id => getDoc(doc(db, 'workouts', id)).catch(() => null))),
@@ -149,7 +229,11 @@ export function useWorkoutComparisonGroups(athleteId: string) {
 
         const docs = raw.map(d => {
           const workout = d.assignedWorkoutId ? awWorkoutMap.get(d.assignedWorkoutId) : templateMap.get(d.workoutId)
-          return { ...d, restLabel: restLabelFromWorkout(workout) }
+          // Type from the current template first (the coach's source of
+          // truth for categorization), falling back to the day's assigned
+          // snapshot for a log whose template has since been deleted.
+          const workoutType = templateMap.get(d.workoutId)?.type ?? workout?.type
+          return { ...d, restLabel: restLabelFromWorkout(workout), workoutType }
         })
         setLogs(docs)
       } catch (e) { console.error(e) }
@@ -163,14 +247,16 @@ export function useWorkoutComparisonGroups(athleteId: string) {
     for (const log of logs) {
       const key = log.comparisonGroup
       if (!map.has(key)) map.set(key, { name: key, logs: [] })
-      map.get(key)!.logs.push(log)
+      const g = map.get(key)!
+      g.logs.push(log)
+      if (!g.type && log.workoutType) g.type = log.workoutType
     }
     return map
   }, [logs])
 
   const groupOptions = useMemo(() =>
     Array.from(grouped.entries())
-      .map(([id, g]) => ({ id, name: g.name, count: g.logs.length, lastDate: g.logs[g.logs.length - 1]?.date || '' }))
+      .map(([id, g]) => ({ id, name: g.name, type: g.type, count: g.logs.length, lastDate: g.logs[g.logs.length - 1]?.date || '' }))
       .sort((a, b) => b.lastDate.localeCompare(a.lastDate)),
     [grouped])
 
