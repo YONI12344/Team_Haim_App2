@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ChevronLeft, ChevronRight, Loader2, MapPin, Clock, ChevronDown, ChevronUp, RefreshCw, CheckCircle2, Plus, CalendarClock, FlaskConical, Pencil, X as XIcon } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2, MapPin, Clock, ChevronDown, ChevronUp, RefreshCw, CheckCircle2, Plus, CalendarClock, FlaskConical, Pencil, Info, X as XIcon } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import Link from 'next/link'
 import {
@@ -1526,38 +1526,54 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
       </>
     )
 
-    // ── STATE 2: Completed Strava — expanded stats card ────────────────
+    // ── STATE 2: Completed Strava — dark hero stats card ────────────────
     return (
       <>
         <DetailsModal />
-        <div className="bg-white rounded-2xl border border-[#FC4C02]/15 shadow-sm overflow-hidden" dir="rtl">
-          {/* Header row */}
-          <div className="px-3.5 py-2.5 flex items-center gap-2">
-            <div className={cn('h-6 w-6 rounded-lg flex items-center justify-center flex-shrink-0',
-              isManual ? 'bg-[#0a1628]' : 'bg-[#FC4C02]')}>
-              <span className="text-[11px]">{isManual ? kindInfo.emoji : <span className="text-[9px] font-black text-white">S</span>}</span>
+        <div className="rounded-3xl bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 overflow-hidden" dir="rtl">
+          {/* Identity row: source + kind on one side, icon-only actions on the other */}
+          <div className="px-4 pt-4 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className={cn('h-7 w-7 rounded-lg flex items-center justify-center flex-shrink-0',
+                isManual ? 'bg-white/10' : 'bg-[#FC4C02]')}>
+                {isManual ? <span className="text-[13px]">{kindInfo.emoji}</span> : <span className="text-[11px] font-black text-white">S</span>}
+              </div>
+              <span className="bg-white/15 text-white/90 text-[10px] font-bold px-2 py-0.5 rounded-full truncate">
+                {kindInfo.emoji} {activityLabel(kindInfo.kind, isRTL)}
+              </span>
             </div>
-            <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full border flex-shrink-0', kindInfo.badgeClass)}>
-              {kindInfo.emoji} {activityLabel(kindInfo.kind, isRTL)}
-            </span>
-            <span className="flex-1 text-sm font-bold text-[#0a1628] truncate">{displayName}</span>
-            <span className="text-[10px] font-bold text-emerald-600 flex-shrink-0">✓</span>
-            <button onClick={() => setShowForm(true)} className="text-[10px] text-[#0a1628]/50 hover:text-[#0a1628] flex-shrink-0 font-medium border border-gray-200 rounded-full px-2 py-0.5 transition-colors">{t.editActivityBtn}</button>
-            <button onClick={() => setShowDetails(true)} className="text-[10px] text-[#0a1628]/50 hover:text-[#0a1628] flex-shrink-0 font-medium border border-gray-200 rounded-full px-2 py-0.5 transition-colors">{t.detailsBtn}</button>
-            <button onClick={handleDelete} className="h-6 w-6 rounded-full flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors flex-shrink-0 text-sm">✕</button>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <button onClick={() => setShowForm(true)} title={t.editActivityBtn} aria-label={t.editActivityBtn}
+                className="h-7 w-7 rounded-full bg-white/10 hover:bg-white/20 text-white/60 hover:text-white flex items-center justify-center active:scale-95 transition-all">
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+              <button onClick={() => setShowDetails(true)} title={t.detailsBtn} aria-label={t.detailsBtn}
+                className="h-7 w-7 rounded-full bg-white/10 hover:bg-white/20 text-white/60 hover:text-white flex items-center justify-center active:scale-95 transition-all">
+                <Info className="h-3.5 w-3.5" />
+              </button>
+              <button onClick={handleDelete}
+                className="h-7 w-7 rounded-full bg-white/10 hover:bg-red-500/25 text-white/40 hover:text-red-300 flex items-center justify-center active:scale-95 transition-all">
+                <XIcon className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+          {/* Name row */}
+          <div className="px-4 pt-2.5 pb-3 flex items-center gap-2">
+            <p className="flex-1 min-w-0 truncate text-lg font-black text-white leading-tight">{displayName}</p>
+            <span className="h-5 w-5 rounded-full bg-emerald-400/20 text-emerald-300 text-[11px] font-bold flex items-center justify-center flex-shrink-0">✓</span>
           </div>
           {/* Manual "assign to workout" override — auto-matching is only
               ever a best-effort guess; this fixes it in one tap. Coach-only:
               an athlete reassigning their own workout could mark a workout
               "completed" it wasn't, so this stays a coach tool. */}
           {isCoachViewer && dayWorkouts.length > 0 && (
-            <div className="px-3.5 pb-2 flex items-center gap-1.5">
-              <span className="text-[10px] text-muted-foreground flex-shrink-0">{t.assignToWorkoutLabel}</span>
+            <div className="px-4 pb-3 flex items-center gap-1.5">
+              <span className="text-[10px] text-white/40 flex-shrink-0">{t.assignToWorkoutLabel}</span>
               <select
                 value={log.assignedWorkoutId || ''}
                 disabled={reassigning}
                 onChange={e => handleReassign(e.target.value)}
-                className="flex-1 min-w-0 text-[11px] font-semibold text-navy bg-gray-50 border border-gray-200 rounded-full px-2 py-1 disabled:opacity-50">
+                className="flex-1 min-w-0 text-[11px] font-semibold text-white bg-white/10 border border-white/15 rounded-full px-2.5 py-1 disabled:opacity-50 [&>option]:text-[#0a1628]">
                 <option value="">{t.noWorkoutOption}</option>
                 {dayWorkouts.map(w => (
                   <option key={w.id} value={w.id}>{w.workout?.title || t.workouts}</option>
@@ -1567,57 +1583,59 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
           )}
           {/* Stats grid */}
           {(log.actualDistance || log.actualPace || log.averageHeartRate || log.elevationGain || durationDisplay) && (
-            <div className="px-3.5 pb-3 grid grid-cols-3 gap-1.5">
+            <div className="px-4 pb-4 grid grid-cols-3 gap-1.5">
               {durationDisplay && !kindInfo.hasDistance && (
-                <div className="bg-gray-50 rounded-xl p-2 text-center">
-                  <p className="text-base font-black text-[#0a1628]">{durationDisplay}</p>
-                  <p className="text-[9px] text-gray-400">{t.durationMinLabel}</p>
+                <div className="rounded-2xl bg-white/10 p-2.5 text-center">
+                  <p className="text-lg font-black text-white leading-tight">{durationDisplay}</p>
+                  <p className="text-[9px] text-white/50 mt-0.5">{t.durationMinLabel}</p>
                 </div>
               )}
               {log.actualDistance && (
-                <div className="bg-gray-50 rounded-xl p-2 text-center">
-                  <p className="text-base font-black text-[#0a1628]">{log.actualDistance}</p>
-                  <p className="text-[9px] text-gray-400">ק&quot;מ</p>
+                <div className="rounded-2xl bg-white/10 p-2.5 text-center">
+                  <p className="text-lg font-black text-[#c9a84c] leading-tight">{log.actualDistance}</p>
+                  <p className="text-[9px] text-white/50 mt-0.5">ק&quot;מ</p>
                 </div>
               )}
               {log.actualPace && (
-                <div className="bg-gray-50 rounded-xl p-2 text-center">
-                  <p className="text-base font-black text-[#0a1628]" dir="ltr">{log.actualPace.replace('/km','')}</p>
-                  <p className="text-[9px] text-gray-400">{t.tempoLabel}</p>
+                <div className="rounded-2xl bg-white/10 p-2.5 text-center">
+                  <p className="text-lg font-black text-white leading-tight" dir="ltr">{log.actualPace.replace('/km','')}</p>
+                  <p className="text-[9px] text-white/50 mt-0.5">{t.tempoLabel}</p>
                 </div>
               )}
               {log.averageHeartRate && (
-                <div className="bg-red-50 rounded-xl p-2 text-center">
-                  <p className="text-base font-black text-red-600">{log.averageHeartRate}</p>
-                  <p className="text-[9px] text-gray-400">{t.heartRateLabel}</p>
+                <div className="rounded-2xl bg-white/10 p-2.5 text-center">
+                  <p className="text-lg font-black text-rose-300 leading-tight">{log.averageHeartRate}</p>
+                  <p className="text-[9px] text-white/50 mt-0.5">{t.heartRateLabel}</p>
                 </div>
               )}
               {log.elevationGain && (
-                <div className="bg-emerald-50 rounded-xl p-2 text-center">
-                  <p className="text-base font-black text-emerald-700">{log.elevationGain}m</p>
-                  <p className="text-[9px] text-gray-400">{t.elevationShort}</p>
+                <div className="rounded-2xl bg-white/10 p-2.5 text-center">
+                  <p className="text-lg font-black text-emerald-300 leading-tight">{log.elevationGain}m</p>
+                  <p className="text-[9px] text-white/50 mt-0.5">{t.elevationShort}</p>
                 </div>
               )}
               {log.effort && (
-                <div className="bg-amber-50 rounded-xl p-2 text-center">
-                  <p className="text-base font-black text-amber-700">{log.effort}/10</p>
-                  <p className="text-[9px] text-gray-400">{t.effortValueLabel}</p>
+                <div className="rounded-2xl bg-white/10 p-2.5 text-center">
+                  <p className="text-lg font-black text-amber-300 leading-tight">{log.effort}/10</p>
+                  <p className="text-[9px] text-white/50 mt-0.5">{t.effortValueLabel}</p>
                 </div>
               )}
             </div>
           )}
-          {/* Expandable splits */}
+          {/* Expandable splits — table keeps its light styling inside a white inset */}
           {log.splitLogs && log.splitLogs.length > 0 && (
-            <div className="border-t border-gray-100">
+            <div className="border-t border-white/10">
               <button
                 onClick={() => setShowSplits(prev => !prev)}
-                className="w-full px-3.5 py-2 flex items-center justify-between text-xs font-bold text-[#0a1628]/60 hover:bg-gray-50 transition-colors">
+                className="w-full px-4 py-2.5 flex items-center justify-between text-xs font-bold text-white/60 hover:text-white hover:bg-white/5 transition-colors">
                 <span>{t.splitsLabelShort} ({log.splitLogs.length})</span>
                 {showSplits ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
               </button>
               {showSplits && (
-                <div className="px-3.5 pb-3">
-                  <SplitsTable splitLogs={log.splitLogs} matchedWorkout={dayWorkouts.find(w => w.id === log.assignedWorkoutId)?.workout} referencePace={log.actualPace} />
+                <div className="px-3 pb-3">
+                  <div className="rounded-2xl bg-white p-2.5">
+                    <SplitsTable splitLogs={log.splitLogs} matchedWorkout={dayWorkouts.find(w => w.id === log.assignedWorkoutId)?.workout} referencePace={log.actualPace} />
+                  </div>
                 </div>
               )}
             </div>
@@ -1727,14 +1745,19 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
 
     // Coach-only — an athlete reassigning their own workout could mark one
     // "completed" it wasn't, so this manual override stays a coach tool.
-    const assignSelect = isCoachViewer && dayWorkouts.length > 0 && (
-      <div className="px-3.5 pb-2 flex items-center gap-1.5">
-        <span className="text-[10px] text-muted-foreground flex-shrink-0">{t.assignToWorkoutLabel}</span>
+    // `dark` renders the same control restyled for the completed-state
+    // dark hero card; the light variant (pending state) is unchanged.
+    const assignSelect = (dark = false) => isCoachViewer && dayWorkouts.length > 0 && (
+      <div className={cn('flex items-center gap-1.5', dark ? 'px-4 pb-3' : 'px-3.5 pb-2')}>
+        <span className={cn('text-[10px] flex-shrink-0', dark ? 'text-white/40' : 'text-muted-foreground')}>{t.assignToWorkoutLabel}</span>
         <select
           value={mainLog.assignedWorkoutId || ''}
           disabled={reassigning}
           onChange={e => handleReassign(e.target.value)}
-          className="flex-1 min-w-0 text-[11px] font-semibold text-navy bg-gray-50 border border-gray-200 rounded-full px-2 py-1 disabled:opacity-50">
+          className={cn('flex-1 min-w-0 text-[11px] font-semibold rounded-full disabled:opacity-50',
+            dark
+              ? 'text-white bg-white/10 border border-white/15 px-2.5 py-1 [&>option]:text-[#0a1628]'
+              : 'text-navy bg-gray-50 border border-gray-200 px-2 py-1')}>
           <option value="">{t.noWorkoutOption}</option>
           {dayWorkouts.map(w => (
             <option key={w.id} value={w.id}>{w.workout?.title || t.workouts}</option>
@@ -1743,16 +1766,18 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
       </div>
     )
 
-    const segmentChips = (
-      <div className="px-3.5 pb-2 flex items-center gap-1.5 flex-wrap">
+    const segmentChips = (dark = false) => (
+      <div className={cn('flex items-center gap-1.5 flex-wrap', dark ? 'px-4 pb-2.5' : 'px-3.5 pb-2')}>
         {sortedByTime.map(l => (
           // Falls back to the raw Strava/Garmin lap name when there's no
           // distance/duration to show (e.g. a structured-workout step like
           // "תיעוד לפני אינטרוול") — those can run long, so this always
           // truncates instead of stretching the chip past the phone's
           // width and breaking the row layout.
-          <span key={l.id} className={cn('max-w-[45vw] truncate text-[10px] font-semibold px-2 py-0.5 rounded-full border',
-            l.id === mainLog.id ? 'bg-[#c9a84c]/15 text-[#c9a84c] border-[#c9a84c]/30' : 'bg-gray-50 text-gray-500 border-gray-200')}>
+          <span key={l.id} className={cn('max-w-[45vw] truncate text-[10px] font-semibold px-2 py-0.5 rounded-full',
+            dark
+              ? (l.id === mainLog.id ? 'bg-[#c9a84c]/20 text-[#c9a84c]' : 'bg-white/10 text-white/60')
+              : (l.id === mainLog.id ? 'border bg-[#c9a84c]/15 text-[#c9a84c] border-[#c9a84c]/30' : 'border bg-gray-50 text-gray-500 border-gray-200'))}>
             {l.id === mainLog.id && `${t.mainEventBadge} · `}
             {l.actualDistance ? `${l.actualDistance} km` : (formatDurationMin(l.durationMin, isRTL) || l.stravaName)}
           </span>
@@ -1760,17 +1785,21 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
       </div>
     )
 
+    // Only rendered in the completed (dark hero) state — the splits table
+    // keeps its light styling inside a white inset panel.
     const splitsSection = (mainLog.splitLogs && mainLog.splitLogs.length > 0) && (
-      <div>
+      <div className="border-t border-white/10">
         <button
           onClick={() => setShowSplits(prev => !prev)}
-          className="w-full px-3.5 py-2 flex items-center justify-between text-xs font-bold text-[#0a1628]/60 hover:bg-gray-50 transition-colors">
+          className="w-full px-4 py-2.5 flex items-center justify-between text-xs font-bold text-white/60 hover:text-white hover:bg-white/5 transition-colors">
           <span>{t.splitsLabelShort} ({mainLog.splitLogs.length})</span>
           {showSplits ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
         </button>
         {showSplits && (
-          <div className="px-3.5 pb-3">
-            <SplitsTable splitLogs={mainLog.splitLogs} matchedWorkout={dayWorkouts.find(w => w.id === mainLog.assignedWorkoutId)?.workout} referencePace={mainLog.actualPace} />
+          <div className="px-3 pb-3">
+            <div className="rounded-2xl bg-white p-2.5">
+              <SplitsTable splitLogs={mainLog.splitLogs} matchedWorkout={dayWorkouts.find(w => w.id === mainLog.assignedWorkoutId)?.workout} referencePace={mainLog.actualPace} />
+            </div>
           </div>
         )}
       </div>
@@ -1802,8 +1831,8 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             <button onClick={handleDeleteAll} className="h-6 w-6 rounded-full hover:bg-red-50 flex items-center justify-center text-muted-foreground/50 hover:text-red-400 transition-colors text-sm">✕</button>
           </div>
         </div>
-        {segmentChips}
-        {assignSelect}
+        {segmentChips()}
+        {assignSelect()}
         {showForm && (
           <div className="border-t border-border/50">
             <div className="px-4 py-4 space-y-4">
@@ -1865,52 +1894,66 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
       </div>
     )
 
-    // ── STATE 2: Completed — expanded stats card ────────────────────────
+    // ── STATE 2: Completed — dark hero stats card ────────────────────────
     return (
-      <div className="bg-white rounded-2xl border border-[#FC4C02]/15 shadow-sm overflow-hidden" dir="rtl">
-        <div className="px-3.5 py-2.5 flex items-center gap-2">
-          <div className={cn('h-6 w-6 rounded-lg flex items-center justify-center flex-shrink-0', isManual ? 'bg-[#0a1628]' : 'bg-[#FC4C02]')}>
-            <span className="text-[11px]">{isManual ? kindInfo.emoji : <span className="text-[9px] font-black text-white">S</span>}</span>
+      <div className="rounded-3xl bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 overflow-hidden" dir="rtl">
+        {/* Identity row: source + kind on one side, icon-only actions on the other */}
+        <div className="px-4 pt-4 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className={cn('h-7 w-7 rounded-lg flex items-center justify-center flex-shrink-0', isManual ? 'bg-white/10' : 'bg-[#FC4C02]')}>
+              {isManual ? <span className="text-[13px]">{kindInfo.emoji}</span> : <span className="text-[11px] font-black text-white">S</span>}
+            </div>
+            <span className="bg-white/15 text-white/90 text-[10px] font-bold px-2 py-0.5 rounded-full truncate">
+              {kindInfo.emoji} {activityLabel(kindInfo.kind, isRTL)}
+            </span>
           </div>
-          <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full border flex-shrink-0', kindInfo.badgeClass)}>
-            {kindInfo.emoji} {activityLabel(kindInfo.kind, isRTL)}
-          </span>
-          <span className="flex-1 text-sm font-bold text-[#0a1628] truncate">{mainLog.stravaName || activityLabel(kindInfo.kind, isRTL)}</span>
-          <span className="text-[10px] font-bold text-emerald-600 flex-shrink-0">✓</span>
-          <button onClick={() => setShowForm(true)} className="text-[10px] text-[#0a1628]/50 hover:text-[#0a1628] flex-shrink-0 font-medium border border-gray-200 rounded-full px-2 py-0.5 transition-colors">{t.editActivityBtn}</button>
-          <button onClick={handleDeleteAll} className="h-6 w-6 rounded-full flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors flex-shrink-0 text-sm">✕</button>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button onClick={() => setShowForm(true)} title={t.editActivityBtn} aria-label={t.editActivityBtn}
+              className="h-7 w-7 rounded-full bg-white/10 hover:bg-white/20 text-white/60 hover:text-white flex items-center justify-center active:scale-95 transition-all">
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+            <button onClick={handleDeleteAll}
+              className="h-7 w-7 rounded-full bg-white/10 hover:bg-red-500/25 text-white/40 hover:text-red-300 flex items-center justify-center active:scale-95 transition-all">
+              <XIcon className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
-        {segmentChips}
-        {assignSelect}
-        <div className="px-3.5 pb-3 grid grid-cols-3 gap-1.5">
+        {/* Name row */}
+        <div className="px-4 pt-2.5 pb-3 flex items-center gap-2">
+          <p className="flex-1 min-w-0 truncate text-lg font-black text-white leading-tight">{mainLog.stravaName || activityLabel(kindInfo.kind, isRTL)}</p>
+          <span className="h-5 w-5 rounded-full bg-emerald-400/20 text-emerald-300 text-[11px] font-bold flex items-center justify-center flex-shrink-0">✓</span>
+        </div>
+        {segmentChips(true)}
+        {assignSelect(true)}
+        <div className="px-4 pb-4 grid grid-cols-3 gap-1.5">
           {totalDistance > 0 && (
-            <div className="bg-gray-50 rounded-xl p-2 text-center">
-              <p className="text-base font-black text-[#0a1628]">{totalDistance}</p>
-              <p className="text-[9px] text-gray-400">ק&quot;מ</p>
+            <div className="rounded-2xl bg-white/10 p-2.5 text-center">
+              <p className="text-lg font-black text-[#c9a84c] leading-tight">{totalDistance}</p>
+              <p className="text-[9px] text-white/50 mt-0.5">ק&quot;מ</p>
             </div>
           )}
           {durationDisplay && (
-            <div className="bg-gray-50 rounded-xl p-2 text-center">
-              <p className="text-base font-black text-[#0a1628]">{durationDisplay}</p>
-              <p className="text-[9px] text-gray-400">{t.durationMinLabel}</p>
+            <div className="rounded-2xl bg-white/10 p-2.5 text-center">
+              <p className="text-lg font-black text-white leading-tight">{durationDisplay}</p>
+              <p className="text-[9px] text-white/50 mt-0.5">{t.durationMinLabel}</p>
             </div>
           )}
           {mainLog.actualPace && (
-            <div className="bg-gray-50 rounded-xl p-2 text-center">
-              <p className="text-base font-black text-[#0a1628]" dir="ltr">{mainLog.actualPace.replace('/km','')}</p>
-              <p className="text-[9px] text-gray-400">{t.tempoLabel}</p>
+            <div className="rounded-2xl bg-white/10 p-2.5 text-center">
+              <p className="text-lg font-black text-white leading-tight" dir="ltr">{mainLog.actualPace.replace('/km','')}</p>
+              <p className="text-[9px] text-white/50 mt-0.5">{t.tempoLabel}</p>
             </div>
           )}
           {mainLog.averageHeartRate && (
-            <div className="bg-red-50 rounded-xl p-2 text-center">
-              <p className="text-base font-black text-red-600">{mainLog.averageHeartRate}</p>
-              <p className="text-[9px] text-gray-400">{t.heartRateLabel}</p>
+            <div className="rounded-2xl bg-white/10 p-2.5 text-center">
+              <p className="text-lg font-black text-rose-300 leading-tight">{mainLog.averageHeartRate}</p>
+              <p className="text-[9px] text-white/50 mt-0.5">{t.heartRateLabel}</p>
             </div>
           )}
           {mainLog.effort != null && (
-            <div className="bg-amber-50 rounded-xl p-2 text-center">
-              <p className="text-base font-black text-amber-700">{mainLog.effort}/10</p>
-              <p className="text-[9px] text-gray-400">{t.effortValueLabel}</p>
+            <div className="rounded-2xl bg-white/10 p-2.5 text-center">
+              <p className="text-lg font-black text-amber-300 leading-tight">{mainLog.effort}/10</p>
+              <p className="text-[9px] text-white/50 mt-0.5">{t.effortValueLabel}</p>
             </div>
           )}
         </div>
