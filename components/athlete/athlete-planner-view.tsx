@@ -1128,6 +1128,16 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                 (mainEntry.activity.splitLogs || []).map((s: any) => ({ distanceKm: s.distanceKm, time: s.time, heartRate: s.heartRate })),
                 expectedMeters,
               )
+              // Preserve any lactate reading already saved onto this exact
+              // log by the coach's rep-entry form (workout-log-form.tsx) —
+              // rebuilding splitLogs from the raw Strava laps on every sync
+              // otherwise wiped it back to null each time, deleting a
+              // manually-entered test the moment the next sync ran.
+              const existingSnap = await getDoc(mainEntry.logRef)
+              const existingByRep = new Map<number, number>()
+              for (const s of ((existingSnap.data() as any)?.splitLogs || [])) {
+                if (s?.lactate && s.repIndex != null) existingByRep.set(s.repIndex, s.lactate)
+              }
               const newSplitLogs: any[] = []
               let lastRepEntry: any = null
               for (const row of rows) {
@@ -1138,7 +1148,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                     time: secToPace(row.elapsedSec),
                     pace: row.pace,
                     avgHr: row.heartRate ?? null,
-                    lactate: null,
+                    lactate: existingByRep.get(row.repIndex) ?? null,
                     rest: '',
                   }
                   newSplitLogs.push(lastRepEntry)
@@ -1151,7 +1161,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                 workoutId: match.data().workoutId,
                 workoutTitle: workoutData?.title || null,
                 thresholdDistance,
-                hasLactate: false,
+                hasLactate: newSplitLogs.some(s => s.lactate),
                 splitLogs: newSplitLogs,
               })
             }
