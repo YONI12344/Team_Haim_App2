@@ -368,8 +368,18 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
       }
       const splitLogsWithLactate = splitLogs.map((s, i) => ({ ...s, lactate: lactateByRep.get(i + 1) }))
 
+      // s.distance is seeded from the workout template for EVERY real rep
+      // (see the initial-splitLogs effect above) regardless of whether
+      // Strava's prefill ever ran — dropping it from this check meant a
+      // rep with no manually-entered field yet (pace/time hadn't been
+      // prefilled, no lactate typed in for THIS rep) looked "empty" and
+      // got discarded entirely, even though it's a real rep of the
+      // workout. That's what turned "typed lactate into 2 of 5 reps" into
+      // "only 2 splits survive save, with no pace" — the other 3 real
+      // reps (and their own already-prefilled pace) were silently
+      // dropped, not just left without a lactate value.
       const finalSplitLogs = splitLogsWithLactate
-        .filter(s => s.time || s.pace || s.notes || s.avgHr || s.lactate || s.rest)
+        .filter(s => s.time || s.pace || s.notes || s.avgHr || s.lactate || s.rest || s.distance)
         .map(s => ({
           ...s,
           // Firestore's updateDoc/addDoc reject a literal `undefined` field
