@@ -99,6 +99,25 @@ const TYPE_DOT_COLORS: Record<string, string> = {
   bike: 'bg-indigo-400',
 }
 
+// Soft tint chips for the week/month grids — same type hues as TYPE_DOT_COLORS,
+// toned down so tiny title labels stay legible on the light premium cards.
+const TYPE_CHIP_COLORS: Record<string, string> = {
+  easy: 'bg-emerald-500/10 text-emerald-700',
+  long_run: 'bg-orange-500/10 text-orange-700',
+  tempo: 'bg-purple-500/10 text-purple-700',
+  intervals: 'bg-blue-500/10 text-blue-700',
+  hill_repeats: 'bg-amber-500/10 text-amber-700',
+  fartlek: 'bg-cyan-500/10 text-cyan-700',
+  recovery: 'bg-gray-400/10 text-gray-500',
+  rest: 'bg-gray-300/20 text-gray-400',
+  race: 'bg-red-500/10 text-red-700',
+  time_trial: 'bg-indigo-500/10 text-indigo-700',
+  strength: 'bg-rose-500/10 text-rose-700',
+  cross_training: 'bg-teal-500/10 text-teal-700',
+  swim: 'bg-sky-500/10 text-sky-700',
+  bike: 'bg-indigo-400/10 text-indigo-600',
+}
+
 // Session labels for days with more than one workout (e.g. easy run AM, gym PM)
 const SESSION_BADGE: Record<string, { emoji: string; label: string }> = {
   am: { emoji: '🌅', label: 'בוקר' },
@@ -387,6 +406,15 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
     if (w.status === 'skipped') return 'skipped'
     return 'scheduled'
   }, [weekLogs])
+
+  // Short glanceable label for the week/month grids — the workout's own title,
+  // falling back to distance / a generic word so a cell never renders empty.
+  const shortWorkoutLabel = useCallback((w: AssignedWorkout): string => {
+    const title = w.workout?.title?.trim()
+    if (title) return title
+    if (w.workout?.distance) return isRTL ? `${w.workout.distance} ק"מ` : `${w.workout.distance} km`
+    return isRTL ? 'אימון' : 'Workout'
+  }, [isRTL])
 
   const todayWorkouts = useMemo(() => getWorkoutsForDay(new Date()), [getWorkoutsForDay])
 
@@ -2450,10 +2478,11 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                 const isSelDay = isSameDay(day, selectedWeekDay)
                 const todayFlag = isToday(day)
                 const isOff = !!dayOffFor(format(day, 'yyyy-MM-dd'))
+                const pillLabel = dayWs.length > 0 ? shortWorkoutLabel(dayWs[0]) : null
                 return (
                   <button key={di}
                     onClick={() => { setSelectedWeekDay(day); setSelectedWorkoutId(null) }}
-                    className={cn('flex flex-col items-center py-2.5 px-3 rounded-2xl transition-all active:scale-95 flex-shrink-0 min-w-[44px]',
+                    className={cn('flex flex-col items-center py-2.5 px-1.5 rounded-2xl transition-all active:scale-95 flex-shrink-0 flex-1 min-w-[44px] max-w-[96px]',
                       isSelDay ? 'bg-[#0a1628]' : todayFlag ? 'bg-[#0a1628]/5' : 'hover:bg-gray-50')}>
                     <span className={cn('text-[10px] font-semibold mb-0.5', isSelDay ? 'text-white/50' : todayFlag ? 'text-[#c9a84c]' : 'text-gray-400')}>
                       {dayShortRot[di]}
@@ -2464,11 +2493,24 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                     {isOff ? (
                       <span className="text-[10px] mt-1.5">🩹</span>
                     ) : (
-                      <span className={cn('w-1.5 h-1.5 rounded-full mt-1.5',
-                        dayWs.length === 0 ? 'opacity-0' :
-                        hasCompleted ? 'bg-emerald-500' :
-                        hasPending ? (isSelDay ? 'bg-[#c9a84c]' : 'bg-[#c9a84c]/70') : 'bg-gray-200'
-                      )} />
+                      <>
+                        <span className={cn('w-1.5 h-1.5 rounded-full mt-1.5',
+                          dayWs.length === 0 ? 'opacity-0' :
+                          hasCompleted ? 'bg-emerald-500' :
+                          hasPending ? (isSelDay ? 'bg-[#c9a84c]' : 'bg-[#c9a84c]/70') : 'bg-gray-200'
+                        )} />
+                        {pillLabel && (
+                          <span className={cn('mt-1 w-full truncate text-center text-[8px] font-bold leading-tight',
+                            isSelDay ? 'text-white/70' : hasCompleted ? 'text-emerald-600' : 'text-[#0a1628]/60')}>
+                            {pillLabel}
+                          </span>
+                        )}
+                        {dayWs.length > 1 && (
+                          <span className="text-[8px] font-bold leading-tight text-[#c9a84c]">
+                            +{dayWs.length - 1}
+                          </span>
+                        )}
+                      </>
                     )}
                   </button>
                 )
@@ -2630,7 +2672,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                             }
                           }}
                           className={cn(
-                            'min-h-[52px] rounded-xl p-1.5 flex flex-col items-center gap-1 transition-all',
+                            'min-h-[64px] rounded-xl px-0.5 py-1.5 flex flex-col items-center gap-1 transition-all',
                             !inMonth ? 'opacity-15 pointer-events-none' : '',
                             todayFlag ? 'bg-[#0a1628]/5' : '',
                             selectedInDay ? 'bg-[#c9a84c]/10 ring-1 ring-[#c9a84c]/30' : '',
@@ -2642,12 +2684,21 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                             <span className={cn('text-[11px] font-semibold', inMonth ? 'text-[#0a1628]/70' : 'text-gray-300')}>{format(day,'d')}</span>
                           )}
                           {(dayWs.length > 0 || dayActivities.length > 0) && (
-                            <div className="flex gap-0.5 flex-wrap justify-center items-center">
-                              {dayWs.slice(0,3).map((w,i) => (
-                                <span key={i} className={cn('w-1.5 h-1.5 rounded-full',
-                                  getEffectiveStatus(w) === 'completed' ? 'bg-emerald-500' : TYPE_DOT_COLORS[w.workout?.type] || 'bg-[#0a1628]'
-                                )} />
-                              ))}
+                            <div className="w-full flex flex-col items-center gap-0.5 min-w-0">
+                              {/* Workout title chips — glanceable "what is this day" */}
+                              {dayWs.slice(0,2).map((w,i) => {
+                                const done = getEffectiveStatus(w) === 'completed'
+                                return (
+                                  <span key={i} className={cn('w-full min-w-0 truncate text-center text-[8px] font-bold leading-[10px] rounded-md px-0.5 py-[3px]',
+                                    done ? 'bg-emerald-500/10 text-emerald-700' : TYPE_CHIP_COLORS[w.workout?.type] || 'bg-[#0a1628]/5 text-[#0a1628]/80'
+                                  )}>
+                                    {done ? '✓ ' : ''}{shortWorkoutLabel(w)}
+                                  </span>
+                                )
+                              })}
+                              {dayWs.length > 2 && (
+                                <span className="text-[8px] font-bold leading-none text-[#c9a84c]">+{dayWs.length - 2}</span>
+                              )}
                               {/* Extra done activities beyond the plan */}
                               {dayWs.length === 0 && dayActivities.slice(0,3).map((l, i) => (
                                 <span key={`a${i}`} className="text-[8px] leading-none">
