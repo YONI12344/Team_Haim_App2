@@ -347,14 +347,21 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
     getDocs(query(collection(db, 'assignedWorkouts'), where('athleteId', '==', athleteId)))
       .then(async snap => {
         // Rolling visibility window: athlete sees only N weeks ahead
-        // (rolls every Saturday; coach sets N per athlete, 0 = unlimited)
+        // (rolls every Saturday; coach sets N per athlete, 0 = unlimited).
+        // The coach viewing this exact same screen (isCoachViewer) must
+        // ALWAYS see every workout regardless — the coach is the one who
+        // scheduled it, and needs to see the full plan ahead even beyond
+        // what the athlete themselves can currently see, e.g. to check
+        // upcoming weeks or fix something the athlete can't see yet.
         let visibleWeeks = 2
-        try {
-          const uSnap = await getDoc(doc(db, 'users', athleteId))
-          const v = uSnap.data()?.visibleWeeksAhead
-          if (typeof v === 'number') visibleWeeks = v
-        } catch {}
-        const cutoffStr = visibleWeeks > 0
+        if (!isCoachViewer) {
+          try {
+            const uSnap = await getDoc(doc(db, 'users', athleteId))
+            const v = uSnap.data()?.visibleWeeksAhead
+            if (typeof v === 'number') visibleWeeks = v
+          } catch {}
+        }
+        const cutoffStr = !isCoachViewer && visibleWeeks > 0
           ? format(addWeeks(startOfWeek(new Date(), { weekStartsOn: 6 }), visibleWeeks), 'yyyy-MM-dd')
           : null
         // Race/time-trial workouts and coach-flagged ones bypass the window —
@@ -374,7 +381,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
         setWeekLogs(logsSnap.docs.map(mapLogDoc))
       })
       .catch(err => console.error(err))
-  }, [athleteId])
+  }, [athleteId, isCoachViewer])
 
   const getLogForWorkout = (workoutId: string, date: string) => {
     return weekLogs.find(l => l.workoutId === workoutId || l.date === date)
