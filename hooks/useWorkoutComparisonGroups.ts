@@ -19,6 +19,17 @@ import { db } from '@/lib/firebase'
 import { paceToSec, secToPace } from '@/lib/physiology'
 import { resolveSessionRepRows, STRUCTURED_WORKOUT_TYPES, mainSetSummary } from '@/lib/strava-lap-matching'
 
+/** Workout types worth trimming to their "main set" in the Lab comparison —
+ *  a genuinely structured effort (intervals/threshold/etc.) or a tempo run
+ *  can plausibly be recorded warmup+effort+cooldown as one Strava activity.
+ *  Explicitly NOT every type: an easy run, fartlek, long run, recovery jog,
+ *  or race has no "warmup vs main set" distinction to find in the first
+ *  place, and must always use its full, untouched session data — trimming
+ *  those risked the duration-only heuristic misfiring on an ordinary run's
+ *  incidental lap-length variation (traffic lights, GPS auto-laps) and
+ *  quietly reporting a wrong, sliced-down pace for a normal session. */
+const MAIN_SET_ELIGIBLE_TYPES = new Set([...STRUCTURED_WORKOUT_TYPES, 'tempo'])
+
 export interface ComparisonLogEntry {
   id: string
   date: string
@@ -93,7 +104,8 @@ export function summaryKindForGroup(group: WorkoutComparisonGroup): ComparisonSu
  *  distinguishable structure — nothing to trim, use the whole thing). */
 export function sessionSummary(log: ComparisonLogEntry): { paceSec: number | null; hr: number | null; distance: number | null; mainSetDurationMin: number | null } {
   const isRawLaps = !!log.splitLogs?.length && log.splitLogs[0].distanceKm != null
-  if (isRawLaps) {
+  const eligibleForTrim = !!log.workoutType && MAIN_SET_ELIGIBLE_TYPES.has(log.workoutType)
+  if (isRawLaps && eligibleForTrim) {
     const main = mainSetSummary(log.splitLogs!)
     if (main && main.distanceKm > 0) {
       return {
