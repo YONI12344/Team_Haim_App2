@@ -1162,12 +1162,47 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             for (const matchId of new Set(tentative.map(t => t.match.id))) {
               const group = tentative.filter(t => t.match.id === matchId)
               const match = group[0].match
-              const workoutData = match.data().workout
+              // match.data().workout is a SNAPSHOT frozen at assignment
+              // time — if the coach later recategorizes the template (e.g.
+              // threshold → easy) the already-assigned day keeps the OLD
+              // type/thresholdDistance forever unless the CURRENT template
+              // is checked too. Reported directly: an "Easy" run whose
+              // frozen snapshot was still tagged threshold from before a
+              // re-edit kept getting its splits rebuilt into fake tiny
+              // "20m" reps on every sync. The live template is the source
+              // of truth for categorization (same principle already used
+              // in useWorkoutComparisonGroups.ts's own type resolution) —
+              // fall back to the snapshot only when the template's since
+              // been deleted.
+              const workoutId = match.data().workoutId
+              let workoutData = match.data().workout
+              if (workoutId) {
+                try {
+                  const templateSnap = await getDoc(doc(db, 'workouts', workoutId))
+                  if (templateSnap.exists()) workoutData = { ...workoutData, ...templateSnap.data() }
+                } catch {}
+              }
               const thresholdDistance = inferThresholdDistance(workoutData)
-              if (thresholdDistance == null) continue // not a real distance-based threshold workout
               const expectedMeters = expectedRepMetersForWorkout(workoutData)
-              if (!expectedMeters.some(m => m != null)) continue // no real distance targets to build reps from
               const mainEntry = group.reduce((best, g) => (g.activity.distanceKm || 0) > (best.activity.distanceKm || 0) ? g : best)
+              if (thresholdDistance == null || !expectedMeters.some(m => m != null)) {
+                // Not (or no longer) a genuine threshold workout — but a
+                // PAST sync may have mistakenly treated it as one (the
+                // stale-snapshot bug above) and rebuilt its splitLogs into
+                // fake rep rows. Undo that here: restore the raw per-lap
+                // Strava data so the Strava box goes back to showing real
+                // watch splits instead of fabricated tiny "reps".
+                const existingSnap = await getDoc(mainEntry.logRef)
+                const existingData = existingSnap.data() as any
+                if (existingData?.thresholdDistance) {
+                  await updateDoc(mainEntry.logRef, {
+                    thresholdDistance: null,
+                    hasLactate: false,
+                    splitLogs: mainEntry.activity.splitLogs || [],
+                  })
+                }
+                continue
+              }
               // Once this log has already been backfilled (has its real
               // thresholdDistance, not the synthetic placeholder), only
               // redo it when THIS is the day actually being viewed/synced

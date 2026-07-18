@@ -19,11 +19,14 @@ import { paceToSec, secToPace } from '@/lib/physiology'
  *  for "show rep-grouped splits" — an athlete's finished fartlek/tempo/easy
  *  run must keep showing its raw watch splits (pace/time exactly as
  *  recorded), not be forced through rep/rest regrouping meant for real
- *  interval sessions. Includes the legacy 'interval'/'repetition' values
+ *  interval sessions. hill_repeats is deliberately excluded too, even
+ *  though it has genuine reps/rest — confirmed explicitly: a hill-repeats
+ *  session must still show its Strava splits exactly as recorded, same as
+ *  fartlek/tempo/easy. Includes the legacy 'interval'/'repetition' values
  *  old workout docs may still carry. Shared with
  *  hooks/useWorkoutComparisonGroups.ts so the two never define this
  *  differently. */
-export const STRUCTURED_WORKOUT_TYPES = new Set(['intervals', 'hill_repeats', 'threshold', 'time_trial', 'interval', 'repetition'])
+export const STRUCTURED_WORKOUT_TYPES = new Set(['intervals', 'threshold', 'time_trial', 'interval', 'repetition'])
 
 /** Best-effort meters from a free-text rep distance field (e.g. "1000m",
  *  "1600"). The coach always writes these in meters (same convention

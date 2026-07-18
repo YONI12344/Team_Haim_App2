@@ -20,15 +20,15 @@ import { paceToSec, secToPace } from '@/lib/physiology'
 import { resolveSessionRepRows, STRUCTURED_WORKOUT_TYPES, mainSetSummary } from '@/lib/strava-lap-matching'
 
 /** Workout types worth trimming to their "main set" in the Lab comparison —
- *  a genuinely structured effort (intervals/threshold/etc.) or a tempo run
- *  can plausibly be recorded warmup+effort+cooldown as one Strava activity.
- *  Explicitly NOT every type: an easy run, fartlek, long run, recovery jog,
- *  or race has no "warmup vs main set" distinction to find in the first
- *  place, and must always use its full, untouched session data — trimming
+ *  explicitly named by the coach: intervals, threshold, and tempo only.
+ *  Every other type — easy, fartlek, long run, recovery, race, AND hill
+ *  repeats (confirmed explicitly: even though hill repeats has real
+ *  reps/rest, it must still show its Strava splits exactly as recorded,
+ *  no trimming) — always uses its full, untouched session data. Trimming
  *  those risked the duration-only heuristic misfiring on an ordinary run's
  *  incidental lap-length variation (traffic lights, GPS auto-laps) and
  *  quietly reporting a wrong, sliced-down pace for a normal session. */
-const MAIN_SET_ELIGIBLE_TYPES = new Set([...STRUCTURED_WORKOUT_TYPES, 'tempo'])
+const MAIN_SET_ELIGIBLE_TYPES = new Set(['intervals', 'interval', 'repetition', 'threshold', 'tempo'])
 
 export interface ComparisonLogEntry {
   id: string
