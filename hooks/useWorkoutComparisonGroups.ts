@@ -17,7 +17,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { paceToSec, secToPace } from '@/lib/physiology'
-import { resolveSessionRepRows, STRUCTURED_WORKOUT_TYPES } from '@/lib/strava-lap-matching'
+import { resolveSessionRepRows, STRUCTURED_WORKOUT_TYPES, mainSetSummary } from '@/lib/strava-lap-matching'
 
 export interface ComparisonLogEntry {
   id: string
@@ -30,7 +30,7 @@ export interface ComparisonLogEntry {
   durationMin?: number
   assignedWorkoutId?: string
   workoutId?: string
-  splitLogs?: { avgHr?: number; pace?: string; rest?: string; setIndex?: number; repIndex?: number }[]
+  splitLogs?: { avgHr?: number; pace?: string; rest?: string; setIndex?: number; repIndex?: number; distanceKm?: number; time?: string; heartRate?: number }[]
   /** The workout template's own `type` (intervals/fartlek/long_run/…) —
    *  looked up once per distinct workoutId (same batched-getDoc pattern as
    *  useWorkoutLactateGroups) so the gallery can bucket groups into one
@@ -80,11 +80,34 @@ export function summaryKindForGroup(group: WorkoutComparisonGroup): ComparisonSu
   return 'generic'
 }
 
-/** One session's headline pace/HR — prefers the logged overall actualPace /
- *  averageHeartRate, falling back to averaging rep-level splitLogs (the
- *  same reps threshold workouts already record) when the overall fields
- *  weren't filled in. */
-export function sessionSummary(log: ComparisonLogEntry): { paceSec: number | null; hr: number | null } {
+/** One session's headline pace/HR/distance — for a Strava activity that
+ *  records the ENTIRE session (warmup jog + the real fartlek/tempo effort +
+ *  cooldown) as one recording, the coach-reported "an athlete puts the
+ *  whole session in one Strava" case: prefers the detected MAIN SET only
+ *  (mainSetSummary — the contiguous block of short work/recovery laps,
+ *  excluding the much-longer warmup/cooldown laps around it), so the Lab's
+ *  session-over-session comparison isn't diluted by slow warmup/cooldown
+ *  minutes. Falls back to the logged overall actualPace/averageHeartRate,
+ *  then to averaging rep-level splitLogs, exactly as before, whenever no
+ *  trim-worthy main set is found (e.g. a plain easy/long run with no
+ *  distinguishable structure — nothing to trim, use the whole thing). */
+export function sessionSummary(log: ComparisonLogEntry): { paceSec: number | null; hr: number | null; distance: number | null; mainSetDurationMin: number | null } {
+  const isRawLaps = !!log.splitLogs?.length && log.splitLogs[0].distanceKm != null
+  if (isRawLaps) {
+    const main = mainSetSummary(log.splitLogs!)
+    if (main && main.distanceKm > 0) {
+      return {
+        paceSec: Math.round(main.durationSec / main.distanceKm),
+        hr: main.avgHr,
+        distance: Math.round(main.distanceKm * 100) / 100,
+        // The full activity's own log.durationMin (Strava's whole-recording
+        // time) would otherwise override this trimmed pace's own duration
+        // downstream — this is the trimmed block's real duration instead.
+        mainSetDurationMin: Math.round(main.durationSec / 60),
+      }
+    }
+  }
+
   let paceSec = paceToSec(log.actualPace)
   let hr = log.averageHeartRate ?? null
 
@@ -94,7 +117,7 @@ export function sessionSummary(log: ComparisonLogEntry): { paceSec: number | nul
     if (paceSec == null && paceVals.length) paceSec = Math.round(paceVals.reduce((a, b) => a + b, 0) / paceVals.length)
     if (hr == null && hrVals.length) hr = Math.round(hrVals.reduce((a, b) => a + b, 0) / hrVals.length)
   }
-  return { paceSec, hr }
+  return { paceSec, hr, distance: log.actualDistance ?? null, mainSetDurationMin: null }
 }
 
 export interface ComparisonPoint {
@@ -166,7 +189,7 @@ function restLabelFromWorkout(workout: any): string | null {
  *  and table both read from. */
 export function buildComparisonPoints(group: WorkoutComparisonGroup): ComparisonPoint[] {
   return group.logs.map(log => {
-    const { paceSec, hr } = sessionSummary(log)
+    const { paceSec, hr, distance, mainSetDurationMin } = sessionSummary(log)
     // Rep-level aggregates for the interval-type summary — resolved
     // through the SAME raw-vs-rep-shaped detection + regrouping the
     // Strava box uses (resolveSessionRepRows), not a direct average of
@@ -198,9 +221,9 @@ export function buildComparisonPoints(group: WorkoutComparisonGroup): Comparison
       paceSec,
       pace: paceSec != null ? secToPace(paceSec) : null,
       hr,
-      distance: log.actualDistance,
+      distance: distance ?? undefined,
       effort: log.effort,
-      durationMin: log.durationMin ?? estimateDurationMin(log.actualDistance, paceSec),
+      durationMin: mainSetDurationMin ?? log.durationMin ?? estimateDurationMin(distance ?? undefined, paceSec),
       restLabel: log.restLabel ?? null,
       avgRepPaceSec,
       avgRepPace: avgRepPaceSec != null ? secToPace(avgRepPaceSec) : null,

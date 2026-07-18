@@ -382,3 +382,73 @@ export function resolveSessionRepRows(splitLogs: any[], workout: { sets?: any[];
     meters: typeof s.distanceKm === 'number' ? s.distanceKm * 1000 : null,
   }))
 }
+
+/**
+ * Some athletes record an entire session — warmup jog, the actual fartlek/
+ * tempo surges, cooldown jog, even an accidental pause — as ONE Strava
+ * activity instead of stopping/restarting the watch. Reported directly: a
+ * "Kenya fartlek" whose 29 raw laps were 2 warmup km-splits (~5:35/km),
+ * one glitched pause lap (10:34 elapsed, 92bpm), 24 real work/recovery laps
+ * alternating ~1:00/~2:00 with wildly different HR/pace, then a cooldown
+ * lap (7:18). The Lab's session-over-session comparison averaged over ALL
+ * of that, diluting the actual effort with slow warmup/cooldown minutes —
+ * this finds just the contiguous "main set" block so the comparison can use
+ * only that, while the Strava box / daily view still show every raw lap
+ * exactly as recorded (unchanged — this is Lab-comparison-only).
+ *
+ * Heuristic: real warmup/cooldown laps (jogged, often GPS-auto-lapped every
+ * km) run noticeably LONGER than the short, repeating work/recovery laps of
+ * an actual fartlek/interval block — using this session's own shortest real
+ * lap as the yardstick avoids hardcoding any specific pace/duration and
+ * adapts to how fast or slow this particular athlete's efforts are. Returns
+ * null when no such block is confidently identifiable (laps too few, or the
+ * whole activity is already uniform — e.g. a plain easy run — in which case
+ * there's nothing to trim and the full session should be used as-is).
+ */
+export function detectMainSetRange(laps: RawLap[]): { start: number; end: number } | null {
+  const durations = laps.map(l => paceToSec(l.time))
+  const real = durations.filter((d): d is number => d != null && d >= 8) // drop glitch laps (<8s, same cutoff as isGlitch above)
+  if (real.length < 6) return null
+  const shortest = Math.min(...real)
+  // A lap up to 4x this session's own shortest real lap still plausibly
+  // belongs to the same short-interval block; a warmup/cooldown km jog or a
+  // stuck-watch pause reads far longer than that in every case observed.
+  const cap = shortest * 4
+  const isMainCandidate = (d: number | null) => d != null && d >= 8 && d <= cap
+
+  // Longest contiguous run of candidate laps.
+  let bestStart = -1, bestLen = 0, curStart = -1, curLen = 0
+  for (let i = 0; i < durations.length; i++) {
+    if (isMainCandidate(durations[i])) {
+      if (curLen === 0) curStart = i
+      curLen++
+      if (curLen > bestLen) { bestLen = curLen; bestStart = curStart }
+    } else {
+      curLen = 0
+    }
+  }
+  // Require a real block (≥4 laps) that doesn't already span the entire
+  // activity — if it does, there's no separate warmup/cooldown to trim.
+  if (bestLen < 4 || bestLen >= durations.length) return null
+  return { start: bestStart, end: bestStart + bestLen }
+}
+
+/** Distance/time/HR summed over just the detected main-set laps (see
+ *  detectMainSetRange) — null when no trim-worthy block was found, meaning
+ *  callers should fall back to the session's own full-activity totals. */
+export function mainSetSummary(laps: RawLap[]): { distanceKm: number; durationSec: number; avgHr: number | null } | null {
+  const range = detectMainSetRange(laps)
+  if (!range) return null
+  let distanceKm = 0, durationSec = 0, hrWeighted = 0, hrWeight = 0
+  for (let i = range.start; i < range.end; i++) {
+    const l = laps[i]
+    const sec = paceToSec(l.time)
+    if (l.distanceKm != null) distanceKm += l.distanceKm
+    if (sec != null) {
+      durationSec += sec
+      if (l.heartRate != null) { hrWeighted += l.heartRate * sec; hrWeight += sec }
+    }
+  }
+  if (durationSec <= 0) return null
+  return { distanceKm, durationSec, avgHr: hrWeight > 0 ? Math.round(hrWeighted / hrWeight) : null }
+}
