@@ -30,7 +30,7 @@ import { getCoachInfo } from '@/lib/coach'
 import { useLatestStepTest } from '@/hooks/useLatestStepTest'
 import { useWorkoutLactateGroups, latestSessionSteps, groupKeyFor, inferThresholdDistance } from '@/hooks/useWorkoutLactateGroups'
 import { personalTargetRangeForLevel, personalTargetRangeWithBaseline, formatTargetRange, paceToSec, secToPace } from '@/lib/physiology'
-import { parseRepMeters, buildRepDisplayRows, expectedRepMetersForWorkout, scoreActivityFitForReps, STRUCTURED_WORKOUT_TYPES } from '@/lib/strava-lap-matching'
+import { parseRepMeters, buildRepDisplayRows, expectedRepMetersForWorkout, scoreActivityFitForReps } from '@/lib/strava-lap-matching'
 
 interface WorkoutLogFormProps {
   workoutId: string
@@ -293,19 +293,24 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
   // setSplitLogs form so it's safe regardless of whether this runs before
   // or after the sets-seeding effect.
   //
-  // Only for a genuinely STRUCTURED type (intervals/threshold/etc.) — a
-  // fartlek/tempo/easy run flows continuously with no real rest between
-  // "reps" even when it defines a `sets` array (e.g. "8×2min pickups"),
-  // same rule already applied to SplitsTable/the Lab. Reported directly:
-  // this effect ran for ANY workout with sets regardless of type, so a
-  // fartlek's rep-entry form got a computed `rest` value injected from
-  // gaps in the raw Strava data (a slower GPS-auto-lapped segment misread
-  // as "recovery") even though the coach's plan has no rest concept for
-  // it at all — and once saved, that fabricated rest became permanent
-  // stored data SplitsTable would keep showing forever.
+  // Time/pace/HR prefill runs for every workout with a rep structure — a
+  // fartlek/tempo/easy run legitimately wants its real recorded pace/time/
+  // HR filled in per rep too, same as a genuine interval session. REST is
+  // the one field gated, and not by type (a type-wide gate turned out too
+  // broad: it also blocked a genuinely-structured intervals workout whose
+  // stored `type` string didn't happen to match STRUCTURED_WORKOUT_TYPES
+  // exactly, silently breaking prefill for it entirely — reported directly
+  // as "worse now, not even finding warmup/cooldown anymore"). Instead,
+  // gate rest on the workout's OWN definition: only inject a computed rest
+  // value when at least one of its sets actually configures
+  // restBetweenReps/restAfterSet — "you will know from the workout's own
+  // detail" whether rest is part of the plan at all, exactly as reported.
+  // A fartlek with no rest defined anywhere in its structure never gets
+  // one fabricated from a misread slow GPS lap; a real interval session
+  // that DOES define rest still gets its real recorded rest filled in.
   useEffect(() => {
     if (!stravaSource?.splitLogs?.length) return
-    if (!STRUCTURED_WORKOUT_TYPES.has(workout?.type || '')) return
+    const definesRest = (workout?.sets || []).some((s: any) => s.restBetweenReps || s.restAfterSet)
     setSplitLogs(prev => {
       const expectedMeters = prev.map(s => parseRepMeters(s.distance))
       const rows = buildRepDisplayRows(stravaSource.splitLogs, expectedMeters)
@@ -318,7 +323,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
       }
       return prev.map((s, i) => {
         const lap = matched.get(i)
-        const rest = restAfter.get(i)
+        const rest = definesRest ? restAfter.get(i) : undefined
         if (!lap && !rest) return s
         return {
           ...s,
@@ -334,7 +339,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
         }
       })
     })
-  }, [stravaSource, workout?.type])
+  }, [stravaSource, workout?.sets])
 
   const updateSplit = useCallback((index: number, field: keyof SplitLog, value: string) => {
     // Numeric SplitLog fields (avgHr, lactate, ...) are edited as plain text
