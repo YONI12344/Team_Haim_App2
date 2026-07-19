@@ -57,6 +57,167 @@ interface WorkoutBuilderProps {
   hideBackButton?: boolean
 }
 
+// ---------------------------------------------------------------------------
+// Explicit distance/duration picker — replaces the old ambiguous free-text
+// "מרחק / משך" input. Writes BOTH the new unambiguous numeric fields
+// (distanceMeters / durationSec) and the legacy display strings
+// (distance / duration), and always clears the opposite side so a stale
+// value from the other mode can never leak into lap matching.
+// ---------------------------------------------------------------------------
+
+interface DistDurItem {
+  distance?: string
+  duration?: string
+  distanceMeters?: number
+  durationSec?: number
+}
+
+type DistDurMode = 'distance' | 'duration'
+type DistDurUnit = 'm' | 'km' | 'sec' | 'min'
+
+interface DistDurState {
+  mode: DistDurMode
+  value: string
+  unit: DistDurUnit
+}
+
+function parseLeadingNumber(s?: string): number | null {
+  if (!s) return null
+  const m = s.match(/\d+(?:\.\d+)?/)
+  return m ? parseFloat(m[0]) : null
+}
+
+const KM_RE = /ק["״]?מ|km/i // matches ק"מ / ק״מ / קמ / km, but NOT דק' / דקות
+const MIN_RE = /דק|min/i
+const SEC_RE = /שנ|sec/i
+
+// Derive the picker's initial mode/value/unit from the row's data.
+// Prefers the new numeric fields; falls back to best-effort parsing of the
+// legacy free-text strings for pre-migration workouts.
+function deriveDistDurState(item: DistDurItem): DistDurState {
+  if (item.durationSec != null) {
+    const sec = item.durationSec
+    const fromStr = parseLeadingNumber(item.duration)
+    const isMin = item.duration
+      ? MIN_RE.test(item.duration) || !SEC_RE.test(item.duration)
+      : sec > 0 && sec % 60 === 0
+    const value = fromStr != null ? fromStr : isMin ? sec / 60 : sec
+    return { mode: 'duration', value: value ? String(value) : '', unit: isMin ? 'min' : 'sec' }
+  }
+  if (item.distanceMeters != null) {
+    const meters = item.distanceMeters
+    const isKm = item.distance ? KM_RE.test(item.distance) : false
+    const fromStr = parseLeadingNumber(item.distance)
+    const value = fromStr != null ? fromStr : isKm ? meters / 1000 : meters
+    return { mode: 'distance', value: value ? String(value) : '', unit: isKm ? 'km' : 'm' }
+  }
+  // Legacy row (no numeric fields yet) — best-effort prefill from free-text.
+  if (item.duration && item.duration.trim()) {
+    const n = parseLeadingNumber(item.duration)
+    const isMin = MIN_RE.test(item.duration) || !SEC_RE.test(item.duration)
+    return { mode: 'duration', value: n != null ? String(n) : '', unit: isMin ? 'min' : 'sec' }
+  }
+  const n = parseLeadingNumber(item.distance)
+  const isKm = item.distance ? KM_RE.test(item.distance) : false
+  return { mode: 'distance', value: n != null ? String(n) : '', unit: isKm ? 'km' : 'm' }
+}
+
+function DistanceDurationPicker({
+  item,
+  onChange,
+}: {
+  item: DistDurItem
+  onChange: (field: string, value: string | number | undefined) => void
+}) {
+  const [state, setState] = useState<DistDurState>(() => deriveDistDurState(item))
+
+  const commit = (next: DistDurState) => {
+    setState(next)
+    const num = parseFloat(next.value)
+    const valid = !isNaN(num) && num > 0
+    if (next.mode === 'distance') {
+      const isKm = next.unit === 'km'
+      if (valid) {
+        onChange('distanceMeters', isKm ? Math.round(num * 1000) : num)
+        onChange('distance', `${next.value} ${isKm ? 'ק"מ' : "מ'"}`)
+      } else {
+        onChange('distanceMeters', undefined)
+        onChange('distance', '')
+      }
+      onChange('durationSec', undefined)
+      onChange('duration', '')
+    } else {
+      const isMin = next.unit === 'min'
+      if (valid) {
+        onChange('durationSec', isMin ? Math.round(num * 60) : num)
+        onChange('duration', `${next.value} ${isMin ? "דק'" : "שנ'"}`)
+      } else {
+        onChange('durationSec', undefined)
+        onChange('duration', '')
+      }
+      onChange('distanceMeters', undefined)
+      onChange('distance', '')
+    }
+  }
+
+  const setMode = (mode: DistDurMode) => {
+    if (mode === state.mode) return
+    commit({ mode, value: state.value, unit: mode === 'distance' ? 'm' : 'min' })
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <div className="flex gap-1">
+        {([
+          ['distance', 'מרחק'],
+          ['duration', 'זמן'],
+        ] as const).map(([mode, label]) => (
+          <Button
+            key={mode}
+            type="button"
+            variant={state.mode === mode ? 'default' : 'outline'}
+            size="sm"
+            className={state.mode === mode ? 'bg-navy text-white' : ''}
+            onClick={() => setMode(mode)}
+          >
+            {label}
+          </Button>
+        ))}
+      </div>
+      <Input
+        type="number"
+        min="0"
+        step="any"
+        className="w-24"
+        placeholder={state.mode === 'distance' ? '1000' : '5'}
+        value={state.value}
+        onChange={(e) => commit({ ...state, value: e.target.value })}
+      />
+      <Select
+        value={state.unit}
+        onValueChange={(unit) => commit({ ...state, unit: unit as DistDurUnit })}
+      >
+        <SelectTrigger className="w-24">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {state.mode === 'distance' ? (
+            <>
+              <SelectItem value="m">מ'</SelectItem>
+              <SelectItem value="km">ק"מ</SelectItem>
+            </>
+          ) : (
+            <>
+              <SelectItem value="sec">שניות</SelectItem>
+              <SelectItem value="min">דקות</SelectItem>
+            </>
+          )}
+        </SelectContent>
+      </Select>
+    </div>
+  )
+}
+
 export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBuilderProps) {
   const { t } = useLanguage()
   const router = useRouter()
@@ -162,10 +323,15 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
     ])
   }
 
-  const updateSet = (index: number, field: string, value: string | number) => {
-    const newSets = [...sets] as any[]
-    newSets[index] = { ...newSets[index], [field]: value }
-    setSets(newSets)
+  const updateSet = (index: number, field: string, value: string | number | undefined) => {
+    // Functional update so several updateSet calls in the same event handler
+    // (e.g. the distance/duration picker writing 4 fields at once) all land
+    // instead of the later calls clobbering the earlier ones.
+    setSets(prev => {
+      const newSets = [...prev] as any[]
+      newSets[index] = { ...newSets[index], [field]: value }
+      return newSets
+    })
   }
 
   const removeSet = (index: number) => {
@@ -182,12 +348,15 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
     setSets(newSets)
   }
 
-  const updateInterval = (setIndex: number, intIndex: number, field: string, value: string) => {
-    const newSets = [...sets] as any[]
-    const intervals = [...(newSets[setIndex].intervals || [])]
-    intervals[intIndex] = { ...intervals[intIndex], [field]: value }
-    newSets[setIndex] = { ...newSets[setIndex], intervals }
-    setSets(newSets)
+  const updateInterval = (setIndex: number, intIndex: number, field: string, value: string | number | undefined) => {
+    // Functional update — see updateSet above.
+    setSets(prev => {
+      const newSets = [...prev] as any[]
+      const intervals = [...(newSets[setIndex].intervals || [])]
+      intervals[intIndex] = { ...intervals[intIndex], [field]: value }
+      newSets[setIndex] = { ...newSets[setIndex], intervals }
+      return newSets
+    })
   }
 
   const removeInterval = (setIndex: number, intIndex: number) => {
@@ -232,12 +401,17 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
           reps: s.reps || 1,
           distance: s.distance || '',
           duration: s.duration || '',
+          distanceMeters: s.distanceMeters ?? null,
+          durationSec: s.durationSec ?? null,
           pace: s.pace || '',
           restBetweenReps: s.restBetweenReps || '',
           restAfterSet: s.restAfterSet || '',
           intervals: (s.intervals || []).map((iv: any, j: number) => ({
             id: iv.id || `int-${i}-${j}`,
             distance: iv.distance || '',
+            duration: iv.duration || '',
+            distanceMeters: iv.distanceMeters ?? null,
+            durationSec: iv.durationSec ?? null,
             pace: iv.pace || '',
             rest: iv.rest || '',
           })),
@@ -541,15 +715,14 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
                           )}
                         </div>
 
-                        {/* Simple mode: single distance/pace */}
+                        {/* Simple mode: single distance-or-duration + pace */}
                         {!hasIntervals && (
-                          <div className="grid gap-3 grid-cols-2">
+                          <div className="space-y-3">
                             <div className="space-y-1">
-                              <Label className="text-xs">מרחק / משך</Label>
-                              <Input
-                                placeholder="לדוגמה: 1000 מ' או 5 דק'"
-                                value={set.distance || ''}
-                                onChange={(e) => updateSet(index, 'distance', e.target.value)}
+                              <Label className="text-xs">מרחק / זמן</Label>
+                              <DistanceDurationPicker
+                                item={set}
+                                onChange={(field, value) => updateSet(index, field, value)}
                               />
                             </div>
                             <div className="space-y-1">
@@ -580,34 +753,37 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
                           <div className="space-y-2">
                             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Intervals in this set</p>
                             {set.intervals.map((interval: any, intIndex: number) => (
-                              <div key={interval.id || intIndex} className="grid gap-2 grid-cols-4 items-end bg-muted/20 rounded-lg p-2">
-                                <div className="space-y-1">
-                                  <Label className="text-xs">Distance</Label>
-                                  <Input
-                                    placeholder="800m"
-                                    value={interval.distance || ''}
-                                    onChange={(e) => updateInterval(index, intIndex, 'distance', e.target.value)}
-                                  />
+                              <div key={interval.id || intIndex} className="space-y-2 bg-muted/20 rounded-lg p-2">
+                                <div className="flex items-end gap-2">
+                                  <div className="space-y-1 flex-1">
+                                    <Label className="text-xs">מרחק / זמן</Label>
+                                    <DistanceDurationPicker
+                                      item={interval}
+                                      onChange={(field, value) => updateInterval(index, intIndex, field, value)}
+                                    />
+                                  </div>
+                                  <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-destructive" onClick={() => removeInterval(index, intIndex)}>
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
                                 </div>
-                                <div className="space-y-1">
-                                  <Label className="text-xs">Pace</Label>
-                                  <Input
-                                    placeholder="3:45/km"
-                                    value={interval.pace || ''}
-                                    onChange={(e) => updateInterval(index, intIndex, 'pace', e.target.value)}
-                                  />
+                                <div className="grid gap-2 grid-cols-2">
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">Pace</Label>
+                                    <Input
+                                      placeholder="3:45/km"
+                                      value={interval.pace || ''}
+                                      onChange={(e) => updateInterval(index, intIndex, 'pace', e.target.value)}
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">Rest after</Label>
+                                    <Input
+                                      placeholder="2 min"
+                                      value={interval.rest || ''}
+                                      onChange={(e) => updateInterval(index, intIndex, 'rest', e.target.value)}
+                                    />
+                                  </div>
                                 </div>
-                                <div className="space-y-1">
-                                  <Label className="text-xs">Rest after</Label>
-                                  <Input
-                                    placeholder="2 min"
-                                    value={interval.rest || ''}
-                                    onChange={(e) => updateInterval(index, intIndex, 'rest', e.target.value)}
-                                  />
-                                </div>
-                                <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-destructive" onClick={() => removeInterval(index, intIndex)}>
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
                               </div>
                             ))}
                           </div>

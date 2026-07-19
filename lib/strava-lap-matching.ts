@@ -32,12 +32,38 @@ export const STRUCTURED_WORKOUT_TYPES = new Set(['intervals', 'threshold', 'time
  *  "1600"). The coach always writes these in meters (same convention
  *  inferThresholdDistance relies on elsewhere) — returns null for a
  *  duration-based rep (e.g. "5 דק'"/"5 min") where there's no distance to
- *  match against at all. */
+ *  match against at all.
+ *
+ *  Reported directly, root-caused from real data: a fartlek's "2 min /
+ *  1 min" duration reps, when the coach's UI stores the bare number ("2",
+ *  "1") without the unit text baked into this exact string, don't match
+ *  the /דק|min/i duration check above and fell through to being read as
+ *  "2 meters" / "1 meter" — dividing a real ~2-minute lap's elapsed time
+ *  by a 2-METER target exploded into an absurd computed pace ("1000:00"
+ *  instead of a real ~4:30/km). No genuine running rep is ever
+ *  programmed under 50m, so a parsed value below that is far more likely
+ *  a duration whose unit text didn't survive into this string than a
+ *  real distance — treated as "not a distance" (null) instead. */
 export function parseRepMeters(raw: string | undefined): number | null {
   if (!raw) return null
   if (/דק|min/i.test(raw)) return null
   const n = parseInt(String(raw).replace(/[^\d]/g, ''), 10)
-  return Number.isFinite(n) && n > 0 ? n : null
+  return Number.isFinite(n) && n >= 50 ? n : null
+}
+
+type RepDistanceSource = { distance?: string; duration?: string; distanceMeters?: number; durationSec?: number }
+
+/** One rep's expected distance (meters), or null for a duration-based rep —
+ *  prefers the workout builder's own explicit distanceMeters/durationSec
+ *  fields (100% unambiguous, no guessing at all) when the coach entered
+ *  them through the unit-aware builder inputs; only falls back to sniffing
+ *  the legacy free-text distance/duration string (parseRepMeters, with all
+ *  its "does this look like a duration" guesswork) for older workouts
+ *  saved before those explicit fields existed. */
+function repMeters(item: RepDistanceSource): number | null {
+  if (item.distanceMeters != null && item.distanceMeters > 0) return item.distanceMeters
+  if (item.durationSec != null && item.durationSec > 0) return null
+  return parseRepMeters(item.distance || item.duration)
 }
 
 /** The expected per-rep distance (meters, or null for a duration-based rep)
@@ -47,7 +73,7 @@ export function parseRepMeters(raw: string | undefined): number | null {
  *  splitLogs state exists (e.g. scoring candidate Strava activities before
  *  a log has even been opened). */
 export function expectedRepMetersForWorkout(
-  workout: { sets?: { reps?: number; distance?: string; duration?: string; intervals?: { distance?: string; duration?: string }[] }[] } | null | undefined,
+  workout: { sets?: (RepDistanceSource & { reps?: number; intervals?: RepDistanceSource[] })[] } | null | undefined,
 ): (number | null)[] {
   if (!workout?.sets?.length) return []
   const out: (number | null)[] = []
@@ -56,10 +82,10 @@ export function expectedRepMetersForWorkout(
     const intervals = set.intervals
     if (intervals && intervals.length > 0) {
       for (let r = 0; r < reps; r++) {
-        for (const iv of intervals) out.push(parseRepMeters(iv.distance || iv.duration))
+        for (const iv of intervals) out.push(repMeters(iv))
       }
     } else {
-      for (let r = 0; r < reps; r++) out.push(parseRepMeters(set.distance || set.duration))
+      for (let r = 0; r < reps; r++) out.push(repMeters(set))
     }
   }
   return out

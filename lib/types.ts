@@ -187,7 +187,19 @@ export interface Workout {
 // Workout Set
 export interface WorkoutInterval {
   id: string
+  /** Legacy free-text distance (e.g. "400m", "2 דק'") — kept for display and
+   *  for reading old data. New rows should also set distanceMeters/durationSec
+   *  below so downstream matching never has to guess the unit again. */
   distance?: string
+  /** Explicit distance in meters — set by the workout builder's unit-aware
+   *  input. When present this is the authoritative value; distance (string)
+   *  is just its formatted display text. */
+  distanceMeters?: number
+  /** Explicit duration in seconds — set by the workout builder's unit-aware
+   *  input, for a time-based rep (e.g. "2 min on"). When present, this rep
+   *  has NO real distance target at all (duration-based), so matching code
+   *  must not attempt to parse a meters value from the display text. */
+  durationSec?: number
   pace?: string
   rest?: string
 }
@@ -195,8 +207,14 @@ export interface WorkoutInterval {
 export interface WorkoutSet {
   id: string
   reps: number
+  /** Legacy free-text distance (e.g. "400m") — see WorkoutInterval.distance. */
   distance?: string
+  /** Legacy free-text duration (e.g. "2 דק'") — see WorkoutInterval.distance. */
   duration?: string
+  /** Explicit distance in meters — see WorkoutInterval.distanceMeters. */
+  distanceMeters?: number
+  /** Explicit duration in seconds — see WorkoutInterval.durationSec. */
+  durationSec?: number
   pace?: string
   /** @deprecated ambiguous legacy field — read as a restAfterSet fallback for
    *  old workouts; new workouts should set restBetweenReps/restAfterSet
