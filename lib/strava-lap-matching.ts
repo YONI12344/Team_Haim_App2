@@ -220,15 +220,21 @@ export function buildRepDisplayRows(laps: RawLap[], expectedMeters: (number | nu
   let li = 0
   let repIndex = 0
   for (const target of expectedMeters) {
-    while (li < parsed.length && (isRest(parsed[li]) || isFiller(parsed[li]) || (target != null && isGlitch(parsed[li])))) {
-      if (isRest(parsed[li])) pushRest(parsed[li])
-      li++
-    }
-    if (li >= parsed.length) { repIndex++; continue }
-
     if (!target) {
       // Duration-based rep — no expected distance to match against, so
-      // just take the next lap as-is (previous 1:1 behavior).
+      // just take the next lap as-is (previous 1:1 behavior). Deliberately
+      // skips ONLY a genuine glitch (a sub-8-second accidental lap-button
+      // tap), never the pace-based isRest/isFiller checks used for
+      // distance-based reps below: a duration-based rep STRUCTURE (e.g. a
+      // fartlek's "1 hard lap + 3 easy laps" repeated 6×) counts every one
+      // of those laps — hard AND easy — as its own real, prescribed rep,
+      // not "rest between reps". Reported directly against real data: the
+      // pace-based isRest check was silently reclassifying the easy-paced
+      // laps as fabricated "rest" and dropping them, leaving gaps in the
+      // splits table (6 of 24 expected reps missing) even though every lap
+      // was real, recorded data.
+      while (li < parsed.length && isGlitch(parsed[li])) li++
+      if (li >= parsed.length) { repIndex++; continue }
       const p = parsed[li]
       if (p.meters && p.sec) {
         rows.push({ kind: 'rep', repIndex, pace: secToPace(paceOf(p)), heartRate: p.heartRate, elapsedSec: p.sec, targetMeters: null, actualMeters: p.meters })
@@ -237,6 +243,12 @@ export function buildRepDisplayRows(laps: RawLap[], expectedMeters: (number | nu
       repIndex++
       continue
     }
+
+    while (li < parsed.length && (isRest(parsed[li]) || isFiller(parsed[li]) || isGlitch(parsed[li]))) {
+      if (isRest(parsed[li])) pushRest(parsed[li])
+      li++
+    }
+    if (li >= parsed.length) { repIndex++; continue }
 
     let accMeters = 0, accSec = 0, hrWeighted = 0, hrWeight = 0, used = 0
     while (li < parsed.length) {
