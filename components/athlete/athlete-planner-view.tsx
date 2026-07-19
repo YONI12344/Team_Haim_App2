@@ -26,7 +26,7 @@ import { WorkoutLogForm } from '@/components/athlete/workout-log-form'
 import { personalTargetRangeForLevel, personalTargetRangeWithBaseline, formatTargetRange, paceToSec, secToPace } from '@/lib/physiology'
 import { useLatestStepTest } from '@/hooks/useLatestStepTest'
 import { useWorkoutLactateGroups, latestSessionSteps, groupKeyFor, inferThresholdDistance } from '@/hooks/useWorkoutLactateGroups'
-import { expectedRepMetersForWorkout, scoreActivityFitForReps, buildRepDisplayRows, mainSetDisplayStats } from '@/lib/strava-lap-matching'
+import { expectedRepMetersForWorkout, scoreActivityFitForReps, buildRepDisplayRows, mainSetDisplayStats, STRUCTURED_WORKOUT_TYPES } from '@/lib/strava-lap-matching'
 import { SplitsTable } from '@/components/shared/splits-table'
 import { isCoachEmail } from '@/lib/constants'
 import { ManualLogCard } from '@/components/shared/manual-log-card'
@@ -1192,8 +1192,22 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               const thresholdDistance = inferThresholdDistance(workoutData)
               const expectedMeters = expectedRepMetersForWorkout(workoutData)
               const mainEntry = group.reduce((best, g) => (g.activity.distanceKm || 0) > (best.activity.distanceKm || 0) ? g : best)
-              if (thresholdDistance == null || !expectedMeters.some(m => m != null)) {
-                // Not (or no longer) a genuine threshold workout — but a
+              // Eligible for the rep-splits rebuild whenever the CURRENT
+              // template is a genuinely structured type (STRUCTURED_WORKOUT_
+              // TYPES — intervals/threshold/etc., not just a "threshold
+              // distance" tagged one) with a real rep structure to build
+              // from. Previously this only fired for inferThresholdDistance
+              // (type === 'threshold' specifically), so a genuinely
+              // structured 'intervals' workout's splitLogs — once frozen
+              // into rep-shaped form by an earlier bad backfill or a saved
+              // rep-entry form — could NEVER be rebuilt again by a plain
+              // resync, no matter how many lap-matching bugs got fixed
+              // afterward. Reported directly: identical stale/blank splits
+              // shown after multiple fix deploys, because nothing was
+              // rebuilding this specific 'intervals'-typed log at all.
+              const isEligibleStructured = STRUCTURED_WORKOUT_TYPES.has(workoutData?.type || '') && expectedMeters.length > 0
+              if (!isEligibleStructured) {
+                // Not (or no longer) a genuine structured workout — but a
                 // PAST sync may have mistakenly treated it as one (the
                 // stale-snapshot bug above) and rebuilt its splitLogs into
                 // fake rep rows. Undo that here: restore the raw per-lap
@@ -1201,27 +1215,30 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                 // watch splits instead of fabricated tiny "reps".
                 const existingSnap = await getDoc(mainEntry.logRef)
                 const existingData = existingSnap.data() as any
-                if (existingData?.thresholdDistance) {
+                if (existingData?.thresholdDistance || existingData?.repBackfilled) {
                   await updateDoc(mainEntry.logRef, {
                     thresholdDistance: null,
                     hasLactate: false,
+                    repBackfilled: false,
                     splitLogs: mainEntry.activity.splitLogs || [],
                   })
                 }
                 continue
               }
-              // Once this log has already been backfilled (has its real
-              // thresholdDistance, not the synthetic placeholder), only
-              // redo it when THIS is the day actually being viewed/synced
-              // right now — an unrelated routine sync that happens to
-              // still list this activity among the last 30 must not
-              // rebuild splitLogs from whatever sparse/no lap data it gets
-              // for a non-priority day (see RECENT_DAYS in the sync route)
-              // and silently degrade an already-correct, possibly
-              // coach-edited session down to a worse one.
+              // Once this log has already been backfilled (repBackfilled —
+              // a generic marker, not thresholdDistance specifically, since
+              // a duration-based intervals workout has no meaningful
+              // threshold distance to tag at all), only redo it when THIS
+              // is the day actually being viewed/synced right now — an
+              // unrelated routine sync that happens to still list this
+              // activity among the last 30 must not rebuild splitLogs from
+              // whatever sparse/no lap data it gets for a non-priority day
+              // (see RECENT_DAYS in the sync route) and silently degrade an
+              // already-correct, possibly coach-edited session down to a
+              // worse one.
               const existingSnap = await getDoc(mainEntry.logRef)
               const existingData = existingSnap.data() as any
-              if (existingData?.thresholdDistance && date !== priorityDateStr) continue
+              if (existingData?.repBackfilled && date !== priorityDateStr) continue
               const rows = buildRepDisplayRows(
                 (mainEntry.activity.splitLogs || []).map((s: any) => ({ distanceKm: s.distanceKm, time: s.time, heartRate: s.heartRate })),
                 expectedMeters,
@@ -1257,7 +1274,19 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               await updateDoc(mainEntry.logRef, {
                 workoutId: match.data().workoutId,
                 workoutTitle: workoutData?.title || null,
-                thresholdDistance,
+                // thresholdDistance only means something for a genuine
+                // threshold-distance session (useWorkoutLactateGroups'
+                // threshold-folder grouping) — a duration-based 'intervals'
+                // workout has none, and Firestore rejects `undefined`
+                // outright, so null it explicitly instead of passing
+                // inferThresholdDistance's raw (possibly undefined) result.
+                thresholdDistance: thresholdDistance ?? null,
+                // Generic "this log's splitLogs were rebuilt from raw laps"
+                // marker — the skip-unless-priority-day guard above keys
+                // off this instead of thresholdDistance specifically, so it
+                // works the same for threshold AND non-threshold structured
+                // types.
+                repBackfilled: true,
                 hasLactate: newSplitLogs.some(s => s.lactate),
                 splitLogs: newSplitLogs,
               })
