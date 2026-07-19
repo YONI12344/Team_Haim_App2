@@ -30,7 +30,7 @@ import { getCoachInfo } from '@/lib/coach'
 import { useLatestStepTest } from '@/hooks/useLatestStepTest'
 import { useWorkoutLactateGroups, latestSessionSteps, groupKeyFor, inferThresholdDistance } from '@/hooks/useWorkoutLactateGroups'
 import { personalTargetRangeForLevel, personalTargetRangeWithBaseline, formatTargetRange, paceToSec, secToPace } from '@/lib/physiology'
-import { parseRepMeters, buildRepDisplayRows, expectedRepMetersForWorkout, scoreActivityFitForReps } from '@/lib/strava-lap-matching'
+import { parseRepMeters, buildRepDisplayRows, expectedRepMetersForWorkout, scoreActivityFitForReps, STRUCTURED_WORKOUT_TYPES } from '@/lib/strava-lap-matching'
 
 interface WorkoutLogFormProps {
   workoutId: string
@@ -292,8 +292,20 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
   // just a default the athlete can correct. Uses the functional
   // setSplitLogs form so it's safe regardless of whether this runs before
   // or after the sets-seeding effect.
+  //
+  // Only for a genuinely STRUCTURED type (intervals/threshold/etc.) — a
+  // fartlek/tempo/easy run flows continuously with no real rest between
+  // "reps" even when it defines a `sets` array (e.g. "8×2min pickups"),
+  // same rule already applied to SplitsTable/the Lab. Reported directly:
+  // this effect ran for ANY workout with sets regardless of type, so a
+  // fartlek's rep-entry form got a computed `rest` value injected from
+  // gaps in the raw Strava data (a slower GPS-auto-lapped segment misread
+  // as "recovery") even though the coach's plan has no rest concept for
+  // it at all — and once saved, that fabricated rest became permanent
+  // stored data SplitsTable would keep showing forever.
   useEffect(() => {
     if (!stravaSource?.splitLogs?.length) return
+    if (!STRUCTURED_WORKOUT_TYPES.has(workout?.type || '')) return
     setSplitLogs(prev => {
       const expectedMeters = prev.map(s => parseRepMeters(s.distance))
       const rows = buildRepDisplayRows(stravaSource.splitLogs, expectedMeters)
@@ -322,7 +334,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
         }
       })
     })
-  }, [stravaSource])
+  }, [stravaSource, workout?.type])
 
   const updateSplit = useCallback((index: number, field: keyof SplitLog, value: string) => {
     // Numeric SplitLog fields (avgHr, lactate, ...) are edited as plain text

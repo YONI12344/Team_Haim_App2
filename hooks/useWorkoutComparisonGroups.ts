@@ -17,18 +17,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { paceToSec, secToPace } from '@/lib/physiology'
-import { resolveSessionRepRows, STRUCTURED_WORKOUT_TYPES, mainSetSummary } from '@/lib/strava-lap-matching'
-
-/** Workout types worth trimming to their "main set" in the Lab comparison —
- *  explicitly named by the coach: intervals, threshold, and tempo only.
- *  Every other type — easy, fartlek, long run, recovery, race, AND hill
- *  repeats (confirmed explicitly: even though hill repeats has real
- *  reps/rest, it must still show its Strava splits exactly as recorded,
- *  no trimming) — always uses its full, untouched session data. Trimming
- *  those risked the duration-only heuristic misfiring on an ordinary run's
- *  incidental lap-length variation (traffic lights, GPS auto-laps) and
- *  quietly reporting a wrong, sliced-down pace for a normal session. */
-const MAIN_SET_ELIGIBLE_TYPES = new Set(['intervals', 'interval', 'repetition', 'threshold', 'tempo'])
+import { resolveSessionRepRows, STRUCTURED_WORKOUT_TYPES, mainSetDisplayStats } from '@/lib/strava-lap-matching'
 
 export interface ComparisonLogEntry {
   id: string
@@ -95,28 +84,24 @@ export function summaryKindForGroup(group: WorkoutComparisonGroup): ComparisonSu
  *  records the ENTIRE session (warmup jog + the real fartlek/tempo effort +
  *  cooldown) as one recording, the coach-reported "an athlete puts the
  *  whole session in one Strava" case: prefers the detected MAIN SET only
- *  (mainSetSummary — the contiguous block of short work/recovery laps,
- *  excluding the much-longer warmup/cooldown laps around it), so the Lab's
- *  session-over-session comparison isn't diluted by slow warmup/cooldown
- *  minutes. Falls back to the logged overall actualPace/averageHeartRate,
- *  then to averaging rep-level splitLogs, exactly as before, whenever no
- *  trim-worthy main set is found (e.g. a plain easy/long run with no
- *  distinguishable structure — nothing to trim, use the whole thing). */
+ *  (mainSetDisplayStats — same helper the app's own workout-summary tiles
+ *  use, so the two can never disagree), so the Lab's session-over-session
+ *  comparison isn't diluted by slow warmup/cooldown minutes. Falls back to
+ *  the logged overall actualPace/averageHeartRate, then to averaging
+ *  rep-level splitLogs, exactly as before, whenever no trim-worthy main
+ *  set is found (e.g. a plain easy/long run with no distinguishable
+ *  structure — nothing to trim, use the whole thing). */
 export function sessionSummary(log: ComparisonLogEntry): { paceSec: number | null; hr: number | null; distance: number | null; mainSetDurationMin: number | null } {
-  const isRawLaps = !!log.splitLogs?.length && log.splitLogs[0].distanceKm != null
-  const eligibleForTrim = !!log.workoutType && MAIN_SET_ELIGIBLE_TYPES.has(log.workoutType)
-  if (isRawLaps && eligibleForTrim) {
-    const main = mainSetSummary(log.splitLogs!)
-    if (main && main.distanceKm > 0) {
-      return {
-        paceSec: Math.round(main.durationSec / main.distanceKm),
-        hr: main.avgHr,
-        distance: Math.round(main.distanceKm * 100) / 100,
-        // The full activity's own log.durationMin (Strava's whole-recording
-        // time) would otherwise override this trimmed pace's own duration
-        // downstream — this is the trimmed block's real duration instead.
-        mainSetDurationMin: Math.round(main.durationSec / 60),
-      }
+  const main = mainSetDisplayStats(log.splitLogs, log.workoutType)
+  if (main) {
+    return {
+      paceSec: paceToSec(main.pace),
+      hr: main.hr,
+      distance: main.distance,
+      // The full activity's own log.durationMin (Strava's whole-recording
+      // time) would otherwise override this trimmed pace's own duration
+      // downstream — this is the trimmed block's real duration instead.
+      mainSetDurationMin: main.durationMin,
     }
   }
 

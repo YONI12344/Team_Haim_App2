@@ -26,7 +26,7 @@ import { WorkoutLogForm } from '@/components/athlete/workout-log-form'
 import { personalTargetRangeForLevel, personalTargetRangeWithBaseline, formatTargetRange, paceToSec, secToPace } from '@/lib/physiology'
 import { useLatestStepTest } from '@/hooks/useLatestStepTest'
 import { useWorkoutLactateGroups, latestSessionSteps, groupKeyFor, inferThresholdDistance } from '@/hooks/useWorkoutLactateGroups'
-import { expectedRepMetersForWorkout, scoreActivityFitForReps, buildRepDisplayRows } from '@/lib/strava-lap-matching'
+import { expectedRepMetersForWorkout, scoreActivityFitForReps, buildRepDisplayRows, mainSetDisplayStats } from '@/lib/strava-lap-matching'
 import { SplitsTable } from '@/components/shared/splits-table'
 import { isCoachEmail } from '@/lib/constants'
 import { ManualLogCard } from '@/components/shared/manual-log-card'
@@ -1303,7 +1303,19 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
     const kindInfo = getActivityInfo(log)
     const isManual = log.source === 'manual'
     const displayName = log.stravaName || activityLabel(kindInfo.kind, isRTL)
-    const durationDisplay = formatDurationMin(log.durationMin, isRTL)
+    // For an intervals/tempo/threshold session recorded warmup+main+cooldown
+    // as one Strava activity, show the MAIN SET's own distance/pace/HR/
+    // duration instead of the whole-activity totals — same trim the Lab's
+    // comparison already applies (mainSetDisplayStats), so "the workout
+    // details" the athlete sees here match what actually was the effort,
+    // not diluted by slow warmup/cooldown minutes. Falls back to the raw
+    // logged fields for every other type (unchanged).
+    const matchedWorkoutType = dayWorkouts.find(w => w.id === log.assignedWorkoutId)?.workout?.type
+    const mainSet = mainSetDisplayStats(log.splitLogs, matchedWorkoutType)
+    const displayDistance = mainSet?.distance ?? log.actualDistance
+    const displayPace = mainSet?.pace ?? log.actualPace
+    const displayHr = mainSet?.hr ?? log.averageHeartRate
+    const durationDisplay = formatDurationMin(mainSet?.durationMin ?? log.durationMin, isRTL)
     const [pendingEffort, setPendingEffort] = useState<number|null>(log.effort ?? null)
     const [pendingComment, setPendingComment] = useState(log.comment || '')
     const [editDistance, setEditDistance] = useState(log.actualDistance != null && log.actualDistance !== 0 ? String(log.actualDistance) : '')
@@ -1438,21 +1450,21 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                 <p className="text-xs text-muted-foreground">{t.durationMinLabel}</p>
               </div>
             )}
-            {log.actualDistance && (
+            {displayDistance && (
               <div className="bg-muted/40 rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-navy">{log.actualDistance}</p>
+                <p className="text-2xl font-bold text-navy">{displayDistance}</p>
                 <p className="text-xs text-muted-foreground">km</p>
               </div>
             )}
-            {log.actualPace && (
+            {displayPace && (
               <div className="bg-muted/40 rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-navy" dir="ltr">{log.actualPace.replace('/km','')}</p>
+                <p className="text-2xl font-bold text-navy" dir="ltr">{displayPace.replace('/km','')}</p>
                 <p className="text-xs text-muted-foreground">{t.tempoPerKmLabel}</p>
               </div>
             )}
-            {log.averageHeartRate && (
+            {displayHr && (
               <div className="bg-red-50 rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-red-600">{log.averageHeartRate}</p>
+                <p className="text-2xl font-bold text-red-600">{displayHr}</p>
                 <p className="text-xs text-muted-foreground">{t.avgHRBpmLabel}</p>
               </div>
             )}
@@ -1506,8 +1518,8 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                   {kindInfo.emoji} {activityLabel(kindInfo.kind, isRTL)}
                 </span>
                 <span className="text-sm font-bold text-navy truncate">{displayName}</span>
-                {kindInfo.hasDistance && !!log.actualDistance && <span className="text-xs text-gray-500">· {log.actualDistance} km</span>}
-                {kindInfo.hasDistance && log.actualPace && <span className="text-xs text-gray-400" dir="ltr">· {log.actualPace}</span>}
+                {kindInfo.hasDistance && !!displayDistance && <span className="text-xs text-gray-500">· {displayDistance} km</span>}
+                {kindInfo.hasDistance && displayPace && <span className="text-xs text-gray-400" dir="ltr">· {displayPace}</span>}
                 {!kindInfo.hasDistance && durationDisplay && <span className="text-xs text-gray-500">· {durationDisplay}</span>}
               </div>
             </div>
@@ -1689,7 +1701,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             </div>
           )}
           {/* Stats grid */}
-          {(log.actualDistance || log.actualPace || log.averageHeartRate || log.elevationGain || durationDisplay) && (
+          {(displayDistance || displayPace || displayHr || log.elevationGain || durationDisplay) && (
             <div className="px-4 pb-4 grid grid-cols-3 gap-1.5">
               {durationDisplay && !kindInfo.hasDistance && (
                 <div className="rounded-2xl bg-white/10 p-2.5 text-center">
@@ -1697,21 +1709,21 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                   <p className="text-[9px] text-white/50 mt-0.5">{t.durationMinLabel}</p>
                 </div>
               )}
-              {log.actualDistance && (
+              {displayDistance && (
                 <div className="rounded-2xl bg-white/10 p-2.5 text-center">
-                  <p className="text-lg font-black text-[#c9a84c] leading-tight">{log.actualDistance}</p>
+                  <p className="text-lg font-black text-[#c9a84c] leading-tight">{displayDistance}</p>
                   <p className="text-[9px] text-white/50 mt-0.5">ק&quot;מ</p>
                 </div>
               )}
-              {log.actualPace && (
+              {displayPace && (
                 <div className="rounded-2xl bg-white/10 p-2.5 text-center">
-                  <p className="text-lg font-black text-white leading-tight" dir="ltr">{log.actualPace.replace('/km','')}</p>
+                  <p className="text-lg font-black text-white leading-tight" dir="ltr">{displayPace.replace('/km','')}</p>
                   <p className="text-[9px] text-white/50 mt-0.5">{t.tempoLabel}</p>
                 </div>
               )}
-              {log.averageHeartRate && (
+              {displayHr && (
                 <div className="rounded-2xl bg-white/10 p-2.5 text-center">
-                  <p className="text-lg font-black text-rose-300 leading-tight">{log.averageHeartRate}</p>
+                  <p className="text-lg font-black text-rose-300 leading-tight">{displayHr}</p>
                   <p className="text-[9px] text-white/50 mt-0.5">{t.heartRateLabel}</p>
                 </div>
               )}
@@ -1767,6 +1779,15 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
     const totalDistance = Math.round(logs.reduce((s, l) => s + (l.actualDistance || 0), 0) * 100) / 100
     const totalDurationMin = logs.reduce((s, l) => s + (l.durationMin || 0), 0)
     const durationDisplay = formatDurationMin(totalDurationMin, isRTL)
+    // mainLog can itself be a single Strava activity recording warmup+main+
+    // cooldown internally — same main-set trim as StravaCard applies to its
+    // own pace/HR (not to totalDistance/totalDurationMin, which sum
+    // multiple SEPARATE matched fragments and are a different, legitimate
+    // "everything today" total).
+    const mainLogWorkoutType = dayWorkouts.find(w => w.id === mainLog.assignedWorkoutId)?.workout?.type
+    const mainLogMainSet = mainSetDisplayStats(mainLog.splitLogs, mainLogWorkoutType)
+    const mainLogDisplayPace = mainLogMainSet?.pace ?? mainLog.actualPace
+    const mainLogDisplayHr = mainLogMainSet?.hr ?? mainLog.averageHeartRate
     const isPending = logs.some(l => l.feedbackStatus === 'pending')
     const [pendingEffort, setPendingEffort] = useState<number|null>(mainLog.effort ?? null)
     const [pendingComment, setPendingComment] = useState(mainLog.comment || '')
@@ -2045,15 +2066,15 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               <p className="text-[9px] text-white/50 mt-0.5">{t.durationMinLabel}</p>
             </div>
           )}
-          {mainLog.actualPace && (
+          {mainLogDisplayPace && (
             <div className="rounded-2xl bg-white/10 p-2.5 text-center">
-              <p className="text-lg font-black text-white leading-tight" dir="ltr">{mainLog.actualPace.replace('/km','')}</p>
+              <p className="text-lg font-black text-white leading-tight" dir="ltr">{mainLogDisplayPace.replace('/km','')}</p>
               <p className="text-[9px] text-white/50 mt-0.5">{t.tempoLabel}</p>
             </div>
           )}
-          {mainLog.averageHeartRate && (
+          {mainLogDisplayHr && (
             <div className="rounded-2xl bg-white/10 p-2.5 text-center">
-              <p className="text-lg font-black text-rose-300 leading-tight">{mainLog.averageHeartRate}</p>
+              <p className="text-lg font-black text-rose-300 leading-tight">{mainLogDisplayHr}</p>
               <p className="text-[9px] text-white/50 mt-0.5">{t.heartRateLabel}</p>
             </div>
           )}

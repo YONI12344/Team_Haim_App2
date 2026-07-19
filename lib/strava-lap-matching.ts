@@ -412,6 +412,20 @@ export function resolveSessionRepRows(splitLogs: any[], workout: { sets?: any[];
   }))
 }
 
+/** Workout types worth trimming to their "main set" — a genuinely
+ *  structured effort (intervals/threshold/etc.) or a tempo run can
+ *  plausibly be recorded warmup+effort+cooldown as one Strava activity.
+ *  Explicitly NOT every type: an easy run, fartlek, long run, recovery
+ *  jog, or race (and hill_repeats, confirmed explicitly) has no "warmup
+ *  vs main set" distinction to find in the first place, and must always
+ *  use its full, untouched session data — trimming those risked the
+ *  duration-only heuristic misfiring on an ordinary run's incidental
+ *  lap-length variation (a traffic light, a GPS auto-lap). Shared by the
+ *  Lab's session comparison AND the app's own workout-summary tiles
+ *  (mainSetDisplayStats below) so the two never disagree about which
+ *  types get trimmed. */
+export const MAIN_SET_ELIGIBLE_TYPES = new Set(['intervals', 'interval', 'repetition', 'threshold', 'tempo'])
+
 /**
  * Some athletes record an entire session — warmup jog, the actual fartlek/
  * tempo surges, cooldown jog, even an accidental pause — as ONE Strava
@@ -419,11 +433,12 @@ export function resolveSessionRepRows(splitLogs: any[], workout: { sets?: any[];
  * "Kenya fartlek" whose 29 raw laps were 2 warmup km-splits (~5:35/km),
  * one glitched pause lap (10:34 elapsed, 92bpm), 24 real work/recovery laps
  * alternating ~1:00/~2:00 with wildly different HR/pace, then a cooldown
- * lap (7:18). The Lab's session-over-session comparison averaged over ALL
- * of that, diluting the actual effort with slow warmup/cooldown minutes —
- * this finds just the contiguous "main set" block so the comparison can use
- * only that, while the Strava box / daily view still show every raw lap
- * exactly as recorded (unchanged — this is Lab-comparison-only).
+ * lap (7:18). Averaging over ALL of that (Lab comparison, or the app's own
+ * summary tiles) dilutes the actual effort with slow warmup/cooldown
+ * minutes — this finds just the contiguous "main set" block so both can use
+ * only that, while the Strava box's per-lap SPLITS TABLE still shows every
+ * raw lap exactly as recorded (unchanged — only the headline totals, not
+ * the lap list itself, get trimmed).
  *
  * Heuristic: real warmup/cooldown laps (jogged, often GPS-auto-lapped every
  * km) run noticeably LONGER than the short, repeating work/recovery laps of
@@ -480,4 +495,27 @@ export function mainSetSummary(laps: RawLap[]): { distanceKm: number; durationSe
   }
   if (durationSec <= 0) return null
   return { distanceKm, durationSec, avgHr: hrWeight > 0 ? Math.round(hrWeighted / hrWeight) : null }
+}
+
+/** Main-set-only distance/pace/HR for a completed session's SUMMARY
+ *  numbers (the big stat tiles on the Strava box, and the Lab's
+ *  session-over-session comparison) — null when the workout type isn't
+ *  MAIN_SET_ELIGIBLE_TYPES, splitLogs aren't raw per-lap Strava data, or
+ *  no genuine main set is found, meaning the caller should fall back to
+ *  the log's own whole-activity fields (actualDistance/actualPace/
+ *  averageHeartRate) exactly as before. */
+export function mainSetDisplayStats(
+  splitLogs: any[] | undefined,
+  workoutType: string | undefined,
+): { distance: number; pace: string; hr: number | null; durationMin: number } | null {
+  if (!workoutType || !MAIN_SET_ELIGIBLE_TYPES.has(workoutType)) return null
+  if (!splitLogs?.length || splitLogs[0].distanceKm == null) return null
+  const main = mainSetSummary(splitLogs)
+  if (!main || main.distanceKm <= 0) return null
+  return {
+    distance: Math.round(main.distanceKm * 100) / 100,
+    pace: secToPace(Math.round(main.durationSec / main.distanceKm)),
+    hr: main.avgHr,
+    durationMin: Math.round(main.durationSec / 60),
+  }
 }
