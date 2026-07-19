@@ -57,7 +57,7 @@ export function WorkoutDetailCard({ w, showLog, log }: Props) {
                   <div key={iv.id || ii} className="py-3 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <span className="w-6 h-6 rounded-full bg-navy text-white font-bold flex items-center justify-center text-[10px] flex-shrink-0">{ii + 1}</span>
-                      <span className="text-sm font-bold text-navy">{iv.distance}</span>
+                      <span className="text-sm font-bold text-navy">{iv.distance || iv.duration}</span>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap justify-end">
                       {iv.pace && (

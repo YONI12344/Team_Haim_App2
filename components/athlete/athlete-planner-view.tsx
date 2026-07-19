@@ -673,7 +673,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                 <div className="px-4 py-3 border-t border-border flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="w-6 h-6 rounded-full bg-navy text-white font-bold flex items-center justify-center text-xs flex-shrink-0">{ii+1}</span>
-                    <span className="text-base font-bold text-navy">{iv.distance}</span>
+                    <span className="text-base font-bold text-navy">{iv.distance || iv.duration}</span>
                   </div>
                   {iv.pace && <span className="text-sm text-muted-foreground">@ {iv.pace}</span>}
                 </div>

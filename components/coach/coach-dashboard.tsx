@@ -876,7 +876,8 @@ export function CoachDashboard() {
                                             <span className="w-5 h-5 rounded-full bg-[#0a1628]/10 flex items-center justify-center text-[9px] font-bold text-[#0a1628] flex-shrink-0">
                                               {ii + 1}
                                             </span>
-                                            <span>{interval.distance || interval.pace || ''}</span>
+                                            <span>{interval.distance || interval.duration || ''}</span>
+                                            {interval.pace && <span className="text-muted-foreground">@ {interval.pace}</span>}
                                             {interval.rest && <span className="text-muted-foreground">· {t.restLabel} {interval.rest}</span>}
                                           </div>
                                         ))}

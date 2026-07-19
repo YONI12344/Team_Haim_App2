@@ -28,7 +28,7 @@ interface CoachMessagePayload {
   description?: string
   distance?: number | null
   duration?: number | null
-  sets?: { reps?: number; distance?: string; pace?: string; rest?: string }[]
+  sets?: { reps?: number; distance?: string; duration?: string; pace?: string; rest?: string }[]
   scheduledDate?: string
   status?: string
 }
@@ -281,7 +281,7 @@ export function ChatRoom({
                               {cp.sets && cp.sets.length > 0 && (
                                 <p className={cn("text-[10px] mt-1", isOwn ? "text-white/60" : "text-gray-400")}>
                                   {cp.sets.length} {t.setsCountSuffix}
-                                  {cp.sets[0]?.distance ? ` · ${cp.sets[0].distance}` : ''}
+                                  {cp.sets[0]?.distance || cp.sets[0]?.duration ? ` · ${cp.sets[0].distance || cp.sets[0].duration}` : ''}
                                   {cp.sets[0]?.pace ? ` @ ${cp.sets[0].pace}` : ''}
                                 </p>
                               )}

@@ -37,12 +37,13 @@ export const workoutTypeColors: Record<WorkoutType, string> = {
 export function autoWorkoutTitle(
   labels: Record<WorkoutType, string>,
   type: WorkoutType,
-  opts: { distance?: number | string | null; duration?: number | string | null; sets?: { reps?: number; distance?: string }[] },
+  opts: { distance?: number | string | null; duration?: number | string | null; sets?: { reps?: number; distance?: string; duration?: string }[] },
 ): string {
   const base = labels[type] || String(type)
   const firstSet = opts.sets?.[0]
-  if (firstSet?.reps && firstSet.reps > 1 && firstSet.distance) {
-    return `${base} ${firstSet.reps}×${firstSet.distance}`
+  const firstSetLabel = firstSet?.distance || firstSet?.duration
+  if (firstSet?.reps && firstSet.reps > 1 && firstSetLabel) {
+    return `${base} ${firstSet.reps}×${firstSetLabel}`
   }
   if (opts.distance) return `${base} ${opts.distance} km`
   if (opts.duration) return `${base} ${opts.duration} min`
