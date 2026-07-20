@@ -2,7 +2,7 @@
 
 import { cn } from '@/lib/utils'
 import { useLanguage } from '@/contexts/language-context'
-import { expectedRepMetersForWorkout, resolveSessionRepRows, STRUCTURED_WORKOUT_TYPES } from '@/lib/strava-lap-matching'
+import { resolveSessionRepRows } from '@/lib/strava-lap-matching'
 
 /**
  * The one rep/lap splits table used everywhere a workout's per-rep data is
@@ -11,25 +11,20 @@ import { expectedRepMetersForWorkout, resolveSessionRepRows, STRUCTURED_WORKOUT_
  * (ManualLogCard) both render through this, so the two never look like two
  * different features again.
  *
- * splitLogs can arrive in either of two shapes:
- * 1. Raw per-lap Strava data (`{distanceKm, time, heartRate, pace,
- *    paceZone, notes}` per device lap) — a treadmill has no GPS at all
- *    (distance-per-lap is just an accelerometer estimate) and a track's
- *    short reps are exactly where GPS distance is noisiest, so when
- *    `matchedWorkout` has a known rep structure, laps are first re-grouped
- *    by buildRepDisplayRows (combines auto-laps into whole reps, computes
- *    pace from elapsed time ÷ the workout's own planned distance instead
- *    of the device's noisy one, and keeps every rest/recovery lap as its
- *    own row instead of dropping it).
- * 2. Already rep-shaped data (`{repIndex, distance, time, pace, avgHr,
- *    rest}` per rep) — what workout-log-form.tsx saves once a session's
- *    reps have been reviewed/edited. Told apart by having `pace` set but
- *    no `distanceKm` (every raw Strava lap always carries `distanceKm`),
- *    and rendered directly — there's nothing left to re-group, and it
- *    doesn't need `matchedWorkout` at all to know that.
+ * Always shows every raw Strava lap exactly as recorded — no rep-grouping,
+ * rest-detection, or main-set matching, regardless of workout type. That
+ * "smart" regrouping used to run here too (via buildRepDisplayRows) but
+ * went through several rounds of real bugs and was explicitly, repeatedly
+ * asked to be removed from this specific view: "I want the strava box to
+ * be untouched by the AI, give all the splits as is." Any workout-specific
+ * matching now happens elsewhere, separate from this raw display.
  *
- * A continuous run with no rep structure and no already-computed reps just
- * shows the raw per-lap/per-km splits as-is.
+ * The one exception: already rep-shaped data (`{repIndex, distance, time,
+ * pace, avgHr, rest}` per rep — what workout-log-form.tsx saves once a
+ * session's reps have been reviewed/edited) still renders as reps, since
+ * that's literally what was saved and was never raw Strava data to begin
+ * with. Told apart by having `pace` set but no `distanceKm` (every raw
+ * Strava lap always carries `distanceKm`).
  */
 export function SplitsTable({
   splitLogs, matchedWorkout, referencePace,
@@ -39,24 +34,26 @@ export function SplitsTable({
   referencePace?: string | null
 }) {
   const { t } = useLanguage()
-  // A fartlek/tempo/easy run can ALSO define a `sets` array (e.g. "8×2min
-  // pickups"), so `sets.length > 0` alone isn't a safe signal for "show
-  // rep-grouped splits" — a finished fartlek/tempo/easy run must keep
-  // showing its raw watch splits exactly as recorded, not be forced
-  // through rep/rest regrouping meant for genuinely structured interval
-  // sessions (intervals/hill_repeats/threshold/time_trial).
-  const isStructuredType = STRUCTURED_WORKOUT_TYPES.has(matchedWorkout?.type || '')
-  const expectedMeters = isStructuredType ? expectedRepMetersForWorkout(matchedWorkout) : []
   // Raw Strava lap data always carries a numeric distanceKm (see
   // app/api/strava/sync/route.ts) — already-rep-shaped data (this backfill,
   // or workout-log-form.tsx's saved reps) never does, regardless of
   // whether every field on it happens to be filled in yet.
   const isRepShaped = splitLogs.length > 0 && splitLogs[0].distanceKm == null
-  const hasRepStructure = expectedMeters.length > 0
 
   type Row = { label: string; time: string; pace: string; heartRate: number | string | null; targetLabel: string; isRest: boolean }
   let rows: Row[]
-  if (isRepShaped || hasRepStructure) {
+  // The Strava box always shows every raw lap exactly as recorded — full
+  // stop, no rep-grouping/rest-detection/main-set matching, regardless of
+  // workout type or structure. That "smart" regrouping (buildRepDisplayRows
+  // via resolveSessionRepRows) went through several rounds of real bugs
+  // (missing splits, garbage paces, fabricated rest, stale frozen data) and
+  // was explicitly, repeatedly asked to be removed from this specific view:
+  // "I want the strava box to be untouched by the AI, give all the splits
+  // as is." Only genuinely already-rep-shaped data (isRepShaped — the
+  // athlete's own saved rep entries from workout-log-form.tsx, which was
+  // never raw Strava data to begin with) still renders as reps here, since
+  // that's literally what was saved, nothing to decide.
+  if (isRepShaped) {
     // resolveSessionRepRows is the single shared implementation of
     // "detect raw-vs-rep-shaped, regroup via buildRepDisplayRows if
     // needed" — also used by useWorkoutComparisonGroups so the Lab's
@@ -82,7 +79,7 @@ export function SplitsTable({
     }))
   }
 
-  const showRepHeader = isRepShaped || hasRepStructure
+  const showRepHeader = isRepShaped
 
   return (
     <div className="rounded-lg border border-border overflow-hidden">
