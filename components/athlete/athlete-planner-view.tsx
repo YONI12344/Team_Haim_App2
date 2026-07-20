@@ -25,8 +25,8 @@ import { toast } from 'sonner'
 import { WorkoutLogForm } from '@/components/athlete/workout-log-form'
 import { personalTargetRangeForLevel, personalTargetRangeWithBaseline, formatTargetRange, paceToSec, secToPace } from '@/lib/physiology'
 import { useLatestStepTest } from '@/hooks/useLatestStepTest'
-import { useWorkoutLactateGroups, latestSessionSteps, groupKeyFor, inferThresholdDistance } from '@/hooks/useWorkoutLactateGroups'
-import { expectedRepMetersForWorkout, scoreActivityFitForReps, buildRepDisplayRows, mainSetDisplayStats, STRUCTURED_WORKOUT_TYPES } from '@/lib/strava-lap-matching'
+import { useWorkoutLactateGroups, latestSessionSteps, groupKeyFor } from '@/hooks/useWorkoutLactateGroups'
+import { expectedRepMetersForWorkout, scoreActivityFitForReps, mainSetDisplayStats } from '@/lib/strava-lap-matching'
 import { SplitsTable } from '@/components/shared/splits-table'
 import { isCoachEmail } from '@/lib/constants'
 import { ManualLogCard } from '@/components/shared/manual-log-card'
@@ -1126,6 +1126,13 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               })
               await updateDoc(logRef, {
                 assignedWorkoutId: match.id,
+                // Always corrected to the REAL template id, not left as the
+                // synthetic `strava_<activityId>` placeholder set at log
+                // creation — useWorkoutLactateGroups keys its threshold-
+                // folder grouping off this exact field, so without it a
+                // genuine threshold session could never be found there no
+                // matter how correct its data eventually became.
+                workoutId: match.data().workoutId,
                 comparisonGroup: isMainFragment ? (match.data().workout?.comparisonGroup || null) : null,
                 matchTier: tier,
               })
@@ -1135,162 +1142,20 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               }
             }
 
-            // Lab backfill — a Strava-synced log's workoutId is only ever
-            // the synthetic `strava_<activityId>` placeholder set at
-            // creation (see the addDoc above), and it never gets
-            // thresholdDistance/hasLactate — so useWorkoutLactateGroups
-            // (the Lab) never sees an auto-synced threshold session at
-            // all, no matter how good its rep data is.
-            //
-            // A previous attempt at this (reverted) guarded itself with
-            // `expectedRepMetersForWorkout(workout).length > 0`, which is
-            // true for ANY workout with a non-empty `sets` array — a gym
-            // set of 12 squats or an easy run's duration-based warmup/
-            // cooldown "sets" both qualify just as much as a real "5×1000m"
-            // threshold session, since that function only checks whether
-            // sets exist, not whether they carry a real distance. That let
-            // the backfill misfire on workout types it was never meant to
-            // touch, overwriting their splitLogs/workoutId and breaking the
-            // athlete's own previously-correct Strava display for them.
-            //
-            // inferThresholdDistance is the SAME check the Lab itself uses
-            // to decide "does this workout belong in the threshold view" —
-            // reusing it here (instead of re-deriving a similar-looking
-            // but different condition) guarantees this backfill only ever
-            // fires for a workout the Lab would actually want, by
-            // construction. The extra expectedMeters.some(...) check is a
-            // second belt-and-braces guard that there's a real distance
-            // target to build rep rows from at all.
-            //
-            // Only the MAIN event fragment of a multi-fragment session
-            // (warmup+main+cooldown) gets this — the longest-distance
-            // activity among everything matched to this workout this sync.
-            // Warmup/cooldown fragments are left as plain Strava logs.
-            for (const matchId of new Set(tentative.map(t => t.match.id))) {
-              const group = tentative.filter(t => t.match.id === matchId)
-              const match = group[0].match
-              // match.data().workout is a SNAPSHOT frozen at assignment
-              // time — if the coach later recategorizes the template (e.g.
-              // threshold → easy) the already-assigned day keeps the OLD
-              // type/thresholdDistance forever unless the CURRENT template
-              // is checked too. Reported directly: an "Easy" run whose
-              // frozen snapshot was still tagged threshold from before a
-              // re-edit kept getting its splits rebuilt into fake tiny
-              // "20m" reps on every sync. The live template is the source
-              // of truth for categorization (same principle already used
-              // in useWorkoutComparisonGroups.ts's own type resolution) —
-              // fall back to the snapshot only when the template's since
-              // been deleted.
-              const workoutId = match.data().workoutId
-              let workoutData = match.data().workout
-              if (workoutId) {
-                try {
-                  const templateSnap = await getDoc(doc(db, 'workouts', workoutId))
-                  if (templateSnap.exists()) workoutData = { ...workoutData, ...templateSnap.data() }
-                } catch {}
-              }
-              const thresholdDistance = inferThresholdDistance(workoutData)
-              const expectedMeters = expectedRepMetersForWorkout(workoutData)
-              const mainEntry = group.reduce((best, g) => (g.activity.distanceKm || 0) > (best.activity.distanceKm || 0) ? g : best)
-              // Eligible for the rep-splits rebuild whenever the CURRENT
-              // template is a genuinely structured type (STRUCTURED_WORKOUT_
-              // TYPES — intervals/threshold/etc., not just a "threshold
-              // distance" tagged one) with a real rep structure to build
-              // from. Previously this only fired for inferThresholdDistance
-              // (type === 'threshold' specifically), so a genuinely
-              // structured 'intervals' workout's splitLogs — once frozen
-              // into rep-shaped form by an earlier bad backfill or a saved
-              // rep-entry form — could NEVER be rebuilt again by a plain
-              // resync, no matter how many lap-matching bugs got fixed
-              // afterward. Reported directly: identical stale/blank splits
-              // shown after multiple fix deploys, because nothing was
-              // rebuilding this specific 'intervals'-typed log at all.
-              const isEligibleStructured = STRUCTURED_WORKOUT_TYPES.has(workoutData?.type || '') && expectedMeters.length > 0
-              if (!isEligibleStructured) {
-                // Not (or no longer) a genuine structured workout — but a
-                // PAST sync may have mistakenly treated it as one (the
-                // stale-snapshot bug above) and rebuilt its splitLogs into
-                // fake rep rows. Undo that here: restore the raw per-lap
-                // Strava data so the Strava box goes back to showing real
-                // watch splits instead of fabricated tiny "reps".
-                const existingSnap = await getDoc(mainEntry.logRef)
-                const existingData = existingSnap.data() as any
-                if (existingData?.thresholdDistance || existingData?.repBackfilled) {
-                  await updateDoc(mainEntry.logRef, {
-                    thresholdDistance: null,
-                    hasLactate: false,
-                    repBackfilled: false,
-                    splitLogs: mainEntry.activity.splitLogs || [],
-                  })
-                }
-                continue
-              }
-              // Once this log has already been backfilled (repBackfilled —
-              // a generic marker, not thresholdDistance specifically, since
-              // a duration-based intervals workout has no meaningful
-              // threshold distance to tag at all), only redo it when THIS
-              // is the day actually being viewed/synced right now — an
-              // unrelated routine sync that happens to still list this
-              // activity among the last 30 must not rebuild splitLogs from
-              // whatever sparse/no lap data it gets for a non-priority day
-              // (see RECENT_DAYS in the sync route) and silently degrade an
-              // already-correct, possibly coach-edited session down to a
-              // worse one.
-              const existingSnap = await getDoc(mainEntry.logRef)
-              const existingData = existingSnap.data() as any
-              if (existingData?.repBackfilled && date !== priorityDateStr) continue
-              const rows = buildRepDisplayRows(
-                (mainEntry.activity.splitLogs || []).map((s: any) => ({ distanceKm: s.distanceKm, time: s.time, heartRate: s.heartRate })),
-                expectedMeters,
-              )
-              // Preserve any lactate reading already saved onto this exact
-              // log by the coach's rep-entry form (workout-log-form.tsx) —
-              // rebuilding splitLogs from the raw Strava laps on every sync
-              // otherwise wiped it back to null each time, deleting a
-              // manually-entered test the moment the next sync ran.
-              const existingByRep = new Map<number, number>()
-              for (const s of (existingData?.splitLogs || [])) {
-                if (s?.lactate && s.repIndex != null) existingByRep.set(s.repIndex, s.lactate)
-              }
-              const newSplitLogs: any[] = []
-              let lastRepEntry: any = null
-              for (const row of rows) {
-                if (row.kind === 'rep') {
-                  lastRepEntry = {
-                    setIndex: 0, repIndex: row.repIndex,
-                    distance: row.targetMeters ? `${row.targetMeters}m` : '',
-                    time: secToPace(row.elapsedSec),
-                    pace: row.pace,
-                    avgHr: row.heartRate ?? null,
-                    lactate: existingByRep.get(row.repIndex) ?? null,
-                    rest: '',
-                  }
-                  newSplitLogs.push(lastRepEntry)
-                } else if (lastRepEntry && !lastRepEntry.rest) {
-                  lastRepEntry.rest = row.time
-                }
-              }
-              if (newSplitLogs.length === 0) continue
-              await updateDoc(mainEntry.logRef, {
-                workoutId: match.data().workoutId,
-                workoutTitle: workoutData?.title || null,
-                // thresholdDistance only means something for a genuine
-                // threshold-distance session (useWorkoutLactateGroups'
-                // threshold-folder grouping) — a duration-based 'intervals'
-                // workout has none, and Firestore rejects `undefined`
-                // outright, so null it explicitly instead of passing
-                // inferThresholdDistance's raw (possibly undefined) result.
-                thresholdDistance: thresholdDistance ?? null,
-                // Generic "this log's splitLogs were rebuilt from raw laps"
-                // marker — the skip-unless-priority-day guard above keys
-                // off this instead of thresholdDistance specifically, so it
-                // works the same for threshold AND non-threshold structured
-                // types.
-                repBackfilled: true,
-                hasLactate: newSplitLogs.some(s => s.lactate),
-                splitLogs: newSplitLogs,
-              })
-            }
+            // No automatic "rebuild splitLogs into rep-shaped rows" step
+            // here anymore — that used to run silently on every sync and,
+            // across many rounds of real bugs (missing splits, garbage
+            // computed paces, fabricated rest, stale frozen data surviving
+            // multiple fix deploys), never gave the athlete/coach a chance
+            // to catch a bad match before it was already "final". Per
+            // explicit direction: the Strava box always stays raw (above),
+            // and workout-log-form.tsx's own rep-entry flow — which already
+            // prefills the same best-guess matched splits for review, and
+            // only writes thresholdDistance/hasLactate/rep-shaped splitLogs
+            // when the athlete/coach actually reviews and saves — is now
+            // the ONE place that produces the data the Lab reads. Raw data
+            // that's never been reviewed just stays raw and isn't in the
+            // Lab yet, which is correct: it hasn't been confirmed.
 
             // A repaired log's match can move to a DIFFERENT workout than
             // before (e.g. a fragment that was wrongly completing the
