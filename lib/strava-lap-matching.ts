@@ -29,24 +29,35 @@ import { paceToSec, secToPace } from '@/lib/physiology'
 export const STRUCTURED_WORKOUT_TYPES = new Set(['intervals', 'threshold', 'time_trial', 'interval', 'repetition'])
 
 /** Best-effort meters from a free-text rep distance field (e.g. "1000m",
- *  "1600"). The coach always writes these in meters (same convention
- *  inferThresholdDistance relies on elsewhere) — returns null for a
- *  duration-based rep (e.g. "5 דק'"/"5 min") where there's no distance to
- *  match against at all.
+ *  "1600", "2 ק״מ", "2km"). Returns null for a duration-based rep (e.g.
+ *  "5 דק'"/"5 min") where there's no distance to match against at all.
  *
- *  Reported directly, root-caused from real data: a fartlek's "2 min /
- *  1 min" duration reps, when the coach's UI stores the bare number ("2",
- *  "1") without the unit text baked into this exact string, don't match
- *  the /דק|min/i duration check above and fell through to being read as
- *  "2 meters" / "1 meter" — dividing a real ~2-minute lap's elapsed time
- *  by a 2-METER target exploded into an absurd computed pace ("1000:00"
- *  instead of a real ~4:30/km). No genuine running rep is ever
- *  programmed under 50m, so a parsed value below that is far more likely
- *  a duration whose unit text didn't survive into this string than a
- *  real distance — treated as "not a distance" (null) instead. */
+ *  Checks for an explicit km unit FIRST, before falling back to a bare
+ *  number: "2 ק״מ" (2 km) means 2000, but stripping all non-digit
+ *  characters from that string first (the old approach) loses the unit
+ *  entirely and leaves just "2" — indistinguishable from a genuinely tiny,
+ *  bogus value. Reported directly, root-caused from real data: a
+ *  threshold workout's "3×2 ק״מ" reps were being read as no distance at
+ *  all (the bare "2" got rejected by the <50m sanity floor below, added
+ *  for a DIFFERENT bug), so the whole set fell into duration-based 1:1 lap
+ *  matching instead of correctly combining multiple 1km GPS auto-laps into
+ *  one real 2km rep — and vanished from the Lab's threshold grouping
+ *  entirely, since there was no inferred distance to key off.
+ *
+ *  The remaining bare-number path (no unit, or a plain "m"/"מ'" suffix)
+ *  keeps its >=50m floor: a fartlek's "2 min" duration rep, when the
+ *  coach's UI stores the bare number without unit text, must still not be
+ *  misread as "2 meters" (see the exploded "1000:00" pace bug this floor
+ *  was added for) — no genuine running rep is ever programmed under 50m,
+ *  so a sub-50 bare number is far more likely an orphaned duration value. */
 export function parseRepMeters(raw: string | undefined): number | null {
   if (!raw) return null
   if (/דק|min/i.test(raw)) return null
+  const kmMatch = raw.match(/(\d+(?:\.\d+)?)\s*(?:ק["״']?\s*מ|km)/i)
+  if (kmMatch) {
+    const km = parseFloat(kmMatch[1])
+    return Number.isFinite(km) && km > 0 ? Math.round(km * 1000) : null
+  }
   const n = parseInt(String(raw).replace(/[^\d]/g, ''), 10)
   return Number.isFinite(n) && n >= 50 ? n : null
 }

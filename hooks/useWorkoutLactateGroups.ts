@@ -16,6 +16,7 @@ import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firesto
 import { db } from '@/lib/firebase'
 import { format } from 'date-fns'
 import { paceToSec, secToPace, personalTargetRangeForLevel, personalTargetRangeWithBaseline, estimateLactateFromHr, estimateLactateAtPace, type LactateStep, type PersonalTargetRange } from '@/lib/physiology'
+import { parseRepMeters } from '@/lib/strava-lap-matching'
 import type { CurveInput } from '@/components/coach/lactate-multi-curve-chart'
 
 export interface WorkoutRepEntry {
@@ -75,15 +76,21 @@ type DistanceSource = { type?: string; thresholdDistance?: number; sets?: { dist
 /** A threshold workout's rep distance — the coach's explicit tag if set,
  *  otherwise parsed from the workout's own rep structure (e.g. "1000m" on
  *  its first set → 1000) so a workout like "8×1000" pools with every other
- *  1000m threshold session without the coach having to remember to tag it. */
+ *  1000m threshold session without the coach having to remember to tag it.
+ *  Uses the SAME parseRepMeters as lib/strava-lap-matching.ts (an
+ *  independent inline parser here used to strip all non-digit characters
+ *  from the raw string, which silently turned "2 ק״מ" (2km) into "2" —
+ *  parsed as 2 METERS instead of 2000, so a genuine "3×2km" threshold
+ *  workout got misfiled into a nonsensical "2m" group instead of pooling
+ *  with real 2000m sessions, or vanished from the Lab's threshold view
+ *  entirely depending on what else keyed off this value) instead of a
+ *  second, differently-buggy parser. */
 export function inferThresholdDistance(workout: DistanceSource | null | undefined): number | undefined {
   if (!workout) return undefined
   if (workout.thresholdDistance) return workout.thresholdDistance
   if (workout.type !== 'threshold') return undefined
-  const raw = workout.sets?.[0]?.distance
-  if (!raw) return undefined
-  const n = parseInt(String(raw).replace(/[^\d]/g, ''), 10)
-  return Number.isFinite(n) && n > 0 ? n : undefined
+  const meters = parseRepMeters(workout.sets?.[0]?.distance)
+  return meters ?? undefined
 }
 
 /** The same grouping key `useWorkoutLactateGroups` uses internally — a
