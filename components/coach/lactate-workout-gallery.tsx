@@ -17,7 +17,7 @@ import { collection, getDocs, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { cn } from '@/lib/utils'
 import { type LactateStep } from '@/lib/physiology'
-import { useWorkoutLactateGroups, buildSessionCurves, currentWorkoutThresholds, averageRepMetrics, type WorkoutLactateGroup } from '@/hooks/useWorkoutLactateGroups'
+import { useWorkoutLactateGroups, buildSessionCurves, currentWorkoutThresholds, averageRepMetrics, latestSessionRest, type WorkoutLactateGroup } from '@/hooks/useWorkoutLactateGroups'
 import { LactateMultiCurveChart, curveThresholds, paceDelta, type CurveInput, type AxisMode } from '@/components/coach/lactate-multi-curve-chart'
 import { WorkoutComparisonChart } from '@/components/coach/workout-comparison-chart'
 import { type ComparisonPoint } from '@/hooks/useWorkoutComparisonGroups'
@@ -114,7 +114,7 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
     points: baselineSteps.map(s => ({ pace: s.pace, hr: s.hr, lactate: s.lactate })),
   } : null
 
-  type Card = { id: string; title: string; type?: string; color: string; curves: CurveInput[]; thresholds?: ReturnType<typeof currentWorkoutThresholds>; trend?: ReturnType<typeof paceDelta>; sessionCount?: number; trendPoints?: ComparisonPoint[] }
+  type Card = { id: string; title: string; type?: string; color: string; curves: CurveInput[]; thresholds?: ReturnType<typeof currentWorkoutThresholds>; rest?: ReturnType<typeof latestSessionRest>; trend?: ReturnType<typeof paceDelta>; sessionCount?: number; trendPoints?: ComparisonPoint[] }
   const workoutCards: Card[] = workoutOptions.map((o, i) => {
     const group = grouped.get(o.id)!
     // baselineSteps lets an untested session's reps still land on this
@@ -136,6 +136,7 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
       color: WORKOUT_COLORS[i % WORKOUT_COLORS.length],
       curves,
       thresholds: currentWorkoutThresholds(group, baselineSteps),
+      rest: latestSessionRest(group),
       trend: sessionTrend(curves),
       // Every logged session of this workout, tested or not — a group
       // that's only ever been logged without lactate testing still has a
@@ -234,7 +235,7 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
               when not yet computable) so it's clear this is "no data
               yet at that level" rather than the feature being broken. */}
           {card.id !== 'baseline' && card.curves.length > 0 && (
-            <div className="grid grid-cols-3 gap-1.5 mt-2">
+            <div className={cn('grid gap-1.5 mt-2', card.rest ? 'grid-cols-4' : 'grid-cols-3')}>
               {(['T1', 'T2', 'T3'] as const).map(level => {
                 const r = card.thresholds?.[level] ?? null
                 const colors = level === 'T1' ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
@@ -249,6 +250,17 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
                   </div>
                 )
               })}
+              {/* The reps' own rest/recovery, for comparison alongside the
+                  work-rep levels above — separated out of the raw Strava
+                  splits (see resolveRawSplits in useWorkoutLactateGroups.ts)
+                  instead of being silently discarded or, worse, averaged in
+                  as if it were itself a rep. */}
+              {card.rest && (
+                <div className="rounded-lg border px-2 py-1.5 text-center bg-slate-50 border-slate-100 text-slate-600">
+                  <p className="text-[9px] font-semibold opacity-70">{t.labStatRest}</p>
+                  <p className="text-[10px] font-bold" dir="ltr">{card.rest.time}{card.rest.hr ? ` · ♥${card.rest.hr}` : ''}</p>
+                </div>
+              )}
             </div>
           )}
           {card.id !== 'baseline' && card.curves.length === 0 && (
