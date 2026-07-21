@@ -16,7 +16,7 @@ import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firesto
 import { db } from '@/lib/firebase'
 import { format } from 'date-fns'
 import { paceToSec, secToPace, personalTargetRangeForLevel, personalTargetRangeWithBaseline, estimateLactateFromHr, estimateLactateAtPace, type LactateStep, type PersonalTargetRange } from '@/lib/physiology'
-import { parseRepMeters, buildRepDisplayRows, expectedRepMetersForWorkout, STRUCTURED_WORKOUT_TYPES } from '@/lib/strava-lap-matching'
+import { parseRepMeters, buildRepDisplayRows, expectedRepMetersForWorkout, scoreActivityFitForReps, STRUCTURED_WORKOUT_TYPES } from '@/lib/strava-lap-matching'
 import type { CurveInput } from '@/components/coach/lactate-multi-curve-chart'
 
 export interface WorkoutRepEntry {
@@ -57,10 +57,6 @@ export interface WorkoutLactateLog {
    *  distance instead of only ones sharing the exact same workoutId. */
   thresholdDistance?: number
   date: string
-  /** ISO recording start — used only to order same-day Strava fragments of
-   *  one physical session chronologically before merging them (see
-   *  mergeSameSessionFragments); not used for display. */
-  startTime?: string
   /** The specific day's assigned-workout slot this log was matched to, when
    *  known — a more precise "same physical session" key than workoutId
    *  alone (which identifies the recurring TEMPLATE, not a specific day's
@@ -110,25 +106,30 @@ function isRawShaped(splitLogs: WorkoutRepEntry[] | undefined): boolean {
 }
 
 /**
- * Raw (never-reviewed) Strava data for ONE physical training session can
- * arrive as several separate `logs` docs when the athlete's watch paused/
- * restarted mid-session — confirmed against real data: a "2000m×3" session
- * recorded as a 2.4km fragment, an 8.5km fragment, and an unrelated 601m
- * walk 52 minutes later, all three auto-matched to the same workout by
- * athlete-planner-view.tsx's same-day clustering (see its Phase 2 comment).
- * Each fragment landing here as its OWN "session" does two things wrong at
- * once: it fragments one real session into several fake ones in the trend,
- * and it makes it IMPOSSIBLE to correctly tell a real rep from a rest/
- * cooldown lap — resolveRawSplits' rest-detection (in buildRepDisplayRows)
- * compares a lap's pace against the fastest pace in the SAME call, so a
- * slow, cold walk evaluated on its own (with no fast reps alongside it to
- * compare against) reads as a slow "attempt" at the target rep instead of
- * the irrelevant fragment it actually is. Concatenating every same-day
- * fragment matched to the same workout slot, in the order they were
- * actually recorded, before resolving reps/rest fixes both at once.
- * Already-reviewed (rep-shaped) logs are never merged — they're already
- * correct, one document per session, nothing to combine. */
-export function mergeSameSessionFragments(logs: WorkoutLactateLog[]): WorkoutLactateLog[] {
+ * When an athlete's watch pauses/restarts mid-session — or logs an
+ * unrelated short walk the same day — Strava splits ONE physical workout
+ * into several separate `logs` docs, all auto-matched to the same workout
+ * slot by athlete-planner-view.tsx's same-day clustering, even though only
+ * ONE of them actually contains the real structured session. Concatenating
+ * every same-day fragment together was tried and made things WORSE:
+ * confirmed directly against production data, a "2000m×3" session's 3 real
+ * reps live entirely inside ONE 8.5km fragment, self-contained — a
+ * separate same-day 2.4km fragment and an unrelated 601m walk 52 minutes
+ * later are NOT part of that session at all, and folding their laps in
+ * shifted where the real reps' boundaries landed, corrupting paces that
+ * were already correct in each fragment on its own.
+ *
+ * Instead, pick whichever same-day fragment's OWN laps best fit the
+ * workout's rep pattern — scoreActivityFitForReps, the SAME scoring
+ * athlete-planner-view.tsx already uses to choose a match in the first
+ * place — and use only that one; the other same-day fragments are simply
+ * not part of this workout's session data (not merged in as "extra rest"
+ * either). Already-reviewed (rep-shaped) logs are never subject to this at
+ * all — they're already correct, one document per session. */
+export function pickMainSessionFragment(
+  logs: WorkoutLactateLog[],
+  expectedMetersFor: (workoutId: string) => (number | null)[],
+): WorkoutLactateLog[] {
   const passthrough: WorkoutLactateLog[] = []
   const fragmentGroups = new Map<string, WorkoutLactateLog[]>()
   for (const log of logs) {
@@ -137,13 +138,28 @@ export function mergeSameSessionFragments(logs: WorkoutLactateLog[]): WorkoutLac
     if (!fragmentGroups.has(key)) fragmentGroups.set(key, [])
     fragmentGroups.get(key)!.push(log)
   }
-  const merged: WorkoutLactateLog[] = []
+  const picked: WorkoutLactateLog[] = []
   for (const frags of fragmentGroups.values()) {
-    if (frags.length === 1) { merged.push(frags[0]); continue }
-    const ordered = [...frags].sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''))
-    merged.push({ ...ordered[0], splitLogs: ordered.flatMap(f => f.splitLogs || []) })
+    if (frags.length === 1) { picked.push(frags[0]); continue }
+    const expectedMeters = expectedMetersFor(frags[0].workoutId)
+    if (expectedMeters.length === 0) {
+      // No rep structure to score fit against — fall back to the longest
+      // recording, the same "main fragment" heuristic already used
+      // elsewhere (athlete-planner-view.tsx's isMainFragment).
+      picked.push(frags.reduce((best, f) => (f.splitLogs?.length ?? 0) > (best.splitLogs?.length ?? 0) ? f : best))
+      continue
+    }
+    let best = frags[0], bestScore = -1
+    for (const f of frags) {
+      const score = scoreActivityFitForReps(
+        (f.splitLogs || []).map(s => ({ distanceKm: s.distanceKm, time: s.time, heartRate: s.heartRate ?? null })),
+        expectedMeters,
+      )
+      if (score > bestScore) { bestScore = score; best = f }
+    }
+    picked.push(best)
   }
-  return [...passthrough, ...merged]
+  return [...passthrough, ...picked]
 }
 
 /** Separates a raw Strava session's real work reps from the rest/recovery
@@ -412,14 +428,19 @@ export function useWorkoutLactateGroups(athleteId: string) {
         const filtered = raw
           .filter(d => d.hasLactate || d.thresholdDistance || inferredMap.has(d.workoutId) || thresholdTypeIds.has(d.workoutId))
 
-        // Combine same-day Strava fragments of one physical session, THEN
-        // separate each session's real reps from its rest/recovery laps —
-        // see mergeSameSessionFragments/resolveRawSplits above. Must happen
-        // here, before grouping/sorting, so buildSessionCurves etc. only
-        // ever see genuine reps, never a rest jog or an unrelated same-day
-        // fragment mixed in as if it were part of the workout.
-        const merged = mergeSameSessionFragments(filtered)
-        const docs = merged
+        const expectedMetersFor = (workoutId: string): (number | null)[] => {
+          const sets = setsMap.get(workoutId)
+          return sets?.length ? expectedRepMetersForWorkout({ sets }) : []
+        }
+
+        // Pick each same-day workout slot's one real fragment (see
+        // pickMainSessionFragment above), THEN separate that session's real
+        // reps from its rest/recovery laps — see resolveRawSplits. Must
+        // happen here, before grouping/sorting, so buildSessionCurves etc.
+        // only ever see genuine reps, never a rest jog or an unrelated
+        // same-day fragment mixed in as if it were part of the workout.
+        const picked = pickMainSessionFragment(filtered, expectedMetersFor)
+        const docs = picked
           .map(log => {
             // A distance-pooled log (thresholdDistance tagged or inferred)
             // is always a real threshold workout by construction; anything
@@ -427,9 +448,7 @@ export function useWorkoutLactateGroups(athleteId: string) {
             // rep structure worth resolving against at all.
             const type = (log.thresholdDistance || inferredMap.has(log.workoutId)) ? 'threshold' : typeMap.get(log.workoutId)
             if (!type || !STRUCTURED_WORKOUT_TYPES.has(type)) return log
-            const sets = setsMap.get(log.workoutId)
-            const expectedMeters = sets?.length ? expectedRepMetersForWorkout({ sets }) : []
-            return resolveRawSplits(log, expectedMeters)
+            return resolveRawSplits(log, expectedMetersFor(log.workoutId))
           })
           .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
         setLogs(docs)
