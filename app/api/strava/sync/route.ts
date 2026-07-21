@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
       const laps = (activity as any)._laps || []
       const splits = laps.length > 1 ? laps : ((activity as any).splits_metric || [])
       const isLapBased = laps.length > 1
-      const splitLogs = splits.slice(0, 40).map((split: any, i: number) => {
+      const splitLogs = splits.map((split: any, i: number) => {
         const splitElapsed = split.elapsed_time || split.moving_time
         const splitDistKm = split.distance / 1000
         const splitPaceSecPerKm = splitElapsed / splitDistKm

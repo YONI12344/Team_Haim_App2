@@ -21,6 +21,13 @@ import type { CurveInput } from '@/components/coach/lactate-multi-curve-chart'
 
 export interface WorkoutRepEntry {
   avgHr?: number
+  /** Raw, never-reviewed Strava splits store HR under this key instead of
+   *  `avgHr` (see app/api/strava/sync/route.ts) — a threshold session that
+   *  auto-matched to a workout but was never opened/saved in
+   *  workout-log-form.tsx (which is the only place `heartRate` becomes
+   *  `avgHr`) still lands in this hook's query, so both keys have to be
+   *  read here or its HR silently disappears. */
+  heartRate?: number | null
   lactate?: number
   pace?: string
   time?: string
@@ -28,6 +35,12 @@ export interface WorkoutRepEntry {
    *  a threshold session's lactate/pace response, so it travels with the
    *  rest of the rep's data instead of being dropped after entry. */
   rest?: string
+}
+
+/** A rep's heart rate regardless of which of the two split-log shapes it
+ *  came from — see the `heartRate` field comment above. */
+function repHr(r: WorkoutRepEntry): number | null {
+  return r.avgHr ?? r.heartRate ?? null
 }
 
 export interface WorkoutLactateLog {
@@ -63,7 +76,7 @@ export interface WorkoutLactateGroup {
 export function averageRepMetrics(reps: WorkoutRepEntry[]): { avgLactate: number | null; avgHr: number | null; avgPace: string | null } {
   const avg = (vals: number[]) => vals.length ? Math.round((vals.reduce((s, v) => s + v, 0) / vals.length) * 10) / 10 : null
   const lacVals = reps.map(r => r.lactate).filter((v): v is number => v != null && v > 0)
-  const hrVals = reps.map(r => r.avgHr).filter((v): v is number => v != null && v > 0)
+  const hrVals = reps.map(repHr).filter((v): v is number => v != null && v > 0)
   const paceSecVals = reps.map(r => paceToSec(r.pace)).filter((v): v is number => v != null)
   const avgPaceSec = paceSecVals.length ? Math.round(paceSecVals.reduce((s, v) => s + v, 0) / paceSecVals.length) : null
   return { avgLactate: avg(lacVals), avgHr: avg(hrVals), avgPace: avgPaceSec != null ? secToPace(avgPaceSec) : null }
@@ -123,11 +136,11 @@ export function buildSessionCurves(group: WorkoutLactateGroup, baselineSteps?: L
       // (untested, similar-effort) reps at ~1.4-1.7, visibly too low.
       const ownMeasured: LactateStep[] = (log.splitLogs || [])
         .filter(r => r.lactate)
-        .map(r => ({ pace: r.pace ?? '', hr: r.avgHr ?? null, lactate: r.lactate! }))
+        .map(r => ({ pace: r.pace ?? '', hr: repHr(r), lactate: r.lactate! }))
       const canEstimateFromSession = ownMeasured.length >= 2
       const points = (log.splitLogs || [])
         .map(r => {
-          if (r.lactate) return { pace: r.pace ?? null, hr: r.avgHr ?? null, lactate: r.lactate, label: format(new Date(log.date), 'd/M') }
+          if (r.lactate) return { pace: r.pace ?? null, hr: repHr(r), lactate: r.lactate, label: format(new Date(log.date), 'd/M') }
           // No direct reading for this rep. Preference order:
           // 1. Pace-based, anchored on this session's own nearest real rep
           //    and shaped by the baseline test's per-zone slopes
@@ -142,14 +155,15 @@ export function buildSessionCurves(group: WorkoutLactateGroup, baselineSteps?: L
           // 3. HR-interpolated against the baseline test directly, when
           //    this session has no real readings of its own at all.
           const paceSec = paceToSec(r.pace)
+          const hr = repHr(r)
           const est = (ownMeasured.length >= 1 && canEstimate && paceSec != null)
             ? estimateLactateAtPace(paceSec, ownMeasured, baselineSteps)
-            : canEstimateFromSession && r.avgHr != null
-              ? estimateLactateFromHr(ownMeasured, r.avgHr)
-              : (canEstimate && r.avgHr != null ? estimateLactateFromHr(baselineSteps!, r.avgHr) : null)
+            : canEstimateFromSession && hr != null
+              ? estimateLactateFromHr(ownMeasured, hr)
+              : (canEstimate && hr != null ? estimateLactateFromHr(baselineSteps!, hr) : null)
           if (est != null) {
             anyEstimated = true
-            return { pace: r.pace ?? null, hr: r.avgHr ?? null, lactate: est, label: format(new Date(log.date), 'd/M') }
+            return { pace: r.pace ?? null, hr, lactate: est, label: format(new Date(log.date), 'd/M') }
           }
           return null
         })
@@ -190,16 +204,17 @@ export function latestSessionSteps(
   // above), the truly latest log might have neither, which would silently
   // lose a still-relevant prior tested/HR session as the reference.
   const withLactate = candidates.filter(l => (l.splitLogs || []).some(r => r.lactate))
-  const withHr = canEstimate ? candidates.filter(l => (l.splitLogs || []).some(r => r.avgHr)) : []
+  const withHr = canEstimate ? candidates.filter(l => (l.splitLogs || []).some(r => repHr(r) != null)) : []
   const last = withLactate[withLactate.length - 1] ?? withHr[withHr.length - 1] ?? candidates[candidates.length - 1]
   if (!last) return []
   return (last.splitLogs || []).map(r => {
-    if (r.lactate) return { pace: r.pace ?? '', hr: r.avgHr ?? null, lactate: r.lactate }
-    if (canEstimate && r.avgHr) {
-      const est = estimateLactateFromHr(baselineSteps!, r.avgHr)
-      if (est != null) return { pace: r.pace ?? '', hr: r.avgHr ?? null, lactate: est }
+    const hr = repHr(r)
+    if (r.lactate) return { pace: r.pace ?? '', hr, lactate: r.lactate }
+    if (canEstimate && hr != null) {
+      const est = estimateLactateFromHr(baselineSteps!, hr)
+      if (est != null) return { pace: r.pace ?? '', hr, lactate: est }
     }
-    return { pace: r.pace ?? '', hr: r.avgHr ?? null, lactate: 0 }
+    return { pace: r.pace ?? '', hr, lactate: 0 }
   })
 }
 
