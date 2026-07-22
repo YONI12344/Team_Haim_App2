@@ -94,6 +94,120 @@ export const syncGoalsToSheets = onDocumentWritten('goals/{goalId}', async (even
   await safeSync(athleteId, 'goal')
 })
 
+// ---------------------------------------------------------------------------
+// Coach push notification (server-side, single source of truth)
+// ---------------------------------------------------------------------------
+//
+// Every client-side "save this workout log" flow used to fire its own
+// fire-and-forget fetch('/api/send-notification') right after the write —
+// scattered across workout-log-form.tsx, StravaCard, and
+// ConsolidatedStravaCard in components/athlete/athlete-planner-view.tsx.
+// That meant three separate places had to independently get this right, a
+// browser tab closing right after save could drop the notification
+// entirely before the fetch landed, and any NEW save path (e.g. editing an
+// already-logged PREVIOUS day) would silently need its own copy of the
+// same code or the coach would just never hear about it. This trigger
+// replaces all of that: it fires on every logs write, from the server, so
+// it fires exactly once per real change no matter which UI made it.
+
+// See lib/constants.ts COACH_EMAIL — this is a single-coach app, and athlete
+// user docs don't reliably carry a coachId field, so the coach's own uid is
+// looked up the same way lib/coach.ts's getCoachInfo() does client-side.
+const COACH_EMAIL = 'info.teamhaim@gmail.com'
+let cachedCoachUid: string | null = null
+
+async function getCoachUid(): Promise<string | null> {
+  if (cachedCoachUid) return cachedCoachUid
+  const snap = await db.collection('users').where('email', '==', COACH_EMAIL).limit(1).get()
+  if (snap.empty) return null
+  cachedCoachUid = snap.docs[0].id
+  return cachedCoachUid
+}
+
+/**
+ * Data-only FCM push — deliberately matches app/api/send-notification/
+ * route.ts's exact convention (title/body live inside `data`, no top-level
+ * `notification` field). The client's service worker
+ * (public/firebase-messaging-sw.js) only reads payload.data and calls
+ * showNotification() itself; a top-level `notification` field would make
+ * the browser ALSO auto-display one, doubling every push (already fixed
+ * once for the client-side sends — this mirrors that fix here).
+ */
+async function sendCoachPush(uid: string, title: string, body: string, data: Record<string, string>): Promise<void> {
+  const tokenSnap = await db.doc(`fcmTokens/${uid}`).get()
+  const token = tokenSnap.exists ? (tokenSnap.data()?.token as string | undefined) : undefined
+  if (!token) {
+    logger.warn(`[notifyCoachOnLogChange] no FCM token for uid=${uid}`)
+    return
+  }
+  await admin.messaging().send({
+    token,
+    data: {...data, title, body},
+    webpush: {headers: {Urgency: 'high'}},
+  })
+}
+
+// Only these fields represent something an athlete/coach actually cares
+// about hearing "the workout was updated" for — NOT assignedWorkoutId/
+// workoutId/comparisonGroup/matchTier, which the Strava-matching pipeline
+// (athlete-planner-view.tsx) silently rewrites in the background on every
+// sync as it repairs low-confidence matches; notifying on those would spam
+// the coach with pushes for changes nobody actually made on purpose.
+const NOTIFY_RELEVANT_FIELDS = ['effort', 'comment', 'actualDistance', 'actualPace', 'feedbackStatus', 'splitLogs'] as const
+
+function hasRelevantChange(before: FirebaseFirestore.DocumentData | null, after: FirebaseFirestore.DocumentData): boolean {
+  if (!before) return true // brand-new log — always notify
+  return NOTIFY_RELEVANT_FIELDS.some((f) => JSON.stringify(before[f] ?? null) !== JSON.stringify(after[f] ?? null))
+}
+
+// Trigger 5: Notify the coach whenever an athlete creates or edits a
+// workout log — any day, any UI path, including editing an already-logged
+// PREVIOUS day. Skips a write explicitly tagged lastEditedByRole: 'coach'
+// (the coach editing/reassigning on an athlete's behalf while reviewing
+// their page), a write with no athlete-relevant change, and an athlete the
+// coach has muted.
+export const notifyCoachOnLogChange = onDocumentWritten('logs/{logId}', async (event) => {
+  const after = event.data?.after?.exists ? event.data.after.data() : null
+  if (!after) return // deleted — nothing to notify
+  if (after.lastEditedByRole === 'coach') return
+
+  const before = event.data?.before?.exists ? event.data.before.data() ?? null : null
+  if (!hasRelevantChange(before, after)) return
+
+  const athleteId = after.athleteId as string | undefined
+  if (!athleteId) return
+
+  try {
+    const athleteSnap = await db.doc(`users/${athleteId}`).get()
+    if (!athleteSnap.exists) return
+    const athleteData = athleteSnap.data() ?? {}
+    if (athleteData.mutedByCoach === true) return
+    const athleteName = (athleteData.name as string) || 'ספורטאי'
+
+    const coachUid = await getCoachUid()
+    if (!coachUid) {
+      logger.error('[notifyCoachOnLogChange] no coach account found for', COACH_EMAIL)
+      return
+    }
+
+    const isNew = !before
+    const parts: string[] = []
+    if (after.actualDistance) parts.push(`${after.actualDistance} ק"מ`)
+    if (after.effort != null) parts.push(`מאמץ ${after.effort}/10`)
+    if (typeof after.comment === 'string' && after.comment.trim()) parts.push(after.comment.trim().slice(0, 80))
+    const body = parts.join(' · ') || (after.workoutTitle as string) || (after.stravaName as string) || 'אימון'
+    const title = isNew ? `${athleteName} השלים אימון` : `${athleteName} עדכן אימון`
+
+    await sendCoachPush(coachUid, title, body, {
+      type: isNew ? 'workout_complete' : 'workout_update',
+      url: `/coach/athletes/${athleteId}/planner`,
+    })
+    logger.info('[notifyCoachOnLogChange] notified coach', {athleteId, logId: event.params.logId, isNew})
+  } catch (err) {
+    logger.error('[notifyCoachOnLogChange] failed', err)
+  }
+})
+
 // Manual / "Sync All Now" callable used by the coach settings page.
 export const syncAllAthletesNow = onCall(async (request) => {
   if (!request.auth) {

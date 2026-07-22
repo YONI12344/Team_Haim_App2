@@ -26,7 +26,7 @@ import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { useLanguage } from '@/contexts/language-context'
 import { useAuth } from '@/contexts/auth-context'
-import { getCoachInfo } from '@/lib/coach'
+import { isCoachEmail } from '@/lib/constants'
 import { useLatestStepTest } from '@/hooks/useLatestStepTest'
 import { useWorkoutLactateGroups, latestSessionSteps, groupKeyFor, inferThresholdDistance } from '@/hooks/useWorkoutLactateGroups'
 import { personalTargetRangeForLevel, personalTargetRangeWithBaseline, formatTargetRange, paceToSec, secToPace } from '@/lib/physiology'
@@ -43,6 +43,11 @@ interface WorkoutLogFormProps {
 export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, scheduledDate, workout }: WorkoutLogFormProps) {
   const { t } = useLanguage()
   const { user } = useAuth()
+  // The coach can also open this form while reviewing an athlete's page — a
+  // Cloud Function trigger (functions/src/index.ts) notifies the coach on
+  // every athlete-side save, so a coach's OWN save must be tagged to skip
+  // that notification instead of pinging them about their own action.
+  const isCoachViewer = isCoachEmail(user?.email)
   const { steps: latestSteps } = useLatestStepTest(workout?.targetThresholdLevel ? athleteId : undefined)
   const { grouped: workoutGroups } = useWorkoutLactateGroups(workout?.targetThresholdLevel ? athleteId : '')
   const [targetOverride, setTargetOverride] = useState<{ paceMinSec: number; paceMaxSec: number; hrMin?: number; hrMax?: number } | null>(null)
@@ -429,6 +434,11 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
         thresholdDistance: inferThresholdDistance(workout) ?? null,
         comparisonGroup: liveComparisonGroup,
         hasLactate,
+        // Cloud Function notifyCoachOnLogChange (functions/src/index.ts)
+        // skips a write tagged 'coach' so the coach never gets notified
+        // about their own save when reviewing this form on an athlete's
+        // behalf — everything else notifies as an athlete update.
+        lastEditedByRole: isCoachViewer ? 'coach' : 'athlete',
       }
       if (isUpdate) {
         const updatePayload: any = { ...baseData, updatedAt: serverTimestamp() }
@@ -454,46 +464,11 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
       setCollapsed(true)
       toast.success(t.toastWorkoutLogged)
 
-      // Notify coach (fire-and-forget) — uses getCoachInfo() since this is a
-      // single-coach app; there is no coachId field on athlete user docs
-      ;(async () => {
-        try {
-          const coachInfo = await getCoachInfo()
-          if (!coachInfo?.uid) {
-            console.error('[workout-log-form] getCoachInfo returned no uid — notification skipped')
-            return
-          }
-          const athleteSnap = await getDoc(doc(db, 'users', athleteId))
-          if (athleteSnap.data()?.mutedByCoach === true) return
-          const athleteName = user?.name || 'ספורטאי'
-          const parts: string[] = []
-          if (parsedDistance) parts.push(`${parsedDistance} ק"מ`)
-          if (effort != null) parts.push(`מאמץ ${effort}/10`)
-          if (comment.trim()) parts.push(comment.trim().slice(0, 80))
-          const body = parts.join(' · ') || workout?.title || 'אימון'
-          fetch('/api/send-notification', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userId: coachInfo.uid,
-              title: `${athleteName} עדכן אימון`,
-              body,
-              data: { type: 'workout_update' },
-              url: `/coach/athletes/${athleteId}/planner`,
-            }),
-          }).then(async res => {
-            // A non-2xx (e.g. 404 "no FCM token for user") was previously
-            // indistinguishable from success — this send is fire-and-forget
-            // by design (shouldn't block the athlete's save), but failures
-            // should at least be visible in logs instead of silent.
-            if (!res.ok) {
-              console.error('[workout-log-form] Coach notification failed:', res.status, await res.text().catch(() => ''))
-            }
-          }).catch(err => console.error('[workout-log-form] Failed to send coach notification:', err))
-        } catch (err) {
-          console.error('[workout-log-form] Notification IIFE error:', err)
-        }
-      })()
+      // Coach notification is handled server-side now (Cloud Function
+      // notifyCoachOnLogChange, functions/src/index.ts) — it fires on
+      // every logs write regardless of which UI path made it or whether
+      // this tab stays open long enough for a client-side fetch to land,
+      // instead of each save site sending its own fire-and-forget push.
     } catch (error) {
       console.error('Error saving workout log:', error)
       toast.error(t.toastSaveLogFailed)

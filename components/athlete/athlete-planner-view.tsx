@@ -925,26 +925,9 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               createdAt: serverTimestamp(),
             })
             saved++
-            // Notify coach of Strava workout completion (fire-and-forget)
-            ;(async () => {
-              try {
-                const coachId = userSnap.data()?.coachId
-                const athleteName = userSnap.data()?.name || 'ספורטאי'
-                if (coachId && !userSnap.data()?.mutedByCoach) {
-                  fetch('/api/send-notification', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      userId: coachId,
-                      title: `${athleteName} השלים אימון`,
-                      body: `${activity.stravaName || 'פעילות Strava'} · ${activity.distanceKm} ק"מ`,
-                      data: { type: 'workout_complete' },
-                      url: `/coach/athletes/${athleteId}/planner`,
-                    }),
-                  }).catch(() => {})
-                }
-              } catch {}
-            })()
+            // Coach notification is handled server-side (Cloud Function
+            // notifyCoachOnLogChange, functions/src/index.ts) on this
+            // same new logs doc — no client-side push needed here.
           }
           toMatch.push({ activity, logRef, oldAssignedWorkoutId })
         }
@@ -1268,7 +1251,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
       const parsedDuration = editDuration.trim() ? parseInt(editDuration, 10) : null
       setSubmitting(true)
       try {
-        const { doc, updateDoc, serverTimestamp, getDoc } = await import('firebase/firestore')
+        const { doc, updateDoc, serverTimestamp } = await import('firebase/firestore')
         const { db } = await import('@/lib/firebase')
         const changes = {
           effort: pendingEffort,
@@ -1277,6 +1260,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
           actualPace: kindInfo.hasDistance ? (editPace.trim() || null) : log.actualPace ?? null,
           durationMin: parsedDuration ?? log.durationMin ?? null,
           feedbackStatus: 'done',
+          lastEditedByRole: isCoachViewer ? 'coach' : 'athlete',
         }
         await updateDoc(doc(db, 'logs', log.id), { ...changes, updatedAt: serverTimestamp() })
         setWeekLogs(prev => prev.map(l => l.id === log.id ? {
@@ -1287,27 +1271,9 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
         } : l))
         setShowForm(false)
         toast.success(t.workoutSaved)
-        // Notify coach of Strava feedback (fire-and-forget)
-        ;(async () => {
-          try {
-            const athleteSnap = await getDoc(doc(db, 'users', athleteId))
-            const coachId = athleteSnap.data()?.coachId
-            const athleteName = athleteSnap.data()?.name || 'ספורטאי'
-            if (!coachId || athleteSnap.data()?.mutedByCoach === true) return
-            const preview = pendingComment.trim() ? pendingComment.trim().slice(0, 100) : `מאמץ ${pendingEffort}/10`
-            fetch('/api/send-notification', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                userId: coachId,
-                title: `${athleteName} הוסיף הערה לאימון`,
-                body: preview,
-                data: { type: 'workout_comment' },
-                url: `/coach/athletes/${athleteId}/planner`,
-              }),
-            }).catch(() => {})
-          } catch {}
-        })()
+        // Coach notification is handled server-side (Cloud Function
+        // notifyCoachOnLogChange, functions/src/index.ts) on this same
+        // logs write — no client-side push needed here.
       } catch(e) { console.error(e); toast.error(t.savingError) }
       finally { setSubmitting(false) }
     }
@@ -1341,6 +1307,10 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
           assignedWorkoutId: newWorkoutId || null,
           comparisonGroup: newWorkout?.workout?.comparisonGroup || null,
           matchTier: 3,
+          // This action only renders for isCoachViewer (see the "assign to
+          // workout" dropdown above) — tagged so notifyCoachOnLogChange
+          // skips notifying the coach about their own reassignment.
+          lastEditedByRole: 'coach',
         })
         if (newWorkoutId) {
           await updateDoc(doc(db, 'assignedWorkouts', newWorkoutId), { status: 'completed', completedAt: serverTimestamp() })
@@ -1737,31 +1707,15 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
         const { serverTimestamp } = await import('firebase/firestore')
         await Promise.all(logs.map(l => updateDoc(doc(db, 'logs', l.id), {
           effort: pendingEffort, comment: pendingComment, feedbackStatus: 'done', updatedAt: serverTimestamp(),
+          lastEditedByRole: isCoachViewer ? 'coach' : 'athlete',
         })))
         const ids = new Set(logs.map(l => l.id))
         setWeekLogs(prev => prev.map(l => ids.has(l.id) ? { ...l, effort: pendingEffort, comment: pendingComment, feedbackStatus: 'done' } : l))
         setShowForm(false)
         toast.success(t.workoutSaved)
-        ;(async () => {
-          try {
-            const athleteSnap = await getDoc(doc(db, 'users', athleteId))
-            const coachId = athleteSnap.data()?.coachId
-            const athleteName = athleteSnap.data()?.name || 'ספורטאי'
-            if (!coachId || athleteSnap.data()?.mutedByCoach === true) return
-            const preview = pendingComment.trim() ? pendingComment.trim().slice(0, 100) : `מאמץ ${pendingEffort}/10`
-            fetch('/api/send-notification', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                userId: coachId,
-                title: `${athleteName} הוסיף הערה לאימון`,
-                body: preview,
-                data: { type: 'workout_comment' },
-                url: `/coach/athletes/${athleteId}/planner`,
-              }),
-            }).catch(() => {})
-          } catch {}
-        })()
+        // Coach notification is handled server-side (Cloud Function
+        // notifyCoachOnLogChange, functions/src/index.ts) on these same
+        // logs writes — no client-side push needed here.
       } catch (e) { console.error(e); toast.error(t.savingError) }
       finally { setSubmitting(false) }
     }
@@ -1777,6 +1731,10 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
           assignedWorkoutId: newWorkoutId || null,
           comparisonGroup: newWorkout?.workout?.comparisonGroup || null,
           matchTier: 3,
+          // This dropdown only renders for isCoachViewer (see assignSelect
+          // below) — tagged so notifyCoachOnLogChange skips notifying the
+          // coach about their own reassignment.
+          lastEditedByRole: 'coach',
         })))
         if (newWorkoutId) {
           await updateDoc(doc(db, 'assignedWorkouts', newWorkoutId), { status: 'completed', completedAt: serverTimestamp() })
