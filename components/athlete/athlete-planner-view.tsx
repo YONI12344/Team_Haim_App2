@@ -26,7 +26,7 @@ import { WorkoutLogForm } from '@/components/athlete/workout-log-form'
 import { personalTargetRangeForLevel, personalTargetRangeWithBaseline, formatTargetRange, paceToSec, secToPace } from '@/lib/physiology'
 import { useLatestStepTest } from '@/hooks/useLatestStepTest'
 import { useWorkoutLactateGroups, latestSessionSteps, groupKeyFor } from '@/hooks/useWorkoutLactateGroups'
-import { expectedRepMetersForWorkout, scoreActivityFitForReps, mainSetDisplayStats } from '@/lib/strava-lap-matching'
+import { expectedRepMetersForWorkout, scoreActivityFitForReps, scoreActivityFitForDurationReps, mainSetDisplayStats } from '@/lib/strava-lap-matching'
 import { SplitsTable } from '@/components/shared/splits-table'
 import { isCoachEmail } from '@/lib/constants'
 import { ManualLogCard } from '@/components/shared/manual-log-card'
@@ -179,6 +179,44 @@ function mapLogDoc(d: { id: string; data: () => any }): WeekLog {
 
 /** Logs that render as standalone activity cards (Strava sync or manual upload) */
 const isActivityLog = (l: WeekLog) => l.source === 'strava' || l.source === 'manual'
+
+/**
+ * Which of several same-day Strava fragments matched to ONE workout is the
+ * real session, so ConsolidatedStravaCard shows ITS splits instead of
+ * whichever fragment happens to be longest. "Longest wins" silently hid the
+ * real workout when it was recorded shorter than an accompanying easy-run
+ * portion — reported directly: an "easy run + 4x20s hill strides" workout
+ * where the strides were their own short separate Strava activity; the
+ * longer, uniform easy run kept winning and the coach never saw the
+ * strides' actual splits at all.
+ *
+ * Prefers rep-fit scoring — distance-based (scoreActivityFitForReps) when
+ * the workout's reps have a real parseable distance, duration-based
+ * (scoreActivityFitForDurationReps) when they don't (e.g. "20 sec" hill
+ * sprints) — over distance, falling back to the old longest-wins heuristic
+ * only when the workout has no rep structure to score against, or scoring
+ * can't tell the candidates apart (tied, or nobody scores above zero).
+ */
+function pickMainLog(logs: WeekLog[], workout: any): WeekLog {
+  const byLongest = () => logs.reduce((best, l) => (l.actualDistance || 0) > (best.actualDistance || 0) ? l : best, logs[0])
+  if (logs.length <= 1) return logs[0]
+  const sets = workout?.sets
+  if (!sets?.length) return byLongest()
+  const expectedMeters = expectedRepMetersForWorkout({ sets })
+  if (expectedMeters.length === 0) return byLongest()
+  const hasDistanceTargets = expectedMeters.some(m => m != null && m > 0)
+  const scored = logs.map(l => {
+    const laps = (l.splitLogs || []).map((s: any) => ({ distanceKm: s.distanceKm, time: s.time, heartRate: s.heartRate ?? null }))
+    const score = hasDistanceTargets
+      ? scoreActivityFitForReps(laps, expectedMeters)
+      : scoreActivityFitForDurationReps(laps, expectedMeters.length)
+    return { l, score }
+  })
+  const maxScore = Math.max(...scored.map(x => x.score))
+  const top = scored.filter(x => x.score === maxScore)
+  if (maxScore <= 0 || top.length > 1) return byLongest()
+  return top[0].l
+}
 
 interface AthletePlannerViewProps {
   overrideAthleteId?: string
@@ -1667,7 +1705,8 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
   // fragment is the main event; its pace/HR/splits are what's shown.
   const ConsolidatedStravaCard = ({ logs, dayWorkouts = [] }: { logs: WeekLog[]; dayWorkouts?: AssignedWorkout[] }) => {
     const sortedByTime = [...logs].sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''))
-    const mainLog = logs.reduce((best, l) => (l.actualDistance || 0) > (best.actualDistance || 0) ? l : best, logs[0])
+    const matchedWorkout = dayWorkouts.find(w => w.id === logs[0]?.assignedWorkoutId)?.workout
+    const mainLog = pickMainLog(logs, matchedWorkout)
     const kindInfo = getActivityInfo(mainLog)
     const isManual = mainLog.source === 'manual'
     const totalDistance = Math.round(logs.reduce((s, l) => s + (l.actualDistance || 0), 0) * 100) / 100

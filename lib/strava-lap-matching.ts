@@ -350,6 +350,45 @@ export function scoreActivityFitForReps(laps: RawLap[], expectedMeters: (number 
   return matchLapsToReps(laps, expectedMeters).filter(m => m != null).length
 }
 
+/**
+ * Same purpose as scoreActivityFitForReps (picking which of several same-day
+ * activities is the one carrying the real workout), for a rep structure with
+ * NO parseable distance at all — a duration-based rep like "20 sec hill
+ * sprint" has nothing for scoreActivityFitForReps' distance-matching to work
+ * with (expectedMeters comes back all-null, so it returns 0 for every
+ * candidate and can't discriminate between them).
+ *
+ * Reported directly against real data: an "easy run + 4x20s hill strides"
+ * workout, with the strides recorded as their own short separate Strava
+ * activity distinct from the accompanying easy run — picking "whichever
+ * activity is longer" (the natural fallback when rep-fit can't score)
+ * confidently picked the longer, uniform easy run and hid the shorter
+ * activity's splits, which is exactly where the actual prescribed reps were.
+ *
+ * Instead of distance, this counts how many of an activity's OWN laps read
+ * as a genuine hard effort — within 40% of its own fastest lap's pace, the
+ * same relative threshold buildRepDisplayRows' isRest already uses to spot a
+ * recovery jog — and scores by how close that count lands to the workout's
+ * own rep count. A uniform easy run has every lap within the same narrow
+ * band, so ALL of them count as "hard," landing the count far from a small
+ * rep count; a real hard-effort-plus-recovery session has only as many
+ * qualifying laps as it has real reps.
+ */
+export function scoreActivityFitForDurationReps(laps: RawLap[], repCount: number): number {
+  if (repCount <= 0) return 0
+  const paces = laps
+    .map(l => {
+      const sec = paceToSec(l.time)
+      if (sec == null || sec < 8 || l.distanceKm == null || l.distanceKm <= 0) return null
+      return sec / l.distanceKm
+    })
+    .filter((v): v is number => v != null)
+  if (paces.length < repCount) return 0
+  const fastest = Math.min(...paces)
+  const hardLapCount = paces.filter(p => p <= fastest * 1.4).length
+  return repCount - Math.abs(hardLapCount - repCount)
+}
+
 export interface ResolvedRepRow {
   /** This rep's real combined elapsed time, e.g. "5:19". */
   time: string
