@@ -133,18 +133,23 @@ async function getCoachUid(): Promise<string | null> {
  * the browser ALSO auto-display one, doubling every push (already fixed
  * once for the client-side sends — this mirrors that fix here).
  */
-async function sendCoachPush(uid: string, title: string, body: string, data: Record<string, string>): Promise<void> {
+/** Returns whether a push was actually sent — false means "no token on
+ *  file", which the caller must distinguish from a real send, or its own
+ *  success log would claim the coach was notified when nothing went out
+ *  at all. */
+async function sendCoachPush(uid: string, title: string, body: string, data: Record<string, string>): Promise<boolean> {
   const tokenSnap = await db.doc(`fcmTokens/${uid}`).get()
   const token = tokenSnap.exists ? (tokenSnap.data()?.token as string | undefined) : undefined
   if (!token) {
     logger.warn(`[notifyCoachOnLogChange] no FCM token for uid=${uid}`)
-    return
+    return false
   }
   await admin.messaging().send({
     token,
     data: {...data, title, body},
     webpush: {headers: {Urgency: 'high'}},
   })
+  return true
 }
 
 // Only these fields represent something an athlete/coach actually cares
@@ -198,11 +203,13 @@ export const notifyCoachOnLogChange = onDocumentWritten('logs/{logId}', async (e
     const body = parts.join(' · ') || (after.workoutTitle as string) || (after.stravaName as string) || 'אימון'
     const title = isNew ? `${athleteName} השלים אימון` : `${athleteName} עדכן אימון`
 
-    await sendCoachPush(coachUid, title, body, {
+    const sent = await sendCoachPush(coachUid, title, body, {
       type: isNew ? 'workout_complete' : 'workout_update',
       url: `/coach/athletes/${athleteId}/planner`,
     })
-    logger.info('[notifyCoachOnLogChange] notified coach', {athleteId, logId: event.params.logId, isNew})
+    if (sent) {
+      logger.info('[notifyCoachOnLogChange] notified coach', {athleteId, logId: event.params.logId, isNew})
+    }
   } catch (err) {
     logger.error('[notifyCoachOnLogChange] failed', err)
   }

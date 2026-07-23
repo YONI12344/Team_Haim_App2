@@ -13,7 +13,6 @@ import {
   ACTIVITY_KINDS, MANUAL_ACTIVITY_KINDS, activityLabel,
   isRunningKind, isGymKind, type ActivityKind,
 } from '@/lib/activity-types'
-import { getCoachInfo } from '@/lib/coach'
 
 interface AddActivityDialogProps {
   open: boolean
@@ -100,27 +99,9 @@ export function AddActivityDialog({ open, onOpenChange, athleteId, athleteName, 
         }
       } catch (e) { console.error('Manual activity auto-complete failed:', e) }
 
-      // Notify coach (fire-and-forget)
-      ;(async () => {
-        try {
-          const coachInfo = await getCoachInfo()
-          if (!coachInfo?.uid) return
-          const parts: string[] = [activityLabel(kind, true)]
-          if (parsedDistance) parts.push(`${parsedDistance} ק"מ`)
-          if (parsedDuration) parts.push(`${parsedDuration} דק'`)
-          fetch('/api/send-notification', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userId: coachInfo.uid,
-              title: `${athleteName || 'ספורטאי'} הוסיף פעילות ידנית`,
-              body: parts.join(' · '),
-              data: { type: 'workout_update' },
-              url: `/coach/athletes/${athleteId}/planner`,
-            }),
-          }).catch(() => {})
-        } catch {}
-      })()
+      // Coach notification is handled server-side (Cloud Function
+      // notifyCoachOnLogChange, functions/src/index.ts) on this same
+      // logs write — no client-side push needed here.
 
       onSaved({ id: ref.id, ...logData, createdAt: new Date() })
       toast.success(t.activityAddedToast)
