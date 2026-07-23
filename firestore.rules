@@ -110,6 +110,14 @@ service cloud.firestore {
     // could receive pushes.
     match /fcmTokens/{userId} {
       allow read, write: if isSelf(userId) || isCoach();
+
+      // One token doc per DEVICE (lib/notifications.ts) instead of one flat
+      // doc per user — a second device registering no longer silently
+      // overwrites and steals notifications from the first. Rules don't
+      // cascade to subcollections, so this needs its own explicit match.
+      match /tokens/{tokenId} {
+        allow read, write: if isSelf(userId) || isCoach();
+      }
     }
 
     // Days off (sick/trip/other) — either the athlete or the coach can mark

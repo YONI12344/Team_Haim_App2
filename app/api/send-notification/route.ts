@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getGoogleAccessToken, fsGetDoc, sendFCM } from '@/lib/google-auth'
+import { getGoogleAccessToken, fsListTokens, sendFCMToAll } from '@/lib/google-auth'
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,8 +11,10 @@ export async function POST(req: NextRequest) {
 
     const accessToken = await getGoogleAccessToken()
 
-    const tokenDoc = await fsGetDoc('fcmTokens', userId, accessToken)
-    if (!tokenDoc?.token) {
+    // Every device this user has registered notifications on — not just
+    // whichever one registered most recently (see fsListTokens).
+    const tokens = await fsListTokens(userId, accessToken)
+    if (tokens.length === 0) {
       return NextResponse.json({ error: 'No FCM token for user' }, { status: 404 })
     }
 
@@ -21,8 +23,8 @@ export async function POST(req: NextRequest) {
       if (typeof v === 'string') stringData[k] = v
     }
 
-    const messageId = await sendFCM(tokenDoc.token, { title, body }, stringData, accessToken)
-    return NextResponse.json({ success: true, messageId })
+    const sent = await sendFCMToAll(tokens, { title, body }, stringData, accessToken)
+    return NextResponse.json({ success: sent > 0, sent, total: tokens.length })
   } catch (error) {
     console.error('Send notification error:', error)
     return NextResponse.json({ error: String(error) }, { status: 500 })

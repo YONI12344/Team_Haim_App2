@@ -125,31 +125,29 @@ async function getCoachUid(): Promise<string | null> {
 }
 
 /**
- * Data-only FCM push — deliberately matches app/api/send-notification/
- * route.ts's exact convention (title/body live inside `data`, no top-level
- * `notification` field). The client's service worker
- * (public/firebase-messaging-sw.js) only reads payload.data and calls
- * showNotification() itself; a top-level `notification` field would make
- * the browser ALSO auto-display one, doubling every push (already fixed
- * once for the client-side sends — this mirrors that fix here).
- */
-/** Returns whether a push was actually sent — false means "no token on
- *  file", which the caller must distinguish from a real send, or its own
- *  success log would claim the coach was notified when nothing went out
- *  at all. */
+ * Delegates the actual push to app/api/send-notification/route.ts — the
+ * SAME endpoint every other notification in this app (chat, morning/evening
+ * reminders) already sends through reliably — instead of reimplementing FCM
+ * delivery a third way inside this Cloud Function. Tried both the Admin
+ * SDK's messaging().send() and a hand-rolled OAuth2 REST call directly from
+ * this function first; neither reliably delivered despite reporting success,
+ * while the existing endpoint (this same HTTP call, just made from the
+ * client instead of here) has been confirmed working the whole time. This
+ * also gets multi-device fan-out (fsListTokens/sendFCMToAll in
+ * lib/google-auth.ts) for free, with no token-handling logic duplicated
+ * here at all. */
 async function sendCoachPush(uid: string, title: string, body: string, data: Record<string, string>): Promise<boolean> {
-  const tokenSnap = await db.doc(`fcmTokens/${uid}`).get()
-  const token = tokenSnap.exists ? (tokenSnap.data()?.token as string | undefined) : undefined
-  if (!token) {
-    logger.warn(`[notifyCoachOnLogChange] no FCM token for uid=${uid}`)
+  const res = await fetch('https://app.teamhaim.com/api/send-notification', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({userId: uid, title, body, data, url: data.url}),
+  })
+  if (!res.ok) {
+    logger.warn(`[notifyCoachOnLogChange] send-notification returned ${res.status}: ${await res.text().catch(() => '')}`)
     return false
   }
-  await admin.messaging().send({
-    token,
-    data: {...data, title, body},
-    webpush: {headers: {Urgency: 'high'}},
-  })
-  return true
+  const json: any = await res.json().catch(() => ({}))
+  return !!json.success
 }
 
 // Only these fields represent something an athlete/coach actually cares

@@ -15,7 +15,7 @@
  */
 
 import { getMessaging, getToken, onMessage } from 'firebase/messaging'
-import { doc, setDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, setDoc, collection, addDoc, getDocs, query, where, serverTimestamp } from 'firebase/firestore'
 // Use the already-initialized app instance directly — calling getApp() via a
 // separate import can resolve a second copy of firebase/app under Turbopack,
 // which throws "No Firebase App '[DEFAULT]' has been created"
@@ -42,12 +42,25 @@ export async function requestNotificationPermission(userId: string): Promise<str
     })
 
     if (token) {
-      await setDoc(doc(db, 'fcmTokens', userId), {
-        token,
-        userId,
-        updatedAt: serverTimestamp(),
-        platform: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? 'mobile' : 'web',
-      })
+      // One doc per DEVICE, not one doc per user — the old single
+      // fcmTokens/{userId} doc got silently overwritten every time a
+      // different device (or even the same account signed in on a second
+      // browser) requested permission, so only whichever device registered
+      // most recently ever received anything again. Reported directly: a
+      // coach who opened the site on their MacBook stopped getting
+      // notifications on their iPhone entirely, with no error anywhere —
+      // the Mac's registration had quietly stolen the coach's only token.
+      // Deduping by token VALUE (not device id) means the same device
+      // re-registering with an unchanged token just refreshes its own doc
+      // instead of creating a duplicate.
+      const tokensCol = collection(db, 'fcmTokens', userId, 'tokens')
+      const existing = await getDocs(query(tokensCol, where('token', '==', token)))
+      const platform = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? 'mobile' : 'web'
+      if (!existing.empty) {
+        await setDoc(existing.docs[0].ref, { token, userId, updatedAt: serverTimestamp(), platform }, { merge: true })
+      } else {
+        await addDoc(tokensCol, { token, userId, platform, createdAt: serverTimestamp(), updatedAt: serverTimestamp() })
+      }
       return token
     }
     return null

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getGoogleAccessToken, fsQuery, fsGetDoc, sendFCM } from '@/lib/google-auth'
+import { getGoogleAccessToken, fsQuery, fsGetDoc, fsListTokens, sendFCMToAll } from '@/lib/google-auth'
 
 function localHour(timezone: string): number {
   try {
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     // The single coach account — fetched once, reused for every missed-workout alert below
     const coachRows = await fsQuery('users', [{ field: 'email', op: 'EQUAL', value: 'info.teamhaim@gmail.com' }], accessToken)
     const coach = coachRows[0] || null
-    const coachTokenDoc = coach ? await fsGetDoc('fcmTokens', coach.id, accessToken) : null
+    const coachTokens = coach ? await fsListTokens(coach.id, accessToken) : []
 
     const results: string[] = []
     const missedAlerts: string[] = []
@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
       // Coach alert: did the athlete leave yesterday's workout unfinished
       // with nothing logged? (skipped explicitly is not alerted — that's
       // an intentional choice, not a miss)
-      if (coachTokenDoc?.token && userDoc?.mutedByCoach !== true && !isDayOff(athleteId, localYesterday(tz))) {
+      if (coachTokens.length > 0 && userDoc?.mutedByCoach !== true && !isDayOff(athleteId, localYesterday(tz))) {
         const yesterday = localYesterday(tz)
         const yesterdayWorkout = workouts.find(
           (w) => w.data.athleteId === athleteId
@@ -84,8 +84,8 @@ export async function GET(request: NextRequest) {
         )
         if (yesterdayWorkout && !hasYesterdayLog) {
           try {
-            await sendFCM(
-              coachTokenDoc.token,
+            await sendFCMToAll(
+              coachTokens,
               {
                 title: `${userDoc?.name || 'ספורטאי'} לא סימן אימון אתמול`,
                 body: yesterdayWorkout.data.workout?.title || 'אימון',
@@ -107,16 +107,16 @@ export async function GET(request: NextRequest) {
       )
       if (!todayWorkout) continue
 
-      const tokenDoc = await fsGetDoc('fcmTokens', athleteId, accessToken)
-      if (!tokenDoc?.token) continue
+      const athleteTokens = await fsListTokens(athleteId, accessToken)
+      if (athleteTokens.length === 0) continue
 
       const title = todayWorkout.data.workout?.title || 'אימון'
       const distance = todayWorkout.data.workout?.distance
       const body = distance ? `${title} · ${distance} ק״מ` : title
 
       try {
-        await sendFCM(
-          tokenDoc.token,
+        await sendFCMToAll(
+          athleteTokens,
           { title: 'האימון של היום מחכה לך', body },
           { url: '/athlete/schedule', type: 'morning_workout' },
           accessToken,

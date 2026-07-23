@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getGoogleAccessToken, fsQuery, fsGetDoc, sendFCM } from '@/lib/google-auth'
+import { getGoogleAccessToken, fsQuery, fsGetDoc, fsListTokens, sendFCMToAll } from '@/lib/google-auth'
 
 function localHour(timezone: string): number {
   try {
@@ -68,12 +68,12 @@ export async function GET(request: NextRequest) {
       )
       if (hasLoggedToday) continue
 
-      const tokenDoc = await fsGetDoc('fcmTokens', athleteId, accessToken)
-      if (!tokenDoc?.token) continue
+      const athleteTokens = await fsListTokens(athleteId, accessToken)
+      if (athleteTokens.length === 0) continue
 
       try {
-        await sendFCM(
-          tokenDoc.token,
+        await sendFCMToAll(
+          athleteTokens,
           { title: 'שכחת לדווח על האימון?', body: 'לחץ כאן לדיווח על האימון של היום' },
           { url: '/athlete/schedule', type: 'evening_reminder' },
           accessToken,

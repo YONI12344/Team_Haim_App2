@@ -80,6 +80,43 @@ export async function fsQuery(
     })
 }
 
+/**
+ * Every registered push token for a user, across every device — logging in
+ * on a second device (e.g. a coach opening this on their MacBook after
+ * already granting notifications on their iPhone) used to silently
+ * overwrite the single fcmTokens/{userId} doc, so only whichever device
+ * registered LAST ever received anything again. Tokens now live in a
+ * fcmTokens/{userId}/tokens/{tokenDocId} subcollection, one doc per device
+ * (see lib/notifications.ts), so every registered device keeps getting
+ * notified independently.
+ *
+ * Falls back to the old flat fcmTokens/{userId} doc when the subcollection
+ * is empty, so a device that hasn't reopened the app since this migration
+ * (and so hasn't written into the new subcollection yet) doesn't go silent
+ * in the meantime — lib/notifications.ts's self-heal re-registration will
+ * naturally move it over the next time that device's app is opened.
+ */
+export async function fsListTokens(userId: string, accessToken: string): Promise<string[]> {
+  const res = await fetch(
+    `${FS_BASE}/fcmTokens/${encodeURIComponent(userId)}:runQuery`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ structuredQuery: { from: [{ collectionId: 'tokens' }] } }),
+    },
+  )
+  if (!res.ok) throw new Error(`fsListTokens ${userId}: ${res.status} ${await res.text()}`)
+  const rows: any[] = await res.json()
+  const tokens = rows
+    .filter((r) => r.document)
+    .map((r) => parseFields(r.document.fields || {}).token as string | undefined)
+    .filter((t): t is string => !!t)
+  if (tokens.length > 0) return tokens
+
+  const legacy = await fsGetDoc('fcmTokens', userId, accessToken)
+  return legacy?.token ? [legacy.token as string] : []
+}
+
 export async function sendFCM(
   fcmToken: string,
   notification: { title: string; body: string },
@@ -109,4 +146,18 @@ export async function sendFCM(
   if (!res.ok) throw new Error(`FCM send failed ${res.status}: ${await res.text()}`)
   const json = await res.json()
   return (json.name as string) || 'sent'
+}
+
+/** Sends to every one of a user's registered device tokens (see
+ *  fsListTokens) in parallel — one dead/unregistered token must never
+ *  block delivery to the user's other devices. Returns how many actually
+ *  sent, for callers that only care whether at least one got through. */
+export async function sendFCMToAll(
+  tokens: string[],
+  notification: { title: string; body: string },
+  data: Record<string, string>,
+  accessToken: string,
+): Promise<number> {
+  const results = await Promise.allSettled(tokens.map((t) => sendFCM(t, notification, data, accessToken)))
+  return results.filter((r) => r.status === 'fulfilled').length
 }
