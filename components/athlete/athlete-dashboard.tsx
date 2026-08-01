@@ -469,23 +469,27 @@ export function AthleteDashboard() {
             <div className="flex items-start justify-between mb-3">
               <p className="text-xl font-bold text-white">{t.helloGreeting}, {profileName.split(' ')[0]}</p>
               <div className="flex items-center gap-3">
-                <p className="text-xs text-white/40 pt-1">{format(new Date(), 'd MMM')}</p>
                 {/* One-tap Strava sync — top of the hero card since this is
-                    the single most-used action on this screen; a plain
-                    icon row felt buried further down the page. */}
+                    the single most-used action on this screen. Styled like
+                    the app's own on-navy buttons (translucent white, e.g.
+                    the "Open Workout" button below) rather than Strava's
+                    own loud brand orange, which read as out of place next
+                    to the rest of this card — the orange icon alone is
+                    enough to identify it. */}
                 <button
                   onClick={() => syncStrava()}
                   disabled={stravaSyncing}
                   title={stravaSyncing ? t.stravaSyncingBtn : t.stravaSyncBtn}
-                  className="flex items-center gap-2 h-10 px-4 rounded-full bg-[#FC4C02] hover:bg-[#e64500] active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-[#FC4C02]/20"
+                  className="flex items-center gap-1.5 h-9 px-3.5 rounded-full bg-white/15 hover:bg-white/20 active:scale-95 transition-all disabled:opacity-50"
                 >
                   {stravaSyncing ? (
-                    <Loader2 className="h-5 w-5 text-white animate-spin" />
+                    <Loader2 className="h-4 w-4 text-[#FC4C02] animate-spin" />
                   ) : (
-                    <RefreshCw className="h-5 w-5 text-white" />
+                    <RefreshCw className="h-4 w-4 text-[#FC4C02]" />
                   )}
-                  <span className="text-sm font-bold text-white">Strava</span>
+                  <span className="text-xs font-bold text-white">Strava</span>
                 </button>
+                <p className="text-xs text-white/40">{format(new Date(), 'd MMM')}</p>
               </div>
             </div>
 
