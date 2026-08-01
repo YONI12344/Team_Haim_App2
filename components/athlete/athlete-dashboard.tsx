@@ -468,7 +468,25 @@ export function AthleteDashboard() {
           )}>
             <div className="flex items-start justify-between mb-3">
               <p className="text-xl font-bold text-white">{t.helloGreeting}, {profileName.split(' ')[0]}</p>
-              <p className="text-xs text-white/40 pt-1">{format(new Date(), 'd MMM')}</p>
+              <div className="flex items-center gap-2.5">
+                {/* One-tap Strava sync — top of the hero card since this is
+                    the single most-used action on this screen; a plain
+                    icon row felt buried further down the page. */}
+                <button
+                  onClick={() => syncStrava()}
+                  disabled={stravaSyncing}
+                  title={stravaSyncing ? t.stravaSyncingBtn : t.stravaSyncBtn}
+                  className="flex items-center gap-1.5 h-8 px-3 rounded-full bg-white/10 hover:bg-white/15 active:scale-95 transition-all disabled:opacity-50"
+                >
+                  {stravaSyncing ? (
+                    <Loader2 className="h-3.5 w-3.5 text-[#FC4C02] animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-3.5 w-3.5 text-[#FC4C02]" />
+                  )}
+                  <span className="text-xs font-bold text-white">Strava</span>
+                </button>
+                <p className="text-xs text-white/40">{format(new Date(), 'd MMM')}</p>
+              </div>
             </div>
 
             {todayWorkouts.length > 0 ? (
@@ -658,29 +676,6 @@ export function AthleteDashboard() {
           <ChevronRight className={cn('h-5 w-5 text-gray-300 flex-shrink-0', isRTL && 'rotate-180')} />
         </div>
       </Link>
-
-      {/* Sync from Strava — moved here from the Schedule page for easier,
-          one-tap access to logging today's workout without navigating away
-          from the home screen first. */}
-      <button onClick={() => syncStrava()} disabled={stravaSyncing} className="block w-full text-start disabled:opacity-60">
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex items-center justify-between active:scale-[0.98] transition-transform">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-[#FC4C02] flex items-center justify-center flex-shrink-0">
-              {stravaSyncing ? (
-                <Loader2 className="h-6 w-6 text-white animate-spin" />
-              ) : (
-                <RefreshCw className="h-6 w-6 text-white" />
-              )}
-            </div>
-            <div dir={isRTL ? 'rtl' : 'ltr'}>
-              <p className="font-bold text-[#0a1628] text-base leading-tight">
-                {stravaSyncing ? t.stravaSyncingBtn : t.stravaSyncBtn}
-              </p>
-              <p className="text-xs text-gray-400 mt-0.5">Strava</p>
-            </div>
-          </div>
-        </div>
-      </button>
 
       {/* Lab — lactate tests, thresholds, derived paces; coach-gated per athlete */}
       {profile?.labVisibleToAthlete && (
