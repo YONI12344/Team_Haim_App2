@@ -6,16 +6,23 @@ import { useEffect, type ReactNode } from 'react'
 import { CoachNav } from './coach-nav'
 import { CoachBottomNav } from './coach-bottom-nav'
 import { Loader2 } from 'lucide-react'
+import { isCoachEmail } from '@/lib/constants'
 
 export function CoachLayout({ children, hideNav }: { children: ReactNode; hideNav?: boolean }) {
   const { user, loading } = useAuth()
   const router = useRouter()
+  // Every /coach/* page renders through this layout — until now this only
+  // checked "is someone logged in", never "is this the coach", so any
+  // signed-in athlete could open any coach URL directly and see it. This
+  // is the page-level half of the fix; firestore.rules covers the
+  // data-level half (some collections had no owner/coach scoping either).
+  const isCoach = isCoachEmail(user?.email)
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/')
-    }
-  }, [user, loading, router])
+    if (loading) return
+    if (!user) { router.push('/'); return }
+    if (!isCoach) { router.push('/athlete'); return }
+  }, [user, loading, isCoach, router])
 
   if (loading) {
     return (
@@ -26,6 +33,10 @@ export function CoachLayout({ children, hideNav }: { children: ReactNode; hideNa
   }
 
   if (!user) {
+    return null
+  }
+
+  if (!isCoach) {
     return null
   }
 
