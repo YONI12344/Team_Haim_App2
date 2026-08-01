@@ -468,7 +468,8 @@ export function AthleteDashboard() {
           )}>
             <div className="flex items-start justify-between mb-3">
               <p className="text-xl font-bold text-white">{t.helloGreeting}, {profileName.split(' ')[0]}</p>
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-3">
+                <p className="text-xs text-white/40 pt-1">{format(new Date(), 'd MMM')}</p>
                 {/* One-tap Strava sync — top of the hero card since this is
                     the single most-used action on this screen; a plain
                     icon row felt buried further down the page. */}
@@ -476,16 +477,15 @@ export function AthleteDashboard() {
                   onClick={() => syncStrava()}
                   disabled={stravaSyncing}
                   title={stravaSyncing ? t.stravaSyncingBtn : t.stravaSyncBtn}
-                  className="flex items-center gap-1.5 h-8 px-3 rounded-full bg-white/10 hover:bg-white/15 active:scale-95 transition-all disabled:opacity-50"
+                  className="flex items-center gap-2 h-10 px-4 rounded-full bg-[#FC4C02] hover:bg-[#e64500] active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-[#FC4C02]/20"
                 >
                   {stravaSyncing ? (
-                    <Loader2 className="h-3.5 w-3.5 text-[#FC4C02] animate-spin" />
+                    <Loader2 className="h-5 w-5 text-white animate-spin" />
                   ) : (
-                    <RefreshCw className="h-3.5 w-3.5 text-[#FC4C02]" />
+                    <RefreshCw className="h-5 w-5 text-white" />
                   )}
-                  <span className="text-xs font-bold text-white">Strava</span>
+                  <span className="text-sm font-bold text-white">Strava</span>
                 </button>
-                <p className="text-xs text-white/40">{format(new Date(), 'd MMM')}</p>
               </div>
             </div>
 
