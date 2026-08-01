@@ -23,6 +23,7 @@ import {
   X,
   CheckCircle2,
   FlaskConical,
+  RefreshCw,
 } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
@@ -42,6 +43,7 @@ import {
 import { db, realtimeDb } from '@/lib/firebase'
 import { ref, push, onValue, query as rtQuery, orderByChild, limitToLast } from 'firebase/database'
 import { getCoachInfo, conversationId } from '@/lib/coach'
+import { useStravaSync } from '@/hooks/useStravaSync'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
 import { useWorkoutTypeLabels, workoutTypeColors } from '@/lib/workout-labels'
@@ -111,6 +113,12 @@ export function AthleteDashboard() {
       import("@/lib/firebase").then(({ db }) => {
         setDoc(doc(db, "strava_connections", `strava_${stravaId}`), {
           stravaId: Number(stravaId),
+          // Lets firestore.rules scope this doc to its own owner — this
+          // collection holds a raw Strava OAuth accessToken/refreshToken,
+          // and had no owner field at all before, so any signed-in athlete
+          // could read or overwrite any OTHER athlete's Strava tokens by
+          // guessing/enumerating strava_<id> doc ids.
+          userId: user?.id || null,
           name: stravaName || "",
           accessToken,
           refreshToken: refreshToken || "",
@@ -128,6 +136,11 @@ export function AthleteDashboard() {
     })
   }, [])
   const { user } = useAuth()
+  // logs/assigned below are on real-time onSnapshot listeners, so a
+  // successful sync's Firestore writes flow into this screen automatically
+  // — no manual refetch callback needed here (unlike the Schedule page's
+  // own copy of this hook, which reloads a plain one-time query).
+  const { syncing: stravaSyncing, sync: syncStrava } = useStravaSync(user?.id || '')
   const { t, isRTL } = useLanguage()
   const workoutTypeLabels = useWorkoutTypeLabels()
   const [profile, setProfile] = useState<Partial<AthleteProfile> | null>(null)
@@ -645,6 +658,29 @@ export function AthleteDashboard() {
           <ChevronRight className={cn('h-5 w-5 text-gray-300 flex-shrink-0', isRTL && 'rotate-180')} />
         </div>
       </Link>
+
+      {/* Sync from Strava — moved here from the Schedule page for easier,
+          one-tap access to logging today's workout without navigating away
+          from the home screen first. */}
+      <button onClick={() => syncStrava()} disabled={stravaSyncing} className="block w-full text-start disabled:opacity-60">
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex items-center justify-between active:scale-[0.98] transition-transform">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-[#FC4C02] flex items-center justify-center flex-shrink-0">
+              {stravaSyncing ? (
+                <Loader2 className="h-6 w-6 text-white animate-spin" />
+              ) : (
+                <RefreshCw className="h-6 w-6 text-white" />
+              )}
+            </div>
+            <div dir={isRTL ? 'rtl' : 'ltr'}>
+              <p className="font-bold text-[#0a1628] text-base leading-tight">
+                {stravaSyncing ? t.stravaSyncingBtn : t.stravaSyncBtn}
+              </p>
+              <p className="text-xs text-gray-400 mt-0.5">Strava</p>
+            </div>
+          </div>
+        </div>
+      </button>
 
       {/* Lab — lactate tests, thresholds, derived paces; coach-gated per athlete */}
       {profile?.labVisibleToAthlete && (
