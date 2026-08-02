@@ -74,6 +74,23 @@ const WORKOUT_TYPES = [
   'recovery', 'strength', 'cross_training', 'swim', 'bike', 'rest', 'race', 'time_trial', 'threshold',
 ]
 
+// Fixed value sets instead of open numbers — picked from what actually
+// appears throughout <brain_reference_data> (standard_workouts, micro
+// intervals, double threshold, etc.) plus round real-world training
+// numbers. This keeps the model choosing from realistic, consistent
+// values instead of drifting toward odd precise numbers (837m, 43min),
+// and reads cleaner for the athlete than arbitrary decimals.
+const REP_COUNTS = [1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 16, 20, 24, 25, 30, 35, 40]
+const REP_DISTANCES_M = [200, 300, 400, 600, 800, 1000, 1200, 1500, 1600, 2000, 3000, 5000]
+const REP_DURATIONS_SEC = [15, 20, 30, 35, 45, 60, 90, 120, 180, 240, 300, 360, 420, 480, 600]
+const TOTAL_DISTANCES_KM = [
+  2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21.1, 22, 24, 25, 26, 28, 30, 32, 34, 35, 38, 40, 42.2, 45,
+]
+const TOTAL_DURATIONS_MIN = [10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 90, 100, 110, 120, 135, 150, 165, 180]
+// Every lactate value that actually appears in brain.json — the_golden_zone,
+// double_threshold, LT1/LT2/LT3 definitions — nothing invented in between.
+const LACTATE_VALUES = [1.5, 1.8, 2.0, 2.2, 2.3, 2.5, 2.8, 3.0, 3.2, 3.5, 4.0, 4.5]
+
 const WORKOUT_ITEM_SCHEMA = {
   type: 'object',
   required: ['date', 'type', 'title', 'description', 'duration', 'distance'],
@@ -96,18 +113,19 @@ const WORKOUT_ITEM_SCHEMA = {
       type: ['string', 'null'],
       description: 'Use for anything sets[] can\'t express: an embedded marathon-pace segment inside a long run, strength exercise list, fartlek 45/15 cycle count, etc.',
     },
-    duration: { type: ['number', 'null'], description: 'minutes — REQUIRED (non-null) for every type except "rest".' },
-    distance: { type: ['number', 'null'], description: 'km — REQUIRED (non-null) for every running type (easy/long_run/tempo/intervals/hill_repeats/fartlek/threshold/recovery/race/time_trial) except "rest"/"strength"/"cross_training".' },
+    duration: { type: ['number', 'null'], enum: [...TOTAL_DURATIONS_MIN, null], description: 'minutes, from the fixed list — REQUIRED (non-null) for every type except "rest".' },
+    distance: { type: ['number', 'null'], enum: [...TOTAL_DISTANCES_KM, null], description: 'km, from the fixed list (42.2 is there for marathon race day) — REQUIRED (non-null) for every running type (easy/long_run/tempo/intervals/hill_repeats/fartlek/threshold/recovery/race/time_trial) except "rest"/"strength"/"cross_training".' },
     targetThresholdLevel: { type: ['string', 'null'], enum: ['T1', 'T2', 'T3', null] },
-    bakkenLactateMin: { type: ['number', 'null'], description: 'mmol/L, from the brain data — null for easy/recovery/rest days' },
-    bakkenLactateMax: { type: ['number', 'null'], description: 'mmol/L, from the brain data — null for easy/recovery/rest days' },
+    bakkenLactateMin: { type: ['number', 'null'], enum: [...LACTATE_VALUES, null], description: 'mmol/L, from the fixed list (every value that appears in brain_reference_data) — null for easy/recovery/rest days' },
+    bakkenLactateMax: { type: ['number', 'null'], enum: [...LACTATE_VALUES, null], description: 'mmol/L, from the fixed list (every value that appears in brain_reference_data) — null for easy/recovery/rest days' },
     comparisonGroup: {
       type: ['string', 'null'],
       description: 'A short stable label so the coach can track this exact session type over time in the app\'s lab comparison view, e.g. "Golden Zone 5x6min" or "LT2 1000m reps". Use the EXACT SAME string every time this same structure recurs across the season — this is how progress gets tracked, so consistency matters more than cleverness. Null for easy/rest/strength.',
     },
     thresholdDistance: {
       type: ['number', 'null'],
-      description: 'meters — if every rep in sets[] uses the same distanceMeters, repeat that value here (e.g. 1000). Null if reps use durationSec instead, or distances vary.',
+      enum: [...REP_DISTANCES_M, null],
+      description: 'meters, from the fixed list — if every rep in sets[] uses the same distanceMeters, repeat that value here (e.g. 1000). Null if reps use durationSec instead, or distances vary.',
     },
     sets: {
       type: 'array',
@@ -116,9 +134,9 @@ const WORKOUT_ITEM_SCHEMA = {
         type: 'object',
         required: ['reps'],
         properties: {
-          reps: { type: 'number', description: 'number of repetitions of the SAME structure in this set, e.g. 10 for "10x1000m". Use 1 if this set is a single non-repeating segment (see intervals[] below for alternating sequences).' },
-          distanceMeters: { type: ['number', 'null'], description: 'per rep, e.g. 1000 for 1000m reps — use for distance-based reps like LT2 Short Intervals (10-12x1000m, 25x400m), hill repeats, race-pace intervals.' },
-          durationSec: { type: ['number', 'null'], description: 'per rep, e.g. 360 for 6-minute reps, 45 for 45s micro-intervals — use for TIME-based reps like LT1 Long Intervals (5x6min, 4x8min are minutes-based, not distance-based — use durationSec=360/480, NOT distanceMeters), Norwegian 4x4 (durationSec=240), hill intervals (durationSec=35).' },
+          reps: { type: 'number', enum: REP_COUNTS, description: 'number of repetitions of the SAME structure in this set, from the fixed list, e.g. 10 for "10x1000m". Use 1 if this set is a single non-repeating segment (see intervals[] below for alternating sequences).' },
+          distanceMeters: { type: ['number', 'null'], enum: [...REP_DISTANCES_M, null], description: 'per rep, from the fixed list, e.g. 1000 for 1000m reps — use for distance-based reps like LT2 Short Intervals (10-12x1000m, 25x400m), hill repeats, race-pace intervals.' },
+          durationSec: { type: ['number', 'null'], enum: [...REP_DURATIONS_SEC, null], description: 'per rep, from the fixed list, e.g. 360 for 6-minute reps, 45 for 45s micro-intervals — use for TIME-based reps like LT1 Long Intervals (5x6min, 4x8min are minutes-based, not distance-based — use durationSec=360/480, NOT distanceMeters), Norwegian 4x4 (durationSec=240), hill intervals (durationSec=35).' },
           restBetweenReps: { type: ['string', 'null'], description: 'e.g. "60s jog" — required whenever reps > 1 and intervals is empty' },
           restAfterSet: { type: ['string', 'null'], description: 'only for multi-set sessions, e.g. "3 min" between the two sets of a 2x(10x45/15) micro-interval session' },
           notes: { type: ['string', 'null'] },
@@ -128,8 +146,8 @@ const WORKOUT_ITEM_SCHEMA = {
             items: {
               type: 'object',
               properties: {
-                distanceMeters: { type: ['number', 'null'] },
-                durationSec: { type: ['number', 'null'] },
+                distanceMeters: { type: ['number', 'null'], enum: [...REP_DISTANCES_M, null] },
+                durationSec: { type: ['number', 'null'], enum: [...REP_DURATIONS_SEC, null] },
                 notes: { type: ['string', 'null'], description: 'effort for this segment, e.g. "hard" / "easy" / "very easy jog"' },
               },
             },
@@ -235,6 +253,10 @@ export interface SkeletonOut {
 }
 
 const STAGE_TYPES = ['base', 'build', 'peak', 'taper', 'race_week', 'recovery', 'custom']
+// Fixed weekly-volume steps (5km granularity, 10-220km covers recreational
+// through elite) — same "fixed numbers over open field" reasoning as the
+// per-workout schema above.
+const WEEKLY_KM_VALUES = Array.from({ length: 43 }, (_, i) => 10 + i * 5)
 
 /** Anthropic tool definition for the one-shot season skeleton call. */
 export function buildSkeletonToolDefinition(): Anthropic.Tool {
@@ -257,7 +279,7 @@ export function buildSkeletonToolDefinition(): Anthropic.Tool {
               type: { type: 'string', enum: STAGE_TYPES },
               weeks: { type: 'number' },
               focus: { type: 'string' },
-              weeklyVolumeKm: { type: 'number' },
+              weeklyVolumeKm: { type: 'number', enum: WEEKLY_KM_VALUES, description: 'km, from the fixed list (5km steps)' },
               keyWorkouts: { type: 'array', items: { type: 'string', enum: WORKOUT_TYPES } },
               milestones: { type: 'array', items: { type: 'string' } },
             },
