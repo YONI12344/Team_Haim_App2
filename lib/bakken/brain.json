@@ -1,0 +1,139 @@
+{
+  "assistant_identity": {
+    "name": "Elite Norwegian Method Coaching Intelligence",
+    "origin": "Synthesized from the clinical findings of Marius Bakken, MD, and the elite application of Andreas Almgren.",
+    "core_philosophy": "Intensity must be precise enough to be tolerated and repeated. Success is not achieved by training as hard as possible, but by training hard enough, often enough, for long enough. Maximizing the training effect over a full year is superior to individual session exhaustion."
+  },
+  "the_physiological_hub": {
+    "lactate_threshold_definitions": {
+      "LT1_aerobic_threshold": "The point where lactate first starts to clearly increase, typically around 1.5 mmol/L. This pace is maintainable for 2-3 hours.",
+      "LT2_anaerobic_threshold": "The point of sharp, exponential lactate increase, typically around 4.0 mmol/L for trained athletes. This is roughly the pace maintainable for about one hour.",
+      "mlss_maximal_lactate_steady_state": "The highest intensity where lactate production equals clearance. Threshold training aims to drive this 'aerobic engine' higher."
+    },
+    "the_golden_zone": {
+      "definition": "A conservative approach to threshold training where the athlete trains slightly slower than the exact LT2 edge to support consistency and recovery.",
+      "lactate_target": "Bakken's 'Sweet Spot' is 2.3 to 3.0 mmol/L. Training at 2 mmol/L (near LT1) rather than 4 mmol/L allows for significantly more volume with less fatigue.",
+      "pacing_adjustments_by_interval": [
+        "45s-1m: Run at threshold pace.",
+        "1-3m: 1-3% slower than threshold.",
+        "4-5m: 3-6% slower than threshold.",
+        "8-12m: 6-9% slower than threshold."
+      ]
+    },
+    "intensity_triangulation": {
+      "lactate_meter": "The 'gold standard' for enforcing honesty and removing ego from training.",
+      "heart_rate": "Lactate threshold typically falls between 85-90% of HRmax for trained runners.",
+      "talk_test": "At sub-threshold pace, speak 3-5 words between breaths with controlled but elevated breathing.",
+      "perceived_exertion": "Should feel like a 6-7 out of 10, described as 'controlled discomfort'."
+    }
+  },
+  "foundational_principles": {
+    "principle_1_precision_over_effort": "Control intensity using multiple signals (Lactate, HR, Talk Test) to avoid the 'black hole' of moderate fatigue.",
+    "principle_2_running_is_muscularly_limited": "Training load is constrained more by mechanical impact and 'muscle tone' than by the cardiovascular system.",
+    "principle_3_tone_management": "Organize the week around muscle tone variation. Morning sessions use longer repeats to moderate tone; evening sessions use shorter, faster work.",
+    "principle_4_easy_is_sacred": "Easy runs must be under 70% of HRmax with no exceptions to reduce muscular and nervous system tone.",
+    "principle_5_interval_focus": "Use intervals for threshold work to allow short muscular rests, which keeps lactate in range and speed higher.",
+    "principle_6_the_basic_week": "Find a sustainable week and repeat it up to 40 times a year to build a high Chronic Training Load (CTL)."
+  },
+  "workout_mechanics_and_first_principles": {
+    "double_threshold": {
+      "the_breakthrough": "View two sessions as one long session with a functional rest break (6-8 hours) in the middle.",
+      "am_session": "Longer repeats (e.g., 5 x 6 min or 4 x 10 min) at lower lactate (~2.0-2.5 mmol/L).",
+      "pm_session": "Shorter repeats (e.g., 10-12 x 1000m or 25 x 400m) at slightly higher lactate (~3.0-3.5 mmol/L).",
+      "rationale": "Hits the body before delayed inflammatory responses (24-72h) fully set in."
+    },
+    "micro_intervals_45_15": {
+      "origin": "Found to produce the highest HR and speed at the lowest corresponding lactate reading.",
+      "mechanics": "45s on / 15s active jog recovery. Short rest prevents runaway lactate while keeping the aerobic machinery primed.",
+      "threshold_version": "Used for base building. Reps: 15-20 (developing) up to 35 (advanced).",
+      "5k_pace_version": "Used for sharpening. Provides speed stimulus with less breakdown than long VO2max intervals."
+    },
+    "norwegian_4x4": {
+      "structure": "Four 4-minute intervals at 90-95% HRmax with 3-minute active recovery.",
+      "purpose": "Hammers VO2max directly to raise the 'peak' of the performance pyramid."
+    },
+    "hill_intervals": {
+      "structure": "24 x 35s uphill with jog back recovery.",
+      "benefits": "Builds running strength and VO2max with lower mechanical impact stress."
+    }
+  },
+  "training_structures_by_level": {
+    "recreational_singles_3_to_4_runs": {
+      "philosophy": "Maximizing repeatable load while managing fatigue for time-crunched athletes.",
+      "weekly_pattern_4_runs": "Mon (Easy), Wed (Intervals), Fri (Long Run), Sun (Easy).",
+      "quality_guidelines": "Quality work (threshold or VO2max) should be 20-25% of weekly running time.",
+      "long_run": "75-90 minutes is often sufficient for 5k-HM focus.",
+      "progression": "Start with 2 quality sessions and build to 3 over 4-8 weeks."
+    },
+    "intermediate_5_to_7_runs": {
+      "structure": "One threshold day, one VO2max day, and one long run. Pattern: E-Q-E-Q-E-Q-LR.",
+      "intro_to_doubles": "Start by adding an easy double on a light day (e.g., 8km AM / 8km PM) rather than a double threshold.",
+      "volume_ceiling": "Once hitting 8-9 hours per week, consider doubles to spread mechanical risk."
+    },
+    "ambitious_elite": {
+      "volume": "160 to 200 km per week.",
+      "standard_week": "Tue (Double Threshold), Thu (Double Threshold), Sat (Hills/Hard Quality), Sun (Long Run/Strength).",
+      "the_grind": "Expect to feel 'half-exhaustion' during base periods; full energy returns only when volume drops for peaking."
+    }
+  },
+  "distance_specific_adjustments": {
+    "5k_to_10k": "Focus on driving threshold speed higher. Peaking involves race-pace intervals (e.g., 6 x 1000m at race pace).",
+    "half_marathon": "Transition to longer threshold repeats (e.g., 4 x 5km or 4 x 10 min) to build local muscular endurance.",
+    "marathon": {
+      "bottleneck": "Glycogen depletion and energy intake are major limiters.",
+      "long_runs": "Most critical session. Integrate marathon pace (MP) work into the end of long runs (e.g., 10k at MP within a 32k LR).",
+      "threshold_link": "LT2 pace for well-trained marathoners sits remarkably close to race pace."
+    }
+  },
+  "muscular_state_and_strength": {
+    "muscle_tone": {
+      "definition": "Baseline tension at rest. Excessive tone feels like 'heavy legs'.",
+      "tone_control": "Easy days and recovery intervals serve to lower accumulated muscle tone.",
+      "treadmill_benefit": "Likely less stress on the muscular system, allowing for more work."
+    },
+    "strength_training": {
+      "purpose": "Primarily injury prevention ('Prehab') rather than performance enhancement.",
+      "timing": "Perform at the end of threshold days to cluster stress, or at the start so threshold work lowers tone before recovery.",
+      "core_exercises": [
+        "Hang Clean (Explosiveness)",
+        "Squats/Bulgarian Split Squats (Stability)",
+        "Step-ups (Balance)",
+        "Hip Thrusts (Glute Activation)",
+        "Calf Raises (Old Man's Calf Prevention)"
+      ]
+    }
+  },
+  "health_recovery_and_warning_signs": {
+    "warning_signals": {
+      "physiological": "Morning resting HR elevated >5 bpm for 3+ days.",
+      "performance": "Inability to hit target lactate ranges or lower pace at the same HR.",
+      "mental": "Loss of motivation, mood changes, or irritability.",
+      "physical": "Sudden pain requires immediate stopping; mild twinges that move may be 'noise'."
+    },
+    "illness_management": {
+      "non_negotiable": "Never train with a fever or sore throat.",
+      "cost": "One week of illness can cost 2 seconds per interval in a 400m session."
+    },
+    "clinical_recovery": {
+      "sleep": "Deep sleep is the most important piece of the recovery puzzle. Disrupted sleep is a primary overtraining signal.",
+      "nutrition": "Carbohydrate intake immediately after a session kick-starts recovery for the next one. Aim for 7-10g of carbs per kg of body weight on double days.",
+      "supplements": "Broccoli sprout shots (manage lactic acid/adaptation), Bicarbonate (acid buffer), Caffeine (competition boost)."
+    }
+  },
+  "advanced_coaching_and_applied_science": {
+    "lactate_profiling": "Measure every interval during assessment sessions to identify the point where lactate stabilizes (MLSS).",
+    "heat_training": "Using a chamber (38°C/60% humidity) for 50 min to expand blood plasma volume and increase hemoglobin.",
+    "altitude_periodization": "Short intense stays (7-8 days) vs. long stays (3-6 weeks). Altitude lifts the threshold 'ceiling'.",
+    "treadmill_standardization": "Eliminate environmental variables to precisely compare speed vs. HR vs. lactate.",
+    "medical_monitoring": "Check ferritin (iron stores) frequently, especially during high load or altitude phases."
+  },
+  "coaching_psychology_and_peaking": {
+    "the_peaking_window": "Final 4-6 weeks. Gradually reduce volume while increasing intensity to race-specific speeds.",
+    "reverse_engineering": "Identify the target race date and work backward to determine necessary training phases.",
+    "mental_strategies": {
+      "pain_management": "View pain as a 'friend' or a 'party guest'. If the friend doesn't show up, you didn't do the workout right.",
+      "the_really_test": "Ask: 'How tired am I, REALLY?' Usually the brain exaggerates fatigue; if you can think the thought, you aren't spent yet.",
+      "perspective_switching": "Focus on the 'Short-Term' task (this interval/segment) while grounding it in the 'Long-Term' goal (the race date)."
+    }
+  }
+}
