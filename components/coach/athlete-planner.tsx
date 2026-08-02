@@ -685,6 +685,22 @@ export function AthletePlanner({ athleteId }: Props) {
     } catch { toast.error(t.errorDeleting) }
   }
 
+  /** Delete every assigned workout in the week starting at `weekStartDay` — coach-only, mirrors copyWeekTo. */
+  const handleDeleteWeek = async (weekStartDay: Date) => {
+    const weekEndDay = endOfWeek(weekStartDay, { weekStartsOn: calWeekStartsOn })
+    const from = format(weekStartDay, 'yyyy-MM-dd')
+    const to = format(weekEndDay, 'yyyy-MM-dd')
+    const weekWorkouts = assignedWorkouts.filter(w => w.scheduledDate >= from && w.scheduledDate <= to)
+    if (weekWorkouts.length === 0) { toast.error(t.noWorkoutsYet); return }
+    if (!confirm(`למחוק ${weekWorkouts.length} אימונים משבוע ${format(weekStartDay, 'd/M')}–${format(weekEndDay, 'd/M')}? לא ניתן לבטל.`)) return
+    try {
+      await Promise.all(weekWorkouts.map(w => deleteDoc(doc(db, 'assignedWorkouts', w.id))))
+      setAssignedWorkouts(prev => prev.filter(w => !(w.scheduledDate >= from && w.scheduledDate <= to)))
+      if (selectedAssignedId && weekWorkouts.some(w => w.id === selectedAssignedId)) setSelectedAssignedId(null)
+      toast.success(`✓ ${weekWorkouts.length} אימונים נמחקו משבוע ${format(weekStartDay, 'd/M')}`)
+    } catch { toast.error(t.tryAgainLaterText) }
+  }
+
   const handlePasteWorkout = async (dateStr: string) => {
     if (!copiedWorkout) return
     try {
@@ -1093,6 +1109,12 @@ export function AthletePlanner({ athleteId }: Props) {
                   <Copy className="h-3 w-3 mr-1"/>העתק שבוע
                 </Button>
               )}
+              {viewMode === 'week' && !copiedWeekStart && (
+                <Button variant="outline" size="sm" className="h-7 text-xs border-red-200 text-red-500 hover:bg-red-50 hover:text-red-600"
+                  onClick={() => handleDeleteWeek(weekStart)}>
+                  <Trash2 className="h-3 w-3 mr-1"/>מחק שבוע
+                </Button>
+              )}
               {viewMode === 'week' && copiedWeekStart && !isSameDay(weekStart, copiedWeekStart) && (
                 <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
                   onClick={() => copyWeekTo(copiedWeekStart, weekStart)}>
@@ -1280,6 +1302,15 @@ export function AthletePlanner({ athleteId }: Props) {
                                 <Copy className="h-3 w-3"/>
                               </button>
                             ) : null}
+                            {/* Delete the whole week — coach-only, always available regardless of copy mode */}
+                            {wKm > 0 && (
+                              <button
+                                onClick={() => handleDeleteWeek(weekStartDay)}
+                                title={`מחק שבוע ${format(weekStartDay, 'd/M')}`}
+                                className="w-6 h-6 rounded-md border border-red-200 bg-white text-red-400 hover:text-red-600 hover:border-red-400 flex items-center justify-center active:scale-90 transition-all">
+                                <Trash2 className="h-3 w-3"/>
+                              </button>
+                            )}
                           </div>
                             )
                           })()}
