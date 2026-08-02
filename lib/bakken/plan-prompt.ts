@@ -133,10 +133,12 @@ export function buildBlockToolDefinition(): Anthropic.Tool {
  * ~14-day block of a full season plan (see app/api/bakken-coach/generate-plan
  * and components/coach/bakken-plan-panel.tsx), never for a full season in
  * one call and never conversational. The season's phase skeleton (base/
- * build/peak/taper/race_week, with dates and weekly volume) is computed
- * deterministically by lib/journey.ts buildCustomJourney — this prompt only
- * fills in day-by-day workout content for the block it's given, strictly
- * grounded in the Norwegian Sub-Threshold methodology in <brain_reference_data>.
+ * build/peak/taper/race_week, with dates and weekly volume) comes from one
+ * prior call to buildSkeletonSystemPrompt below — this prompt only fills in
+ * day-by-day workout content for the block it's given, strictly grounded in
+ * the Norwegian Sub-Threshold methodology in <brain_reference_data>. Both
+ * calls share the same brain.json — there is one source of truth, just two
+ * calls (skeleton once, then content per block) so each stays reliable.
  */
 export function buildBlockSystemPrompt(): string {
   return `You are the Bakken/Almgren Norwegian Method AI Coach for Team Haim. You do not chat with athletes. You always respond by calling the submit_training_block tool exactly once with the workouts for the date range you are given — never prose, never partial answers.
@@ -164,4 +166,102 @@ export function buildBlockUserMessage(athlete: PlanAthleteContext, block: BlockR
 athlete_context = ${JSON.stringify(athlete, null, 2)}
 
 block_request = ${JSON.stringify(block, null, 2)}`
+}
+
+// ── Season skeleton (periodization) — also brain-driven, not a fixed template ──
+
+export interface SkeletonRequest {
+  totalWeeksAvailable: number
+  currentWeeklyKm: number
+  peakWeeklyKmHint?: number // coach's explicit weeklyKmRange.max, if set — a hint, not a constraint
+}
+
+export interface SkeletonStageOut {
+  name: string
+  type: 'base' | 'build' | 'peak' | 'taper' | 'race_week' | 'recovery' | 'custom'
+  weeks: number
+  focus: string
+  weeklyVolumeKm: number
+  keyWorkouts: string[] // subset of WORKOUT_TYPES emphasized in this phase
+  milestones?: string[]
+}
+
+export interface SkeletonOut {
+  title: string
+  stages: SkeletonStageOut[]
+}
+
+const STAGE_TYPES = ['base', 'build', 'peak', 'taper', 'race_week', 'recovery', 'custom']
+
+/** Anthropic tool definition for the one-shot season skeleton call. */
+export function buildSkeletonToolDefinition(): Anthropic.Tool {
+  return {
+    name: 'submit_season_skeleton',
+    description: "Submit this athlete's full season periodization skeleton, from today to their goal race.",
+    input_schema: {
+      type: 'object',
+      required: ['title', 'stages'],
+      properties: {
+        title: { type: 'string', description: "Season title in the athlete's language, e.g. \"Road to Tel Aviv Marathon\"." },
+        stages: {
+          type: 'array',
+          description: 'Ordered phases covering the full season. weeks across all stages MUST sum to exactly totalWeeksAvailable.',
+          items: {
+            type: 'object',
+            required: ['name', 'type', 'weeks', 'focus', 'weeklyVolumeKm', 'keyWorkouts'],
+            properties: {
+              name: { type: 'string' },
+              type: { type: 'string', enum: STAGE_TYPES },
+              weeks: { type: 'number' },
+              focus: { type: 'string' },
+              weeklyVolumeKm: { type: 'number' },
+              keyWorkouts: { type: 'array', items: { type: 'string', enum: WORKOUT_TYPES } },
+              milestones: { type: 'array', items: { type: 'string' } },
+            },
+          },
+        },
+      },
+    },
+  }
+}
+
+/**
+ * System prompt for the ONE-SHOT season skeleton call — decides how many
+ * weeks go to each phase, the volume ramp, and which workout types define
+ * each phase, using the brain's own periodization rules (reverse_engineering,
+ * the_peaking_window, distance_specific_adjustments, training_structures_by_level)
+ * instead of a fixed generic proportional split. Calendar dates are computed
+ * from the returned week-counts in code, not by the model, so date math can't
+ * come out wrong — but every phase-shape decision comes from this same brain.
+ */
+export function buildSkeletonSystemPrompt(): string {
+  return `You are the Bakken/Almgren Norwegian Method AI Coach for Team Haim. You do not chat. You always respond by calling the submit_season_skeleton tool exactly once — never prose.
+
+Design this athlete's full season periodization, strictly grounded in <brain_reference_data>.
+
+RULES:
+1. Use coaching_psychology_and_peaking.reverse_engineering: work backward from the goal race. The peaking window (coaching_psychology_and_peaking.the_peaking_window) is the final 4-6 weeks — split it into "peak", "taper", and a short "race_week" stage per the brain, not one generic block.
+2. Use distance_specific_adjustments for the athlete's goalRaceEvent distance (5K/10K/half/marathon) to decide how much of the season is base vs. build vs. race-specific work — a marathon needs more base and marathon-pace-in-long-run work; a 5K/10K needs more race-pace/VO2max sharpening near the end.
+3. Base phase gets the largest share of skeleton_request.totalWeeksAvailable once the peaking window is subtracted — high volume, conservative Golden Zone work per foundational_principles, minimal intensity variety.
+4. Build phase introduces Norwegian 4x4 / hill intervals per workout_mechanics_and_first_principles.
+5. weeklyVolumeKm must ramp sensibly from skeleton_request.currentWeeklyKm (or higher if athlete_context shows they've been comfortably handling more) toward a believable peak — respect safety_guardrails-equivalent caution: don't ramp faster than ~10%/week on average between consecutive stages. Taper/race_week volumes drop well below peak. Use skeleton_request.peakWeeklyKmHint as a hint if given, but override it if the athlete's actual data (experience level, current volume, injury history) suggests it's unrealistic.
+6. If athlete_context.experienceLevel is 'beginner' or daysPerWeek <= 4 (recreational_singles_3_to_4_runs track), keep the skeleton simpler — fewer, longer phases rather than many short ones.
+7. If athlete_context.injuryHistory is non-empty, lengthen base relative to build/peak and keep the volume ramp more conservative.
+8. The "weeks" field of every stage MUST be a positive integer, and the sum across all stages MUST equal skeleton_request.totalWeeksAvailable exactly.
+9. keyWorkouts per stage: pick from the valid workout types, only the ones that actually define this phase (e.g. base might be just ["easy","long_run","tempo"]; build adds ["intervals","hill_repeats"]; peak/race_week narrows back down).
+10. Write title and focus strings in the language given by athlete_context.language ("he" = Hebrew, "en" = English).
+
+Valid workout types for keyWorkouts: ${WORKOUT_TYPES.join(', ')}.
+
+<brain_reference_data>
+${JSON.stringify(brain, null, 2)}
+</brain_reference_data>`
+}
+
+export function buildSkeletonUserMessage(athlete: PlanAthleteContext, skeleton: SkeletonRequest): string {
+  return `Design the season skeleton. Call submit_season_skeleton with the result.
+
+athlete_context = ${JSON.stringify(athlete, null, 2)}
+
+skeleton_request = ${JSON.stringify(skeleton, null, 2)}`
 }

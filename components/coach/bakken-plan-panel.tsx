@@ -18,10 +18,10 @@ import { Loader2, Sparkles } from 'lucide-react'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/auth-context'
 import { useLatestStepTest } from '@/hooks/useLatestStepTest'
-import { buildCustomJourney, saveJourney } from '@/lib/journey'
+import { saveJourney } from '@/lib/journey'
 import { interpolateAtLactate } from '@/lib/physiology'
-import type { WorkoutType } from '@/lib/types'
-import type { PlanAthleteContext, BlockStageInfo } from '@/lib/bakken/plan-prompt'
+import type { WorkoutType, JourneyDoc, JourneyStage } from '@/lib/types'
+import type { PlanAthleteContext, BlockStageInfo, SkeletonRequest, SkeletonOut } from '@/lib/bakken/plan-prompt'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 
@@ -68,27 +68,23 @@ const MAX_BLOCKS = 10 // safety cap: 20 weeks of upfront generation per click
 const addDaysStr = (dateStr: string, n: number) => format(addDays(parseISO(dateStr), n), 'yyyy-MM-dd')
 const dateMin = (a: string, b: string) => (a < b ? a : b)
 const overlaps = (aStart: string, aEnd: string, bStart: string, bEnd: string) => aStart <= bEnd && aEnd >= bStart
-
-function pickWorkoutTypes(daysPerWeek: number | undefined, experienceLevel: string | undefined): WorkoutType[] {
-  const types: WorkoutType[] = ['easy', 'long_run', 'tempo']
-  const days = daysPerWeek ?? 4
-  if (days >= 4) types.push('intervals')
-  if (days >= 5) types.push('hill_repeats', 'threshold')
-  if (experienceLevel === 'advanced' || experienceLevel === 'professional') types.push('fartlek')
-  return types
-}
+const localId = (prefix: string) =>
+  `${prefix}_${typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Date.now() + Math.random()}`
 
 /**
- * Full-season Bakken/Almgren plan generator. The season skeleton (base/
- * build/peak/taper/race_week, with dates and weekly volume) comes from
- * lib/journey.ts buildCustomJourney — deterministic, not AI — and is saved
- * as the athlete's normal JourneyDoc so the rest of the app (season view,
- * rest-week cadence, etc.) sees it exactly like any coach-built journey.
- * Day-by-day workout content is then filled in by calling the Bakken brain
- * once per ~14-day block, writing directly to workouts/assignedWorkouts —
- * no coach review step. The app's existing visibleWeeksAhead mechanism
- * (rolls forward every Saturday) is what keeps the athlete from seeing
- * past the first 2 weeks; nothing new was built for that part.
+ * Full-season Bakken/Almgren plan generator. ONE brain (lib/bakken/brain.json)
+ * drives everything: a one-shot call decides the season's periodization
+ * skeleton (phase lengths, volume ramp, key workout types — see
+ * buildSkeletonSystemPrompt in lib/bakken/plan-prompt.ts), saved as the
+ * athlete's normal JourneyDoc so the rest of the app (season view, rest-week
+ * cadence, etc.) sees it exactly like any coach-built journey. Only the
+ * calendar-date arithmetic (turning "8 weeks" into real yyyy-MM-dd ranges)
+ * happens in code — that's not a coaching decision. Day-by-day workout
+ * content is then filled in by calling the same brain once per ~14-day
+ * block, writing directly to workouts/assignedWorkouts — no coach review
+ * step. The app's existing visibleWeeksAhead mechanism (rolls forward every
+ * Saturday) is what keeps the athlete from seeing past the first 2 weeks;
+ * nothing new was built for that part.
  */
 export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
   const { user } = useAuth()
@@ -236,40 +232,15 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         }
       })
 
-      // 1. Deterministic season skeleton (not AI) — same logic the coach's
-      // own journey builder uses.
-      const currentWeeklyKm = profile.weeklyMileage || 30
-      const peakWeeklyKm = profile.weeklyKmRange?.max || Math.round(currentWeeklyKm * 1.25)
-      const journeyDoc = buildCustomJourney({
-        startDate: format(today, 'yyyy-MM-dd'),
-        goalRaceEvent: profile.goalRaceEvent || 'Goal Race',
-        goalRaceDate: profile.goalRaceDate,
-        goalRaceTarget: profile.goalRaceTarget,
-        createdBy: user.id,
-        currentWeeklyKm,
-        peakWeeklyKm,
-        workoutTypes: pickWorkoutTypes(profile.daysPerWeek, profile.experienceLevel),
-      })
-      await saveJourney(athleteId, journeyDoc)
-
-      // 2. Split the season into ~14-day blocks, capped for cost/time.
-      const blocks: { startDate: string; endDate: string }[] = []
-      let cursor = journeyDoc.startDate
-      while (cursor <= journeyDoc.goalRaceDate && blocks.length < MAX_BLOCKS) {
-        const end = dateMin(addDaysStr(cursor, BLOCK_DAYS - 1), journeyDoc.goalRaceDate)
-        blocks.push({ startDate: cursor, endDate: end })
-        cursor = addDaysStr(end, 1)
-      }
-
       const athleteContext: PlanAthleteContext = {
         name: profile.name || 'Athlete',
         experienceLevel: profile.experienceLevel,
         daysPerWeek: profile.daysPerWeek,
         weeklyMileage: profile.weeklyMileage,
         injuryHistory: profile.injuryHistory,
-        goalRaceEvent: journeyDoc.goalRaceEvent,
-        goalRaceDate: journeyDoc.goalRaceDate,
-        goalRaceTarget: journeyDoc.goalRaceTarget,
+        goalRaceEvent: profile.goalRaceEvent || 'Goal Race',
+        goalRaceDate: profile.goalRaceDate,
+        goalRaceTarget: profile.goalRaceTarget,
         physiology: {
           hasLabTest: !!labSteps && labSteps.length >= 2,
           lt1PaceSec: profile.physiology?.lt1PaceSec ?? null,
@@ -288,6 +259,85 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         },
         recentWorkouts,
         language: (profile.preferredLanguage as 'en' | 'he') || 'he',
+      }
+
+      // 1. Season skeleton — one Bakken-brain call decides phase lengths
+      // (in weeks), volume ramp, and key workout types per phase. Only the
+      // date arithmetic below is code, not the model.
+      const startDateStr = format(today, 'yyyy-MM-dd')
+      const totalWeeksAvailable = Math.max(
+        1,
+        Math.ceil((new Date(profile.goalRaceDate).getTime() - today.getTime()) / (7 * 86400000)),
+      )
+      const currentWeeklyKm = profile.weeklyMileage || 30
+      const skeletonReq: SkeletonRequest = {
+        totalWeeksAvailable,
+        currentWeeklyKm,
+        peakWeeklyKmHint: profile.weeklyKmRange?.max,
+      }
+      setProgress('Designing season skeleton...')
+      const skeletonRes = await fetch('/api/bakken-coach/generate-skeleton', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ athlete: athleteContext, skeleton: skeletonReq }),
+      })
+      const skeletonData = await skeletonRes.json()
+      if (skeletonData.error) {
+        toast.error(`Skeleton generation failed: ${skeletonData.error}`)
+        return
+      }
+      const skeletonOut: SkeletonOut = skeletonData.skeleton
+
+      // Normalize week-counts so they sum exactly to totalWeeksAvailable —
+      // the model can be off by a week or two; the last stage absorbs any
+      // remainder so the season still lands exactly on goalRaceDate.
+      const rawStages = skeletonOut.stages.filter((s) => s.weeks > 0)
+      const weekSum = rawStages.reduce((s, st) => s + st.weeks, 0)
+      if (weekSum !== totalWeeksAvailable && rawStages.length > 0) {
+        const diff = totalWeeksAvailable - weekSum
+        rawStages[rawStages.length - 1].weeks = Math.max(1, rawStages[rawStages.length - 1].weeks + diff)
+      }
+
+      let dateCursor = startDateStr
+      const stages: JourneyStage[] = rawStages.map((s, i) => {
+        const isLast = i === rawStages.length - 1
+        const stageEnd = isLast ? profile.goalRaceDate : addDaysStr(dateCursor, s.weeks * 7 - 1)
+        const stage: JourneyStage = {
+          id: localId('stage'),
+          name: s.name,
+          type: s.type,
+          startDate: dateCursor,
+          endDate: stageEnd,
+          focus: s.focus,
+          weeklyVolumeKm: s.weeklyVolumeKm,
+          keyWorkouts: s.keyWorkouts,
+          milestones: s.milestones,
+        }
+        dateCursor = addDaysStr(stageEnd, 1)
+        return stage
+      })
+
+      const journeyDoc: JourneyDoc = {
+        id: localId('journey'),
+        title: skeletonOut.title,
+        goalRaceEvent: profile.goalRaceEvent || 'Goal Race',
+        goalRaceDate: profile.goalRaceDate,
+        goalRaceTarget: profile.goalRaceTarget,
+        startDate: startDateStr,
+        stages,
+        createdBy: user.id,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+      await saveJourney(athleteId, journeyDoc)
+
+      // 2. Split the season into ~14-day blocks, capped for cost/time.
+      const blocks: { startDate: string; endDate: string }[] = []
+      let cursor = journeyDoc.startDate
+      while (cursor <= journeyDoc.goalRaceDate && blocks.length < MAX_BLOCKS) {
+        const end = dateMin(addDaysStr(cursor, BLOCK_DAYS - 1), journeyDoc.goalRaceDate)
+        blocks.push({ startDate: cursor, endDate: end })
+        cursor = addDaysStr(end, 1)
       }
 
       // 3. Fill in each block from the Bakken brain, writing as we go.
