@@ -10,36 +10,68 @@ import { Loader2, ChevronRight, ChevronLeft, Check } from 'lucide-react'
 
 type Discipline = 'track' | 'road' | 'trail' | 'jogger' | 'mixed'
 type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced' | 'professional'
+type DayKey = 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday'
+type DayType = 'workout' | 'long_run' | 'easy' | 'rest' | 'off'
+
+const DAY_ORDER: DayKey[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+const DAY_TYPES: DayType[] = ['workout', 'long_run', 'easy', 'rest', 'off']
+const MILEAGE_PRESETS = [15, 25, 35, 45, 55, 65, 80]
+
+const DAY_LABELS: Record<'en' | 'he', Record<DayKey, string>> = {
+  en: { sunday: 'Sun', monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat' },
+  he: { sunday: 'א׳', monday: 'ב׳', tuesday: 'ג׳', wednesday: 'ד׳', thursday: 'ה׳', friday: 'ו׳', saturday: 'ש׳' },
+}
+const DAY_TYPE_LABELS: Record<'en' | 'he', Record<DayType, string>> = {
+  en: { workout: 'Quality', long_run: 'Long', easy: 'Easy', rest: 'Rest', off: "Can't run" },
+  he: { workout: 'איכות', long_run: 'ארוכה', easy: 'קלה', rest: 'מנוחה', off: 'לא זמין' },
+}
+
+type WeekScheduleForm = Record<DayKey, DayType>
+const DEFAULT_WEEK_SCHEDULE: WeekScheduleForm = {
+  sunday: 'easy', monday: 'workout', tuesday: 'easy', wednesday: 'workout',
+  thursday: 'easy', friday: 'rest', saturday: 'long_run',
+}
 
 interface OnboardingForm {
   name: string; dateOfBirth: string; gender: '' | 'male' | 'female' | 'other'
   height: string; weight: string; discipline: Discipline[]
   experienceLevel: ExperienceLevel | ''; weeklyMileage: string
-  daysPerWeek: string; injuryHistory: string
+  weekSchedule: WeekScheduleForm; injuryHistory: string
   restingHR: string; maxHR: string; goalRaceEvent: string
   goalRaceDate: string; goalRaceTarget: string; events: string
 }
 
-const STEPS = [
+const STEPS_EN = [
+  { title: 'Choose your language', subtitle: '' },
   { title: 'Welcome to Team Haim 👋', subtitle: "Let's set up your athlete profile" },
   { title: 'Personal Details', subtitle: 'Tell us about yourself' },
-  { title: 'Training Background', subtitle: 'Your experience & weekly load' },
+  { title: 'Training Background', subtitle: 'Your experience & weekly schedule' },
   { title: 'Physiology', subtitle: 'Heart rate data helps personalize your zones' },
   { title: 'Your Goal Race', subtitle: "What are you training for?" },
   { title: "You're all set! 🎉", subtitle: 'Your profile is ready' },
 ]
+const STEPS_HE = [
+  { title: 'בחר/י שפה', subtitle: '' },
+  { title: 'ברוכים הבאים ל-Team Haim 👋', subtitle: 'בואו נגדיר את פרופיל הספורטאי שלך' },
+  { title: 'פרטים אישיים', subtitle: 'ספר/י לנו קצת עליך' },
+  { title: 'רקע אימונים', subtitle: 'הניסיון שלך והלו"ז השבועי' },
+  { title: 'פיזיולוגיה', subtitle: 'נתוני דופק עוזרים להתאים לך אזורי אימון' },
+  { title: 'מירוץ היעד שלך', subtitle: 'לקראת מה מתאמנים?' },
+  { title: 'הכל מוכן! 🎉', subtitle: 'הפרופיל שלך מוכן' },
+]
 
 export function AthleteOnboarding() {
   const { user } = useAuth()
-  const { language } = useLanguage()
+  const { language, setLanguage } = useLanguage()
   const router = useRouter()
+  const STEPS = language === 'he' ? STEPS_HE : STEPS_EN
   const [step, setStep] = useState(0)
   const [saving, setSaving] = useState(false)
   const [stravaConnecting, setStravaConnecting] = useState(false)
   const [form, setForm] = useState<OnboardingForm>({
     name: '', dateOfBirth: '', gender: '', height: '', weight: '',
     discipline: [], experienceLevel: '', weeklyMileage: '',
-    daysPerWeek: '', injuryHistory: '',
+    weekSchedule: DEFAULT_WEEK_SCHEDULE, injuryHistory: '',
     restingHR: '', maxHR: '', goalRaceEvent: '', goalRaceDate: '',
     goalRaceTarget: '', events: '',
   })
@@ -66,7 +98,7 @@ export function AthleteOnboarding() {
         discipline: Array.isArray(d.discipline) ? d.discipline : [],
         experienceLevel: d.experienceLevel || '',
         weeklyMileage: d.weeklyMileage != null ? String(d.weeklyMileage) : '',
-        daysPerWeek: d.daysPerWeek != null ? String(d.daysPerWeek) : '',
+        weekSchedule: d.weekSchedule && DAY_ORDER.every((day) => d.weekSchedule[day]) ? d.weekSchedule : f.weekSchedule,
         injuryHistory: d.injuryHistory || '',
         restingHR: d.restingHR != null ? String(d.restingHR) : '',
         maxHR: d.maxHR != null ? String(d.maxHR) : '',
@@ -75,6 +107,7 @@ export function AthleteOnboarding() {
         goalRaceTarget: d.goalRaceTarget || '',
         events: Array.isArray(d.events) ? d.events.join(', ') : '',
       }))
+      if (d.preferredLanguage === 'en' || d.preferredLanguage === 'he') setLanguage(d.preferredLanguage)
     }
     load()
     return () => { cancelled = true }
@@ -83,6 +116,8 @@ export function AthleteOnboarding() {
   const set = (key: keyof OnboardingForm, value: any) => setForm(f => ({ ...f, [key]: value }))
   const toggleDiscipline = (d: Discipline) => set('discipline',
     form.discipline.includes(d) ? form.discipline.filter(x => x !== d) : [...form.discipline, d])
+  const setDayType = (day: DayKey, type: DayType) =>
+    setForm(f => ({ ...f, weekSchedule: { ...f.weekSchedule, [day]: type } }))
 
   const handleSave = async () => {
     if (!user?.id) return
@@ -103,13 +138,14 @@ export function AthleteOnboarding() {
         goalRaceDate: form.goalRaceDate || null,
         goalRaceTarget: form.goalRaceTarget || null,
         events: form.events ? form.events.split(',').map((e: string) => e.trim()).filter(Boolean) : [],
-        daysPerWeek: form.daysPerWeek ? Number(form.daysPerWeek) : null,
+        weekSchedule: form.weekSchedule,
+        daysPerWeek: DAY_ORDER.filter((day) => form.weekSchedule[day] !== 'off').length,
         injuryHistory: form.injuryHistory || null,
         preferredLanguage: language,
         onboardingComplete: true,
         updatedAt: serverTimestamp(),
       }, { merge: true })
-      setStep(5)
+      setStep(6)
     } catch (e) { console.error(e) }
     finally { setSaving(false) }
   }
@@ -126,19 +162,19 @@ export function AthleteOnboarding() {
     window.location.href = `https://www.strava.com/oauth/authorize?${params.toString()}`
   }
 
-  const next = () => { if (step === 4) { handleSave(); return } setStep(s => s + 1) }
+  const next = () => { if (step === 5) { handleSave(); return } setStep(s => s + 1) }
   const back = () => setStep(s => s - 1)
-  const progress = (step / 4) * 100
+  const progress = ((step - 1) / 4) * 100
 
   const inputCls = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a84c]"
 
   return (
-    <div className="min-h-screen bg-[#f7f5f0] flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-[#f7f5f0] flex flex-col items-center justify-center p-4" dir={language === 'he' ? 'rtl' : 'ltr'}>
       <div className="mb-8">
         <span className="text-2xl font-serif font-bold text-[#1a2744]">Team Haim</span>
       </div>
       <div className="w-full max-w-lg bg-white rounded-2xl shadow-lg overflow-hidden">
-        {step > 0 && step < 5 && (
+        {step > 1 && step < 6 && (
           <div className="h-1 bg-gray-100">
             <div className="h-full bg-[#c9a84c] transition-all duration-500" style={{ width: `${progress}%` }} />
           </div>
@@ -150,16 +186,37 @@ export function AthleteOnboarding() {
           </div>
 
           {step === 0 && (
-            <div className="space-y-4">
-              <p className="text-gray-600 leading-relaxed">Before you can see your training plan, we need a few details so your coach can personalize everything for you.</p>
-              <p className="text-gray-600 leading-relaxed">This takes about <strong>2 minutes</strong>. You can always update these later from your profile.</p>
-              <button onClick={next} className="w-full mt-4 py-3 rounded-xl bg-[#1a2744] text-white font-medium flex items-center justify-center gap-2 hover:bg-[#1a2744]/90 transition-colors">
-                Let's go <ChevronRight className="h-4 w-4" />
+            <div className="space-y-3">
+              <button onClick={() => { setLanguage('he'); next() }}
+                className={`w-full py-4 rounded-xl border-2 text-lg font-medium transition-colors ${language === 'he' ? 'bg-[#1a2744] text-white border-[#1a2744]' : 'border-gray-200 text-gray-700 hover:border-[#1a2744]'}`}>
+                עברית
+              </button>
+              <button onClick={() => { setLanguage('en'); next() }}
+                className={`w-full py-4 rounded-xl border-2 text-lg font-medium transition-colors ${language === 'en' ? 'bg-[#1a2744] text-white border-[#1a2744]' : 'border-gray-200 text-gray-700 hover:border-[#1a2744]'}`}>
+                English
               </button>
             </div>
           )}
 
           {step === 1 && (
+            <div className="space-y-4">
+              <p className="text-gray-600 leading-relaxed">
+                {language === 'he'
+                  ? 'לפני שתוכל/י לראות את תוכנית האימונים שלך, נצטרך כמה פרטים כדי שהמאמן יוכל להתאים לך הכל אישית.'
+                  : 'Before you can see your training plan, we need a few details so your coach can personalize everything for you.'}
+              </p>
+              <p className="text-gray-600 leading-relaxed">
+                {language === 'he'
+                  ? <>זה ייקח בערך <strong>2 דקות</strong>. תמיד אפשר לעדכן את זה מאוחר יותר מהפרופיל שלך.</>
+                  : <>This takes about <strong>2 minutes</strong>. You can always update these later from your profile.</>}
+              </p>
+              <button onClick={next} className="w-full mt-4 py-3 rounded-xl bg-[#1a2744] text-white font-medium flex items-center justify-center gap-2 hover:bg-[#1a2744]/90 transition-colors">
+                {language === 'he' ? 'בואו נתחיל' : "Let's go"} <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
+          {step === 2 && (
             <div className="space-y-4">
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
                 <input className={inputCls} value={form.name} onChange={e => set('name', e.target.value)} placeholder="Your name" /></div>
@@ -184,7 +241,7 @@ export function AthleteOnboarding() {
             </div>
           )}
 
-          {step === 2 && (
+          {step === 3 && (
             <div className="space-y-5">
               <div><label className="block text-sm font-medium text-gray-700 mb-2">Discipline</label>
                 <div className="flex flex-wrap gap-2">
@@ -202,20 +259,45 @@ export function AthleteOnboarding() {
                   ))}
                 </div>
               </div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Weekly Mileage (km)</label>
-                <input type="number" className={inputCls} value={form.weeklyMileage} onChange={e => set('weeklyMileage', e.target.value)} placeholder="40" /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Days per week you can train</label>
-                <div className="flex gap-2">
-                  {[3, 4, 5, 6, 7].map(d => (
-                    <button key={d} type="button" onClick={() => set('daysPerWeek', String(d))}
-                      className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${form.daysPerWeek === String(d) ? 'bg-[#1a2744] text-white border-[#1a2744]' : 'border-gray-200 text-gray-600 hover:border-[#1a2744]'}`}>{d}</button>
+              <div><label className="block text-sm font-medium text-gray-700 mb-2">
+                {language === 'he' ? 'ק"מ שבועי ממוצע' : 'Average weekly mileage (km)'}
+              </label>
+                <div className="flex flex-wrap gap-2">
+                  {MILEAGE_PRESETS.map(km => (
+                    <button key={km} type="button" onClick={() => set('weeklyMileage', String(km))}
+                      className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${form.weeklyMileage === String(km) ? 'bg-[#1a2744] text-white border-[#1a2744]' : 'border-gray-200 text-gray-600 hover:border-[#1a2744]'}`}>{km}</button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {language === 'he' ? 'ימי אימון בשבוע' : 'Your weekly training days'}
+                </label>
+                <p className="text-xs text-gray-400 mb-3">
+                  {language === 'he'
+                    ? 'לחצ/י על סוג האימון לכל יום — כולל ימים שבהם את/ה לא יכול/ה לרוץ בכלל.'
+                    : "Tap the type for each day — including days you can't run at all."}
+                </p>
+                <div className="space-y-2">
+                  {DAY_ORDER.map(day => (
+                    <div key={day} className="flex items-center gap-2">
+                      <span className="w-8 text-xs font-semibold text-gray-500 shrink-0">{DAY_LABELS[language][day]}</span>
+                      <div className="flex gap-1 flex-wrap">
+                        {DAY_TYPES.map(type => (
+                          <button key={type} type="button" onClick={() => setDayType(day, type)}
+                            className={`px-2 py-1.5 rounded-md border text-xs font-medium transition-colors ${form.weekSchedule[day] === type ? 'bg-[#1a2744] text-white border-[#1a2744]' : 'border-gray-200 text-gray-600 hover:border-[#1a2744]'}`}>
+                            {DAY_TYPE_LABELS[language][type]}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
             </div>
           )}
 
-          {step === 3 && (
+          {step === 4 && (
             <div className="space-y-4">
               <p className="text-sm text-gray-500">Optional — helps us calculate your training zones accurately.</p>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Resting Heart Rate (bpm)</label>
@@ -228,7 +310,7 @@ export function AthleteOnboarding() {
             </div>
           )}
 
-          {step === 4 && (
+          {step === 5 && (
             <div className="space-y-4">
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Goal Race Event</label>
                 <input className={inputCls} value={form.goalRaceEvent} onChange={e => set('goalRaceEvent', e.target.value)} placeholder="e.g. Tel Aviv Marathon" /></div>
@@ -239,7 +321,7 @@ export function AthleteOnboarding() {
             </div>
           )}
 
-          {step === 5 && (
+          {step === 6 && (
             <div className="space-y-4 text-center">
               <div className="flex justify-center">
                 <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
@@ -269,22 +351,22 @@ export function AthleteOnboarding() {
             </div>
           )}
 
-          {step > 0 && step < 5 && (
+          {step > 1 && step < 6 && (
             <div className="flex gap-3 mt-8">
               <button onClick={back} className="flex items-center gap-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:border-gray-400 transition-colors">
                 <ChevronLeft className="h-4 w-4" /> Back
               </button>
               <button onClick={next} disabled={saving}
                 className="flex-1 py-2.5 rounded-xl bg-[#1a2744] text-white text-sm font-medium flex items-center justify-center gap-2 hover:bg-[#1a2744]/90 transition-colors disabled:opacity-60">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : step === 4 ? 'Save & Finish' : <>Next <ChevronRight className="h-4 w-4" /></>}
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : step === 5 ? 'Save & Finish' : <>Next <ChevronRight className="h-4 w-4" /></>}
               </button>
             </div>
           )}
         </div>
       </div>
-      {step > 0 && step < 5 && (
+      {step > 1 && step < 6 && (
         <div className="flex gap-1.5 mt-6">
-          {[1,2,3,4].map(i => (
+          {[2,3,4,5].map(i => (
             <div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i === step ? 'w-6 bg-[#c9a84c]' : i < step ? 'w-3 bg-[#1a2744]' : 'w-3 bg-gray-300'}`} />
           ))}
         </div>

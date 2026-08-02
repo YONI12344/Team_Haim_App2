@@ -236,6 +236,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         name: profile.name || 'Athlete',
         experienceLevel: profile.experienceLevel,
         daysPerWeek: profile.daysPerWeek,
+        weekSchedule: profile.weekSchedule,
         weeklyMileage: profile.weeklyMileage,
         injuryHistory: profile.injuryHistory,
         goalRaceEvent: profile.goalRaceEvent || 'Goal Race',
@@ -282,8 +283,8 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         body: JSON.stringify({ athlete: athleteContext, skeleton: skeletonReq }),
       })
       const skeletonData = await skeletonRes.json()
-      if (skeletonData.error) {
-        toast.error(`Skeleton generation failed: ${skeletonData.error}`)
+      if (skeletonData.error || !Array.isArray(skeletonData.skeleton?.stages) || skeletonData.skeleton.stages.length === 0) {
+        toast.error(`Skeleton generation failed: ${skeletonData.error || 'malformed response'}. Try again.`)
         return
       }
       const skeletonOut: SkeletonOut = skeletonData.skeleton
@@ -375,8 +376,10 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
           }),
         })
         const data = await res.json()
-        if (data.error) {
-          toast.error(`Block ${i + 1} failed: ${data.error}. ${totalWritten} workouts from earlier blocks are already saved.`)
+        if (data.error || !Array.isArray(data.plan?.workouts)) {
+          toast.error(
+            `Block ${i + 1} failed: ${data.error || 'malformed response'}. ${totalWritten} workouts from earlier blocks are already saved.`,
+          )
           break
         }
         const plan: BlockPlanOut = data.plan

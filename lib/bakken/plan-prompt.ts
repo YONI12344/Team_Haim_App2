@@ -7,6 +7,7 @@ export interface PlanAthleteContext {
   name: string
   experienceLevel?: string
   daysPerWeek?: number
+  weekSchedule?: Record<'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday', string>
   weeklyMileage?: number
   injuryHistory?: string
   goalRaceEvent?: string
@@ -145,13 +146,13 @@ export function buildBlockSystemPrompt(): string {
 
 RULES:
 1. Every lactate target, HR percentage, and workout structure you choose MUST come from <brain_reference_data>. Do not invent zones or workouts that aren't in it.
-2. Pick the athlete's track (recreational_singles_3_to_4_runs / intermediate_5_to_7_runs / ambitious_elite) from athlete_context.daysPerWeek and weeklyMileage — never assign more quality sessions per week than that track allows, and never schedule two hard days back to back.
+2. Pick the athlete's track (recreational_singles_3_to_4_runs / intermediate_5_to_7_runs / ambitious_elite) from athlete_context.daysPerWeek and weeklyMileage — never assign more quality sessions per week than that track allows, and never schedule two hard days back to back. If athlete_context.weekSchedule is given, it maps each weekday to what the athlete told you at onboarding: "off" = physically unavailable that day, always output type "rest" for it, zero exceptions; "rest" = their chosen recovery day; "workout"/"long_run"/"easy" = their preferred session type for that weekday — treat those as a strong preference, not an absolute rule (adjust if the phase genuinely needs otherwise).
 3. block_request.stages tells you which journey phase(s) (base/build/peak/taper/race_week/recovery) this block's dates fall in, plus the target weekly volume for that phase — respect it. base = high volume, conservative Golden Zone work per foundational_principles; build = introduce Norwegian 4x4 / hill intervals; peak/taper per coaching_psychology_and_peaking.the_peaking_window; race_week = minimal, sharp, no risk.
 4. On the FIRST block only (block_request.blockIndex === 0), use athlete_context.last3WeeksSummary and recentWorkouts to adjust the starting point: if avgEffort has been trending high, completed/skipped ratio is poor, or comments mention fatigue/pain, start conservatively. If the athlete has been completing everything comfortably, you may start at the stage's full target volume.
 5. If athlete_context.injuryHistory is non-empty, be conservative for the whole season — prefer lower-impact sessions (treadmill note, hill over flat speed, micro-intervals over long reps) and mention it once in blockSummary on block 0.
 6. For every quality (non-easy, non-rest) workout, set bakkenLactateMin/bakkenLactateMax to the exact mmol/L range from the_golden_zone or workout_mechanics_and_first_principles for the workout you chose (e.g. Golden Zone sub-threshold = 2.3-3.0, LT1 long intervals AM = 2.0-2.5, LT2 short intervals PM = 3.0-3.5). For easy/recovery/rest days, leave both null — those are governed by "under 70% HRmax", not lactate.
 7. Write every user-facing string (blockSummary, title, description, warmup, cooldown, notes) in the language given by athlete_context.language ("he" = Hebrew, "en" = English). Hebrew output must be natural Hebrew, not a translation gloss.
-8. Cover every date from block_request.startDate to block_request.endDate inclusive, one entry per day (including rest days as type "rest", minimal fields) — respecting daysPerWeek for how many are actual sessions vs. rest/easy.
+8. Cover every date from block_request.startDate to block_request.endDate inclusive, one entry per day (including rest days as type "rest", minimal fields) — respecting daysPerWeek for how many are actual sessions vs. rest/easy. Work out the day-of-week for each date correctly before checking it against weekSchedule.
 9. If block_request.previousBlockTail is given, don't repeat the same session structure on the day immediately following it — vary the stimulus (e.g. don't follow a long-interval day with another near-identical one), and keep the same weekly rhythm (long run on the same weekday as prior blocks where sensible).
 10. Valid "targetThresholdLevel": "T1" (~2.0-2.5 mmol/L app baseline), "T2" (~3.0-4.0 mmol/L app baseline), "T3" (~4.0-5.0 mmol/L app baseline), or null — a coarse fallback only used when the athlete has no lab test on file (athlete_context.physiology.hasLabTest = false). When a lab test exists, bakkenLactateMin/Max (rule 6) is what actually gets used to compute the athlete's real pace/HR targets; still set this field to whichever T-level is closest, for UI grouping.
 

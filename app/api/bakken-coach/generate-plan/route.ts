@@ -9,7 +9,7 @@ import {
 } from '@/lib/bakken/plan-prompt'
 
 const MODEL = process.env.CLAUDE_MODEL ?? 'claude-sonnet-5'
-const MAX_TOKENS = Number(process.env.CLAUDE_MAX_TOKENS ?? 8192)
+const MAX_TOKENS = Number(process.env.CLAUDE_MAX_TOKENS_PLAN ?? 16000)
 
 // Generates ONE ~14-day block at a time (see components/coach/bakken-plan-panel.tsx,
 // which loops this once per block to cover a full season). Uses forced
@@ -40,12 +40,26 @@ export async function POST(req: NextRequest) {
       messages: [{ role: 'user', content: buildBlockUserMessage(athlete, block) }],
     })
 
+    if (response.stop_reason === 'max_tokens') {
+      console.error('Bakken block: hit max_tokens before finishing, input likely truncated')
+      return NextResponse.json(
+        { error: 'Model response was cut off (max_tokens) before finishing this block — try again.' },
+        { status: 502 },
+      )
+    }
+
     const toolUse = response.content.find(
       (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use' && b.name === tool.name,
     )
     if (!toolUse) {
       console.error('Bakken block: no tool_use block in response', JSON.stringify(response.content).slice(0, 500))
       return NextResponse.json({ error: 'Model did not call submit_training_block' }, { status: 502 })
+    }
+
+    const input = toolUse.input as { blockSummary?: unknown; workouts?: unknown }
+    if (!Array.isArray(input.workouts)) {
+      console.error('Bakken block: tool input missing workouts[]', JSON.stringify(input).slice(0, 500))
+      return NextResponse.json({ error: 'Model returned an incomplete block (missing workouts) — try again.' }, { status: 502 })
     }
 
     return NextResponse.json({ plan: toolUse.input })

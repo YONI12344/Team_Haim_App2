@@ -9,7 +9,7 @@ import {
 } from '@/lib/bakken/plan-prompt'
 
 const MODEL = process.env.CLAUDE_MODEL ?? 'claude-sonnet-5'
-const MAX_TOKENS = Number(process.env.CLAUDE_MAX_TOKENS ?? 4096)
+const MAX_TOKENS = Number(process.env.CLAUDE_MAX_TOKENS_SKELETON ?? 4096)
 
 // One-shot season periodization call — decides phase lengths/volumes/key
 // workout types for the whole season, using the same Bakken brain as the
@@ -41,12 +41,26 @@ export async function POST(req: NextRequest) {
       messages: [{ role: 'user', content: buildSkeletonUserMessage(athlete, skeleton) }],
     })
 
+    if (response.stop_reason === 'max_tokens') {
+      console.error('Bakken skeleton: hit max_tokens before finishing, input likely truncated')
+      return NextResponse.json(
+        { error: 'Model response was cut off (max_tokens) before finishing the skeleton — try again.' },
+        { status: 502 },
+      )
+    }
+
     const toolUse = response.content.find(
       (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use' && b.name === tool.name,
     )
     if (!toolUse) {
       console.error('Bakken skeleton: no tool_use block in response', JSON.stringify(response.content).slice(0, 500))
       return NextResponse.json({ error: 'Model did not call submit_season_skeleton' }, { status: 502 })
+    }
+
+    const input = toolUse.input as { title?: unknown; stages?: unknown }
+    if (!Array.isArray(input.stages) || input.stages.length === 0) {
+      console.error('Bakken skeleton: tool input missing stages[]', JSON.stringify(input).slice(0, 500))
+      return NextResponse.json({ error: 'Model returned an incomplete skeleton (missing stages) — try again.' }, { status: 502 })
     }
 
     return NextResponse.json({ skeleton: toolUse.input })
