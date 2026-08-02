@@ -110,6 +110,31 @@ const localId = (prefix: string) =>
  * Saturday) is what keeps the athlete from seeing past the first 2 weeks;
  * nothing new was built for that part.
  */
+interface AthleteSummary {
+  name: string
+  experienceLevel?: string
+  weeklyMileage?: number
+  injuryHistory?: string
+  goalRaceEvent?: string
+  goalRaceDistance?: string
+  goalRaceDate?: string
+  goalRaceTarget?: string
+  physiology?: {
+    lt1PaceSec?: number | null; lt1Hr?: number | null
+    lt2PaceSec?: number | null; lt2Hr?: number | null
+    lt3PaceSec?: number | null; lt3Hr?: number | null
+    testDate?: string
+  }
+  personalRecords: Array<{ event: string; time: string; date: string }>
+}
+
+const formatPace = (sec?: number | null) => {
+  if (!sec) return null
+  const m = Math.floor(sec / 60)
+  const s = Math.round(sec % 60)
+  return `${m}:${String(s).padStart(2, '0')}/km`
+}
+
 export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
   const { user } = useAuth()
   const { steps: labSteps } = useLatestStepTest(athleteId)
@@ -119,10 +144,14 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
   const [scheduleLanguage, setScheduleLanguage] = useState<'en' | 'he'>('he')
   const [weekSchedule, setWeekSchedule] = useState<Record<DayKey, DayType>>(DEFAULT_WEEK_SCHEDULE)
   const [scheduleLoaded, setScheduleLoaded] = useState(false)
+  const [summary, setSummary] = useState<AthleteSummary | null>(null)
+  const [coachNotes, setCoachNotes] = useState('')
+  const [savingNotes, setSavingNotes] = useState(false)
 
-  // Let the coach review/adjust the athlete's availability right before
+  // Let the coach review/adjust the athlete's availability — and see
+  // everything else the brain will actually use — right before
   // generating, instead of only being able to change it via the athlete's
-  // own onboarding flow.
+  // own onboarding flow or having to guess what data exists.
   useEffect(() => {
     let cancelled = false
     const load = async () => {
@@ -136,6 +165,21 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         setWeekSchedule(collapsed)
       }
       if (d.preferredLanguage === 'en' || d.preferredLanguage === 'he') setScheduleLanguage(d.preferredLanguage)
+      setSummary({
+        name: d.name || 'Athlete',
+        experienceLevel: d.experienceLevel,
+        weeklyMileage: d.weeklyMileage,
+        injuryHistory: d.injuryHistory,
+        goalRaceEvent: d.goalRaceEvent,
+        goalRaceDistance: d.goalRaceDistance,
+        goalRaceDate: d.goalRaceDate,
+        goalRaceTarget: d.goalRaceTarget,
+        physiology: d.physiology,
+        personalRecords: Array.isArray(d.personalRecords)
+          ? d.personalRecords.slice(0, 5).map((p: any) => ({ event: p.event, time: p.time, date: p.date }))
+          : [],
+      })
+      setCoachNotes(d.coachPrivateNotes || '')
       setScheduleLoaded(true)
     }
     load()
@@ -143,6 +187,20 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
   }, [athleteId])
 
   const setDayType = (day: DayKey, type: DayType) => setWeekSchedule((s) => ({ ...s, [day]: type }))
+
+  const saveCoachNotes = async () => {
+    setSavingNotes(true)
+    try {
+      await updateDoc(doc(db, 'users', athleteId), { coachPrivateNotes: coachNotes })
+      toast.success('Notes saved')
+    } catch {
+      toast.error('Failed to save notes')
+    } finally {
+      setSavingNotes(false)
+    }
+  }
+
+  const hasLabTest = !!labSteps && labSteps.length >= 2
 
   const buildWeekSummary = (
     recentAssigned: any[],
@@ -251,13 +309,14 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
     setLastSummary(null)
     setProgress(null)
     try {
-      // Persist whatever the coach set/adjusted in the schedule picker above
+      // Persist whatever the coach set/adjusted (schedule + notes) above
       // before reading the profile back — this is what the brain actually
-      // sees as athlete_context.weekSchedule.
+      // sees as athlete_context.weekSchedule / coachNotes.
       const derivedDaysPerWeek = DAY_ORDER.filter((day) => weekSchedule[day] !== 'off').length
       await updateDoc(doc(db, 'users', athleteId), {
         weekSchedule,
         daysPerWeek: derivedDaysPerWeek,
+        coachPrivateNotes: coachNotes,
       })
 
       const profileSnap = await getDoc(doc(db, 'users', athleteId))
@@ -307,10 +366,14 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         weekSchedule: profile.weekSchedule,
         weeklyMileage: profile.weeklyMileage,
         injuryHistory: profile.injuryHistory,
+        coachNotes: profile.coachPrivateNotes,
         goalRaceEvent: profile.goalRaceEvent || 'Goal Race',
         goalRaceDistance: profile.goalRaceDistance,
         goalRaceDate: profile.goalRaceDate,
         goalRaceTarget: profile.goalRaceTarget,
+        personalRecords: Array.isArray(profile.personalRecords)
+          ? profile.personalRecords.slice(0, 5).map((p: any) => ({ event: p.event, time: p.time, date: p.date }))
+          : [],
         physiology: {
           hasLabTest: !!labSteps && labSteps.length >= 2,
           lt1PaceSec: profile.physiology?.lt1PaceSec ?? null,
@@ -500,6 +563,58 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Everything the brain actually sees, in one place — so the coach
+            can verify it and doesn't have to guess what data exists. */}
+        {summary && (
+          <div className="rounded-lg border p-3 space-y-2 text-sm">
+            <p className="text-sm font-medium">What Bakken AI knows about {summary.name}</p>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              <div>Experience: <span className="text-foreground">{summary.experienceLevel || '—'}</span></div>
+              <div>Weekly mileage: <span className="text-foreground">{summary.weeklyMileage ? `${summary.weeklyMileage} km` : '—'}</span></div>
+              <div>Goal race: <span className="text-foreground">{summary.goalRaceDistance || '—'} {summary.goalRaceEvent ? `(${summary.goalRaceEvent})` : ''}</span></div>
+              <div>Race date: <span className="text-foreground">{summary.goalRaceDate || '—'}</span></div>
+              <div>Goal time: <span className="text-foreground">{summary.goalRaceTarget || '—'}</span></div>
+              <div>Injury history: <span className="text-foreground">{summary.injuryHistory || 'none noted'}</span></div>
+            </div>
+
+            {summary.personalRecords.length > 0 && (
+              <div className="text-xs">
+                <span className="text-muted-foreground">Recent PRs: </span>
+                <span className="text-foreground">
+                  {summary.personalRecords.map((p) => `${p.event} ${p.time} (${p.date})`).join(' · ')}
+                </span>
+              </div>
+            )}
+
+            {hasLabTest ? (
+              <div className="text-xs rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 px-2 py-1.5">
+                ✓ Lab step test on file — Bakken AI will compute exact lab-derived pace/HR targets for every quality session.
+              </div>
+            ) : (
+              <div className="text-xs rounded-md bg-amber-50 border border-amber-200 text-amber-800 px-2 py-1.5">
+                No lab step test on file. Not required — Bakken AI will fall back to HR% / talk test / RPE (per the brain's intensity_triangulation)
+                {summary.personalRecords.length > 0 ? ', anchored to the recent PRs above.' : ' and coarse pace bands.'}
+                {' '}A lactate step test (Lab tab) would sharpen every target once you're ready for one.
+              </div>
+            )}
+          </div>
+        )}
+
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-sm font-medium">Coach notes for Bakken AI (private, never shown to athlete)</p>
+            <Button size="sm" variant="outline" className="h-6 text-xs" onClick={saveCoachNotes} disabled={savingNotes}>
+              {savingNotes ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Save'}
+            </Button>
+          </div>
+          <textarea
+            value={coachNotes}
+            onChange={(e) => setCoachNotes(e.target.value)}
+            placeholder="Anything the brain should know for this athlete specifically — e.g. recovering from IT band issue, prefers mornings, has a 10K tune-up race in week 6..."
+            className="w-full min-h-[70px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+          />
+        </div>
+
         <div>
           <p className="text-sm font-medium mb-1">Availability (edit before generating if needed)</p>
           <p className="text-xs text-muted-foreground mb-3">

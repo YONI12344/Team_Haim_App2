@@ -10,10 +10,18 @@ export interface PlanAthleteContext {
   weekSchedule?: Record<'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday', string>
   weeklyMileage?: number
   injuryHistory?: string
+  // Coach-only free text (AthleteProfile.coachPrivateNotes, never shown to
+  // the athlete) — the coach's own catch-all for anything the brain should
+  // know about this specific athlete that doesn't fit another field:
+  // schedule quirks, gear, personality, race history detail, etc.
+  coachNotes?: string
   goalRaceEvent?: string
   goalRaceDistance?: '5k' | '10k' | 'half_marathon' | 'marathon'
   goalRaceDate?: string
   goalRaceTarget?: string
+  // Recent race results (AthleteProfile.personalRecords) — the best pace
+  // anchor available when there's no lab test on file.
+  personalRecords?: Array<{ event: string; time: string; date: string }>
   physiology: {
     hasLabTest: boolean
     lt1PaceSec?: number | null
@@ -199,7 +207,8 @@ RULES:
 2. Pick the athlete's track (recreational_singles_3_to_4_runs / intermediate_5_to_7_runs / ambitious_elite) from athlete_context.daysPerWeek and weeklyMileage — never assign more quality sessions per week than that track allows, and never schedule two hard days back to back. If athlete_context.weekSchedule is given, it maps each weekday to what the athlete told you at onboarding: "off" = physically unavailable that day, always output type "rest" for it, zero exceptions; "rest" = their chosen recovery day; "workout"/"long_run"/"easy" = their preferred session type for that weekday — treat those as a strong preference, not an absolute rule (adjust if the phase genuinely needs otherwise).
 3. block_request.stages tells you which journey phase(s) (base/build/peak/taper/race_week/recovery) this block's dates fall in, plus the target weekly volume for that phase — respect it. base = high volume, conservative Golden Zone work per foundational_principles; build = introduce Norwegian 4x4 / hill intervals; peak/taper per coaching_psychology_and_peaking.the_peaking_window; race_week = minimal, sharp, no risk.
 4. On the FIRST block only (block_request.blockIndex === 0), use athlete_context.last3WeeksSummary and recentWorkouts to adjust the starting point: if avgEffort has been trending high, completed/skipped ratio is poor, or comments mention fatigue/pain, start conservatively. If the athlete has been completing everything comfortably, you may start at the stage's full target volume.
-5. If athlete_context.injuryHistory is non-empty, be conservative for the whole season — prefer lower-impact sessions (treadmill note, hill over flat speed, micro-intervals over long reps) and mention it once in blockSummary on block 0.
+5. If athlete_context.injuryHistory is non-empty, be conservative for the whole season — prefer lower-impact sessions (treadmill note, hill over flat speed, micro-intervals over long reps) and mention it once in blockSummary on block 0. If athlete_context.coachNotes is non-empty, treat it as high-priority context from the coach — it can override or add nuance to any other field (e.g. a schedule quirk, a race history detail, something the coach specifically wants respected this season).
+5b. BENCHMARKING WHEN NO LAB TEST: if athlete_context.physiology.hasLabTest is false, don't block on it — use the_physiological_hub.intensity_triangulation instead: HR (85-90% HRmax at threshold), talk test (3-5 words between breaths), RPE (6-7/10 "controlled discomfort"). Use athlete_context.personalRecords (most recent relevant race time) as the pace anchor if present. Still set bakkenLactateMin/Max from the brain as normal — the app will fall back to the coarse T1/T2/T3 pace band instead of a lab-precise one until a test exists. On block 0 only, add one sentence to blockSummary noting a lactate step test (see advanced_coaching_and_applied_science.lactate_profiling) would sharpen personalization — informational, not a blocker.
 6. For every quality (non-easy, non-rest) workout, set bakkenLactateMin/bakkenLactateMax to the exact mmol/L range from the_golden_zone or workout_mechanics_and_first_principles for the workout you chose (e.g. Golden Zone sub-threshold = 2.3-3.0, LT1 long intervals AM = 2.0-2.5, LT2 short intervals PM = 3.0-3.5). For easy/recovery/rest days, leave both null — those are governed by "under 70% HRmax", not lactate.
 7. LANGUAGE PURITY — write EVERY user-facing string (blockSummary, title, description, warmup, cooldown, notes, sets[].notes, intervals[].notes) ENTIRELY in the language given by athlete_context.language ("he" = Hebrew, "en" = English). Zero exceptions, zero mixing — if language is "he", there must not be a single English word, unit, or phrase anywhere in those strings: translate "min"→"דק׳", "sec"→"שנ׳", "jog"→"ריצה קלה", "strides"→"סטרייד/ריצות האצה", "easy"→"קל/ה", "walk"→"הליכה", etc. A Hebrew string with an English phrase embedded in it (e.g. "חימום: 15-20 min easy jogging") is WRONG and breaks the app's RTL rendering — write the whole sentence in Hebrew instead ("חימום: 15-20 דק׳ ריצה קלה"). This applies with the same strictness in the other direction when language is "en".
 8. Cover every date from block_request.startDate to block_request.endDate inclusive, one entry per day (including rest days as type "rest", minimal fields) — respecting daysPerWeek for how many are actual sessions vs. rest/easy. Work out the day-of-week for each date correctly before checking it against weekSchedule.
@@ -311,7 +320,7 @@ RULES:
 4. Build phase introduces Norwegian 4x4 / hill intervals per workout_mechanics_and_first_principles.
 5. weeklyVolumeKm must ramp sensibly from skeleton_request.currentWeeklyKm (or higher if athlete_context shows they've been comfortably handling more) toward a believable peak — respect safety_guardrails-equivalent caution: don't ramp faster than ~10%/week on average between consecutive stages. Taper/race_week volumes drop well below peak. Use skeleton_request.peakWeeklyKmHint as a hint if given, but override it if the athlete's actual data (experience level, current volume, injury history) suggests it's unrealistic.
 6. If athlete_context.experienceLevel is 'beginner' or daysPerWeek <= 4 (recreational_singles_3_to_4_runs track), keep the skeleton simpler — fewer, longer phases rather than many short ones.
-7. If athlete_context.injuryHistory is non-empty, lengthen base relative to build/peak and keep the volume ramp more conservative.
+7. If athlete_context.injuryHistory is non-empty, lengthen base relative to build/peak and keep the volume ramp more conservative. If athlete_context.coachNotes is non-empty, factor it in too — it's the coach's own high-priority context for this specific athlete.
 8. The "weeks" field of every stage MUST be a positive integer, and the sum across all stages MUST equal skeleton_request.totalWeeksAvailable exactly.
 9. keyWorkouts per stage: pick from the valid workout types, only the ones that actually define this phase (e.g. base might be just ["easy","long_run","tempo"]; build adds ["intervals","hill_repeats"]; peak/race_week narrows back down).
 10. Write title and focus strings ENTIRELY in the language given by athlete_context.language ("he" = Hebrew, "en" = English) — no mixed-language words or phrases, translate every term including units.
