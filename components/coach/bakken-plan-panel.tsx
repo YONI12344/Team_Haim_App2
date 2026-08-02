@@ -268,7 +268,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
       const profile = profileSnap.data() as any
 
       if (!profile.goalRaceDate) {
-        toast.error('Set a goal race date for this athlete first (Coach View → Goal Race), then generate the Bakken season plan.')
+        toast.error('Set a Goal Race Date for this athlete first — go to their profile page → Profile tab → Edit Profile → Goal Race Date — then generate the Bakken season plan.')
         return
       }
 
