@@ -101,19 +101,39 @@ const WORKOUT_ITEM_SCHEMA = {
     targetThresholdLevel: { type: ['string', 'null'], enum: ['T1', 'T2', 'T3', null] },
     bakkenLactateMin: { type: ['number', 'null'], description: 'mmol/L, from the brain data — null for easy/recovery/rest days' },
     bakkenLactateMax: { type: ['number', 'null'], description: 'mmol/L, from the brain data — null for easy/recovery/rest days' },
+    comparisonGroup: {
+      type: ['string', 'null'],
+      description: 'A short stable label so the coach can track this exact session type over time in the app\'s lab comparison view, e.g. "Golden Zone 5x6min" or "LT2 1000m reps". Use the EXACT SAME string every time this same structure recurs across the season — this is how progress gets tracked, so consistency matters more than cleverness. Null for easy/rest/strength.',
+    },
+    thresholdDistance: {
+      type: ['number', 'null'],
+      description: 'meters — if every rep in sets[] uses the same distanceMeters, repeat that value here (e.g. 1000). Null if reps use durationSec instead, or distances vary.',
+    },
     sets: {
       type: 'array',
-      description: 'REQUIRED non-empty for tempo/intervals/hill_repeats/threshold/fartlek — this is what actually renders as reps/distance/rest in the athlete\'s app, description text alone is not enough. Leave empty only for easy/long_run/recovery/strength/rest/race.',
+      description: 'REQUIRED non-empty for tempo/intervals/hill_repeats/threshold/fartlek — this is what actually renders as reps/distance/rest in the athlete\'s app, description text alone is not enough. Leave empty only for easy/long_run/recovery/strength/rest/race. Usually ONE set object; use a second only for genuinely distinct blocks (e.g. a 2x(10x45/15) micro-interval session is 1 set with reps=10 and restAfterSet describing the 3min gap before repeating — do not create 2 sets for that, use reps and restAfterSet).',
       items: {
         type: 'object',
         required: ['reps'],
         properties: {
-          reps: { type: 'number', description: 'number of repetitions in this set, e.g. 10 for "10x1000m"' },
-          distanceMeters: { type: ['number', 'null'], description: 'per rep, e.g. 1000 for 1000m reps — set this OR durationSec, not both null' },
-          durationSec: { type: ['number', 'null'], description: 'per rep, e.g. 45 for 45s micro-intervals — set this OR distanceMeters, not both null' },
-          restBetweenReps: { type: ['string', 'null'], description: 'e.g. "60s jog" — required whenever reps > 1' },
+          reps: { type: 'number', description: 'number of repetitions of the SAME structure in this set, e.g. 10 for "10x1000m". Use 1 if this set is a single non-repeating segment (see intervals[] below for alternating sequences).' },
+          distanceMeters: { type: ['number', 'null'], description: 'per rep, e.g. 1000 for 1000m reps — use for distance-based reps like LT2 Short Intervals (10-12x1000m, 25x400m), hill repeats, race-pace intervals.' },
+          durationSec: { type: ['number', 'null'], description: 'per rep, e.g. 360 for 6-minute reps, 45 for 45s micro-intervals — use for TIME-based reps like LT1 Long Intervals (5x6min, 4x8min are minutes-based, not distance-based — use durationSec=360/480, NOT distanceMeters), Norwegian 4x4 (durationSec=240), hill intervals (durationSec=35).' },
+          restBetweenReps: { type: ['string', 'null'], description: 'e.g. "60s jog" — required whenever reps > 1 and intervals is empty' },
           restAfterSet: { type: ['string', 'null'], description: 'only for multi-set sessions, e.g. "3 min" between the two sets of a 2x(10x45/15) micro-interval session' },
           notes: { type: ['string', 'null'] },
+          intervals: {
+            type: 'array',
+            description: 'Use ONLY for an ALTERNATING sequence of different segments within one repeating cycle (e.g. a Kenyan-style fartlek 1min hard / 1min easy / 2min hard) — each array entry is one distinct segment in order, and "reps" above is how many times the whole intervals[] sequence repeats. Leave empty for uniform reps (all reps identical) — use distanceMeters/durationSec on the set itself for those.',
+            items: {
+              type: 'object',
+              properties: {
+                distanceMeters: { type: ['number', 'null'] },
+                durationSec: { type: ['number', 'null'] },
+                notes: { type: ['string', 'null'], description: 'effort for this segment, e.g. "hard" / "easy" / "very easy jog"' },
+              },
+            },
+          },
         },
       },
     },
@@ -163,7 +183,7 @@ RULES:
 4. On the FIRST block only (block_request.blockIndex === 0), use athlete_context.last3WeeksSummary and recentWorkouts to adjust the starting point: if avgEffort has been trending high, completed/skipped ratio is poor, or comments mention fatigue/pain, start conservatively. If the athlete has been completing everything comfortably, you may start at the stage's full target volume.
 5. If athlete_context.injuryHistory is non-empty, be conservative for the whole season — prefer lower-impact sessions (treadmill note, hill over flat speed, micro-intervals over long reps) and mention it once in blockSummary on block 0.
 6. For every quality (non-easy, non-rest) workout, set bakkenLactateMin/bakkenLactateMax to the exact mmol/L range from the_golden_zone or workout_mechanics_and_first_principles for the workout you chose (e.g. Golden Zone sub-threshold = 2.3-3.0, LT1 long intervals AM = 2.0-2.5, LT2 short intervals PM = 3.0-3.5). For easy/recovery/rest days, leave both null — those are governed by "under 70% HRmax", not lactate.
-7. Write every user-facing string (blockSummary, title, description, warmup, cooldown, notes) in the language given by athlete_context.language ("he" = Hebrew, "en" = English). Hebrew output must be natural Hebrew, not a translation gloss.
+7. LANGUAGE PURITY — write EVERY user-facing string (blockSummary, title, description, warmup, cooldown, notes, sets[].notes, intervals[].notes) ENTIRELY in the language given by athlete_context.language ("he" = Hebrew, "en" = English). Zero exceptions, zero mixing — if language is "he", there must not be a single English word, unit, or phrase anywhere in those strings: translate "min"→"דק׳", "sec"→"שנ׳", "jog"→"ריצה קלה", "strides"→"סטרייד/ריצות האצה", "easy"→"קל/ה", "walk"→"הליכה", etc. A Hebrew string with an English phrase embedded in it (e.g. "חימום: 15-20 min easy jogging") is WRONG and breaks the app's RTL rendering — write the whole sentence in Hebrew instead ("חימום: 15-20 דק׳ ריצה קלה"). This applies with the same strictness in the other direction when language is "en".
 8. Cover every date from block_request.startDate to block_request.endDate inclusive, one entry per day (including rest days as type "rest", minimal fields) — respecting daysPerWeek for how many are actual sessions vs. rest/easy. Work out the day-of-week for each date correctly before checking it against weekSchedule.
 9. If block_request.previousBlockTail is given, don't repeat the same session structure on the day immediately following it — vary the stimulus (e.g. don't follow a long-interval day with another near-identical one), and keep the same weekly rhythm (long run on the same weekday as prior blocks where sensible).
 10. Valid "targetThresholdLevel": "T1" (~2.0-2.5 mmol/L app baseline), "T2" (~3.0-4.0 mmol/L app baseline), "T3" (~4.0-5.0 mmol/L app baseline), or null — a coarse fallback only used when the athlete has no lab test on file (athlete_context.physiology.hasLabTest = false). When a lab test exists, bakkenLactateMin/Max (rule 6) is what actually gets used to compute the athlete's real pace/HR targets; still set this field to whichever T-level is closest, for UI grouping.
@@ -171,11 +191,12 @@ RULES:
 12. PER-TYPE CONTENT REQUIREMENTS — every workout of every type must be fully specified, not just intervals/tempo:
     - "easy" / "recovery": distance and/or duration filled, description states the effort explicitly ("easy, conversational, under 70% HRmax" per foundational_principles.principle_4_easy_is_sacred), sets empty.
     - "long_run": distance and duration filled. If athlete_context.goalRaceDistance is "marathon" and this block is in build/peak phase, embed a marathon-pace segment per distance_specific_adjustments.marathon.long_runs (e.g. "final 8-10km at goal marathon pace") described in notes — as its own set entry (reps:1, distanceMeters for that segment) if it has a distinct pace, otherwise in notes text. Otherwise sets stays empty.
-    - "tempo" / "threshold" / "intervals": sets MUST be non-empty and match a standard_workouts entry or workout_mechanics_and_first_principles structure (e.g. LT1 Long Intervals 5x6min/60s rest, LT2 Short Intervals 10-12x1000m/30-60s rest, Norwegian 4x4). bakkenLactateMin/Max and targetThresholdLevel set per rule 6/10.
-    - "hill_repeats": sets MUST be non-empty, e.g. 24x35s uphill with restBetweenReps "jog back down".
-    - "fartlek": sets MUST be non-empty, structured as workout_mechanics_and_first_principles.micro_intervals_45_15 (e.g. reps 15-35 depending on level, durationSec 45, restBetweenReps "15s float"), or note reps/restAfterSet for the 2x(10x45/15) elite version.
+    - "tempo" / "threshold" / "intervals": sets MUST be non-empty and match a standard_workouts entry or workout_mechanics_and_first_principles structure — use durationSec for TIME-based reps (LT1 Long Intervals: 5x6min → durationSec=360, or 4x8min → durationSec=480) and distanceMeters for DISTANCE-based reps (LT2 Short Intervals: 10-12x1000m → distanceMeters=1000, or 25x400m → distanceMeters=400; Norwegian 4x4 → durationSec=240 with restBetweenReps "3 min active recovery"). Never leave both null on a real interval. bakkenLactateMin/Max and targetThresholdLevel set per rule 6/10.
+    - "hill_repeats": sets MUST be non-empty, e.g. 24x35s uphill → durationSec=35, restBetweenReps "jog back down".
+    - "fartlek": give the title a real variant name, not just "Fartlek" (e.g. "Kenyan Fartlek 1-1-2", "45/15 Micro-Interval Fartlek"). Two valid structures — pick the one matching the variant: (a) UNIFORM micro-intervals (workout_mechanics_and_first_principles.micro_intervals_45_15) → one set, reps 15-35 by level, durationSec=45, restBetweenReps "15s float", use "sets" plain fields, intervals empty; (b) ALTERNATING Kenyan-style fartlek (different segment lengths/efforts in a repeating cycle, e.g. 1min hard / 1min easy / 2min hard / 1min easy) → one set with reps = number of times the cycle repeats, and intervals[] populated with each distinct segment in order (durationSec + notes stating hard/easy/very easy for each). Do not describe an alternating fartlek only in prose — it must be in intervals[], that's what actually renders correctly to the athlete.
     - "strength": sets empty, description/notes lists 2-4 exercises from muscular_state_and_strength.strength_training.core_exercises.
     - "rest": duration/distance/sets all null/empty, description brief.
+13. comparisonGroup + thresholdDistance: set comparisonGroup on every quality workout (tempo/threshold/intervals/hill_repeats/fartlek/long_run) so the coach can track this exact session type's pace/HR trend over the season in the app's lab view — reuse the identical string every time the same structure recurs (e.g. every "Golden Zone Intervals 5x6min" session across every block gets comparisonGroup "Golden Zone 5x6min"). Set thresholdDistance to the rep distance in meters when sets use a uniform distanceMeters, else null.
 
 <brain_reference_data>
 ${JSON.stringify(brain, null, 2)}
@@ -271,7 +292,7 @@ RULES:
 7. If athlete_context.injuryHistory is non-empty, lengthen base relative to build/peak and keep the volume ramp more conservative.
 8. The "weeks" field of every stage MUST be a positive integer, and the sum across all stages MUST equal skeleton_request.totalWeeksAvailable exactly.
 9. keyWorkouts per stage: pick from the valid workout types, only the ones that actually define this phase (e.g. base might be just ["easy","long_run","tempo"]; build adds ["intervals","hill_repeats"]; peak/race_week narrows back down).
-10. Write title and focus strings in the language given by athlete_context.language ("he" = Hebrew, "en" = English).
+10. Write title and focus strings ENTIRELY in the language given by athlete_context.language ("he" = Hebrew, "en" = English) — no mixed-language words or phrases, translate every term including units.
 
 Valid workout types for keyWorkouts: ${WORKOUT_TYPES.join(', ')}.
 

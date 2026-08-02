@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   collection,
   addDoc,
@@ -39,6 +39,8 @@ interface BlockWorkoutOut {
   targetThresholdLevel?: 'T1' | 'T2' | 'T3' | null
   bakkenLactateMin?: number | null
   bakkenLactateMax?: number | null
+  comparisonGroup?: string | null
+  thresholdDistance?: number | null
   sets?: Array<{
     reps: number
     distanceMeters?: number | null
@@ -46,6 +48,11 @@ interface BlockWorkoutOut {
     restBetweenReps?: string | null
     restAfterSet?: string | null
     notes?: string | null
+    intervals?: Array<{
+      distanceMeters?: number | null
+      durationSec?: number | null
+      notes?: string | null
+    }>
   }>
 }
 
@@ -64,6 +71,23 @@ interface WeekAgg {
 
 const BLOCK_DAYS = 14
 const MAX_BLOCKS = 10 // safety cap: 20 weeks of upfront generation per click
+
+type DayKey = 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday'
+type DayType = 'workout' | 'rest' | 'off'
+const DAY_ORDER: DayKey[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+const DAY_TYPES: DayType[] = ['workout', 'rest', 'off']
+const DAY_LABELS: Record<'en' | 'he', Record<DayKey, string>> = {
+  en: { sunday: 'Sun', monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat' },
+  he: { sunday: 'א׳', monday: 'ב׳', tuesday: 'ג׳', wednesday: 'ד׳', thursday: 'ה׳', friday: 'ו׳', saturday: 'ש׳' },
+}
+const DAY_TYPE_LABELS: Record<'en' | 'he', Record<DayType, string>> = {
+  en: { workout: 'Available', rest: 'Rest day', off: "Can't run" },
+  he: { workout: 'זמין', rest: 'יום מנוחה', off: 'לא זמין' },
+}
+const DEFAULT_WEEK_SCHEDULE: Record<DayKey, DayType> = {
+  sunday: 'workout', monday: 'workout', tuesday: 'workout', wednesday: 'workout',
+  thursday: 'workout', friday: 'rest', saturday: 'workout',
+}
 
 const addDaysStr = (dateStr: string, n: number) => format(addDays(parseISO(dateStr), n), 'yyyy-MM-dd')
 const dateMin = (a: string, b: string) => (a < b ? a : b)
@@ -92,6 +116,33 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
   const [loading, setLoading] = useState(false)
   const [progress, setProgress] = useState<string | null>(null)
   const [lastSummary, setLastSummary] = useState<string | null>(null)
+  const [scheduleLanguage, setScheduleLanguage] = useState<'en' | 'he'>('he')
+  const [weekSchedule, setWeekSchedule] = useState<Record<DayKey, DayType>>(DEFAULT_WEEK_SCHEDULE)
+  const [scheduleLoaded, setScheduleLoaded] = useState(false)
+
+  // Let the coach review/adjust the athlete's availability right before
+  // generating, instead of only being able to change it via the athlete's
+  // own onboarding flow.
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      const snap = await getDoc(doc(db, 'users', athleteId))
+      if (cancelled || !snap.exists()) return
+      const d = snap.data() as any
+      if (d.weekSchedule && DAY_ORDER.every((day) => d.weekSchedule[day])) {
+        const collapsed = Object.fromEntries(
+          DAY_ORDER.map((day) => [day, d.weekSchedule[day] === 'off' ? 'off' : d.weekSchedule[day] === 'rest' ? 'rest' : 'workout']),
+        ) as Record<DayKey, DayType>
+        setWeekSchedule(collapsed)
+      }
+      if (d.preferredLanguage === 'en' || d.preferredLanguage === 'he') setScheduleLanguage(d.preferredLanguage)
+      setScheduleLoaded(true)
+    }
+    load()
+    return () => { cancelled = true }
+  }, [athleteId])
+
+  const setDayType = (day: DayKey, type: DayType) => setWeekSchedule((s) => ({ ...s, [day]: type }))
 
   const buildWeekSummary = (
     recentAssigned: any[],
@@ -157,6 +208,8 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
       cooldown: w.cooldown ?? null,
       notes: w.notes ?? null,
       targetThresholdLevel: w.targetThresholdLevel ?? null,
+      comparisonGroup: w.comparisonGroup ?? null,
+      thresholdDistance: w.thresholdDistance ?? null,
       sets: (w.sets || []).map((s, i) => ({
         id: `s${i}`,
         reps: s.reps,
@@ -165,6 +218,12 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         restBetweenReps: s.restBetweenReps ?? null,
         restAfterSet: s.restAfterSet ?? null,
         notes: s.notes ?? null,
+        intervals: (s.intervals || []).map((iv, j) => ({
+          id: `s${i}-iv${j}`,
+          distanceMeters: iv.distanceMeters ?? null,
+          durationSec: iv.durationSec ?? null,
+          notes: iv.notes ?? null,
+        })),
       })),
       createdBy: user!.id,
       createdAt: serverTimestamp(),
@@ -192,6 +251,15 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
     setLastSummary(null)
     setProgress(null)
     try {
+      // Persist whatever the coach set/adjusted in the schedule picker above
+      // before reading the profile back — this is what the brain actually
+      // sees as athlete_context.weekSchedule.
+      const derivedDaysPerWeek = DAY_ORDER.filter((day) => weekSchedule[day] !== 'off').length
+      await updateDoc(doc(db, 'users', athleteId), {
+        weekSchedule,
+        daysPerWeek: derivedDaysPerWeek,
+      })
+
       const profileSnap = await getDoc(doc(db, 'users', athleteId))
       if (!profileSnap.exists()) {
         toast.error('Athlete profile not found')
@@ -432,6 +500,37 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div>
+          <p className="text-sm font-medium mb-1">Availability (edit before generating if needed)</p>
+          <p className="text-xs text-muted-foreground mb-3">
+            {scheduleLoaded ? 'Loaded from athlete onboarding — adjust here if it changed.' : 'Loading...'}
+          </p>
+          <div className="space-y-1.5">
+            {DAY_ORDER.map((day) => (
+              <div key={day} className="flex items-center gap-2">
+                <span className="w-8 text-xs font-semibold text-muted-foreground shrink-0">
+                  {DAY_LABELS[scheduleLanguage][day]}
+                </span>
+                <div className="flex gap-1">
+                  {DAY_TYPES.map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setDayType(day, type)}
+                      className={`px-2 py-1 rounded-md border text-xs font-medium transition-colors ${
+                        weekSchedule[day] === type
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'border-input text-muted-foreground hover:border-primary'
+                      }`}
+                    >
+                      {DAY_TYPE_LABELS[scheduleLanguage][type]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
         <Button onClick={generate} disabled={loading}>
           {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
           Generate full season
