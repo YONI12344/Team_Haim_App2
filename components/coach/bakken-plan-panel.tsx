@@ -240,6 +240,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         weeklyMileage: profile.weeklyMileage,
         injuryHistory: profile.injuryHistory,
         goalRaceEvent: profile.goalRaceEvent || 'Goal Race',
+        goalRaceDistance: profile.goalRaceDistance,
         goalRaceDate: profile.goalRaceDate,
         goalRaceTarget: profile.goalRaceTarget,
         physiology: {

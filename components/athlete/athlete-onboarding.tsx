@@ -12,9 +12,30 @@ type Discipline = 'track' | 'road' | 'trail' | 'jogger' | 'mixed'
 type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced' | 'professional'
 type DayKey = 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday'
 type DayType = 'workout' | 'long_run' | 'easy' | 'rest' | 'off'
+type RaceDistance = '5k' | '10k' | 'half_marathon' | 'marathon'
+
+const RACE_DISTANCES: RaceDistance[] = ['5k', '10k', 'half_marathon', 'marathon']
+const RACE_DISTANCE_LABELS: Record<'en' | 'he', Record<RaceDistance, string>> = {
+  en: { '5k': '5K', '10k': '10K', half_marathon: 'Half Marathon', marathon: 'Marathon' },
+  he: { '5k': '5 ק"מ', '10k': '10 ק"מ', half_marathon: 'חצי מרתון', marathon: 'מרתון' },
+}
+// Distance-specific — picking the distance first means we can offer
+// realistic time presets instead of a free-text field the athlete has to
+// guess the format for.
+const GOAL_TIME_PRESETS: Record<RaceDistance, string[]> = {
+  '5k': ['16:00', '18:00', '20:00', '22:00', '25:00', '28:00', '32:00'],
+  '10k': ['34:00', '38:00', '42:00', '46:00', '50:00', '55:00', '60:00'],
+  half_marathon: ['1:15:00', '1:25:00', '1:35:00', '1:45:00', '1:55:00', '2:10:00', '2:30:00'],
+  marathon: ['2:45:00', '3:00:00', '3:15:00', '3:30:00', '3:45:00', '4:00:00', '4:30:00', '5:00:00'],
+}
 
 const DAY_ORDER: DayKey[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
-const DAY_TYPES: DayType[] = ['workout', 'long_run', 'easy', 'rest', 'off']
+// Deliberately only 3 choices at onboarding — most athletes don't know
+// whether a given day "should" be a long run vs. a quality day vs. easy;
+// that's exactly what the Bakken brain decides during plan generation.
+// The athlete only needs to flag hard constraints: can I run at all, and
+// do I want this specific day to always be recovery.
+const DAY_TYPES: DayType[] = ['workout', 'rest', 'off']
 const MILEAGE_PRESETS = [15, 25, 35, 45, 55, 65, 80]
 
 const DAY_LABELS: Record<'en' | 'he', Record<DayKey, string>> = {
@@ -22,14 +43,14 @@ const DAY_LABELS: Record<'en' | 'he', Record<DayKey, string>> = {
   he: { sunday: 'א׳', monday: 'ב׳', tuesday: 'ג׳', wednesday: 'ד׳', thursday: 'ה׳', friday: 'ו׳', saturday: 'ש׳' },
 }
 const DAY_TYPE_LABELS: Record<'en' | 'he', Record<DayType, string>> = {
-  en: { workout: 'Quality', long_run: 'Long', easy: 'Easy', rest: 'Rest', off: "Can't run" },
-  he: { workout: 'איכות', long_run: 'ארוכה', easy: 'קלה', rest: 'מנוחה', off: 'לא זמין' },
+  en: { workout: 'Available', long_run: 'Long', easy: 'Easy', rest: 'Rest day', off: "Can't run" },
+  he: { workout: 'זמין', long_run: 'ארוכה', easy: 'קלה', rest: 'יום מנוחה', off: 'לא זמין' },
 }
 
 type WeekScheduleForm = Record<DayKey, DayType>
 const DEFAULT_WEEK_SCHEDULE: WeekScheduleForm = {
-  sunday: 'easy', monday: 'workout', tuesday: 'easy', wednesday: 'workout',
-  thursday: 'easy', friday: 'rest', saturday: 'long_run',
+  sunday: 'workout', monday: 'workout', tuesday: 'workout', wednesday: 'workout',
+  thursday: 'workout', friday: 'rest', saturday: 'workout',
 }
 
 interface OnboardingForm {
@@ -38,6 +59,7 @@ interface OnboardingForm {
   experienceLevel: ExperienceLevel | ''; weeklyMileage: string
   weekSchedule: WeekScheduleForm; injuryHistory: string
   restingHR: string; maxHR: string; goalRaceEvent: string
+  goalRaceDistance: RaceDistance | ''
   goalRaceDate: string; goalRaceTarget: string; events: string
 }
 
@@ -72,8 +94,8 @@ export function AthleteOnboarding() {
     name: '', dateOfBirth: '', gender: '', height: '', weight: '',
     discipline: [], experienceLevel: '', weeklyMileage: '',
     weekSchedule: DEFAULT_WEEK_SCHEDULE, injuryHistory: '',
-    restingHR: '', maxHR: '', goalRaceEvent: '', goalRaceDate: '',
-    goalRaceTarget: '', events: '',
+    restingHR: '', maxHR: '', goalRaceEvent: '', goalRaceDistance: '',
+    goalRaceDate: '', goalRaceTarget: '', events: '',
   })
 
   useEffect(() => { if (user?.name) setForm(f => ({ ...f, name: user.name })) }, [user?.name])
@@ -103,6 +125,7 @@ export function AthleteOnboarding() {
         restingHR: d.restingHR != null ? String(d.restingHR) : '',
         maxHR: d.maxHR != null ? String(d.maxHR) : '',
         goalRaceEvent: d.goalRaceEvent || '',
+        goalRaceDistance: RACE_DISTANCES.includes(d.goalRaceDistance) ? d.goalRaceDistance : '',
         goalRaceDate: d.goalRaceDate || '',
         goalRaceTarget: d.goalRaceTarget || '',
         events: Array.isArray(d.events) ? d.events.join(', ') : '',
@@ -135,6 +158,7 @@ export function AthleteOnboarding() {
         restingHR: form.restingHR ? Number(form.restingHR) : null,
         maxHR: form.maxHR ? Number(form.maxHR) : null,
         goalRaceEvent: form.goalRaceEvent || null,
+        goalRaceDistance: form.goalRaceDistance || null,
         goalRaceDate: form.goalRaceDate || null,
         goalRaceTarget: form.goalRaceTarget || null,
         events: form.events ? form.events.split(',').map((e: string) => e.trim()).filter(Boolean) : [],
@@ -312,12 +336,47 @@ export function AthleteOnboarding() {
 
           {step === 5 && (
             <div className="space-y-4">
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Goal Race Event</label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {language === 'he' ? 'מרחק היעד' : 'Goal distance'}
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {RACE_DISTANCES.map(dist => (
+                    <button key={dist} type="button"
+                      onClick={() => set('goalRaceDistance', dist)}
+                      className={`py-2.5 rounded-lg border text-sm font-medium transition-colors ${form.goalRaceDistance === dist ? 'bg-[#1a2744] text-white border-[#1a2744]' : 'border-gray-200 text-gray-600 hover:border-[#1a2744]'}`}>
+                      {RACE_DISTANCE_LABELS[language][dist]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">
+                {language === 'he' ? 'שם המירוץ (לא חובה)' : 'Race name (optional)'}
+              </label>
                 <input className={inputCls} value={form.goalRaceEvent} onChange={e => set('goalRaceEvent', e.target.value)} placeholder="e.g. Tel Aviv Marathon" /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Race Date</label>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">
+                {language === 'he' ? 'תאריך המירוץ' : 'Race Date'}
+              </label>
                 <input type="date" className={inputCls} value={form.goalRaceDate} onChange={e => set('goalRaceDate', e.target.value)} /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Goal Time</label>
-                <input className={inputCls} value={form.goalRaceTarget} onChange={e => set('goalRaceTarget', e.target.value)} placeholder="e.g. 3:30:00" /></div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {language === 'he' ? 'זמן יעד' : 'Goal Time'}
+                </label>
+                {form.goalRaceDistance ? (
+                  <div className="flex flex-wrap gap-2">
+                    {GOAL_TIME_PRESETS[form.goalRaceDistance].map(t => (
+                      <button key={t} type="button" onClick={() => set('goalRaceTarget', t)}
+                        className={`px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${form.goalRaceTarget === t ? 'bg-[#1a2744] text-white border-[#1a2744]' : 'border-gray-200 text-gray-600 hover:border-[#1a2744]'}`}>
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400">
+                    {language === 'he' ? 'בחר/י מרחק יעד קודם' : 'Pick a goal distance first'}
+                  </p>
+                )}
+              </div>
             </div>
           )}
 

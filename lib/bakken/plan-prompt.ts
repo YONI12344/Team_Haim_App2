@@ -11,6 +11,7 @@ export interface PlanAthleteContext {
   weeklyMileage?: number
   injuryHistory?: string
   goalRaceEvent?: string
+  goalRaceDistance?: '5k' | '10k' | 'half_marathon' | 'marathon'
   goalRaceDate?: string
   goalRaceTarget?: string
   physiology: {
@@ -75,32 +76,43 @@ const WORKOUT_TYPES = [
 
 const WORKOUT_ITEM_SCHEMA = {
   type: 'object',
-  required: ['date', 'type', 'title', 'description'],
+  required: ['date', 'type', 'title', 'description', 'duration', 'distance'],
   properties: {
     date: { type: 'string', description: 'yyyy-MM-dd, must fall within the requested block date range' },
-    session: { type: 'string', enum: ['am', 'pm', 'other'] },
+    session: {
+      type: 'string',
+      enum: ['am', 'pm', 'other'],
+      description: '"am"/"pm" ONLY on a double-threshold day (two entries sharing the same date) — see rule 11. Every other day is "other".',
+    },
     type: { type: 'string', enum: WORKOUT_TYPES },
     title: { type: 'string' },
-    description: { type: 'string' },
+    description: {
+      type: 'string',
+      description: 'Full session in plain language: pace/effort guidance for easy/long_run (e.g. conversational, <70% HRmax), or the main-set structure in words for quality sessions — this is what the athlete reads first.',
+    },
     warmup: { type: ['string', 'null'] },
     cooldown: { type: ['string', 'null'] },
-    notes: { type: ['string', 'null'] },
-    duration: { type: ['number', 'null'], description: 'minutes' },
-    distance: { type: ['number', 'null'], description: 'km' },
+    notes: {
+      type: ['string', 'null'],
+      description: 'Use for anything sets[] can\'t express: an embedded marathon-pace segment inside a long run, strength exercise list, fartlek 45/15 cycle count, etc.',
+    },
+    duration: { type: ['number', 'null'], description: 'minutes — REQUIRED (non-null) for every type except "rest".' },
+    distance: { type: ['number', 'null'], description: 'km — REQUIRED (non-null) for every running type (easy/long_run/tempo/intervals/hill_repeats/fartlek/threshold/recovery/race/time_trial) except "rest"/"strength"/"cross_training".' },
     targetThresholdLevel: { type: ['string', 'null'], enum: ['T1', 'T2', 'T3', null] },
     bakkenLactateMin: { type: ['number', 'null'], description: 'mmol/L, from the brain data — null for easy/recovery/rest days' },
     bakkenLactateMax: { type: ['number', 'null'], description: 'mmol/L, from the brain data — null for easy/recovery/rest days' },
     sets: {
       type: 'array',
+      description: 'REQUIRED non-empty for tempo/intervals/hill_repeats/threshold/fartlek — this is what actually renders as reps/distance/rest in the athlete\'s app, description text alone is not enough. Leave empty only for easy/long_run/recovery/strength/rest/race.',
       items: {
         type: 'object',
         required: ['reps'],
         properties: {
-          reps: { type: 'number' },
-          distanceMeters: { type: ['number', 'null'] },
-          durationSec: { type: ['number', 'null'] },
-          restBetweenReps: { type: ['string', 'null'] },
-          restAfterSet: { type: ['string', 'null'] },
+          reps: { type: 'number', description: 'number of repetitions in this set, e.g. 10 for "10x1000m"' },
+          distanceMeters: { type: ['number', 'null'], description: 'per rep, e.g. 1000 for 1000m reps — set this OR durationSec, not both null' },
+          durationSec: { type: ['number', 'null'], description: 'per rep, e.g. 45 for 45s micro-intervals — set this OR distanceMeters, not both null' },
+          restBetweenReps: { type: ['string', 'null'], description: 'e.g. "60s jog" — required whenever reps > 1' },
+          restAfterSet: { type: ['string', 'null'], description: 'only for multi-set sessions, e.g. "3 min" between the two sets of a 2x(10x45/15) micro-interval session' },
           notes: { type: ['string', 'null'] },
         },
       },
@@ -155,6 +167,15 @@ RULES:
 8. Cover every date from block_request.startDate to block_request.endDate inclusive, one entry per day (including rest days as type "rest", minimal fields) — respecting daysPerWeek for how many are actual sessions vs. rest/easy. Work out the day-of-week for each date correctly before checking it against weekSchedule.
 9. If block_request.previousBlockTail is given, don't repeat the same session structure on the day immediately following it — vary the stimulus (e.g. don't follow a long-interval day with another near-identical one), and keep the same weekly rhythm (long run on the same weekday as prior blocks where sensible).
 10. Valid "targetThresholdLevel": "T1" (~2.0-2.5 mmol/L app baseline), "T2" (~3.0-4.0 mmol/L app baseline), "T3" (~4.0-5.0 mmol/L app baseline), or null — a coarse fallback only used when the athlete has no lab test on file (athlete_context.physiology.hasLabTest = false). When a lab test exists, bakkenLactateMin/Max (rule 6) is what actually gets used to compute the athlete's real pace/HR targets; still set this field to whichever T-level is closest, for UI grouping.
+11. DOUBLE THRESHOLD DAYS (workout_mechanics_and_first_principles.double_threshold) — ONLY when the athlete is on the ambitious_elite track (daysPerWeek >= 6 and experienceLevel advanced/professional, or the current stage explicitly calls for it): pick at most 2 non-consecutive days per week (e.g. Tue/Thu, per training_structures_by_level.ambitious_elite.standard_week) and emit TWO separate workout objects that share the exact same "date" — one with session "am" (longer repeats, lower lactate ~2.0-2.5 mmol/L, e.g. 5x6min or 4x10min) and one with session "pm" (shorter repeats, higher lactate ~3.0-3.5 mmol/L, e.g. 10-12x1000m or 25x400m). Never do this for recreational or intermediate tracks — they get exactly one workout object per date, session "other".
+12. PER-TYPE CONTENT REQUIREMENTS — every workout of every type must be fully specified, not just intervals/tempo:
+    - "easy" / "recovery": distance and/or duration filled, description states the effort explicitly ("easy, conversational, under 70% HRmax" per foundational_principles.principle_4_easy_is_sacred), sets empty.
+    - "long_run": distance and duration filled. If athlete_context.goalRaceDistance is "marathon" and this block is in build/peak phase, embed a marathon-pace segment per distance_specific_adjustments.marathon.long_runs (e.g. "final 8-10km at goal marathon pace") described in notes — as its own set entry (reps:1, distanceMeters for that segment) if it has a distinct pace, otherwise in notes text. Otherwise sets stays empty.
+    - "tempo" / "threshold" / "intervals": sets MUST be non-empty and match a standard_workouts entry or workout_mechanics_and_first_principles structure (e.g. LT1 Long Intervals 5x6min/60s rest, LT2 Short Intervals 10-12x1000m/30-60s rest, Norwegian 4x4). bakkenLactateMin/Max and targetThresholdLevel set per rule 6/10.
+    - "hill_repeats": sets MUST be non-empty, e.g. 24x35s uphill with restBetweenReps "jog back down".
+    - "fartlek": sets MUST be non-empty, structured as workout_mechanics_and_first_principles.micro_intervals_45_15 (e.g. reps 15-35 depending on level, durationSec 45, restBetweenReps "15s float"), or note reps/restAfterSet for the 2x(10x45/15) elite version.
+    - "strength": sets empty, description/notes lists 2-4 exercises from muscular_state_and_strength.strength_training.core_exercises.
+    - "rest": duration/distance/sets all null/empty, description brief.
 
 <brain_reference_data>
 ${JSON.stringify(brain, null, 2)}
@@ -242,7 +263,7 @@ Design this athlete's full season periodization, strictly grounded in <brain_ref
 
 RULES:
 1. Use coaching_psychology_and_peaking.reverse_engineering: work backward from the goal race. The peaking window (coaching_psychology_and_peaking.the_peaking_window) is the final 4-6 weeks — split it into "peak", "taper", and a short "race_week" stage per the brain, not one generic block.
-2. Use distance_specific_adjustments for the athlete's goalRaceEvent distance (5K/10K/half/marathon) to decide how much of the season is base vs. build vs. race-specific work — a marathon needs more base and marathon-pace-in-long-run work; a 5K/10K needs more race-pace/VO2max sharpening near the end.
+2. Use distance_specific_adjustments for athlete_context.goalRaceDistance ("5k" | "10k" | "half_marathon" | "marathon") to decide how much of the season is base vs. build vs. race-specific work — a marathon needs more base and marathon-pace-in-long-run work; a 5K/10K needs more race-pace/VO2max sharpening near the end.
 3. Base phase gets the largest share of skeleton_request.totalWeeksAvailable once the peaking window is subtracted — high volume, conservative Golden Zone work per foundational_principles, minimal intensity variety.
 4. Build phase introduces Norwegian 4x4 / hill intervals per workout_mechanics_and_first_principles.
 5. weeklyVolumeKm must ramp sensibly from skeleton_request.currentWeeklyKm (or higher if athlete_context shows they've been comfortably handling more) toward a believable peak — respect safety_guardrails-equivalent caution: don't ramp faster than ~10%/week on average between consecutive stages. Taper/race_week volumes drop well below peak. Use skeleton_request.peakWeeklyKmHint as a hint if given, but override it if the athlete's actual data (experience level, current volume, injury history) suggests it's unrealistic.
