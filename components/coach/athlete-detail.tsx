@@ -519,6 +519,25 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
                   <Link href={`/coach/athletes/${athleteId}/documents`}>
                     <Button variant="outline" className="border-navy/40 text-navy hover:bg-navy/10">📄 מסמכים</Button>
                   </Link>
+                  <Button
+                    variant="outline"
+                    className="border-purple-300 text-purple-600 hover:bg-purple-50"
+                    onClick={async () => {
+                      if (!confirm(`Send ${athlete.name} back through onboarding to add the data the Bakken AI Coach needs (days/week, injury history, language)? They'll see the onboarding flow next time they log in — anything they already filled in stays pre-filled.`)) return
+                      try {
+                        await setDoc(doc(db, 'users', athleteId), {
+                          onboardingComplete: false,
+                          bakkenCoachRequestedAt: serverTimestamp(),
+                        }, { merge: true })
+                        toast.success('Athlete will go through onboarding to add Bakken Coach data on next login')
+                      } catch (e) {
+                        console.error(e)
+                        toast.error('Failed to enable Bakken Coach')
+                      }
+                    }}
+                  >
+                    ✨ Add Bakken Coach
+                  </Button>
                   {athlete.stravaConnected && (
                     <Button
                       variant="outline"

@@ -91,6 +91,18 @@ export interface AthleteProfile {
   // count, so the whole recurring pattern shifts to fit. See isRestWeek in
   // lib/journey.ts.
   offWeekAnchorDate?: string
+  // Days per week the athlete can realistically train — collected at
+  // onboarding, used by the Bakken AI plan generator to pick a track
+  // (recreational/intermediate/elite) and set the weekly session count.
+  daysPerWeek?: number
+  // Free-text injury history from onboarding — used by the Bakken AI plan
+  // generator to flag conservative volume progression. Athlete-visible
+  // input (distinct from coachPrivateNotes, which is coach-only).
+  injuryHistory?: string
+  // Athlete's chosen UI language at the time onboarding was completed —
+  // used so AI-generated plans/feedback are written in the athlete's
+  // language rather than defaulting to Hebrew.
+  preferredLanguage?: 'en' | 'he'
   createdAt: Date
   updatedAt: Date
 }

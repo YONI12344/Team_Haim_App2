@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/auth-context'
+import { useLanguage } from '@/contexts/language-context'
 import { Loader2, ChevronRight, ChevronLeft, Check } from 'lucide-react'
 
 type Discipline = 'track' | 'road' | 'trail' | 'jogger' | 'mixed'
@@ -14,6 +15,7 @@ interface OnboardingForm {
   name: string; dateOfBirth: string; gender: '' | 'male' | 'female' | 'other'
   height: string; weight: string; discipline: Discipline[]
   experienceLevel: ExperienceLevel | ''; weeklyMileage: string
+  daysPerWeek: string; injuryHistory: string
   restingHR: string; maxHR: string; goalRaceEvent: string
   goalRaceDate: string; goalRaceTarget: string; events: string
 }
@@ -29,6 +31,7 @@ const STEPS = [
 
 export function AthleteOnboarding() {
   const { user } = useAuth()
+  const { language } = useLanguage()
   const router = useRouter()
   const [step, setStep] = useState(0)
   const [saving, setSaving] = useState(false)
@@ -36,11 +39,46 @@ export function AthleteOnboarding() {
   const [form, setForm] = useState<OnboardingForm>({
     name: '', dateOfBirth: '', gender: '', height: '', weight: '',
     discipline: [], experienceLevel: '', weeklyMileage: '',
+    daysPerWeek: '', injuryHistory: '',
     restingHR: '', maxHR: '', goalRaceEvent: '', goalRaceDate: '',
     goalRaceTarget: '', events: '',
   })
 
   useEffect(() => { if (user?.name) setForm(f => ({ ...f, name: user.name })) }, [user?.name])
+
+  // Athletes sent back through onboarding (e.g. via the coach's "Add Bakken
+  // Coach" button, which just flips onboardingComplete back to false) keep
+  // whatever they already filled in — this isn't a first-time signup for them.
+  useEffect(() => {
+    if (!user?.id) return
+    let cancelled = false
+    const load = async () => {
+      const snap = await getDoc(doc(db, 'users', user.id))
+      if (cancelled || !snap.exists()) return
+      const d = snap.data() as any
+      setForm(f => ({
+        ...f,
+        name: d.name || f.name,
+        dateOfBirth: d.dateOfBirth || '',
+        gender: d.gender || '',
+        height: d.height != null ? String(d.height) : '',
+        weight: d.weight != null ? String(d.weight) : '',
+        discipline: Array.isArray(d.discipline) ? d.discipline : [],
+        experienceLevel: d.experienceLevel || '',
+        weeklyMileage: d.weeklyMileage != null ? String(d.weeklyMileage) : '',
+        daysPerWeek: d.daysPerWeek != null ? String(d.daysPerWeek) : '',
+        injuryHistory: d.injuryHistory || '',
+        restingHR: d.restingHR != null ? String(d.restingHR) : '',
+        maxHR: d.maxHR != null ? String(d.maxHR) : '',
+        goalRaceEvent: d.goalRaceEvent || '',
+        goalRaceDate: d.goalRaceDate || '',
+        goalRaceTarget: d.goalRaceTarget || '',
+        events: Array.isArray(d.events) ? d.events.join(', ') : '',
+      }))
+    }
+    load()
+    return () => { cancelled = true }
+  }, [user?.id])
 
   const set = (key: keyof OnboardingForm, value: any) => setForm(f => ({ ...f, [key]: value }))
   const toggleDiscipline = (d: Discipline) => set('discipline',
@@ -65,6 +103,9 @@ export function AthleteOnboarding() {
         goalRaceDate: form.goalRaceDate || null,
         goalRaceTarget: form.goalRaceTarget || null,
         events: form.events ? form.events.split(',').map((e: string) => e.trim()).filter(Boolean) : [],
+        daysPerWeek: form.daysPerWeek ? Number(form.daysPerWeek) : null,
+        injuryHistory: form.injuryHistory || null,
+        preferredLanguage: language,
         onboardingComplete: true,
         updatedAt: serverTimestamp(),
       }, { merge: true })
@@ -163,6 +204,14 @@ export function AthleteOnboarding() {
               </div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Weekly Mileage (km)</label>
                 <input type="number" className={inputCls} value={form.weeklyMileage} onChange={e => set('weeklyMileage', e.target.value)} placeholder="40" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Days per week you can train</label>
+                <div className="flex gap-2">
+                  {[3, 4, 5, 6, 7].map(d => (
+                    <button key={d} type="button" onClick={() => set('daysPerWeek', String(d))}
+                      className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${form.daysPerWeek === String(d) ? 'bg-[#1a2744] text-white border-[#1a2744]' : 'border-gray-200 text-gray-600 hover:border-[#1a2744]'}`}>{d}</button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
@@ -174,6 +223,8 @@ export function AthleteOnboarding() {
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Max Heart Rate (bpm)</label>
                 <input type="number" className={inputCls} value={form.maxHR} onChange={e => set('maxHR', e.target.value)} placeholder="e.g. 185" />
                 <p className="text-xs text-gray-400 mt-1">Don't know? We can estimate from your age.</p></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Injury history (optional)</label>
+                <textarea className={inputCls} rows={3} value={form.injuryHistory} onChange={e => set('injuryHistory', e.target.value)} placeholder="Any current or recurring injuries in the last 12 months?" /></div>
             </div>
           )}
 
