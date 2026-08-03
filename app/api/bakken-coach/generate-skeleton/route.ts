@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
       console.error('Bakken skeleton: hit max_tokens before finishing, input likely truncated')
       return NextResponse.json(
         { error: 'Model response was cut off (max_tokens) before finishing the skeleton — try again.' },
-        { status: 502 },
+        { status: 500 },
       )
     }
 
@@ -54,16 +54,34 @@ export async function POST(req: NextRequest) {
     )
     if (!toolUse) {
       console.error('Bakken skeleton: no tool_use block in response', JSON.stringify(response.content).slice(0, 500))
-      return NextResponse.json({ error: 'Model did not call submit_season_skeleton' }, { status: 502 })
+      return NextResponse.json({ error: 'Model did not call submit_season_skeleton' }, { status: 500 })
     }
 
-    const input = toolUse.input as { title?: unknown; stages?: unknown }
+    let input = toolUse.input as { title?: unknown; stages?: unknown }
+
+    // Recurring failure mode seen in practice: the model sometimes wraps
+    // its whole answer as a JSON STRING inside a "stages" key instead of
+    // returning {title, stages} directly — e.g. {"stages": "{\"title\":
+    // ...,\"stages\":[...]}"}. The real data is present, just double
+    // -encoded, so recover it instead of failing the whole generation.
+    if (typeof input.stages === 'string') {
+      try {
+        const unwrapped = JSON.parse(input.stages)
+        if (unwrapped && typeof unwrapped === 'object' && Array.isArray(unwrapped.stages)) {
+          console.warn('Bakken skeleton: recovered double-encoded tool input')
+          input = { title: unwrapped.title ?? input.title, stages: unwrapped.stages }
+        }
+      } catch {
+        // fall through to the validation error below
+      }
+    }
+
     if (!Array.isArray(input.stages) || input.stages.length === 0) {
-      console.error('Bakken skeleton: tool input missing stages[]', JSON.stringify(input).slice(0, 500))
-      return NextResponse.json({ error: 'Model returned an incomplete skeleton (missing stages) — try again.' }, { status: 502 })
+      console.error('Bakken skeleton: tool input missing stages[]', JSON.stringify(toolUse.input).slice(0, 500))
+      return NextResponse.json({ error: 'Model returned an incomplete skeleton (missing stages) — try again.' }, { status: 500 })
     }
 
-    return NextResponse.json({ skeleton: toolUse.input })
+    return NextResponse.json({ skeleton: input })
   } catch (err) {
     console.error('Bakken generate-skeleton error:', err)
     return NextResponse.json({ error: String(err) }, { status: 500 })

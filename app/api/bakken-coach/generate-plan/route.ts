@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
       console.error('Bakken block: hit max_tokens before finishing, input likely truncated')
       return NextResponse.json(
         { error: 'Model response was cut off (max_tokens) before finishing this block — try again.' },
-        { status: 502 },
+        { status: 500 },
       )
     }
 
@@ -53,16 +53,32 @@ export async function POST(req: NextRequest) {
     )
     if (!toolUse) {
       console.error('Bakken block: no tool_use block in response', JSON.stringify(response.content).slice(0, 500))
-      return NextResponse.json({ error: 'Model did not call submit_training_block' }, { status: 502 })
+      return NextResponse.json({ error: 'Model did not call submit_training_block' }, { status: 500 })
     }
 
-    const input = toolUse.input as { blockSummary?: unknown; workouts?: unknown }
+    let input = toolUse.input as { blockSummary?: unknown; workouts?: unknown }
+
+    // Same recovery as generate-skeleton: the model occasionally wraps its
+    // whole answer as a JSON string inside one field instead of returning
+    // the object directly. Recover instead of failing outright.
+    if (typeof input.workouts === 'string') {
+      try {
+        const unwrapped = JSON.parse(input.workouts)
+        if (unwrapped && typeof unwrapped === 'object' && Array.isArray(unwrapped.workouts)) {
+          console.warn('Bakken block: recovered double-encoded tool input')
+          input = { blockSummary: unwrapped.blockSummary ?? input.blockSummary, workouts: unwrapped.workouts }
+        }
+      } catch {
+        // fall through to the validation error below
+      }
+    }
+
     if (!Array.isArray(input.workouts)) {
-      console.error('Bakken block: tool input missing workouts[]', JSON.stringify(input).slice(0, 500))
-      return NextResponse.json({ error: 'Model returned an incomplete block (missing workouts) — try again.' }, { status: 502 })
+      console.error('Bakken block: tool input missing workouts[]', JSON.stringify(toolUse.input).slice(0, 500))
+      return NextResponse.json({ error: 'Model returned an incomplete block (missing workouts) — try again.' }, { status: 500 })
     }
 
-    return NextResponse.json({ plan: toolUse.input })
+    return NextResponse.json({ plan: input })
   } catch (err) {
     console.error('Bakken generate-plan error:', err)
     return NextResponse.json({ error: String(err) }, { status: 500 })
