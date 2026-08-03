@@ -7,7 +7,7 @@ import {
   signOut as firebaseSignOut,
   type User as FirebaseUser 
 } from 'firebase/auth'
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, updateDoc, arrayUnion } from 'firebase/firestore'
 import { auth, googleProvider, db } from '@/lib/firebase'
 import type { User, UserRole } from '@/lib/types'
 
@@ -69,7 +69,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
             }
-            await setDoc(userRef, newUser)
+
+            // If this person applied via /apply and the coach accepted
+            // them, pull their application straight into their new
+            // profile — same fields the in-app onboarding would ask for,
+            // so nothing gets typed twice. firestore.rules only allows
+            // this lookup for a lead matching the caller's own verified
+            // email, and only while status is still 'accepted'.
+            let leadPrefill: Record<string, unknown> = {}
+            if (fbUser.email) {
+              try {
+                const leadsSnap = await getDocs(
+                  query(collection(db, 'leads'), where('email', '==', fbUser.email.toLowerCase()), where('status', '==', 'accepted')),
+                )
+                const leadDoc = leadsSnap.docs[0]
+                if (leadDoc) {
+                  const lead = leadDoc.data()
+                  leadPrefill = {
+                    dateOfBirth: lead.dateOfBirth ?? null,
+                    experienceLevel: lead.experienceLevel ?? null,
+                    weeklyMileage: lead.weeklyMileage ?? null,
+                    goalRaceEvent: lead.goalRaceEvent ?? null,
+                    goalRaceDistance: lead.goalRaceDistance ?? null,
+                    goalRaceDate: lead.goalRaceDate ?? null,
+                    goalRaceTarget: lead.goalRaceTarget ?? null,
+                    daysPerWeek: lead.daysPerWeek ?? null,
+                    injuryHistory: lead.injuryHistory ?? null,
+                    coachPrivateNotes: [lead.primaryGoal, lead.additionalNotes, lead.city ? `City: ${lead.city}` : null,
+                      lead.facilitiesAccess?.length ? `Facilities: ${lead.facilitiesAccess.join(', ')}` : null]
+                      .filter(Boolean).join(' · ') || null,
+                    ...(lead.recentRaceEvent && lead.recentRaceTime ? {
+                      personalRecords: arrayUnion({
+                        id: `pr_lead_${Date.now()}`, event: lead.recentRaceEvent,
+                        time: lead.recentRaceTime, date: lead.recentRaceDate || '',
+                      }),
+                    } : {}),
+                  }
+                  await updateDoc(doc(db, 'leads', leadDoc.id), { status: 'converted', updatedAt: serverTimestamp() })
+                }
+              } catch (leadErr) {
+                console.error('Lead prefill lookup failed (non-fatal):', leadErr)
+              }
+            }
+
+            await setDoc(userRef, { ...newUser, ...leadPrefill })
             setUser({
               id: fbUser.uid,
               email: fbUser.email || '',

@@ -1,0 +1,293 @@
+'use client'
+
+import { useState } from 'react'
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
+import { useLanguage } from '@/contexts/language-context'
+import { Loader2, Check } from 'lucide-react'
+
+type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced' | 'professional'
+type RaceDistance = '1500m' | 'mile' | '3000m' | '5k' | '10k' | '15k' | 'half_marathon' | 'marathon'
+type Facility = 'track' | 'gym' | 'treadmill' | 'trails'
+
+const EXPERIENCE_LEVELS: ExperienceLevel[] = ['beginner', 'intermediate', 'advanced', 'professional']
+const RACE_DISTANCES: RaceDistance[] = ['1500m', 'mile', '3000m', '5k', '10k', '15k', 'half_marathon', 'marathon']
+const RACE_DISTANCE_LABELS: Record<'en' | 'he', Record<RaceDistance, string>> = {
+  en: { '1500m': '1500m', mile: 'Mile', '3000m': '3000m', '5k': '5K', '10k': '10K', '15k': '15K', half_marathon: 'Half Marathon', marathon: 'Marathon' },
+  he: { '1500m': '1500 מ׳', mile: 'מייל', '3000m': '3000 מ׳', '5k': '5 ק"מ', '10k': '10 ק"מ', '15k': '15 ק"מ', half_marathon: 'חצי מרתון', marathon: 'מרתון' },
+}
+const MILEAGE_PRESETS = [0, 10, 20, 30, 40, 50, 60, 80]
+const DAYS_PRESETS = [3, 4, 5, 6, 7]
+const FACILITIES: Facility[] = ['track', 'gym', 'treadmill', 'trails']
+const FACILITY_LABELS: Record<'en' | 'he', Record<Facility, string>> = {
+  en: { track: 'Track', gym: 'Gym / weights', treadmill: 'Treadmill', trails: 'Trails' },
+  he: { track: 'מסלול אתלטיקה', gym: 'חדר כושר', treadmill: 'הליכון', trails: 'מסלולי שטח' },
+}
+
+interface FormState {
+  name: string; email: string; phone: string; dateOfBirth: string; city: string
+  experienceLevel: ExperienceLevel | ''
+  weeklyMileage: number | ''
+  recentRaceDistance: RaceDistance | ''
+  recentRaceTime: string
+  recentRaceDate: string
+  primaryGoal: string
+  goalRaceEvent: string
+  goalRaceDistance: RaceDistance | ''
+  goalRaceDate: string
+  goalRaceTarget: string
+  daysPerWeek: number | ''
+  facilitiesAccess: Facility[]
+  injuryHistory: string
+  additionalNotes: string
+}
+
+const EMPTY_FORM: FormState = {
+  name: '', email: '', phone: '', dateOfBirth: '', city: '',
+  experienceLevel: '', weeklyMileage: '',
+  recentRaceDistance: '', recentRaceTime: '', recentRaceDate: '',
+  primaryGoal: '', goalRaceEvent: '', goalRaceDistance: '', goalRaceDate: '', goalRaceTarget: '',
+  daysPerWeek: '', facilitiesAccess: [], injuryHistory: '', additionalNotes: '',
+}
+
+/**
+ * Public "apply to work with me" intake — no login required. Submissions
+ * land in the `leads` Firestore collection for the coach to review at
+ * /coach/leads. Accepting a lead there means its data auto-fills the
+ * athlete's profile the moment they actually sign up (matched by email —
+ * see contexts/auth-context.tsx), so nothing has to be typed twice between
+ * "applying" and the real in-app onboarding.
+ */
+export function ApplyForm() {
+  const { language, setLanguage, isRTL } = useLanguage()
+  const [form, setForm] = useState<FormState>(EMPTY_FORM)
+  const [saving, setSaving] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
+    setForm((f) => ({ ...f, [key]: value }))
+
+  const toggleFacility = (f: Facility) =>
+    set('facilitiesAccess', form.facilitiesAccess.includes(f)
+      ? form.facilitiesAccess.filter((x) => x !== f)
+      : [...form.facilitiesAccess, f])
+
+  const inputCls = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a84c]"
+  const t = (en: string, he: string) => (language === 'he' ? he : en)
+
+  const handleSubmit = async () => {
+    if (!form.name.trim() || !form.email.trim()) {
+      setError(t('Name and email are required.', 'שם ואימייל הם שדות חובה.'))
+      return
+    }
+    setError(null)
+    setSaving(true)
+    try {
+      await addDoc(collection(db, 'leads'), {
+        name: form.name.trim(),
+        email: form.email.trim().toLowerCase(),
+        phone: form.phone.trim() || null,
+        dateOfBirth: form.dateOfBirth || null,
+        city: form.city.trim() || null,
+        experienceLevel: form.experienceLevel || null,
+        weeklyMileage: form.weeklyMileage === '' ? null : Number(form.weeklyMileage),
+        recentRaceEvent: form.recentRaceDistance ? RACE_DISTANCE_LABELS.en[form.recentRaceDistance] : null,
+        recentRaceTime: form.recentRaceTime.trim() || null,
+        recentRaceDate: form.recentRaceDate || null,
+        primaryGoal: form.primaryGoal.trim() || null,
+        goalRaceEvent: form.goalRaceEvent.trim() || null,
+        goalRaceDistance: form.goalRaceDistance || null,
+        goalRaceDate: form.goalRaceDate || null,
+        goalRaceTarget: form.goalRaceTarget.trim() || null,
+        daysPerWeek: form.daysPerWeek === '' ? null : Number(form.daysPerWeek),
+        facilitiesAccess: form.facilitiesAccess,
+        injuryHistory: form.injuryHistory.trim() || null,
+        additionalNotes: form.additionalNotes.trim() || null,
+        status: 'new',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
+      setSubmitted(true)
+    } catch (e) {
+      console.error(e)
+      setError(t('Something went wrong — please try again.', 'משהו השתבש — נסה/י שוב.'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (submitted) {
+    return (
+      <div className="min-h-screen bg-[#f7f5f0] flex flex-col items-center justify-center p-4" dir={isRTL ? 'rtl' : 'ltr'}>
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8 text-center space-y-4">
+          <div className="flex justify-center">
+            <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
+              <Check className="h-8 w-8 text-green-600" />
+            </div>
+          </div>
+          <h1 className="text-xl font-serif font-bold text-[#1a2744]">
+            {t('Thanks — application received!', 'תודה — הבקשה התקבלה!')}
+          </h1>
+          <p className="text-gray-600">
+            {t("I'll review your info and get back to you soon.", 'אעבור על הפרטים שלך ואחזור אליך בקרוב.')}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-[#f7f5f0] flex flex-col items-center p-4 py-10" dir={isRTL ? 'rtl' : 'ltr'}>
+      <div className="w-full max-w-lg">
+        <div className="flex items-center justify-between mb-6">
+          <span className="text-2xl font-serif font-bold text-[#1a2744]">Team Haim</span>
+          <div className="flex gap-1.5">
+            <button onClick={() => setLanguage('he')} className={`px-2.5 py-1 rounded-md border text-xs font-medium ${language === 'he' ? 'bg-[#1a2744] text-white border-[#1a2744]' : 'border-gray-200 text-gray-500'}`}>עברית</button>
+            <button onClick={() => setLanguage('en')} className={`px-2.5 py-1 rounded-md border text-xs font-medium ${language === 'en' ? 'bg-[#1a2744] text-white border-[#1a2744]' : 'border-gray-200 text-gray-500'}`}>English</button>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-lg p-8 space-y-6">
+          <div>
+            <h1 className="text-2xl font-serif font-bold text-[#1a2744]">{t('Apply to work with me', 'בקשה לאימון אישי')}</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              {t('A few questions so I can see if we\'re a good fit — takes about 3 minutes.', 'כמה שאלות כדי לבדוק התאמה — לוקח כ-3 דקות.')}
+            </p>
+          </div>
+
+          {/* Personal info */}
+          <div className="space-y-3">
+            <h2 className="text-sm font-bold text-[#1a2744] uppercase tracking-wide">{t('Personal info', 'פרטים אישיים')}</h2>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Full Name *', 'שם מלא *')}</label>
+              <input className={inputCls} value={form.name} onChange={(e) => set('name', e.target.value)} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Email *', 'אימייל *')}</label>
+                <input type="email" className={inputCls} value={form.email} onChange={(e) => set('email', e.target.value)} dir="ltr" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Phone', 'טלפון')}</label>
+                <input type="tel" className={inputCls} value={form.phone} onChange={(e) => set('phone', e.target.value)} dir="ltr" /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Date of Birth', 'תאריך לידה')}</label>
+                <input type="date" className={inputCls} value={form.dateOfBirth} onChange={(e) => set('dateOfBirth', e.target.value)} /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('City', 'עיר')}</label>
+                <input className={inputCls} value={form.city} onChange={(e) => set('city', e.target.value)} /></div>
+            </div>
+          </div>
+
+          {/* Athletic background */}
+          <div className="space-y-3 pt-4 border-t border-gray-100">
+            <h2 className="text-sm font-bold text-[#1a2744] uppercase tracking-wide">{t('Running background', 'רקע ריצה')}</h2>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('Experience level', 'רמת ניסיון')}</label>
+              <div className="grid grid-cols-2 gap-2">
+                {EXPERIENCE_LEVELS.map((lvl) => (
+                  <button key={lvl} type="button" onClick={() => set('experienceLevel', lvl)}
+                    className={`py-2 rounded-lg border text-sm font-medium capitalize transition-colors ${form.experienceLevel === lvl ? 'bg-[#1a2744] text-white border-[#1a2744]' : 'border-gray-200 text-gray-600 hover:border-[#1a2744]'}`}>
+                    {lvl}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('Average weekly mileage (km)', 'ק"מ שבועי ממוצע')}</label>
+              <div className="flex flex-wrap gap-2">
+                {MILEAGE_PRESETS.map((km) => (
+                  <button key={km} type="button" onClick={() => set('weeklyMileage', km)}
+                    className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${form.weeklyMileage === km ? 'bg-[#1a2744] text-white border-[#1a2744]' : 'border-gray-200 text-gray-600 hover:border-[#1a2744]'}`}>
+                    {km}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('Recent race result (optional)', 'תוצאת מירוץ אחרונה (לא חובה)')}</label>
+              <div className="grid grid-cols-2 gap-2 mb-2">
+                {RACE_DISTANCES.map((dist) => (
+                  <button key={dist} type="button" onClick={() => set('recentRaceDistance', dist)}
+                    className={`py-1.5 rounded-lg border text-xs font-medium transition-colors ${form.recentRaceDistance === dist ? 'bg-[#c9a84c] text-white border-[#c9a84c]' : 'border-gray-200 text-gray-600 hover:border-[#c9a84c]'}`}>
+                    {RACE_DISTANCE_LABELS[language][dist]}
+                  </button>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <input className={inputCls} value={form.recentRaceTime} onChange={(e) => set('recentRaceTime', e.target.value)} placeholder={t('Time, e.g. 42:30', 'זמן, לדוגמה 42:30')} dir="ltr" />
+                <input type="date" className={inputCls} value={form.recentRaceDate} onChange={(e) => set('recentRaceDate', e.target.value)} />
+              </div>
+            </div>
+          </div>
+
+          {/* Goals */}
+          <div className="space-y-3 pt-4 border-t border-gray-100">
+            <h2 className="text-sm font-bold text-[#1a2744] uppercase tracking-wide">{t('Goals', 'מטרות')}</h2>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('What\'s your main goal right now?', 'מה המטרה המרכזית שלך?')}</label>
+              <textarea className={inputCls} rows={2} value={form.primaryGoal} onChange={(e) => set('primaryGoal', e.target.value)} /></div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('Goal race distance', 'מרחק היעד')}</label>
+              <div className="grid grid-cols-2 gap-2">
+                {RACE_DISTANCES.map((dist) => (
+                  <button key={dist} type="button" onClick={() => set('goalRaceDistance', dist)}
+                    className={`py-2 rounded-lg border text-sm font-medium transition-colors ${form.goalRaceDistance === dist ? 'bg-[#1a2744] text-white border-[#1a2744]' : 'border-gray-200 text-gray-600 hover:border-[#1a2744]'}`}>
+                    {RACE_DISTANCE_LABELS[language][dist]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Race name', 'שם המירוץ')}</label>
+                <input className={inputCls} value={form.goalRaceEvent} onChange={(e) => set('goalRaceEvent', e.target.value)} /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Race date', 'תאריך המירוץ')}</label>
+                <input type="date" className={inputCls} value={form.goalRaceDate} onChange={(e) => set('goalRaceDate', e.target.value)} /></div>
+            </div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Goal time', 'זמן יעד')}</label>
+              <input className={inputCls} value={form.goalRaceTarget} onChange={(e) => set('goalRaceTarget', e.target.value)} placeholder="e.g. 3:30:00" dir="ltr" /></div>
+          </div>
+
+          {/* Availability */}
+          <div className="space-y-3 pt-4 border-t border-gray-100">
+            <h2 className="text-sm font-bold text-[#1a2744] uppercase tracking-wide">{t('Availability', 'זמינות')}</h2>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('Days per week you can train', 'ימים בשבוע לאימון')}</label>
+              <div className="flex gap-2">
+                {DAYS_PRESETS.map((d) => (
+                  <button key={d} type="button" onClick={() => set('daysPerWeek', d)}
+                    className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${form.daysPerWeek === d ? 'bg-[#1a2744] text-white border-[#1a2744]' : 'border-gray-200 text-gray-600 hover:border-[#1a2744]'}`}>
+                    {d}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('Facility access', 'נגישות למתקנים')}</label>
+              <div className="flex flex-wrap gap-2">
+                {FACILITIES.map((f) => (
+                  <button key={f} type="button" onClick={() => toggleFacility(f)}
+                    className={`px-3 py-1.5 rounded-full border text-sm font-medium transition-colors ${form.facilitiesAccess.includes(f) ? 'bg-[#c9a84c] text-white border-[#c9a84c]' : 'border-gray-200 text-gray-600 hover:border-[#c9a84c]'}`}>
+                    {FACILITY_LABELS[language][f]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Health */}
+          <div className="space-y-3 pt-4 border-t border-gray-100">
+            <h2 className="text-sm font-bold text-[#1a2744] uppercase tracking-wide">{t('Health', 'בריאות')}</h2>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Current or recent injuries', 'פציעות נוכחיות או אחרונות')}</label>
+              <textarea className={inputCls} rows={2} value={form.injuryHistory} onChange={(e) => set('injuryHistory', e.target.value)} /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Anything else I should know?', 'עוד משהו שכדאי שאדע?')}</label>
+              <textarea className={inputCls} rows={2} value={form.additionalNotes} onChange={(e) => set('additionalNotes', e.target.value)} /></div>
+          </div>
+
+          {error && <p className="text-sm text-red-600">{error}</p>}
+
+          <button onClick={handleSubmit} disabled={saving}
+            className="w-full py-3 rounded-xl bg-[#1a2744] text-white font-medium flex items-center justify-center gap-2 hover:bg-[#1a2744]/90 transition-colors disabled:opacity-60">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {t('Submit Application', 'שליחת בקשה')}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}

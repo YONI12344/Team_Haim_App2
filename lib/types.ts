@@ -100,10 +100,47 @@ export interface AthleteProfile {
   // generator to flag conservative volume progression. Athlete-visible
   // input (distinct from coachPrivateNotes, which is coach-only).
   injuryHistory?: string
+  // Athlete's own self-report of where they're at right now — a Bakken AI
+  // input signal alongside (not instead of) their logged training history.
+  currentShape?: 'just_starting' | 'returning' | 'consistent' | 'peak_fitness'
+  // Coach-set cap on long-run duration in minutes, used by the Bakken AI
+  // plan generator.
+  longRunMinutes?: number
   // Athlete's chosen UI language at the time onboarding was completed —
   // used so AI-generated plans/feedback are written in the athlete's
   // language rather than defaulting to Hebrew.
   preferredLanguage?: 'en' | 'he'
+  createdAt: Date
+  updatedAt: Date
+}
+
+// Prospective-client application — submitted via the public /apply page,
+// before someone becomes an app user. The coach reviews these in
+// /coach/leads; accepting one lets its data auto-prefill the athlete's
+// profile the moment they actually sign up (matched by email — see
+// contexts/auth-context.tsx new-user creation).
+export interface Lead {
+  id: string
+  name: string
+  email: string
+  phone?: string
+  dateOfBirth?: string
+  city?: string
+  experienceLevel?: ExperienceLevel
+  weeklyMileage?: number
+  recentRaceEvent?: string
+  recentRaceTime?: string
+  recentRaceDate?: string
+  primaryGoal?: string
+  goalRaceEvent?: string
+  goalRaceDistance?: '1500m' | 'mile' | '3000m' | '5k' | '10k' | '15k' | 'half_marathon' | 'marathon'
+  goalRaceDate?: string
+  goalRaceTarget?: string
+  daysPerWeek?: number
+  facilitiesAccess?: string[]
+  injuryHistory?: string
+  additionalNotes?: string
+  status: 'new' | 'accepted' | 'declined' | 'converted'
   createdAt: Date
   updatedAt: Date
 }

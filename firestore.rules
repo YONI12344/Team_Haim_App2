@@ -139,5 +139,29 @@ service cloud.firestore {
         && (isCoach() || request.resource.data.userId == request.auth.uid);
       allow update, delete: if isCoach();
     }
+
+    // Public "apply to work with me" form (app/apply) — anyone, signed in
+    // or not, can submit one. Forced to status 'new' on create (can't
+    // self-accept). Read/update beyond that is coach-only, EXCEPT: once
+    // the coach has accepted a lead, the person who just signed up with
+    // that exact email (checked against their own verified auth token,
+    // not a client-supplied value) can read it once to pull their
+    // application data into their new profile, and flip its status to
+    // 'converted' — nothing else. This is what lets contexts/auth-
+    // context.tsx auto-fill a new athlete's profile from their accepted
+    // application without needing admin/server credentials.
+    match /leads/{leadId} {
+      allow create: if request.resource.data.status == 'new'
+        && request.resource.data.name is string && request.resource.data.name.size() > 0
+        && request.resource.data.email is string && request.resource.data.email.size() > 0;
+      allow read: if isCoach()
+        || (request.auth != null && resource.data.email == request.auth.token.email);
+      allow update: if isCoach()
+        || (request.auth != null
+            && resource.data.email == request.auth.token.email
+            && resource.data.status == 'accepted'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']));
+      allow delete: if isCoach();
+    }
   }
 }
