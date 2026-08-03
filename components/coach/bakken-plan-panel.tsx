@@ -104,6 +104,23 @@ const GOAL_TIME_PRESETS: Record<RaceDistance, string[]> = {
   marathon: ['2:45:00', '3:00:00', '3:15:00', '3:30:00', '3:45:00', '4:00:00', '4:30:00', '5:00:00'],
 }
 
+// The athlete's own view (components/athlete/athlete-planner-view.tsx) reads
+// the LEGACY STRING fields on sets/intervals (set.distance, set.duration,
+// set.pace, iv.distance, iv.duration, iv.pace) to render the "5× 1000m"
+// style line — it does NOT read distanceMeters/durationSec directly for
+// display, only for pace calculations elsewhere. Without these, every
+// generated set/interval rendered blank to the athlete. Formatted here
+// (not by the model) so unit words stay correctly in the athlete's language
+// without depending on the model getting it right every time.
+const formatMetersStr = (m: number, lang: 'en' | 'he') => (lang === 'he' ? `${m} מ׳` : `${m}m`)
+const formatSecondsStr = (sec: number, lang: 'en' | 'he') => {
+  if (sec >= 60 && sec % 60 === 0) {
+    const min = sec / 60
+    return lang === 'he' ? `${min} דק׳` : `${min} min`
+  }
+  return lang === 'he' ? `${sec} שנ׳` : `${sec}s`
+}
+
 const addDaysStr = (dateStr: string, n: number) => format(addDays(parseISO(dateStr), n), 'yyyy-MM-dd')
 const dateMin = (a: string, b: string) => (a < b ? a : b)
 const overlaps = (aStart: string, aEnd: string, bStart: string, bEnd: string) => aStart <= bEnd && aEnd >= bStart
@@ -127,6 +144,7 @@ const localId = (prefix: string) =>
  */
 interface AthleteSummary {
   name: string
+  language: 'en' | 'he'
   experienceLevel: ExperienceLevel | ''
   weeklyMileage?: number
   injuryHistory: string
@@ -156,7 +174,6 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
   const [loading, setLoading] = useState(false)
   const [progress, setProgress] = useState<string | null>(null)
   const [lastSummary, setLastSummary] = useState<string | null>(null)
-  const [scheduleLanguage, setScheduleLanguage] = useState<'en' | 'he'>('he')
   const [weekSchedule, setWeekSchedule] = useState<Record<DayKey, DayType>>(DEFAULT_WEEK_SCHEDULE)
   const [scheduleLoaded, setScheduleLoaded] = useState(false)
   const [summary, setSummary] = useState<AthleteSummary | null>(null)
@@ -179,9 +196,9 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         ) as Record<DayKey, DayType>
         setWeekSchedule(collapsed)
       }
-      if (d.preferredLanguage === 'en' || d.preferredLanguage === 'he') setScheduleLanguage(d.preferredLanguage)
       setSummary({
         name: d.name || 'Athlete',
+        language: d.preferredLanguage === 'en' ? 'en' : 'he',
         experienceLevel: EXPERIENCE_LEVELS.includes(d.experienceLevel) ? d.experienceLevel : '',
         weeklyMileage: d.weeklyMileage,
         injuryHistory: d.injuryHistory || '',
@@ -254,7 +271,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
     }
   }
 
-  const writeWorkout = async (w: BlockWorkoutOut) => {
+  const writeWorkout = async (w: BlockWorkoutOut, lang: 'en' | 'he') => {
     let targetOverride:
       | { paceMinSec: number; paceMaxSec: number; hrMin?: number; hrMax?: number }
       | undefined
@@ -290,6 +307,8 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         reps: s.reps,
         distanceMeters: s.distanceMeters ?? null,
         durationSec: s.durationSec ?? null,
+        distance: s.distanceMeters != null ? formatMetersStr(s.distanceMeters, lang) : null,
+        duration: s.durationSec != null ? formatSecondsStr(s.durationSec, lang) : null,
         restBetweenReps: s.restBetweenReps ?? null,
         restAfterSet: s.restAfterSet ?? null,
         notes: s.notes ?? null,
@@ -297,7 +316,13 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
           id: `s${i}-iv${j}`,
           distanceMeters: iv.distanceMeters ?? null,
           durationSec: iv.durationSec ?? null,
-          notes: iv.notes ?? null,
+          distance: iv.distanceMeters != null ? formatMetersStr(iv.distanceMeters, lang) : null,
+          duration: iv.durationSec != null ? formatSecondsStr(iv.durationSec, lang) : null,
+          // The app's interval row shows "@ {pace}" for the effort label —
+          // the model's per-segment effort text (e.g. "hard"/"easy") is the
+          // right thing to show there, same as a Kenyan-fartlek template's
+          // "@ ריצה קלה" / "@ הליכה מהירה".
+          pace: iv.notes || null,
         })),
       })),
       createdBy: user!.id,
@@ -334,6 +359,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         weekSchedule,
         daysPerWeek: derivedDaysPerWeek,
         coachPrivateNotes: coachNotes,
+        preferredLanguage: summary.language,
         experienceLevel: summary.experienceLevel || null,
         weeklyMileage: summary.weeklyMileage ?? null,
         injuryHistory: summary.injuryHistory || null,
@@ -383,6 +409,23 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         }
       })
 
+      const last3WeeksSummary = {
+        week1: buildWeekSummary(recentAssigned, logs, today, 2),
+        week2: buildWeekSummary(recentAssigned, logs, today, 1),
+        week3: buildWeekSummary(recentAssigned, logs, today, 0),
+      }
+
+      // Anchor the season's starting volume to what the athlete has ACTUALLY
+      // been running (averaged over whichever of the last 3 weeks have real
+      // logged data), not the onboarding self-report — that number can be
+      // stale or optimistic. Falls back to the self-report only when there's
+      // no logged history yet (brand new athlete).
+      const realWeeks = [last3WeeksSummary.week1, last3WeeksSummary.week2, last3WeeksSummary.week3]
+        .filter((w): w is WeekAgg => w !== null && w.totalActual > 0)
+      const actualAvgWeeklyKm = realWeeks.length
+        ? Math.round(realWeeks.reduce((s, w) => s + w.totalActual, 0) / realWeeks.length)
+        : null
+
       const athleteContext: PlanAthleteContext = {
         name: profile.name || 'Athlete',
         experienceLevel: profile.experienceLevel,
@@ -409,11 +452,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
           vo2maxEst: profile.physiology?.vo2maxEst ?? null,
           testDate: profile.physiology?.testDate,
         },
-        last3WeeksSummary: {
-          week1: buildWeekSummary(recentAssigned, logs, today, 2),
-          week2: buildWeekSummary(recentAssigned, logs, today, 1),
-          week3: buildWeekSummary(recentAssigned, logs, today, 0),
-        },
+        last3WeeksSummary,
         recentWorkouts,
         language: (profile.preferredLanguage as 'en' | 'he') || 'he',
       }
@@ -426,7 +465,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         1,
         Math.ceil((new Date(profile.goalRaceDate).getTime() - today.getTime()) / (7 * 86400000)),
       )
-      const currentWeeklyKm = profile.weeklyMileage || 30
+      const currentWeeklyKm = actualAvgWeeklyKm ?? profile.weeklyMileage ?? 30
       const skeletonReq: SkeletonRequest = {
         totalWeeksAvailable,
         currentWeeklyKm,
@@ -543,7 +582,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
 
         for (const w of plan.workouts) {
           if (w.type === 'rest') continue
-          await writeWorkout(w)
+          await writeWorkout(w, athleteContext.language)
           totalWritten++
         }
 
@@ -594,6 +633,22 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
             <p className="text-sm font-medium">
               Everything Bakken AI knows about {summary.name} — edit here before generating if it changed
             </p>
+
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">
+                Plan language (workout text, warmup/cooldown, notes)
+              </p>
+              <div className="flex gap-1.5">
+                <button type="button" onClick={() => setAthleteField('language', 'he')}
+                  className={`px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${summary.language === 'he' ? 'bg-primary text-primary-foreground border-primary' : 'border-input text-muted-foreground hover:border-primary'}`}>
+                  עברית
+                </button>
+                <button type="button" onClick={() => setAthleteField('language', 'en')}
+                  className={`px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${summary.language === 'en' ? 'bg-primary text-primary-foreground border-primary' : 'border-input text-muted-foreground hover:border-primary'}`}>
+                  English
+                </button>
+              </div>
+            </div>
 
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-1">Experience level</p>
@@ -718,7 +773,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
             {DAY_ORDER.map((day) => (
               <div key={day} className="flex items-center gap-2">
                 <span className="w-8 text-xs font-semibold text-muted-foreground shrink-0">
-                  {DAY_LABELS[scheduleLanguage][day]}
+                  {DAY_LABELS[(summary?.language ?? 'he')][day]}
                 </span>
                 <div className="flex gap-1">
                   {DAY_TYPES.map((type) => (
@@ -732,7 +787,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
                           : 'border-input text-muted-foreground hover:border-primary'
                       }`}
                     >
-                      {DAY_TYPE_LABELS[scheduleLanguage][type]}
+                      {DAY_TYPE_LABELS[(summary?.language ?? 'he')][type]}
                     </button>
                   ))}
                 </div>
