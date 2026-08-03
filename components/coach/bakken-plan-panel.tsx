@@ -89,6 +89,21 @@ const DEFAULT_WEEK_SCHEDULE: Record<DayKey, DayType> = {
   thursday: 'workout', friday: 'rest', saturday: 'workout',
 }
 
+type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced' | 'professional'
+type RaceDistance = '5k' | '10k' | 'half_marathon' | 'marathon'
+const EXPERIENCE_LEVELS: ExperienceLevel[] = ['beginner', 'intermediate', 'advanced', 'professional']
+const MILEAGE_PRESETS = [15, 25, 35, 45, 55, 65, 80]
+const RACE_DISTANCES: RaceDistance[] = ['5k', '10k', 'half_marathon', 'marathon']
+const RACE_DISTANCE_LABELS: Record<RaceDistance, string> = {
+  '5k': '5K', '10k': '10K', half_marathon: 'Half Marathon', marathon: 'Marathon',
+}
+const GOAL_TIME_PRESETS: Record<RaceDistance, string[]> = {
+  '5k': ['16:00', '18:00', '20:00', '22:00', '25:00', '28:00', '32:00'],
+  '10k': ['34:00', '38:00', '42:00', '46:00', '50:00', '55:00', '60:00'],
+  half_marathon: ['1:15:00', '1:25:00', '1:35:00', '1:45:00', '1:55:00', '2:10:00', '2:30:00'],
+  marathon: ['2:45:00', '3:00:00', '3:15:00', '3:30:00', '3:45:00', '4:00:00', '4:30:00', '5:00:00'],
+}
+
 const addDaysStr = (dateStr: string, n: number) => format(addDays(parseISO(dateStr), n), 'yyyy-MM-dd')
 const dateMin = (a: string, b: string) => (a < b ? a : b)
 const overlaps = (aStart: string, aEnd: string, bStart: string, bEnd: string) => aStart <= bEnd && aEnd >= bStart
@@ -112,13 +127,13 @@ const localId = (prefix: string) =>
  */
 interface AthleteSummary {
   name: string
-  experienceLevel?: string
+  experienceLevel: ExperienceLevel | ''
   weeklyMileage?: number
-  injuryHistory?: string
-  goalRaceEvent?: string
-  goalRaceDistance?: string
-  goalRaceDate?: string
-  goalRaceTarget?: string
+  injuryHistory: string
+  goalRaceEvent: string
+  goalRaceDistance: RaceDistance | ''
+  goalRaceDate: string
+  goalRaceTarget: string
   physiology?: {
     lt1PaceSec?: number | null; lt1Hr?: number | null
     lt2PaceSec?: number | null; lt2Hr?: number | null
@@ -167,13 +182,13 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
       if (d.preferredLanguage === 'en' || d.preferredLanguage === 'he') setScheduleLanguage(d.preferredLanguage)
       setSummary({
         name: d.name || 'Athlete',
-        experienceLevel: d.experienceLevel,
+        experienceLevel: EXPERIENCE_LEVELS.includes(d.experienceLevel) ? d.experienceLevel : '',
         weeklyMileage: d.weeklyMileage,
-        injuryHistory: d.injuryHistory,
-        goalRaceEvent: d.goalRaceEvent,
-        goalRaceDistance: d.goalRaceDistance,
-        goalRaceDate: d.goalRaceDate,
-        goalRaceTarget: d.goalRaceTarget,
+        injuryHistory: d.injuryHistory || '',
+        goalRaceEvent: d.goalRaceEvent || '',
+        goalRaceDistance: RACE_DISTANCES.includes(d.goalRaceDistance) ? d.goalRaceDistance : '',
+        goalRaceDate: d.goalRaceDate || '',
+        goalRaceTarget: d.goalRaceTarget || '',
         physiology: d.physiology,
         personalRecords: Array.isArray(d.personalRecords)
           ? d.personalRecords.slice(0, 5).map((p: any) => ({ event: p.event, time: p.time, date: p.date }))
@@ -187,6 +202,8 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
   }, [athleteId])
 
   const setDayType = (day: DayKey, type: DayType) => setWeekSchedule((s) => ({ ...s, [day]: type }))
+  const setAthleteField = <K extends keyof AthleteSummary>(key: K, value: AthleteSummary[K]) =>
+    setSummary((s) => (s ? { ...s, [key]: value } : s))
 
   const saveCoachNotes = async () => {
     setSavingNotes(true)
@@ -304,19 +321,26 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
   }
 
   const generate = async () => {
-    if (!user) return
+    if (!user || !summary) return
     setLoading(true)
     setLastSummary(null)
     setProgress(null)
     try {
-      // Persist whatever the coach set/adjusted (schedule + notes) above
-      // before reading the profile back — this is what the brain actually
-      // sees as athlete_context.weekSchedule / coachNotes.
+      // Persist whatever the coach set/adjusted above (schedule, notes, and
+      // every editable athlete field) before reading the profile back —
+      // this is exactly what the brain sees as athlete_context.*.
       const derivedDaysPerWeek = DAY_ORDER.filter((day) => weekSchedule[day] !== 'off').length
       await updateDoc(doc(db, 'users', athleteId), {
         weekSchedule,
         daysPerWeek: derivedDaysPerWeek,
         coachPrivateNotes: coachNotes,
+        experienceLevel: summary.experienceLevel || null,
+        weeklyMileage: summary.weeklyMileage ?? null,
+        injuryHistory: summary.injuryHistory || null,
+        goalRaceEvent: summary.goalRaceEvent || null,
+        goalRaceDistance: summary.goalRaceDistance || null,
+        goalRaceDate: summary.goalRaceDate || null,
+        goalRaceTarget: summary.goalRaceTarget || null,
       })
 
       const profileSnap = await getDoc(doc(db, 'users', athleteId))
@@ -566,15 +590,85 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         {/* Everything the brain actually sees, in one place — so the coach
             can verify it and doesn't have to guess what data exists. */}
         {summary && (
-          <div className="rounded-lg border p-3 space-y-2 text-sm">
-            <p className="text-sm font-medium">What Bakken AI knows about {summary.name}</p>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
-              <div>Experience: <span className="text-foreground">{summary.experienceLevel || '—'}</span></div>
-              <div>Weekly mileage: <span className="text-foreground">{summary.weeklyMileage ? `${summary.weeklyMileage} km` : '—'}</span></div>
-              <div>Goal race: <span className="text-foreground">{summary.goalRaceDistance || '—'} {summary.goalRaceEvent ? `(${summary.goalRaceEvent})` : ''}</span></div>
-              <div>Race date: <span className="text-foreground">{summary.goalRaceDate || '—'}</span></div>
-              <div>Goal time: <span className="text-foreground">{summary.goalRaceTarget || '—'}</span></div>
-              <div>Injury history: <span className="text-foreground">{summary.injuryHistory || 'none noted'}</span></div>
+          <div className="rounded-lg border p-3 space-y-3 text-sm">
+            <p className="text-sm font-medium">
+              Everything Bakken AI knows about {summary.name} — edit here before generating if it changed
+            </p>
+
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">Experience level</p>
+              <div className="flex flex-wrap gap-1.5">
+                {EXPERIENCE_LEVELS.map((lvl) => (
+                  <button key={lvl} type="button" onClick={() => setAthleteField('experienceLevel', lvl)}
+                    className={`px-2.5 py-1 rounded-md border text-xs font-medium capitalize transition-colors ${summary.experienceLevel === lvl ? 'bg-primary text-primary-foreground border-primary' : 'border-input text-muted-foreground hover:border-primary'}`}>
+                    {lvl}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">Weekly mileage (km)</p>
+              <div className="flex flex-wrap gap-1.5">
+                {MILEAGE_PRESETS.map((km) => (
+                  <button key={km} type="button" onClick={() => setAthleteField('weeklyMileage', km)}
+                    className={`px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${summary.weeklyMileage === km ? 'bg-primary text-primary-foreground border-primary' : 'border-input text-muted-foreground hover:border-primary'}`}>
+                    {km}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">Injury history</p>
+              <textarea
+                value={summary.injuryHistory}
+                onChange={(e) => setAthleteField('injuryHistory', e.target.value)}
+                placeholder="Any current or recurring injuries?"
+                className="w-full min-h-[50px] rounded-md border border-input bg-background px-2.5 py-1.5 text-xs"
+              />
+            </div>
+
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">Goal race distance</p>
+              <div className="flex flex-wrap gap-1.5">
+                {RACE_DISTANCES.map((dist) => (
+                  <button key={dist} type="button" onClick={() => setAthleteField('goalRaceDistance', dist)}
+                    className={`px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${summary.goalRaceDistance === dist ? 'bg-primary text-primary-foreground border-primary' : 'border-input text-muted-foreground hover:border-primary'}`}>
+                    {RACE_DISTANCE_LABELS[dist]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1">Race name (optional)</p>
+                <input type="text" value={summary.goalRaceEvent} onChange={(e) => setAthleteField('goalRaceEvent', e.target.value)}
+                  placeholder="e.g. Tel Aviv Marathon"
+                  className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1">Race date</p>
+                <input type="date" value={summary.goalRaceDate} onChange={(e) => setAthleteField('goalRaceDate', e.target.value)}
+                  className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs" />
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">Goal time</p>
+              {summary.goalRaceDistance ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {GOAL_TIME_PRESETS[summary.goalRaceDistance].map((t) => (
+                    <button key={t} type="button" onClick={() => setAthleteField('goalRaceTarget', t)}
+                      className={`px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${summary.goalRaceTarget === t ? 'bg-primary text-primary-foreground border-primary' : 'border-input text-muted-foreground hover:border-primary'}`}>
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">Pick a goal distance first</p>
+              )}
             </div>
 
             {summary.personalRecords.length > 0 && (
@@ -646,7 +740,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
             ))}
           </div>
         </div>
-        <Button onClick={generate} disabled={loading}>
+        <Button onClick={generate} disabled={loading || !summary}>
           {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
           Generate full season
         </Button>
