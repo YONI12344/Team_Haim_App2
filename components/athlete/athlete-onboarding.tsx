@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, getDoc, setDoc, serverTimestamp, arrayUnion } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
@@ -12,21 +12,35 @@ type Discipline = 'track' | 'road' | 'trail' | 'jogger' | 'mixed'
 type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced' | 'professional'
 type DayKey = 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday'
 type DayType = 'workout' | 'long_run' | 'easy' | 'rest' | 'off'
-type RaceDistance = '5k' | '10k' | 'half_marathon' | 'marathon'
+type RaceDistance = '1500m' | 'mile' | '3000m' | '5k' | '10k' | '15k' | 'half_marathon' | 'marathon'
+type CurrentShape = 'just_starting' | 'returning' | 'consistent' | 'peak_fitness'
 
-const RACE_DISTANCES: RaceDistance[] = ['5k', '10k', 'half_marathon', 'marathon']
+// Wider than just the road-race staples — track/sub-elite athletes race
+// 1500m/mile/3000m too. Anything without explicit brain guidance for its
+// exact distance still gets a real plan (the brain reasons by analogy to
+// the nearest distance it does cover).
+const RACE_DISTANCES: RaceDistance[] = ['1500m', 'mile', '3000m', '5k', '10k', '15k', 'half_marathon', 'marathon']
 const RACE_DISTANCE_LABELS: Record<'en' | 'he', Record<RaceDistance, string>> = {
-  en: { '5k': '5K', '10k': '10K', half_marathon: 'Half Marathon', marathon: 'Marathon' },
-  he: { '5k': '5 ק"מ', '10k': '10 ק"מ', half_marathon: 'חצי מרתון', marathon: 'מרתון' },
+  en: { '1500m': '1500m', mile: 'Mile', '3000m': '3000m', '5k': '5K', '10k': '10K', '15k': '15K', half_marathon: 'Half Marathon', marathon: 'Marathon' },
+  he: { '1500m': '1500 מ׳', mile: 'מייל', '3000m': '3000 מ׳', '5k': '5 ק"מ', '10k': '10 ק"מ', '15k': '15 ק"מ', half_marathon: 'חצי מרתון', marathon: 'מרתון' },
 }
-// Distance-specific — picking the distance first means we can offer
-// realistic time presets instead of a free-text field the athlete has to
-// guess the format for.
+// Presets are just quick-fill suggestions — the goal time field itself is
+// freely editable text, since a real target (especially for a competitive
+// athlete) is rarely exactly one of these round numbers.
 const GOAL_TIME_PRESETS: Record<RaceDistance, string[]> = {
+  '1500m': ['3:30', '3:45', '4:00', '4:15', '4:30', '4:45', '5:00'],
+  mile: ['4:00', '4:15', '4:30', '4:45', '5:00', '5:15', '5:30'],
+  '3000m': ['8:00', '8:30', '9:00', '9:30', '10:00', '11:00', '12:00'],
   '5k': ['16:00', '18:00', '20:00', '22:00', '25:00', '28:00', '32:00'],
   '10k': ['34:00', '38:00', '42:00', '46:00', '50:00', '55:00', '60:00'],
+  '15k': ['50:00', '55:00', '1:00:00', '1:05:00', '1:10:00', '1:15:00', '1:20:00'],
   half_marathon: ['1:15:00', '1:25:00', '1:35:00', '1:45:00', '1:55:00', '2:10:00', '2:30:00'],
   marathon: ['2:45:00', '3:00:00', '3:15:00', '3:30:00', '3:45:00', '4:00:00', '4:30:00', '5:00:00'],
+}
+const CURRENT_SHAPES: CurrentShape[] = ['just_starting', 'returning', 'consistent', 'peak_fitness']
+const CURRENT_SHAPE_LABELS: Record<'en' | 'he', Record<CurrentShape, string>> = {
+  en: { just_starting: 'Just starting out', returning: 'Returning after a break', consistent: 'Training consistently', peak_fitness: 'Peak fitness / just raced' },
+  he: { just_starting: 'רק מתחיל/ה', returning: 'חוזר/ת אחרי הפסקה', consistent: 'מתאמן/ת באופן עקבי', peak_fitness: 'בכושר שיא / התחרתי לאחרונה' },
 }
 
 const DAY_ORDER: DayKey[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
@@ -58,9 +72,16 @@ interface OnboardingForm {
   height: string; weight: string; discipline: Discipline[]
   experienceLevel: ExperienceLevel | ''; weeklyMileage: string
   weekSchedule: WeekScheduleForm; injuryHistory: string
+  currentShape: CurrentShape | ''
   restingHR: string; maxHR: string; goalRaceEvent: string
   goalRaceDistance: RaceDistance | ''
   goalRaceDate: string; goalRaceTarget: string; events: string
+  // Recent race result — the pace anchor the Bakken brain falls back to
+  // when there's no lab test yet. One entry is enough to be useful; the
+  // coach/athlete can add more later via the app's own PR editor.
+  recentRaceDistance: RaceDistance | ''
+  recentRaceTime: string
+  recentRaceDate: string
 }
 
 const STEPS_EN = [
@@ -93,9 +114,10 @@ export function AthleteOnboarding() {
   const [form, setForm] = useState<OnboardingForm>({
     name: '', dateOfBirth: '', gender: '', height: '', weight: '',
     discipline: [], experienceLevel: '', weeklyMileage: '',
-    weekSchedule: DEFAULT_WEEK_SCHEDULE, injuryHistory: '',
+    weekSchedule: DEFAULT_WEEK_SCHEDULE, injuryHistory: '', currentShape: '',
     restingHR: '', maxHR: '', goalRaceEvent: '', goalRaceDistance: '',
     goalRaceDate: '', goalRaceTarget: '', events: '',
+    recentRaceDistance: '', recentRaceTime: '', recentRaceDate: '',
   })
 
   useEffect(() => { if (user?.name) setForm(f => ({ ...f, name: user.name })) }, [user?.name])
@@ -122,6 +144,7 @@ export function AthleteOnboarding() {
         weeklyMileage: d.weeklyMileage != null ? String(d.weeklyMileage) : '',
         weekSchedule: d.weekSchedule && DAY_ORDER.every((day) => d.weekSchedule[day]) ? d.weekSchedule : f.weekSchedule,
         injuryHistory: d.injuryHistory || '',
+        currentShape: CURRENT_SHAPES.includes(d.currentShape) ? d.currentShape : '',
         restingHR: d.restingHR != null ? String(d.restingHR) : '',
         maxHR: d.maxHR != null ? String(d.maxHR) : '',
         goalRaceEvent: d.goalRaceEvent || '',
@@ -129,6 +152,7 @@ export function AthleteOnboarding() {
         goalRaceDate: d.goalRaceDate || '',
         goalRaceTarget: d.goalRaceTarget || '',
         events: Array.isArray(d.events) ? d.events.join(', ') : '',
+        recentRaceDistance: '', recentRaceTime: '', recentRaceDate: '',
       }))
       if (d.preferredLanguage === 'en' || d.preferredLanguage === 'he') setLanguage(d.preferredLanguage)
     }
@@ -165,9 +189,18 @@ export function AthleteOnboarding() {
         weekSchedule: form.weekSchedule,
         daysPerWeek: DAY_ORDER.filter((day) => form.weekSchedule[day] !== 'off').length,
         injuryHistory: form.injuryHistory || null,
+        currentShape: form.currentShape || null,
         preferredLanguage: language,
         onboardingComplete: true,
         updatedAt: serverTimestamp(),
+        ...(form.recentRaceDistance && form.recentRaceTime ? {
+          personalRecords: arrayUnion({
+            id: `pr_${Date.now()}`,
+            event: RACE_DISTANCE_LABELS.en[form.recentRaceDistance],
+            time: form.recentRaceTime,
+            date: form.recentRaceDate || '',
+          }),
+        } : {}),
       }, { merge: true })
       setStep(6)
     } catch (e) { console.error(e) }
@@ -331,6 +364,19 @@ export function AthleteOnboarding() {
                 <p className="text-xs text-gray-400 mt-1">Don't know? We can estimate from your age.</p></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Injury history (optional)</label>
                 <textarea className={inputCls} rows={3} value={form.injuryHistory} onChange={e => set('injuryHistory', e.target.value)} placeholder="Any current or recurring injuries in the last 12 months?" /></div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {language === 'he' ? 'איך מרגיש הכושר שלך כרגע?' : 'How would you describe your current shape?'}
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {CURRENT_SHAPES.map(shape => (
+                    <button key={shape} type="button" onClick={() => set('currentShape', shape)}
+                      className={`py-2.5 rounded-lg border text-xs font-medium transition-colors ${form.currentShape === shape ? 'bg-[#1a2744] text-white border-[#1a2744]' : 'border-gray-200 text-gray-600 hover:border-[#1a2744]'}`}>
+                      {CURRENT_SHAPE_LABELS[language][shape]}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
@@ -362,20 +408,39 @@ export function AthleteOnboarding() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   {language === 'he' ? 'זמן יעד' : 'Goal Time'}
                 </label>
-                {form.goalRaceDistance ? (
-                  <div className="flex flex-wrap gap-2">
+                <input className={inputCls} value={form.goalRaceTarget} onChange={e => set('goalRaceTarget', e.target.value)}
+                  placeholder={language === 'he' ? 'לדוגמה: 3:30:00' : 'e.g. 3:30:00'} dir="ltr" />
+                {form.goalRaceDistance && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
                     {GOAL_TIME_PRESETS[form.goalRaceDistance].map(t => (
                       <button key={t} type="button" onClick={() => set('goalRaceTarget', t)}
-                        className={`px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${form.goalRaceTarget === t ? 'bg-[#1a2744] text-white border-[#1a2744]' : 'border-gray-200 text-gray-600 hover:border-[#1a2744]'}`}>
+                        className={`px-2.5 py-1 rounded-full border text-xs font-medium transition-colors ${form.goalRaceTarget === t ? 'bg-[#1a2744] text-white border-[#1a2744]' : 'border-gray-200 text-gray-500 hover:border-[#1a2744]'}`}>
                         {t}
                       </button>
                     ))}
                   </div>
-                ) : (
-                  <p className="text-xs text-gray-400">
-                    {language === 'he' ? 'בחר/י מרחק יעד קודם' : 'Pick a goal distance first'}
-                  </p>
                 )}
+              </div>
+              <div className="pt-2 border-t border-gray-100">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {language === 'he' ? 'תוצאת מירוץ אחרונה (לא חובה)' : 'Recent race result (optional)'}
+                </label>
+                <p className="text-xs text-gray-400 mb-2">
+                  {language === 'he' ? 'עוזר לבנות עבורך יעדי קצב מדויקים גם ללא בדיקת מעבדה.' : 'Helps build accurate pace targets for you even without a lab test.'}
+                </p>
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  {RACE_DISTANCES.map(dist => (
+                    <button key={dist} type="button" onClick={() => set('recentRaceDistance', dist)}
+                      className={`py-2 rounded-lg border text-xs font-medium transition-colors ${form.recentRaceDistance === dist ? 'bg-[#c9a84c] text-white border-[#c9a84c]' : 'border-gray-200 text-gray-600 hover:border-[#c9a84c]'}`}>
+                      {RACE_DISTANCE_LABELS[language][dist]}
+                    </button>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <input className={inputCls} value={form.recentRaceTime} onChange={e => set('recentRaceTime', e.target.value)}
+                    placeholder={language === 'he' ? 'זמן, לדוגמה 42:30' : 'Time, e.g. 42:30'} dir="ltr" />
+                  <input type="date" className={inputCls} value={form.recentRaceDate} onChange={e => set('recentRaceDate', e.target.value)} />
+                </div>
               </div>
             </div>
           )}

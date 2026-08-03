@@ -57,7 +57,7 @@ export interface AthleteProfile {
   physiology?: PhysiologySummary // latest lactate-test thresholds (T1/T2, VO2max)
   goalRaceDate?: string // ISO date
   goalRaceEvent?: string
-  goalRaceDistance?: '5k' | '10k' | 'half_marathon' | 'marathon'
+  goalRaceDistance?: '1500m' | 'mile' | '3000m' | '5k' | '10k' | '15k' | 'half_marathon' | 'marathon'
   goalRaceTarget?: string // free-text target time
   personalRecords: PersonalRecord[]
   seasonBests: PersonalRecord[]

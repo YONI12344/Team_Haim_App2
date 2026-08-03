@@ -13,7 +13,7 @@ import {
   deleteDoc,
   serverTimestamp,
 } from 'firebase/firestore'
-import { format, addDays, parseISO } from 'date-fns'
+import { format, addDays, parseISO, startOfWeek } from 'date-fns'
 import { toast } from 'sonner'
 import { Loader2, Sparkles } from 'lucide-react'
 import { db } from '@/lib/firebase'
@@ -92,19 +92,33 @@ const DEFAULT_WEEK_SCHEDULE: Record<DayKey, DayType> = {
 }
 
 type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced' | 'professional'
-type RaceDistance = '5k' | '10k' | 'half_marathon' | 'marathon'
+type RaceDistance = '1500m' | 'mile' | '3000m' | '5k' | '10k' | '15k' | 'half_marathon' | 'marathon'
+type CurrentShape = 'just_starting' | 'returning' | 'consistent' | 'peak_fitness'
 const EXPERIENCE_LEVELS: ExperienceLevel[] = ['beginner', 'intermediate', 'advanced', 'professional']
 const MILEAGE_PRESETS = [15, 25, 35, 45, 55, 65, 80]
-const RACE_DISTANCES: RaceDistance[] = ['5k', '10k', 'half_marathon', 'marathon']
+const RACE_DISTANCES: RaceDistance[] = ['1500m', 'mile', '3000m', '5k', '10k', '15k', 'half_marathon', 'marathon']
 const RACE_DISTANCE_LABELS: Record<RaceDistance, string> = {
-  '5k': '5K', '10k': '10K', half_marathon: 'Half Marathon', marathon: 'Marathon',
+  '1500m': '1500m', mile: 'Mile', '3000m': '3000m', '5k': '5K', '10k': '10K', '15k': '15K', half_marathon: 'Half Marathon', marathon: 'Marathon',
 }
+// Presets are quick-fill suggestions only — goalRaceTarget is a free text
+// field so a precise/competitive time isn't forced onto a round number.
 const GOAL_TIME_PRESETS: Record<RaceDistance, string[]> = {
+  '1500m': ['3:30', '3:45', '4:00', '4:15', '4:30', '4:45', '5:00'],
+  mile: ['4:00', '4:15', '4:30', '4:45', '5:00', '5:15', '5:30'],
+  '3000m': ['8:00', '8:30', '9:00', '9:30', '10:00', '11:00', '12:00'],
   '5k': ['16:00', '18:00', '20:00', '22:00', '25:00', '28:00', '32:00'],
   '10k': ['34:00', '38:00', '42:00', '46:00', '50:00', '55:00', '60:00'],
+  '15k': ['50:00', '55:00', '1:00:00', '1:05:00', '1:10:00', '1:15:00', '1:20:00'],
   half_marathon: ['1:15:00', '1:25:00', '1:35:00', '1:45:00', '1:55:00', '2:10:00', '2:30:00'],
   marathon: ['2:45:00', '3:00:00', '3:15:00', '3:30:00', '3:45:00', '4:00:00', '4:30:00', '5:00:00'],
 }
+const CURRENT_SHAPES: CurrentShape[] = ['just_starting', 'returning', 'consistent', 'peak_fitness']
+const CURRENT_SHAPE_LABELS: Record<CurrentShape, string> = {
+  just_starting: 'Just starting out', returning: 'Returning after a break', consistent: 'Training consistently', peak_fitness: 'Peak fitness / just raced',
+}
+// Coach-set preference for how long the long run should be, in minutes —
+// passed to the brain as a constraint rather than left entirely to it.
+const LONG_RUN_MINUTES_PRESETS = [45, 60, 75, 90, 105, 120, 150, 180]
 
 // This panel's OWN UI chrome (headings, buttons, hints) — follows the
 // coach's actual app language (useLanguage() below), which is a SEPARATE
@@ -121,6 +135,10 @@ const UI = {
     weeklyMileage: 'Weekly mileage (km)',
     injuryHistory: 'Injury history',
     injuryPlaceholder: 'Any current or recurring injuries?',
+    currentShapeLabel: 'Current shape',
+    goalTimePlaceholder: 'e.g. 3:30:00',
+    longRunLabel: 'Long run cap (minutes)',
+    longRunNone: 'No cap',
     goalDistance: 'Goal race distance',
     raceName: 'Race name (optional)',
     raceNamePlaceholder: 'e.g. Tel Aviv Marathon',
@@ -161,6 +179,10 @@ const UI = {
     weeklyMileage: 'ק"מ שבועי',
     injuryHistory: 'היסטוריית פציעות',
     injuryPlaceholder: 'פציעות נוכחיות או חוזרות?',
+    currentShapeLabel: 'כושר נוכחי',
+    goalTimePlaceholder: 'לדוגמה: 3:30:00',
+    longRunLabel: 'תקרת ריצה ארוכה (דקות)',
+    longRunNone: 'ללא תקרה',
     goalDistance: 'מרחק היעד',
     raceName: 'שם המירוץ (לא חובה)',
     raceNamePlaceholder: 'לדוגמה: מרתון תל אביב',
@@ -217,6 +239,39 @@ const overlaps = (aStart: string, aEnd: string, bStart: string, bEnd: string) =>
 const localId = (prefix: string) =>
   `${prefix}_${typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Date.now() + Math.random()}`
 
+// The model asking it to "check the weekly sum" in the prompt (see rule 3 in
+// plan-prompt.ts) isn't reliable enough on its own — weekly totals kept
+// drifting well off the stage's weeklyVolumeKm target in practice. This is
+// the deterministic backstop: after generation, actually sum each calendar
+// week's distance and rescale if it's off by more than 15%, instead of
+// trusting the model's arithmetic. Only touches the `distance` (total km)
+// field on running-type sessions — never the rep structure (sets/intervals),
+// so "5x6min" stays "5x6min", just the day's total km moves.
+const normalizeWeeklyVolume = (workouts: BlockWorkoutOut[], stagesForBlock: BlockStageInfo[]): BlockWorkoutOut[] => {
+  const weekKeyOf = (dateStr: string) => format(startOfWeek(parseISO(dateStr), { weekStartsOn: 0 }), 'yyyy-MM-dd')
+  const weeks = new Map<string, BlockWorkoutOut[]>()
+  for (const w of workouts) {
+    const key = weekKeyOf(w.date)
+    if (!weeks.has(key)) weeks.set(key, [])
+    weeks.get(key)!.push(w)
+  }
+  for (const [weekStart, items] of weeks) {
+    const midweek = addDaysStr(weekStart, 3)
+    const stage = stagesForBlock.find((s) => midweek >= s.startDate && midweek <= s.endDate)
+    if (!stage?.weeklyVolumeKm) continue
+    const actual = items.reduce((sum, w) => sum + (w.distance || 0), 0)
+    if (actual <= 0) continue
+    const ratio = actual / stage.weeklyVolumeKm
+    if (ratio > 1.15 || ratio < 0.85) {
+      const scale = stage.weeklyVolumeKm / actual
+      for (const w of items) {
+        if (w.distance != null) w.distance = Math.max(1, Math.round(w.distance * scale))
+      }
+    }
+  }
+  return workouts
+}
+
 /**
  * Full-season Bakken/Almgren plan generator. ONE brain (lib/bakken/brain.json)
  * drives everything: a one-shot call decides the season's periodization
@@ -238,6 +293,8 @@ interface AthleteSummary {
   experienceLevel: ExperienceLevel | ''
   weeklyMileage?: number
   injuryHistory: string
+  currentShape: CurrentShape | ''
+  longRunMinutes?: number
   goalRaceEvent: string
   goalRaceDistance: RaceDistance | ''
   goalRaceDate: string
@@ -294,6 +351,8 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         experienceLevel: EXPERIENCE_LEVELS.includes(d.experienceLevel) ? d.experienceLevel : '',
         weeklyMileage: d.weeklyMileage,
         injuryHistory: d.injuryHistory || '',
+        currentShape: CURRENT_SHAPES.includes(d.currentShape) ? d.currentShape : '',
+        longRunMinutes: d.longRunMinutes,
         goalRaceEvent: d.goalRaceEvent || '',
         goalRaceDistance: RACE_DISTANCES.includes(d.goalRaceDistance) ? d.goalRaceDistance : '',
         goalRaceDate: d.goalRaceDate || '',
@@ -456,6 +515,8 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         experienceLevel: summary.experienceLevel || null,
         weeklyMileage: summary.weeklyMileage ?? null,
         injuryHistory: summary.injuryHistory || null,
+        currentShape: summary.currentShape || null,
+        longRunMinutes: summary.longRunMinutes ?? null,
         goalRaceEvent: summary.goalRaceEvent || null,
         goalRaceDistance: summary.goalRaceDistance || null,
         goalRaceDate: summary.goalRaceDate || null,
@@ -542,6 +603,8 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         weekSchedule: profile.weekSchedule,
         weeklyMileage: profile.weeklyMileage,
         injuryHistory: profile.injuryHistory,
+        currentShape: profile.currentShape,
+        longRunMinutes: profile.longRunMinutes,
         coachNotes: profile.coachPrivateNotes,
         goalRaceEvent: profile.goalRaceEvent || 'Goal Race',
         goalRaceDistance: profile.goalRaceDistance,
@@ -690,6 +753,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         }
         const plan: BlockPlanOut = data.plan
         if (i === 0) firstBlockSummary = plan.blockSummary
+        normalizeWeeklyVolume(plan.workouts, stagesForBlock)
 
         for (const w of plan.workouts) {
           if (w.type === 'rest') continue
@@ -788,6 +852,34 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
             </div>
 
             <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">{t.currentShapeLabel}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {CURRENT_SHAPES.map((shape) => (
+                  <button key={shape} type="button" onClick={() => setAthleteField('currentShape', shape)}
+                    className={`px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${summary.currentShape === shape ? 'bg-primary text-primary-foreground border-primary' : 'border-input text-muted-foreground hover:border-primary'}`}>
+                    {CURRENT_SHAPE_LABELS[shape]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">{t.longRunLabel}</p>
+              <div className="flex flex-wrap gap-1.5">
+                <button type="button" onClick={() => setAthleteField('longRunMinutes', undefined)}
+                  className={`px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${!summary.longRunMinutes ? 'bg-primary text-primary-foreground border-primary' : 'border-input text-muted-foreground hover:border-primary'}`}>
+                  {t.longRunNone}
+                </button>
+                {LONG_RUN_MINUTES_PRESETS.map((min) => (
+                  <button key={min} type="button" onClick={() => setAthleteField('longRunMinutes', min)}
+                    className={`px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${summary.longRunMinutes === min ? 'bg-primary text-primary-foreground border-primary' : 'border-input text-muted-foreground hover:border-primary'}`}>
+                    {min}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
               <p className="text-xs font-medium text-muted-foreground mb-1">{t.goalDistance}</p>
               <div className="flex flex-wrap gap-1.5">
                 {RACE_DISTANCES.map((dist) => (
@@ -815,17 +907,18 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
 
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-1">{t.goalTime}</p>
-              {summary.goalRaceDistance ? (
-                <div className="flex flex-wrap gap-1.5">
+              <input type="text" value={summary.goalRaceTarget} onChange={(e) => setAthleteField('goalRaceTarget', e.target.value)}
+                placeholder={t.goalTimePlaceholder} dir="ltr"
+                className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs" />
+              {summary.goalRaceDistance && (
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
                   {GOAL_TIME_PRESETS[summary.goalRaceDistance].map((timeOpt) => (
                     <button key={timeOpt} type="button" onClick={() => setAthleteField('goalRaceTarget', timeOpt)}
-                      className={`px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${summary.goalRaceTarget === timeOpt ? 'bg-primary text-primary-foreground border-primary' : 'border-input text-muted-foreground hover:border-primary'}`}>
+                      className={`px-2 py-0.5 rounded-full border text-[11px] font-medium transition-colors ${summary.goalRaceTarget === timeOpt ? 'bg-primary text-primary-foreground border-primary' : 'border-input text-muted-foreground hover:border-primary'}`}>
                       {timeOpt}
                     </button>
                   ))}
                 </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">{t.pickDistanceFirst}</p>
               )}
             </div>
 
