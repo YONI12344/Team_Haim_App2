@@ -679,6 +679,14 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             )}
           </div>
       ))}
+      {/* Description — the main session text. Was never rendered anywhere in
+          this view, so easy/recovery days (which rely on it entirely, no
+          sets) showed nothing but a bare title. */}
+      {w.workout.description && (
+        <div className="px-4 py-3 border-b border-border">
+          <p className="text-sm text-navy text-right">{w.workout.description}</p>
+        </div>
+      )}
       {/* Warmup */}
       {w.workout.warmup && (
         <div className="px-4 py-3 border-b border-border">
@@ -699,24 +707,29 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
         const isLastSet = si === (w.workout.sets as any[]).length - 1
         return (
           <div key={set.id||si}>
-            {/* Set header */}
+            {/* Set header — structure (reps × distance/duration) and the
+                personalized pace/HR target are two different kinds of
+                information (what to do vs. how hard), so they're two
+                visually distinct lines now instead of one run-on string. */}
             <div className="px-4 py-3 border-t border-border">
               <p className="text-sm font-bold text-navy text-right">
                 {t.setLabelPrefix} {si+1}
                 {set.reps > 1 && !hasIntervals
-                  ? <span className="font-normal"> · {set.reps}× {set.distance||set.duration||''}{set.pace ? ` @ ${set.pace}` : ''}</span>
+                  ? <span className="font-normal"> · {set.reps}× {set.distance||set.duration||''}</span>
                   : <>
                     {!hasIntervals && (set.distance||set.duration) && <span className="font-normal"> · {set.distance||set.duration}</span>}
-                    {!hasIntervals && set.pace && <span className="font-normal text-muted-foreground"> @ {set.pace}</span>}
                   </>
                 }
                 {hasIntervals && set.reps > 1 && <span className="font-normal text-muted-foreground"> · {set.reps}×</span>}
-                {/* The set's own pace field is often just the T-level name
-                    ("@ T1") rather than an actual pace — append the
-                    athlete's concrete personalized number here too, not
-                    only in the badge above the sets. */}
-                {inlinePaceText && <span className="font-normal" dir="ltr"> · {inlinePaceText}</span>}
               </p>
+              {/* The set's own pace field is often just the T-level name
+                  ("@ T1") rather than an actual pace — prefer the athlete's
+                  concrete personalized number when available. */}
+              {(inlinePaceText || set.pace) && (
+                <p className="text-xs text-muted-foreground text-right mt-1" dir="ltr">
+                  {inlinePaceText || `@ ${set.pace}`}
+                </p>
+              )}
             </div>
             {/* Intervals */}
             {hasIntervals && set.intervals.map((iv: any, ii: number) => (

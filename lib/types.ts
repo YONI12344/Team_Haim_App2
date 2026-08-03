@@ -57,6 +57,7 @@ export interface AthleteProfile {
   physiology?: PhysiologySummary // latest lactate-test thresholds (T1/T2, VO2max)
   goalRaceDate?: string // ISO date
   goalRaceEvent?: string
+  goalRaceDistance?: '1500m' | 'mile' | '3000m' | '5k' | '10k' | '15k' | 'half_marathon' | 'marathon'
   goalRaceTarget?: string // free-text target time
   personalRecords: PersonalRecord[]
   seasonBests: PersonalRecord[]
@@ -91,6 +92,68 @@ export interface AthleteProfile {
   // count, so the whole recurring pattern shifts to fit. See isRestWeek in
   // lib/journey.ts.
   offWeekAnchorDate?: string
+  // Days per week the athlete can realistically train — collected at
+  // onboarding, used by the Bakken AI plan generator to pick a track
+  // (recreational/intermediate/elite) and set the weekly session count.
+  daysPerWeek?: number
+  // Free-text injury history from onboarding — used by the Bakken AI plan
+  // generator to flag conservative volume progression. Athlete-visible
+  // input (distinct from coachPrivateNotes, which is coach-only).
+  injuryHistory?: string
+  // Athlete's own self-report of where they're at right now — a Bakken AI
+  // input signal alongside (not instead of) their logged training history.
+  currentShape?: 'just_starting' | 'returning' | 'consistent' | 'peak_fitness'
+  // Coach-set cap on long-run duration in minutes, used by the Bakken AI
+  // plan generator.
+  longRunMinutes?: number
+  // Athlete's chosen UI language at the time onboarding was completed —
+  // used so AI-generated plans/feedback are written in the athlete's
+  // language rather than defaulting to Hebrew.
+  preferredLanguage?: 'en' | 'he'
+  createdAt: Date
+  updatedAt: Date
+}
+
+// Prospective-client application — submitted via the public /apply page,
+// before someone becomes an app user. The coach reviews these in
+// /coach/leads; accepting one lets its data auto-prefill the athlete's
+// profile the moment they actually sign up (matched by email — see
+// contexts/auth-context.tsx new-user creation).
+export interface Lead {
+  id: string
+  name: string
+  email: string
+  phone?: string
+  dateOfBirth?: string
+  city?: string
+  height?: number // cm
+  weight?: number // kg
+  experienceLevel?: ExperienceLevel
+  // How long they've trained seriously — a different axis than
+  // experienceLevel (self-assessed skill), useful as a sanity check on it.
+  runningExperienceDuration?: 'under_6mo' | '6to12mo' | '1to3yr' | 'over_3yr'
+  weeklyMileage?: number
+  recentRaceEvent?: string
+  recentRaceTime?: string
+  recentRaceDate?: string
+  shoesInfo?: string
+  devicesUsed?: string[]
+  stravaOrGarminLink?: string
+  primaryGoal?: string
+  longTermGoal?: string
+  goalRaceEvent?: string
+  goalRaceDistance?: '1500m' | 'mile' | '3000m' | '5k' | '10k' | '15k' | 'half_marathon' | 'marathon'
+  goalRaceDate?: string
+  goalRaceTarget?: string
+  daysPerWeek?: number
+  preferredDays?: string[] // 'sunday'..'saturday'
+  facilitiesAccess?: string[]
+  lifestyleNotes?: string // sleep, work/study load
+  currentInjuries?: string // active pain/injury right now
+  injuryHistory?: string // past 1-2 years
+  medicalNotes?: string
+  additionalNotes?: string
+  status: 'new' | 'accepted' | 'declined' | 'converted'
   createdAt: Date
   updatedAt: Date
 }

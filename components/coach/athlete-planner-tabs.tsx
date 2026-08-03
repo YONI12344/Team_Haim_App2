@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { AthletePlanner } from '@/components/coach/athlete-planner'
 import { AthletePlannerView } from '@/components/athlete/athlete-planner-view'
 import { AthletePhysiology } from '@/components/coach/athlete-physiology'
+import { BakkenPlanPanel } from '@/components/coach/bakken-plan-panel'
 
 /** Controls the active tab via the `?tab=` URL param, so other views
  *  (e.g. the lab summary card in AthletePlanner) can deep-link into a
@@ -27,6 +28,7 @@ export function AthletePlannerTabs({ athleteId }: { athleteId: string }) {
         <TabsTrigger value="coach">תצוגת מאמן</TabsTrigger>
         <TabsTrigger value="athlete">תצוגת אתלט</TabsTrigger>
         <TabsTrigger value="lab">מעבדה 🧪</TabsTrigger>
+        <TabsTrigger value="bakken">Bakken AI ✨</TabsTrigger>
       </TabsList>
       <TabsContent value="coach">
         <AthletePlanner athleteId={athleteId} />
@@ -36,6 +38,9 @@ export function AthletePlannerTabs({ athleteId }: { athleteId: string }) {
       </TabsContent>
       <TabsContent value="lab">
         <AthletePhysiology athleteId={athleteId} />
+      </TabsContent>
+      <TabsContent value="bakken">
+        <BakkenPlanPanel athleteId={athleteId} />
       </TabsContent>
     </Tabs>
   )

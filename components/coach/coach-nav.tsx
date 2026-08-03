@@ -24,6 +24,7 @@ import {
   ChevronDown,
   User,
   Settings,
+  UserPlus,
 } from 'lucide-react'
 
 export function CoachNav() {
@@ -35,6 +36,7 @@ export function CoachNav() {
   const coachNavItems = [
     { href: '/coach', label: t.dashboard, icon: LayoutDashboard },
     { href: '/coach/athletes', label: t.athletes, icon: Users },
+    { href: '/coach/leads', label: t.leadsNav, icon: UserPlus },
     { href: '/coach/workouts', label: t.workouts, icon: Dumbbell },
     { href: '/coach/chat', label: t.chat, icon: MessageCircle },
     { href: '/coach/settings', label: t.settings, icon: Settings },

@@ -267,6 +267,7 @@ export interface Translations {
   athletes: string
   workouts: string
   settings: string
+  leadsNav: string
   navHome: string
   navPlan: string
   navStats: string
@@ -1165,6 +1166,7 @@ const translations: Record<Language, Translations> = {
     statistics: 'Statistics',
     chat: 'Chat',
     athletes: 'Athletes',
+    leadsNav: 'Leads',
     workouts: 'Workouts',
     settings: 'Settings',
     coachPortal: 'Coach Portal',
@@ -2028,6 +2030,7 @@ const translations: Record<Language, Translations> = {
     statistics: 'סטטיסטיקות',
     chat: 'צ\'אט',
     athletes: 'ספורטאים',
+    leadsNav: 'לידים',
     workouts: 'אימונים',
     settings: 'הגדרות',
     coachPortal: 'אזור המאמן',
