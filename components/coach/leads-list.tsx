@@ -107,10 +107,16 @@ export function LeadsList() {
               <CardContent className="space-y-3 text-sm">
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-muted-foreground">
                   {lead.experienceLevel && <div>Experience: <span className="text-foreground">{lead.experienceLevel}</span></div>}
+                  {lead.runningExperienceDuration && <div>Training seriously: <span className="text-foreground">{lead.runningExperienceDuration.replace(/_/g, ' ')}</span></div>}
                   {lead.weeklyMileage != null && <div>Weekly km: <span className="text-foreground">{lead.weeklyMileage}</span></div>}
                   {lead.daysPerWeek != null && <div>Days/week: <span className="text-foreground">{lead.daysPerWeek}</span></div>}
+                  {lead.height != null && <div>Height: <span className="text-foreground">{lead.height} cm</span></div>}
+                  {lead.weight != null && <div>Weight: <span className="text-foreground">{lead.weight} kg</span></div>}
                   {lead.city && <div>City: <span className="text-foreground">{lead.city}</span></div>}
                   {lead.dateOfBirth && <div>DOB: <span className="text-foreground">{lead.dateOfBirth}</span></div>}
+                  {lead.preferredDays && lead.preferredDays.length > 0 && (
+                    <div className="col-span-2">Preferred days: <span className="text-foreground">{lead.preferredDays.join(', ')}</span></div>
+                  )}
                   {lead.recentRaceEvent && (
                     <div className="col-span-2">Recent race: <span className="text-foreground">{lead.recentRaceEvent} {lead.recentRaceTime} ({lead.recentRaceDate})</span></div>
                   )}
@@ -120,9 +126,20 @@ export function LeadsList() {
                   {lead.facilitiesAccess && lead.facilitiesAccess.length > 0 && (
                     <div className="col-span-2">Facilities: <span className="text-foreground">{lead.facilitiesAccess.join(', ')}</span></div>
                   )}
+                  {lead.devicesUsed && lead.devicesUsed.length > 0 && (
+                    <div className="col-span-2">Devices: <span className="text-foreground">{lead.devicesUsed.join(', ')}</span></div>
+                  )}
+                  {lead.stravaOrGarminLink && (
+                    <div className="col-span-2">Strava/Garmin: <a className="text-foreground underline" href={lead.stravaOrGarminLink} target="_blank" rel="noreferrer">{lead.stravaOrGarminLink}</a></div>
+                  )}
                 </div>
                 {lead.primaryGoal && <div><p className="text-xs text-muted-foreground">Primary goal</p><p>{lead.primaryGoal}</p></div>}
-                {lead.injuryHistory && <div><p className="text-xs text-muted-foreground">Injuries</p><p>{lead.injuryHistory}</p></div>}
+                {lead.longTermGoal && <div><p className="text-xs text-muted-foreground">Long-term goal</p><p>{lead.longTermGoal}</p></div>}
+                {lead.shoesInfo && <div><p className="text-xs text-muted-foreground">Shoes</p><p>{lead.shoesInfo}</p></div>}
+                {lead.lifestyleNotes && <div><p className="text-xs text-muted-foreground">Lifestyle / sleep</p><p>{lead.lifestyleNotes}</p></div>}
+                {lead.currentInjuries && <div><p className="text-xs text-muted-foreground">Current injury/pain</p><p>{lead.currentInjuries}</p></div>}
+                {lead.injuryHistory && <div><p className="text-xs text-muted-foreground">Injury history</p><p>{lead.injuryHistory}</p></div>}
+                {lead.medicalNotes && <div><p className="text-xs text-muted-foreground">Medical notes</p><p>{lead.medicalNotes}</p></div>}
                 {lead.additionalNotes && <div><p className="text-xs text-muted-foreground">Notes</p><p>{lead.additionalNotes}</p></div>}
 
                 <div className="flex gap-2 pt-2 border-t">

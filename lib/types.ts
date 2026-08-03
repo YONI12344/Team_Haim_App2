@@ -126,19 +126,32 @@ export interface Lead {
   phone?: string
   dateOfBirth?: string
   city?: string
+  height?: number // cm
+  weight?: number // kg
   experienceLevel?: ExperienceLevel
+  // How long they've trained seriously — a different axis than
+  // experienceLevel (self-assessed skill), useful as a sanity check on it.
+  runningExperienceDuration?: 'under_6mo' | '6to12mo' | '1to3yr' | 'over_3yr'
   weeklyMileage?: number
   recentRaceEvent?: string
   recentRaceTime?: string
   recentRaceDate?: string
+  shoesInfo?: string
+  devicesUsed?: string[]
+  stravaOrGarminLink?: string
   primaryGoal?: string
+  longTermGoal?: string
   goalRaceEvent?: string
   goalRaceDistance?: '1500m' | 'mile' | '3000m' | '5k' | '10k' | '15k' | 'half_marathon' | 'marathon'
   goalRaceDate?: string
   goalRaceTarget?: string
   daysPerWeek?: number
+  preferredDays?: string[] // 'sunday'..'saturday'
   facilitiesAccess?: string[]
-  injuryHistory?: string
+  lifestyleNotes?: string // sleep, work/study load
+  currentInjuries?: string // active pain/injury right now
+  injuryHistory?: string // past 1-2 years
+  medicalNotes?: string
   additionalNotes?: string
   status: 'new' | 'accepted' | 'declined' | 'converted'
   createdAt: Date

@@ -9,6 +9,9 @@ import { Loader2, Check } from 'lucide-react'
 type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced' | 'professional'
 type RaceDistance = '1500m' | 'mile' | '3000m' | '5k' | '10k' | '15k' | 'half_marathon' | 'marathon'
 type Facility = 'track' | 'gym' | 'treadmill' | 'trails'
+type RunningDuration = 'under_6mo' | '6to12mo' | '1to3yr' | 'over_3yr'
+type Device = 'garmin' | 'strava' | 'polar' | 'coros' | 'apple_watch' | 'hr_strap' | 'other'
+type DayKey = 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday'
 
 const EXPERIENCE_LEVELS: ExperienceLevel[] = ['beginner', 'intermediate', 'advanced', 'professional']
 const RACE_DISTANCES: RaceDistance[] = ['1500m', 'mile', '3000m', '5k', '10k', '15k', 'half_marathon', 'marathon']
@@ -23,31 +26,60 @@ const FACILITY_LABELS: Record<'en' | 'he', Record<Facility, string>> = {
   en: { track: 'Track', gym: 'Gym / weights', treadmill: 'Treadmill', trails: 'Trails' },
   he: { track: 'מסלול אתלטיקה', gym: 'חדר כושר', treadmill: 'הליכון', trails: 'מסלולי שטח' },
 }
+const RUNNING_DURATIONS: RunningDuration[] = ['under_6mo', '6to12mo', '1to3yr', 'over_3yr']
+const RUNNING_DURATION_LABELS: Record<'en' | 'he', Record<RunningDuration, string>> = {
+  en: { under_6mo: 'Under 6 months', '6to12mo': '6–12 months', '1to3yr': '1–3 years', over_3yr: 'Over 3 years' },
+  he: { under_6mo: 'פחות מ-6 חודשים', '6to12mo': '6-12 חודשים', '1to3yr': '1-3 שנים', over_3yr: 'מעל 3 שנים' },
+}
+const DEVICES: Device[] = ['garmin', 'strava', 'polar', 'coros', 'apple_watch', 'hr_strap', 'other']
+const DEVICE_LABELS: Record<'en' | 'he', Record<Device, string>> = {
+  en: { garmin: 'Garmin', strava: 'Strava', polar: 'Polar', coros: 'Coros', apple_watch: 'Apple Watch', hr_strap: 'HR chest strap', other: 'Other' },
+  he: { garmin: 'Garmin', strava: 'Strava', polar: 'Polar', coros: 'Coros', apple_watch: 'Apple Watch', hr_strap: 'רצועת דופק', other: 'אחר' },
+}
+const DAY_ORDER: DayKey[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+const DAY_LABELS: Record<'en' | 'he', Record<DayKey, string>> = {
+  en: { sunday: 'Sun', monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat' },
+  he: { sunday: 'א׳', monday: 'ב׳', tuesday: 'ג׳', wednesday: 'ד׳', thursday: 'ה׳', friday: 'ו׳', saturday: 'ש׳' },
+}
 
 interface FormState {
   name: string; email: string; phone: string; dateOfBirth: string; city: string
+  height: number | ''; weight: number | ''
   experienceLevel: ExperienceLevel | ''
+  runningExperienceDuration: RunningDuration | ''
   weeklyMileage: number | ''
   recentRaceDistance: RaceDistance | ''
   recentRaceTime: string
   recentRaceDate: string
+  shoesInfo: string
+  devicesUsed: Device[]
+  stravaOrGarminLink: string
   primaryGoal: string
+  longTermGoal: string
   goalRaceEvent: string
   goalRaceDistance: RaceDistance | ''
   goalRaceDate: string
   goalRaceTarget: string
   daysPerWeek: number | ''
+  preferredDays: DayKey[]
   facilitiesAccess: Facility[]
+  lifestyleNotes: string
+  currentInjuries: string
   injuryHistory: string
+  medicalNotes: string
   additionalNotes: string
 }
 
 const EMPTY_FORM: FormState = {
   name: '', email: '', phone: '', dateOfBirth: '', city: '',
-  experienceLevel: '', weeklyMileage: '',
+  height: '', weight: '',
+  experienceLevel: '', runningExperienceDuration: '', weeklyMileage: '',
   recentRaceDistance: '', recentRaceTime: '', recentRaceDate: '',
-  primaryGoal: '', goalRaceEvent: '', goalRaceDistance: '', goalRaceDate: '', goalRaceTarget: '',
-  daysPerWeek: '', facilitiesAccess: [], injuryHistory: '', additionalNotes: '',
+  shoesInfo: '', devicesUsed: [], stravaOrGarminLink: '',
+  primaryGoal: '', longTermGoal: '',
+  goalRaceEvent: '', goalRaceDistance: '', goalRaceDate: '', goalRaceTarget: '',
+  daysPerWeek: '', preferredDays: [], facilitiesAccess: [],
+  lifestyleNotes: '', currentInjuries: '', injuryHistory: '', medicalNotes: '', additionalNotes: '',
 }
 
 /**
@@ -72,6 +104,14 @@ export function ApplyForm() {
     set('facilitiesAccess', form.facilitiesAccess.includes(f)
       ? form.facilitiesAccess.filter((x) => x !== f)
       : [...form.facilitiesAccess, f])
+  const toggleDevice = (d: Device) =>
+    set('devicesUsed', form.devicesUsed.includes(d)
+      ? form.devicesUsed.filter((x) => x !== d)
+      : [...form.devicesUsed, d])
+  const toggleDay = (d: DayKey) =>
+    set('preferredDays', form.preferredDays.includes(d)
+      ? form.preferredDays.filter((x) => x !== d)
+      : [...form.preferredDays, d])
 
   const inputCls = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a84c]"
   const t = (en: string, he: string) => (language === 'he' ? he : en)
@@ -90,19 +130,30 @@ export function ApplyForm() {
         phone: form.phone.trim() || null,
         dateOfBirth: form.dateOfBirth || null,
         city: form.city.trim() || null,
+        height: form.height === '' ? null : Number(form.height),
+        weight: form.weight === '' ? null : Number(form.weight),
         experienceLevel: form.experienceLevel || null,
+        runningExperienceDuration: form.runningExperienceDuration || null,
         weeklyMileage: form.weeklyMileage === '' ? null : Number(form.weeklyMileage),
         recentRaceEvent: form.recentRaceDistance ? RACE_DISTANCE_LABELS.en[form.recentRaceDistance] : null,
         recentRaceTime: form.recentRaceTime.trim() || null,
         recentRaceDate: form.recentRaceDate || null,
+        shoesInfo: form.shoesInfo.trim() || null,
+        devicesUsed: form.devicesUsed,
+        stravaOrGarminLink: form.stravaOrGarminLink.trim() || null,
         primaryGoal: form.primaryGoal.trim() || null,
+        longTermGoal: form.longTermGoal.trim() || null,
         goalRaceEvent: form.goalRaceEvent.trim() || null,
         goalRaceDistance: form.goalRaceDistance || null,
         goalRaceDate: form.goalRaceDate || null,
         goalRaceTarget: form.goalRaceTarget.trim() || null,
         daysPerWeek: form.daysPerWeek === '' ? null : Number(form.daysPerWeek),
+        preferredDays: form.preferredDays,
         facilitiesAccess: form.facilitiesAccess,
+        lifestyleNotes: form.lifestyleNotes.trim() || null,
+        currentInjuries: form.currentInjuries.trim() || null,
         injuryHistory: form.injuryHistory.trim() || null,
+        medicalNotes: form.medicalNotes.trim() || null,
         additionalNotes: form.additionalNotes.trim() || null,
         status: 'new',
         createdAt: serverTimestamp(),
@@ -173,6 +224,12 @@ export function ApplyForm() {
               <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('City', 'עיר')}</label>
                 <input className={inputCls} value={form.city} onChange={(e) => set('city', e.target.value)} /></div>
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Height (cm)', 'גובה (ס"מ)')}</label>
+                <input type="number" className={inputCls} value={form.height} onChange={(e) => set('height', e.target.value === '' ? '' : Number(e.target.value))} /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Weight (kg)', 'משקל (ק"ג)')}</label>
+                <input type="number" className={inputCls} value={form.weight} onChange={(e) => set('weight', e.target.value === '' ? '' : Number(e.target.value))} /></div>
+            </div>
           </div>
 
           {/* Athletic background */}
@@ -185,6 +242,17 @@ export function ApplyForm() {
                   <button key={lvl} type="button" onClick={() => set('experienceLevel', lvl)}
                     className={`py-2 rounded-lg border text-sm font-medium capitalize transition-colors ${form.experienceLevel === lvl ? 'bg-[#1a2744] text-white border-[#1a2744]' : 'border-gray-200 text-gray-600 hover:border-[#1a2744]'}`}>
                     {lvl}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('How long have you trained seriously?', 'כמה זמן אתה עוסק בריצה בצורה מסודרת?')}</label>
+              <div className="grid grid-cols-2 gap-2">
+                {RUNNING_DURATIONS.map((d) => (
+                  <button key={d} type="button" onClick={() => set('runningExperienceDuration', d)}
+                    className={`py-2 rounded-lg border text-xs font-medium transition-colors ${form.runningExperienceDuration === d ? 'bg-[#1a2744] text-white border-[#1a2744]' : 'border-gray-200 text-gray-600 hover:border-[#1a2744]'}`}>
+                    {RUNNING_DURATION_LABELS[language][d]}
                   </button>
                 ))}
               </div>
@@ -215,6 +283,21 @@ export function ApplyForm() {
                 <input type="date" className={inputCls} value={form.recentRaceDate} onChange={(e) => set('recentRaceDate', e.target.value)} />
               </div>
             </div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Running shoes (models, size, estimated mileage)', 'נעלי ריצה (דגמים, מידה, קילומטראז\' משוער)')}</label>
+              <textarea className={inputCls} rows={2} value={form.shoesInfo} onChange={(e) => set('shoesInfo', e.target.value)} /></div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('Devices / gear you train with', 'עזרי אימון/שעון בשימוש')}</label>
+              <div className="flex flex-wrap gap-2">
+                {DEVICES.map((d) => (
+                  <button key={d} type="button" onClick={() => toggleDevice(d)}
+                    className={`px-3 py-1.5 rounded-full border text-sm font-medium transition-colors ${form.devicesUsed.includes(d) ? 'bg-[#c9a84c] text-white border-[#c9a84c]' : 'border-gray-200 text-gray-600 hover:border-[#c9a84c]'}`}>
+                    {DEVICE_LABELS[language][d]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Strava / Garmin Connect link (optional)', 'קישור ל-Strava / Garmin Connect (לא חובה)')}</label>
+              <input className={inputCls} value={form.stravaOrGarminLink} onChange={(e) => set('stravaOrGarminLink', e.target.value)} dir="ltr" /></div>
           </div>
 
           {/* Goals */}
@@ -241,6 +324,8 @@ export function ApplyForm() {
             </div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Goal time', 'זמן יעד')}</label>
               <input className={inputCls} value={form.goalRaceTarget} onChange={(e) => set('goalRaceTarget', e.target.value)} placeholder="e.g. 3:30:00" dir="ltr" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Long-term goal for the next year', 'יעד ארוך טווח לשנה הקרובה')}</label>
+              <textarea className={inputCls} rows={2} value={form.longTermGoal} onChange={(e) => set('longTermGoal', e.target.value)} /></div>
           </div>
 
           {/* Availability */}
@@ -258,6 +343,17 @@ export function ApplyForm() {
               </div>
             </div>
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('Which days work for you?', 'באילו ימים נוח לך להתאמן?')}</label>
+              <div className="flex flex-wrap gap-2">
+                {DAY_ORDER.map((d) => (
+                  <button key={d} type="button" onClick={() => toggleDay(d)}
+                    className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${form.preferredDays.includes(d) ? 'bg-[#1a2744] text-white border-[#1a2744]' : 'border-gray-200 text-gray-600 hover:border-[#1a2744]'}`}>
+                    {DAY_LABELS[language][d]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">{t('Facility access', 'נגישות למתקנים')}</label>
               <div className="flex flex-wrap gap-2">
                 {FACILITIES.map((f) => (
@@ -268,13 +364,19 @@ export function ApplyForm() {
                 ))}
               </div>
             </div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Sleep & day-to-day load (work/study)', 'שינה ועומס יומיומי (עבודה/לימודים)')}</label>
+              <textarea className={inputCls} rows={2} value={form.lifestyleNotes} onChange={(e) => set('lifestyleNotes', e.target.value)} /></div>
           </div>
 
           {/* Health */}
           <div className="space-y-3 pt-4 border-t border-gray-100">
             <h2 className="text-sm font-bold text-[#1a2744] uppercase tracking-wide">{t('Health', 'בריאות')}</h2>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Current or recent injuries', 'פציעות נוכחיות או אחרונות')}</label>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Any active pain or injury right now?', 'האם יש כרגע כאב או פציעה פעילה?')}</label>
+              <textarea className={inputCls} rows={2} value={form.currentInjuries} onChange={(e) => set('currentInjuries', e.target.value)} /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Injury history (last 1-2 years)', 'היסטוריית פציעות (שנה-שנתיים אחרונות)')}</label>
               <textarea className={inputCls} rows={2} value={form.injuryHistory} onChange={(e) => set('injuryHistory', e.target.value)} /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Medical conditions or restrictions I should know about', 'מגבלות רפואיות או דגשים בריאותיים')}</label>
+              <textarea className={inputCls} rows={2} value={form.medicalNotes} onChange={(e) => set('medicalNotes', e.target.value)} /></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Anything else I should know?', 'עוד משהו שכדאי שאדע?')}</label>
               <textarea className={inputCls} rows={2} value={form.additionalNotes} onChange={(e) => set('additionalNotes', e.target.value)} /></div>
           </div>

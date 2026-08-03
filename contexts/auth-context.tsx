@@ -87,6 +87,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   const lead = leadDoc.data()
                   leadPrefill = {
                     dateOfBirth: lead.dateOfBirth ?? null,
+                    height: lead.height ?? null,
+                    weight: lead.weight ?? null,
                     experienceLevel: lead.experienceLevel ?? null,
                     weeklyMileage: lead.weeklyMileage ?? null,
                     goalRaceEvent: lead.goalRaceEvent ?? null,
@@ -94,10 +96,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     goalRaceDate: lead.goalRaceDate ?? null,
                     goalRaceTarget: lead.goalRaceTarget ?? null,
                     daysPerWeek: lead.daysPerWeek ?? null,
-                    injuryHistory: lead.injuryHistory ?? null,
-                    coachPrivateNotes: [lead.primaryGoal, lead.additionalNotes, lead.city ? `City: ${lead.city}` : null,
-                      lead.facilitiesAccess?.length ? `Facilities: ${lead.facilitiesAccess.join(', ')}` : null]
-                      .filter(Boolean).join(' · ') || null,
+                    // currentInjuries (active, right now) takes priority over
+                    // injuryHistory (older) as the athlete-visible field the
+                    // Bakken brain actually reads — the rest folds into the
+                    // coach-only notes below instead of being lost.
+                    injuryHistory: lead.currentInjuries || lead.injuryHistory || null,
+                    coachPrivateNotes: [
+                      lead.primaryGoal ? `Primary goal: ${lead.primaryGoal}` : null,
+                      lead.longTermGoal ? `Long-term goal: ${lead.longTermGoal}` : null,
+                      lead.city ? `City: ${lead.city}` : null,
+                      lead.facilitiesAccess?.length ? `Facilities: ${lead.facilitiesAccess.join(', ')}` : null,
+                      lead.devicesUsed?.length ? `Devices: ${lead.devicesUsed.join(', ')}` : null,
+                      lead.shoesInfo ? `Shoes: ${lead.shoesInfo}` : null,
+                      lead.lifestyleNotes ? `Lifestyle/sleep: ${lead.lifestyleNotes}` : null,
+                      lead.medicalNotes ? `Medical: ${lead.medicalNotes}` : null,
+                      lead.runningExperienceDuration ? `Training seriously: ${lead.runningExperienceDuration}` : null,
+                      lead.injuryHistory && lead.currentInjuries ? `Injury history: ${lead.injuryHistory}` : null,
+                      lead.stravaOrGarminLink ? `Strava/Garmin: ${lead.stravaOrGarminLink}` : null,
+                      lead.additionalNotes ? `Notes: ${lead.additionalNotes}` : null,
+                    ].filter(Boolean).join(' · ') || null,
                     ...(lead.recentRaceEvent && lead.recentRaceTime ? {
                       personalRecords: arrayUnion({
                         id: `pr_lead_${Date.now()}`, event: lead.recentRaceEvent,
