@@ -10,6 +10,7 @@ import {
   doc,
   getDoc,
   updateDoc,
+  deleteDoc,
   serverTimestamp,
 } from 'firebase/firestore'
 import { format, addDays, parseISO } from 'date-fns'
@@ -17,6 +18,7 @@ import { toast } from 'sonner'
 import { Loader2, Sparkles } from 'lucide-react'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/auth-context'
+import { useLanguage } from '@/contexts/language-context'
 import { useLatestStepTest } from '@/hooks/useLatestStepTest'
 import { saveJourney } from '@/lib/journey'
 import { interpolateAtLactate } from '@/lib/physiology'
@@ -104,6 +106,94 @@ const GOAL_TIME_PRESETS: Record<RaceDistance, string[]> = {
   marathon: ['2:45:00', '3:00:00', '3:15:00', '3:30:00', '3:45:00', '4:00:00', '4:30:00', '5:00:00'],
 }
 
+// This panel's OWN UI chrome (headings, buttons, hints) — follows the
+// coach's actual app language (useLanguage() below), which is a SEPARATE
+// setting from "Plan language" (summary.language), the language the
+// GENERATED workouts get written in for the athlete. Coaching this app in
+// Hebrew while this panel stayed hardcoded English was the bug.
+const UI = {
+  en: {
+    cardTitle: 'Bakken AI Coach',
+    cardDesc: "Builds the athlete's full season upfront — phase skeleton from their goal race, day-by-day workouts from the Bakken/Almgren brain, lab-derived pace/HR targets. Writes directly to the planner. The athlete only sees the first 2 weeks; the rest reveals automatically every Saturday.",
+    knowsAbout: (name: string) => `Everything Bakken AI knows about ${name} — edit here before generating if it changed`,
+    planLanguage: 'Plan language (workout text, warmup/cooldown, notes)',
+    experienceLevel: 'Experience level',
+    weeklyMileage: 'Weekly mileage (km)',
+    injuryHistory: 'Injury history',
+    injuryPlaceholder: 'Any current or recurring injuries?',
+    goalDistance: 'Goal race distance',
+    raceName: 'Race name (optional)',
+    raceNamePlaceholder: 'e.g. Tel Aviv Marathon',
+    raceDate: 'Race date',
+    goalTime: 'Goal time',
+    pickDistanceFirst: 'Pick a goal distance first',
+    recentPRs: 'Recent PRs: ',
+    labTestYes: '✓ Lab step test on file — Bakken AI will compute exact lab-derived pace/HR targets for every quality session.',
+    labTestNoBase: 'No lab step test on file. Not required — Bakken AI will fall back to HR% / talk test / RPE (per the brain\'s intensity_triangulation)',
+    labTestNoPRs: ', anchored to the recent PRs above.',
+    labTestNoPlain: ' and coarse pace bands.',
+    labTestNoSuffix: " A lactate step test (Lab tab) would sharpen every target once you're ready for one.",
+    coachNotesLabel: 'Coach notes for Bakken AI (private, never shown to athlete)',
+    save: 'Save',
+    coachNotesPlaceholder: 'Anything the brain should know for this athlete specifically — e.g. recovering from IT band issue, prefers mornings, has a 10K tune-up race in week 6...',
+    availability: 'Availability (edit before generating if needed)',
+    availabilityLoaded: 'Loaded from athlete onboarding — adjust here if it changed.',
+    loading: 'Loading...',
+    generateBtn: 'Generate full season',
+    notesSaved: 'Notes saved',
+    notesFailed: 'Failed to save notes',
+    profileNotFound: 'Athlete profile not found',
+    clearingPrevious: 'Clearing previous Bakken-generated season...',
+    setGoalRaceFirst: "Set a Goal Race Date for this athlete first — go to their profile page → Profile tab → Edit Profile → Goal Race Date — then generate the Bakken season plan.",
+    designingSkeleton: 'Designing season skeleton...',
+    skeletonFailed: (err: string) => `Skeleton generation failed: ${err}. Try again.`,
+    blockFailed: (n: number, err: string, written: number) => `Block ${n} failed: ${err}. ${written} workouts from earlier blocks are already saved.`,
+    generatingBlock: (from: string, to: string, i: number, total: number) => `Generating ${from} → ${to} (block ${i}/${total})...`,
+    seasonWritten: (n: number) => `Bakken season plan written: ${n} workouts`,
+    generateFailed: 'Failed to generate Bakken AI plan',
+  },
+  he: {
+    cardTitle: 'מאמן AI בקן',
+    cardDesc: 'בונה מראש את כל העונה של הספורטאי — שלד שלבים לפי מירוץ היעד, אימונים יום-אחר-יום מהמוח של בקן/אלמגרן, יעדי קצב/דופק מבוססי מעבדה. כותב ישירות ללוח האימונים. הספורטאי רואה רק את השבועיים הראשונים; השאר נחשף אוטומטית כל שבת.',
+    knowsAbout: (name: string) => `כל מה שמאמן ה-AI של בקן יודע על ${name} — ניתן לערוך כאן לפני היצירה אם משהו השתנה`,
+    planLanguage: 'שפת התוכנית (טקסט האימון, חימום/שחרור, הערות)',
+    experienceLevel: 'רמת ניסיון',
+    weeklyMileage: 'ק"מ שבועי',
+    injuryHistory: 'היסטוריית פציעות',
+    injuryPlaceholder: 'פציעות נוכחיות או חוזרות?',
+    goalDistance: 'מרחק היעד',
+    raceName: 'שם המירוץ (לא חובה)',
+    raceNamePlaceholder: 'לדוגמה: מרתון תל אביב',
+    raceDate: 'תאריך המירוץ',
+    goalTime: 'זמן יעד',
+    pickDistanceFirst: 'בחר/י מרחק יעד קודם',
+    recentPRs: 'שיאים אחרונים: ',
+    labTestYes: '✓ בדיקת מדרגות מעבדה קיימת — מאמן ה-AI יחשב יעדי קצב/דופק מדויקים מבוססי מעבדה לכל אימון איכות.',
+    labTestNoBase: 'אין בדיקת מדרגות מעבדה. לא חובה — מאמן ה-AI ייעזר בדופק%/מבחן שיחה/RPE (לפי המוח, intensity_triangulation)',
+    labTestNoPRs: ', מעוגן לשיאים האחרונים למעלה.',
+    labTestNoPlain: ' ורצועות קצב גסות.',
+    labTestNoSuffix: ' בדיקת מדרגות לקטט (לשונית מעבדה) תחדד כל יעד כשתהיו מוכנים.',
+    coachNotesLabel: 'הערות מאמן למאמן ה-AI (פרטי, לא מוצג לספורטאי)',
+    save: 'שמור',
+    coachNotesPlaceholder: 'כל דבר שהמוח צריך לדעת על הספורטאי הזה ספציפית — למשל: מחלים מפציעת IT band, מעדיף בקרים, יש לו מירוץ הכנה של 10 ק"מ בשבוע 6...',
+    availability: 'זמינות (ניתן לערוך לפני היצירה)',
+    availabilityLoaded: 'נטען מהאונבורדינג של הספורטאי — התאם כאן אם השתנה.',
+    loading: 'טוען...',
+    generateBtn: 'צור עונה מלאה',
+    notesSaved: 'ההערות נשמרו',
+    notesFailed: 'שמירת ההערות נכשלה',
+    profileNotFound: 'פרופיל הספורטאי לא נמצא',
+    clearingPrevious: 'מנקה עונה קודמת שנוצרה על ידי בקן...',
+    setGoalRaceFirst: 'קבע/י תאריך מירוץ יעד לספורטאי קודם — לך/י לעמוד הפרופיל שלו ← לשונית פרופיל ← עריכת פרופיל ← תאריך מירוץ יעד — ואז צור/י את תוכנית העונה של בקן.',
+    designingSkeleton: 'מתכנן שלד עונה...',
+    skeletonFailed: (err: string) => `יצירת השלד נכשלה: ${err}. נסה/י שוב.`,
+    blockFailed: (n: number, err: string, written: number) => `בלוק ${n} נכשל: ${err}. ${written} אימונים מבלוקים קודמים כבר נשמרו.`,
+    generatingBlock: (from: string, to: string, i: number, total: number) => `יוצר ${from} → ${to} (בלוק ${i}/${total})...`,
+    seasonWritten: (n: number) => `תוכנית העונה של בקן נכתבה: ${n} אימונים`,
+    generateFailed: 'יצירת תוכנית ה-AI של בקן נכשלה',
+  },
+} as const
+
 // The athlete's own view (components/athlete/athlete-planner-view.tsx) reads
 // the LEGACY STRING fields on sets/intervals (set.distance, set.duration,
 // set.pace, iv.distance, iv.duration, iv.pace) to render the "5× 1000m"
@@ -170,6 +260,8 @@ const formatPace = (sec?: number | null) => {
 
 export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
   const { user } = useAuth()
+  const { language: uiLang } = useLanguage()
+  const t = UI[uiLang]
   const { steps: labSteps } = useLatestStepTest(athleteId)
   const [loading, setLoading] = useState(false)
   const [progress, setProgress] = useState<string | null>(null)
@@ -226,9 +318,9 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
     setSavingNotes(true)
     try {
       await updateDoc(doc(db, 'users', athleteId), { coachPrivateNotes: coachNotes })
-      toast.success('Notes saved')
+      toast.success(t.notesSaved)
     } catch {
-      toast.error('Failed to save notes')
+      toast.error(t.notesFailed)
     } finally {
       setSavingNotes(false)
     }
@@ -339,6 +431,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
       scheduledDate: w.date,
       status: 'scheduled',
       session: w.session || 'other',
+      source: 'bakken',
       ...(targetOverride ? { targetOverride } : {}),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -371,13 +464,29 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
 
       const profileSnap = await getDoc(doc(db, 'users', athleteId))
       if (!profileSnap.exists()) {
-        toast.error('Athlete profile not found')
+        toast.error(t.profileNotFound)
         return
       }
       const profile = profileSnap.data() as any
 
+      // Regeneration must REPLACE the previous Bakken-generated season, not
+      // stack on top of it. Without this, every re-click during testing (or
+      // any future re-generate) leaves the prior run's workouts in place —
+      // doubled/overlapping sessions on the same dates, weekly km silently
+      // summing both runs, and (via the journey doc below) scrambled stage
+      // labels once more than one Bakken journey exists at once. Only
+      // deletes assignedWorkouts this feature created (source:'bakken') —
+      // never touches anything the coach assigned manually.
+      setProgress(t.clearingPrevious)
+      const priorSnap = await getDocs(
+        query(collection(db, 'assignedWorkouts'), where('athleteId', '==', athleteId), where('source', '==', 'bakken')),
+      )
+      if (!priorSnap.empty) {
+        await Promise.all(priorSnap.docs.map((d) => deleteDoc(d.ref)))
+      }
+
       if (!profile.goalRaceDate) {
-        toast.error('Set a Goal Race Date for this athlete first — go to their profile page → Profile tab → Edit Profile → Goal Race Date — then generate the Bakken season plan.')
+        toast.error(t.setGoalRaceFirst)
         return
       }
 
@@ -471,7 +580,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         currentWeeklyKm,
         peakWeeklyKmHint: profile.weeklyKmRange?.max,
       }
-      setProgress('Designing season skeleton...')
+      setProgress(t.designingSkeleton)
       const skeletonRes = await fetch('/api/bakken-coach/generate-skeleton', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -479,7 +588,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
       })
       const skeletonData = await skeletonRes.json()
       if (skeletonData.error || !Array.isArray(skeletonData.skeleton?.stages) || skeletonData.skeleton.stages.length === 0) {
-        toast.error(`Skeleton generation failed: ${skeletonData.error || 'malformed response'}. Try again.`)
+        toast.error(t.skeletonFailed(skeletonData.error || 'malformed response'))
         return
       }
       const skeletonOut: SkeletonOut = skeletonData.skeleton
@@ -514,7 +623,11 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
       })
 
       const journeyDoc: JourneyDoc = {
-        id: localId('journey'),
+        // Stable, not localId('journey') — each regenerate must overwrite
+        // the same journey doc (saveJourney does a setDoc), not create a
+        // second one that overlaps the first and scrambles which stage the
+        // calendar shows for a given week.
+        id: 'bakken_season',
         title: skeletonOut.title,
         goalRaceEvent: profile.goalRaceEvent || 'Goal Race',
         goalRaceDate: profile.goalRaceDate,
@@ -542,7 +655,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
       let firstBlockSummary: string | null = null
 
       for (let i = 0; i < blocks.length; i++) {
-        setProgress(`Generating ${blocks[i].startDate} → ${blocks[i].endDate} (block ${i + 1}/${blocks.length})...`)
+        setProgress(t.generatingBlock(blocks[i].startDate, blocks[i].endDate, i + 1, blocks.length))
 
         const stagesForBlock: BlockStageInfo[] = journeyDoc.stages
           .filter((s) => overlaps(s.startDate, s.endDate, blocks[i].startDate, blocks[i].endDate))
@@ -572,9 +685,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         })
         const data = await res.json()
         if (data.error || !Array.isArray(data.plan?.workouts)) {
-          toast.error(
-            `Block ${i + 1} failed: ${data.error || 'malformed response'}. ${totalWritten} workouts from earlier blocks are already saved.`,
-          )
+          toast.error(t.blockFailed(i + 1, data.error || 'malformed response', totalWritten))
           break
         }
         const plan: BlockPlanOut = data.plan
@@ -601,12 +712,12 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
       })
 
       setLastSummary(
-        `${journeyDoc.stages.length} phases through ${journeyDoc.goalRaceDate}, ${blocks.length} blocks, ${totalWritten} workouts written. Athlete sees the first 2 weeks; the rest reveals automatically each Saturday.\n\n${firstBlockSummary ?? ''}`,
+        `${journeyDoc.stages.length} ${uiLang === 'he' ? 'שלבים עד' : 'phases through'} ${journeyDoc.goalRaceDate}, ${blocks.length} ${uiLang === 'he' ? 'בלוקים' : 'blocks'}, ${totalWritten} ${uiLang === 'he' ? 'אימונים נכתבו. הספורטאי רואה את השבועיים הראשונים; השאר נחשף אוטומטית כל שבת.' : 'workouts written. Athlete sees the first 2 weeks; the rest reveals automatically each Saturday.'}\n\n${firstBlockSummary ?? ''}`,
       )
-      toast.success(`Bakken season plan written: ${totalWritten} workouts`)
+      toast.success(t.seasonWritten(totalWritten))
     } catch (e) {
       console.error('Bakken plan generation failed:', e)
-      toast.error('Failed to generate Bakken AI plan')
+      toast.error(t.generateFailed)
     } finally {
       setLoading(false)
       setProgress(null)
@@ -617,27 +728,19 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4" /> Bakken AI Coach
+          <Sparkles className="h-4 w-4" /> {t.cardTitle}
         </CardTitle>
-        <CardDescription>
-          Builds the athlete&apos;s full season upfront — phase skeleton from their goal race, day-by-day
-          workouts from the Bakken/Almgren brain, lab-derived pace/HR targets. Writes directly to the
-          planner. The athlete only sees the first 2 weeks; the rest reveals automatically every Saturday.
-        </CardDescription>
+        <CardDescription>{t.cardDesc}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Everything the brain actually sees, in one place — so the coach
             can verify it and doesn't have to guess what data exists. */}
         {summary && (
           <div className="rounded-lg border p-3 space-y-3 text-sm">
-            <p className="text-sm font-medium">
-              Everything Bakken AI knows about {summary.name} — edit here before generating if it changed
-            </p>
+            <p className="text-sm font-medium">{t.knowsAbout(summary.name)}</p>
 
             <div>
-              <p className="text-xs font-medium text-muted-foreground mb-1">
-                Plan language (workout text, warmup/cooldown, notes)
-              </p>
+              <p className="text-xs font-medium text-muted-foreground mb-1">{t.planLanguage}</p>
               <div className="flex gap-1.5">
                 <button type="button" onClick={() => setAthleteField('language', 'he')}
                   className={`px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${summary.language === 'he' ? 'bg-primary text-primary-foreground border-primary' : 'border-input text-muted-foreground hover:border-primary'}`}>
@@ -651,7 +754,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
             </div>
 
             <div>
-              <p className="text-xs font-medium text-muted-foreground mb-1">Experience level</p>
+              <p className="text-xs font-medium text-muted-foreground mb-1">{t.experienceLevel}</p>
               <div className="flex flex-wrap gap-1.5">
                 {EXPERIENCE_LEVELS.map((lvl) => (
                   <button key={lvl} type="button" onClick={() => setAthleteField('experienceLevel', lvl)}
@@ -663,7 +766,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
             </div>
 
             <div>
-              <p className="text-xs font-medium text-muted-foreground mb-1">Weekly mileage (km)</p>
+              <p className="text-xs font-medium text-muted-foreground mb-1">{t.weeklyMileage}</p>
               <div className="flex flex-wrap gap-1.5">
                 {MILEAGE_PRESETS.map((km) => (
                   <button key={km} type="button" onClick={() => setAthleteField('weeklyMileage', km)}
@@ -675,17 +778,17 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
             </div>
 
             <div>
-              <p className="text-xs font-medium text-muted-foreground mb-1">Injury history</p>
+              <p className="text-xs font-medium text-muted-foreground mb-1">{t.injuryHistory}</p>
               <textarea
                 value={summary.injuryHistory}
                 onChange={(e) => setAthleteField('injuryHistory', e.target.value)}
-                placeholder="Any current or recurring injuries?"
+                placeholder={t.injuryPlaceholder}
                 className="w-full min-h-[50px] rounded-md border border-input bg-background px-2.5 py-1.5 text-xs"
               />
             </div>
 
             <div>
-              <p className="text-xs font-medium text-muted-foreground mb-1">Goal race distance</p>
+              <p className="text-xs font-medium text-muted-foreground mb-1">{t.goalDistance}</p>
               <div className="flex flex-wrap gap-1.5">
                 {RACE_DISTANCES.map((dist) => (
                   <button key={dist} type="button" onClick={() => setAthleteField('goalRaceDistance', dist)}
@@ -698,37 +801,37 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Race name (optional)</p>
+                <p className="text-xs font-medium text-muted-foreground mb-1">{t.raceName}</p>
                 <input type="text" value={summary.goalRaceEvent} onChange={(e) => setAthleteField('goalRaceEvent', e.target.value)}
-                  placeholder="e.g. Tel Aviv Marathon"
+                  placeholder={t.raceNamePlaceholder}
                   className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs" />
               </div>
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Race date</p>
+                <p className="text-xs font-medium text-muted-foreground mb-1">{t.raceDate}</p>
                 <input type="date" value={summary.goalRaceDate} onChange={(e) => setAthleteField('goalRaceDate', e.target.value)}
                   className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs" />
               </div>
             </div>
 
             <div>
-              <p className="text-xs font-medium text-muted-foreground mb-1">Goal time</p>
+              <p className="text-xs font-medium text-muted-foreground mb-1">{t.goalTime}</p>
               {summary.goalRaceDistance ? (
                 <div className="flex flex-wrap gap-1.5">
-                  {GOAL_TIME_PRESETS[summary.goalRaceDistance].map((t) => (
-                    <button key={t} type="button" onClick={() => setAthleteField('goalRaceTarget', t)}
-                      className={`px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${summary.goalRaceTarget === t ? 'bg-primary text-primary-foreground border-primary' : 'border-input text-muted-foreground hover:border-primary'}`}>
-                      {t}
+                  {GOAL_TIME_PRESETS[summary.goalRaceDistance].map((timeOpt) => (
+                    <button key={timeOpt} type="button" onClick={() => setAthleteField('goalRaceTarget', timeOpt)}
+                      className={`px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${summary.goalRaceTarget === timeOpt ? 'bg-primary text-primary-foreground border-primary' : 'border-input text-muted-foreground hover:border-primary'}`}>
+                      {timeOpt}
                     </button>
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-muted-foreground">Pick a goal distance first</p>
+                <p className="text-xs text-muted-foreground">{t.pickDistanceFirst}</p>
               )}
             </div>
 
             {summary.personalRecords.length > 0 && (
               <div className="text-xs">
-                <span className="text-muted-foreground">Recent PRs: </span>
+                <span className="text-muted-foreground">{t.recentPRs}</span>
                 <span className="text-foreground">
                   {summary.personalRecords.map((p) => `${p.event} ${p.time} (${p.date})`).join(' · ')}
                 </span>
@@ -737,13 +840,13 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
 
             {hasLabTest ? (
               <div className="text-xs rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 px-2 py-1.5">
-                ✓ Lab step test on file — Bakken AI will compute exact lab-derived pace/HR targets for every quality session.
+                {t.labTestYes}
               </div>
             ) : (
               <div className="text-xs rounded-md bg-amber-50 border border-amber-200 text-amber-800 px-2 py-1.5">
-                No lab step test on file. Not required — Bakken AI will fall back to HR% / talk test / RPE (per the brain's intensity_triangulation)
-                {summary.personalRecords.length > 0 ? ', anchored to the recent PRs above.' : ' and coarse pace bands.'}
-                {' '}A lactate step test (Lab tab) would sharpen every target once you're ready for one.
+                {t.labTestNoBase}
+                {summary.personalRecords.length > 0 ? t.labTestNoPRs : t.labTestNoPlain}
+                {t.labTestNoSuffix}
               </div>
             )}
           </div>
@@ -751,29 +854,29 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
 
         <div>
           <div className="flex items-center justify-between mb-1">
-            <p className="text-sm font-medium">Coach notes for Bakken AI (private, never shown to athlete)</p>
+            <p className="text-sm font-medium">{t.coachNotesLabel}</p>
             <Button size="sm" variant="outline" className="h-6 text-xs" onClick={saveCoachNotes} disabled={savingNotes}>
-              {savingNotes ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Save'}
+              {savingNotes ? <Loader2 className="h-3 w-3 animate-spin" /> : t.save}
             </Button>
           </div>
           <textarea
             value={coachNotes}
             onChange={(e) => setCoachNotes(e.target.value)}
-            placeholder="Anything the brain should know for this athlete specifically — e.g. recovering from IT band issue, prefers mornings, has a 10K tune-up race in week 6..."
+            placeholder={t.coachNotesPlaceholder}
             className="w-full min-h-[70px] rounded-md border border-input bg-background px-3 py-2 text-sm"
           />
         </div>
 
         <div>
-          <p className="text-sm font-medium mb-1">Availability (edit before generating if needed)</p>
+          <p className="text-sm font-medium mb-1">{t.availability}</p>
           <p className="text-xs text-muted-foreground mb-3">
-            {scheduleLoaded ? 'Loaded from athlete onboarding — adjust here if it changed.' : 'Loading...'}
+            {scheduleLoaded ? t.availabilityLoaded : t.loading}
           </p>
           <div className="space-y-1.5">
             {DAY_ORDER.map((day) => (
               <div key={day} className="flex items-center gap-2">
                 <span className="w-8 text-xs font-semibold text-muted-foreground shrink-0">
-                  {DAY_LABELS[(summary?.language ?? 'he')][day]}
+                  {DAY_LABELS[uiLang][day]}
                 </span>
                 <div className="flex gap-1">
                   {DAY_TYPES.map((type) => (
@@ -787,7 +890,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
                           : 'border-input text-muted-foreground hover:border-primary'
                       }`}
                     >
-                      {DAY_TYPE_LABELS[(summary?.language ?? 'he')][type]}
+                      {DAY_TYPE_LABELS[uiLang][type]}
                     </button>
                   ))}
                 </div>
@@ -797,7 +900,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         </div>
         <Button onClick={generate} disabled={loading || !summary}>
           {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
-          Generate full season
+          {t.generateBtn}
         </Button>
         {progress && <div className="text-sm text-muted-foreground">{progress}</div>}
         {lastSummary && (

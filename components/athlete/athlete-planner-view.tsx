@@ -679,6 +679,14 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             )}
           </div>
       ))}
+      {/* Description — the main session text. Was never rendered anywhere in
+          this view, so easy/recovery days (which rely on it entirely, no
+          sets) showed nothing but a bare title. */}
+      {w.workout.description && (
+        <div className="px-4 py-3 border-b border-border">
+          <p className="text-sm text-navy text-right">{w.workout.description}</p>
+        </div>
+      )}
       {/* Warmup */}
       {w.workout.warmup && (
         <div className="px-4 py-3 border-b border-border">
