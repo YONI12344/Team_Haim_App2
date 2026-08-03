@@ -73,6 +73,7 @@ import {
 import { db } from '@/lib/firebase'
 import { TrainingZonesCard } from '@/components/athlete/training-zones-card'
 import { RecordEditor, PaceEditor } from '@/components/athlete/profile-editors'
+import { AthleteJsonImport } from '@/components/coach/athlete-json-import'
 import { toast } from 'sonner'
 import { exportAthleteToExcel } from '@/lib/export-athlete'
 import { workoutTypeColors, useWorkoutTypeLabels } from '@/lib/workout-labels'
@@ -644,6 +645,7 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
 
                 {/* Profile Tab */}
         <TabsContent value="profile" className="space-y-4">
+          <AthleteJsonImport athleteId={athleteId} />
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Athlete Profile</CardTitle>
