@@ -50,7 +50,10 @@ const DAY_ORDER: DayKey[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursd
 // The athlete only needs to flag hard constraints: can I run at all, and
 // do I want this specific day to always be recovery.
 const DAY_TYPES: DayType[] = ['workout', 'rest', 'off']
-const MILEAGE_PRESETS = [15, 25, 35, 45, 55, 65, 80]
+const MILEAGE_PRESETS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 80, 90, 100, 120, 150]
+const HOUR_OPTIONS = [0, 1, 2, 3, 4, 5, 6]
+const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) => i)
+const SECOND_OPTIONS = Array.from({ length: 60 }, (_, i) => i)
 
 const DAY_LABELS: Record<'en' | 'he', Record<DayKey, string>> = {
   en: { sunday: 'Sun', monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat' },
@@ -80,7 +83,9 @@ interface OnboardingForm {
   // when there's no lab test yet. One entry is enough to be useful; the
   // coach/athlete can add more later via the app's own PR editor.
   recentRaceDistance: RaceDistance | ''
-  recentRaceTime: string
+  recentRaceHours: number
+  recentRaceMinutes: number | ''
+  recentRaceSeconds: number | ''
   recentRaceDate: string
 }
 
@@ -117,7 +122,7 @@ export function AthleteOnboarding() {
     weekSchedule: DEFAULT_WEEK_SCHEDULE, injuryHistory: '', currentShape: '',
     restingHR: '', maxHR: '', goalRaceEvent: '', goalRaceDistance: '',
     goalRaceDate: '', goalRaceTarget: '', events: '',
-    recentRaceDistance: '', recentRaceTime: '', recentRaceDate: '',
+    recentRaceDistance: '', recentRaceHours: 0, recentRaceMinutes: '', recentRaceSeconds: '', recentRaceDate: '',
   })
 
   useEffect(() => { if (user?.name) setForm(f => ({ ...f, name: user.name })) }, [user?.name])
@@ -152,7 +157,7 @@ export function AthleteOnboarding() {
         goalRaceDate: d.goalRaceDate || '',
         goalRaceTarget: d.goalRaceTarget || '',
         events: Array.isArray(d.events) ? d.events.join(', ') : '',
-        recentRaceDistance: '', recentRaceTime: '', recentRaceDate: '',
+        recentRaceDistance: '', recentRaceHours: 0, recentRaceMinutes: '', recentRaceSeconds: '', recentRaceDate: '',
       }))
       if (d.preferredLanguage === 'en' || d.preferredLanguage === 'he') setLanguage(d.preferredLanguage)
     }
@@ -193,11 +198,11 @@ export function AthleteOnboarding() {
         preferredLanguage: language,
         onboardingComplete: true,
         updatedAt: serverTimestamp(),
-        ...(form.recentRaceDistance && form.recentRaceTime ? {
+        ...(form.recentRaceDistance && formattedRecentRaceTime() ? {
           personalRecords: arrayUnion({
             id: `pr_${Date.now()}`,
             event: RACE_DISTANCE_LABELS.en[form.recentRaceDistance],
-            time: form.recentRaceTime,
+            time: formattedRecentRaceTime(),
             date: form.recentRaceDate || '',
           }),
         } : {}),
@@ -224,6 +229,18 @@ export function AthleteOnboarding() {
   const progress = ((step - 1) / 4) * 100
 
   const inputCls = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a84c]"
+  const selectCls = "w-full border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a84c] bg-white"
+
+  const showRaceHours = form.recentRaceDistance === 'half_marathon' || form.recentRaceDistance === 'marathon'
+  const formattedRecentRaceTime = () => {
+    const m = form.recentRaceMinutes === '' ? 0 : form.recentRaceMinutes
+    const s = form.recentRaceSeconds === '' ? 0 : form.recentRaceSeconds
+    if (form.recentRaceHours === 0 && m === 0 && s === 0) return null
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return form.recentRaceHours > 0
+      ? `${form.recentRaceHours}:${pad(m)}:${pad(s)}`
+      : `${m}:${pad(s)}`
+  }
 
   return (
     <div className="min-h-screen bg-[#f7f5f0] flex flex-col items-center justify-center p-4" dir={language === 'he' ? 'rtl' : 'ltr'}>
@@ -436,9 +453,27 @@ export function AthleteOnboarding() {
                     </button>
                   ))}
                 </div>
+                <div className="mb-2">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">
+                    {language === 'he' ? 'זמן סיום' : 'Finish time'}
+                  </label>
+                  <div className={`grid gap-2 ${showRaceHours ? 'grid-cols-3' : 'grid-cols-2'}`} dir="ltr">
+                    {showRaceHours && (
+                      <select className={selectCls} value={form.recentRaceHours} onChange={e => set('recentRaceHours', Number(e.target.value))}>
+                        {HOUR_OPTIONS.map(h => <option key={h} value={h}>{h} {language === 'he' ? 'שע' : 'hr'}</option>)}
+                      </select>
+                    )}
+                    <select className={selectCls} value={form.recentRaceMinutes} onChange={e => set('recentRaceMinutes', e.target.value === '' ? '' : Number(e.target.value))}>
+                      <option value="">{language === 'he' ? 'דק' : 'min'}</option>
+                      {MINUTE_OPTIONS.map(m => <option key={m} value={m}>{m} {language === 'he' ? 'דק' : 'min'}</option>)}
+                    </select>
+                    <select className={selectCls} value={form.recentRaceSeconds} onChange={e => set('recentRaceSeconds', e.target.value === '' ? '' : Number(e.target.value))}>
+                      <option value="">{language === 'he' ? 'שנ' : 'sec'}</option>
+                      {SECOND_OPTIONS.map(s => <option key={s} value={s}>{s} {language === 'he' ? 'שנ' : 'sec'}</option>)}
+                    </select>
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <input className={inputCls} value={form.recentRaceTime} onChange={e => set('recentRaceTime', e.target.value)}
-                    placeholder={language === 'he' ? 'זמן, לדוגמה 42:30' : 'Time, e.g. 42:30'} dir="ltr" />
                   <input type="date" className={inputCls} value={form.recentRaceDate} onChange={e => set('recentRaceDate', e.target.value)} />
                 </div>
               </div>

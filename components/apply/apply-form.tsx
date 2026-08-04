@@ -19,7 +19,13 @@ const RACE_DISTANCE_LABELS: Record<'en' | 'he', Record<RaceDistance, string>> = 
   en: { '1500m': '1500m', mile: 'Mile', '3000m': '3000m', '5k': '5K', '10k': '10K', '15k': '15K', half_marathon: 'Half Marathon', marathon: 'Marathon' },
   he: { '1500m': '1500 מ׳', mile: 'מייל', '3000m': '3000 מ׳', '5k': '5 ק"מ', '10k': '10 ק"מ', '15k': '15 ק"מ', half_marathon: 'חצי מרתון', marathon: 'מרתון' },
 }
-const MILEAGE_PRESETS = [0, 10, 20, 30, 40, 50, 60, 80]
+// Finer steps in the range most athletes fall in, coarser at the high end
+// — more options than a handful of round-10 buttons, so someone doesn't
+// have to round their real weekly km up or down significantly.
+const MILEAGE_PRESETS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 80, 90, 100, 120, 150]
+const HOUR_OPTIONS = [0, 1, 2, 3, 4, 5, 6]
+const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) => i)
+const SECOND_OPTIONS = Array.from({ length: 60 }, (_, i) => i)
 const DAYS_PRESETS = [3, 4, 5, 6, 7]
 const FACILITIES: Facility[] = ['track', 'gym', 'treadmill', 'trails']
 const FACILITY_LABELS: Record<'en' | 'he', Record<Facility, string>> = {
@@ -49,7 +55,9 @@ interface FormState {
   runningExperienceDuration: RunningDuration | ''
   weeklyMileage: number | ''
   recentRaceDistance: RaceDistance | ''
-  recentRaceTime: string
+  recentRaceHours: number
+  recentRaceMinutes: number | ''
+  recentRaceSeconds: number | ''
   recentRaceDate: string
   shoesInfo: string
   devicesUsed: Device[]
@@ -74,7 +82,7 @@ const EMPTY_FORM: FormState = {
   name: '', email: '', phone: '', dateOfBirth: '', city: '',
   height: '', weight: '',
   experienceLevel: '', runningExperienceDuration: '', weeklyMileage: '',
-  recentRaceDistance: '', recentRaceTime: '', recentRaceDate: '',
+  recentRaceDistance: '', recentRaceHours: 0, recentRaceMinutes: '', recentRaceSeconds: '', recentRaceDate: '',
   shoesInfo: '', devicesUsed: [], stravaOrGarminLink: '',
   primaryGoal: '', longTermGoal: '',
   goalRaceEvent: '', goalRaceDistance: '', goalRaceDate: '', goalRaceTarget: '',
@@ -114,7 +122,19 @@ export function ApplyForm() {
       : [...form.preferredDays, d])
 
   const inputCls = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a84c]"
+  const selectCls = "w-full border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a84c] bg-white"
   const t = (en: string, he: string) => (language === 'he' ? he : en)
+
+  const showRaceHours = form.recentRaceDistance === 'half_marathon' || form.recentRaceDistance === 'marathon'
+  const formattedRecentRaceTime = () => {
+    const m = form.recentRaceMinutes === '' ? 0 : form.recentRaceMinutes
+    const s = form.recentRaceSeconds === '' ? 0 : form.recentRaceSeconds
+    if (form.recentRaceHours === 0 && m === 0 && s === 0) return null
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return form.recentRaceHours > 0
+      ? `${form.recentRaceHours}:${pad(m)}:${pad(s)}`
+      : `${m}:${pad(s)}`
+  }
 
   const handleSubmit = async () => {
     if (!form.name.trim() || !form.email.trim()) {
@@ -136,7 +156,7 @@ export function ApplyForm() {
         runningExperienceDuration: form.runningExperienceDuration || null,
         weeklyMileage: form.weeklyMileage === '' ? null : Number(form.weeklyMileage),
         recentRaceEvent: form.recentRaceDistance ? RACE_DISTANCE_LABELS.en[form.recentRaceDistance] : null,
-        recentRaceTime: form.recentRaceTime.trim() || null,
+        recentRaceTime: formattedRecentRaceTime(),
         recentRaceDate: form.recentRaceDate || null,
         shoesInfo: form.shoesInfo.trim() || null,
         devicesUsed: form.devicesUsed,
@@ -278,8 +298,31 @@ export function ApplyForm() {
                   </button>
                 ))}
               </div>
+              <div className="mb-2">
+                <label className="block text-xs font-medium text-gray-500 mb-1">{t('Finish time', 'זמן סיום')}</label>
+                <div className={`grid gap-2 ${showRaceHours ? 'grid-cols-3' : 'grid-cols-2'}`} dir="ltr">
+                  {showRaceHours && (
+                    <div>
+                      <select className={selectCls} value={form.recentRaceHours} onChange={(e) => set('recentRaceHours', Number(e.target.value))}>
+                        {HOUR_OPTIONS.map((h) => <option key={h} value={h}>{h} {t('hr', 'שע')}</option>)}
+                      </select>
+                    </div>
+                  )}
+                  <div>
+                    <select className={selectCls} value={form.recentRaceMinutes} onChange={(e) => set('recentRaceMinutes', e.target.value === '' ? '' : Number(e.target.value))}>
+                      <option value="">{t('min', 'דק')}</option>
+                      {MINUTE_OPTIONS.map((m) => <option key={m} value={m}>{m} {t('min', 'דק')}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <select className={selectCls} value={form.recentRaceSeconds} onChange={(e) => set('recentRaceSeconds', e.target.value === '' ? '' : Number(e.target.value))}>
+                      <option value="">{t('sec', 'שנ')}</option>
+                      {SECOND_OPTIONS.map((s) => <option key={s} value={s}>{s} {t('sec', 'שנ')}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-2">
-                <input className={inputCls} value={form.recentRaceTime} onChange={(e) => set('recentRaceTime', e.target.value)} placeholder={t('Time, e.g. 42:30', 'זמן, לדוגמה 42:30')} dir="ltr" />
                 <input type="date" className={inputCls} value={form.recentRaceDate} onChange={(e) => set('recentRaceDate', e.target.value)} />
               </div>
             </div>
