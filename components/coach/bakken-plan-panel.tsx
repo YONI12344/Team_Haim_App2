@@ -13,7 +13,7 @@ import {
   deleteDoc,
   serverTimestamp,
 } from 'firebase/firestore'
-import { format, addDays, parseISO } from 'date-fns'
+import { format, addDays, parseISO, startOfWeek } from 'date-fns'
 import { toast } from 'sonner'
 import { Loader2, Sparkles, X } from 'lucide-react'
 import { db } from '@/lib/firebase'
@@ -139,6 +139,8 @@ const UI = {
     goalTimePlaceholder: 'e.g. 3:30:00',
     longRunLabel: 'Long run cap (minutes)',
     longRunNone: 'No cap',
+    longRunDayLabel: 'Long run day (hard rule — every week)',
+    longRunDayNone: "AI decides",
     goalDistance: 'Goal race distance',
     raceName: 'Race name (optional)',
     raceNamePlaceholder: 'e.g. Tel Aviv Marathon',
@@ -199,6 +201,8 @@ const UI = {
     goalTimePlaceholder: 'לדוגמה: 3:30:00',
     longRunLabel: 'תקרת ריצה ארוכה (דקות)',
     longRunNone: 'ללא תקרה',
+    longRunDayLabel: 'יום הריצה הארוכה (כלל קבוע — כל שבוע)',
+    longRunDayNone: 'ה-AI מחליט',
     goalDistance: 'מרחק היעד',
     raceName: 'שם המירוץ (לא חובה)',
     raceNamePlaceholder: 'לדוגמה: מרתון תל אביב',
@@ -279,19 +283,21 @@ const localId = (prefix: string) =>
 // trusting the model's arithmetic. Only touches the `distance` (total km)
 // field on running-type sessions — never the rep structure (sets/intervals),
 // so "5x6min" stays "5x6min", just the day's total km moves.
-const normalizeWeeklyVolume = (workouts: BlockWorkoutOut[], stagesForBlock: BlockStageInfo[], seasonStartDate: string): BlockWorkoutOut[] => {
-  // Weeks are anchored to the athlete's actual season start date, not a fixed
-  // calendar Sunday — a season starting mid-week (e.g. Wednesday) must have
-  // its "week 1" run Wed→Tue, otherwise the first bucket only holds a few
-  // real days but still gets normalized against a full 7-day target, forcing
-  // that handful of days to absorb a whole week's worth of km.
-  const daysSinceStart = (dateStr: string) =>
-    Math.floor((parseISO(dateStr).getTime() - parseISO(seasonStartDate).getTime()) / 86400000)
-  const weekKeyOf = (dateStr: string) => {
-    const dayIndex = daysSinceStart(dateStr)
-    const weekIndex = Math.floor(dayIndex / 7)
-    return addDaysStr(seasonStartDate, weekIndex * 7)
-  }
+const normalizeWeeklyVolume = (
+  workouts: BlockWorkoutOut[],
+  stagesForBlock: BlockStageInfo[],
+  seasonStartDate: string,
+  goalRaceDate: string,
+): BlockWorkoutOut[] => {
+  // Weeks are standard Sunday-Saturday calendar weeks — matching the km-per-
+  // week widgets and week view everywhere else in the app (they all default
+  // to weekStartsOn: 0). A season that doesn't start on a Sunday still gets
+  // a short first calendar week (and block boundaries in generate() are
+  // aligned to Sunday too, so that short week is never split across two
+  // separate block-generation calls) — its target here is prorated by how
+  // many of its 7 days actually fall within the season, not the full
+  // 7-day target, so a 4-day stub week isn't held to a whole week's km.
+  const weekKeyOf = (dateStr: string) => format(startOfWeek(parseISO(dateStr), { weekStartsOn: 0 }), 'yyyy-MM-dd')
   const weeks = new Map<string, BlockWorkoutOut[]>()
   for (const w of workouts) {
     const key = weekKeyOf(w.date)
@@ -302,11 +308,18 @@ const normalizeWeeklyVolume = (workouts: BlockWorkoutOut[], stagesForBlock: Bloc
     const midweek = addDaysStr(weekStart, 3)
     const stage = stagesForBlock.find((s) => midweek >= s.startDate && midweek <= s.endDate)
     if (!stage?.weeklyVolumeKm) continue
+    const weekEnd = addDaysStr(weekStart, 6)
+    const rangeStart = weekStart < seasonStartDate ? seasonStartDate : weekStart
+    const rangeEnd = dateMin(weekEnd, goalRaceDate)
+    const daysInSeason = Math.max(0, Math.min(7,
+      Math.floor((parseISO(rangeEnd).getTime() - parseISO(rangeStart).getTime()) / 86400000) + 1))
+    const target = stage.weeklyVolumeKm * (daysInSeason / 7)
+    if (target <= 0) continue
     const actual = items.reduce((sum, w) => sum + (w.distance || 0), 0)
     if (actual <= 0) continue
-    const ratio = actual / stage.weeklyVolumeKm
+    const ratio = actual / target
     if (ratio > 1.15 || ratio < 0.85) {
-      const scale = stage.weeklyVolumeKm / actual
+      const scale = target / actual
       for (const w of items) {
         if (w.distance != null) w.distance = Math.max(1, Math.round(w.distance * scale))
       }
@@ -315,13 +328,59 @@ const normalizeWeeklyVolume = (workouts: BlockWorkoutOut[], stagesForBlock: Bloc
   return workouts
 }
 
-// Same anchor rule as normalizeWeeklyVolume, for coach-facing display: week 1
-// is the 7 days starting at journey.startDate, not the calendar week, so the
-// coach can visually confirm the AI actually respected a mid-week start.
+const DAY_INDEX: Record<DayKey, number> = {
+  sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6,
+}
+
+// The prompt tells the model longRunDay is a hard rule (see rule 2 in
+// plan-prompt.ts), but in practice it still occasionally misses a week —
+// same story as weekly volume. Deterministic backstop: for each Sun-Sat
+// week, if there's exactly one long_run and it's not already on
+// longRunDay, swap dates with whatever's currently on that day (full
+// session content moves with it, only the two dates trade places). Skips a
+// week if the target weekday isn't present in this block's data at all
+// (only happens at a season/goal-race boundary) — nothing safe to swap with.
+const enforceLongRunDay = (workouts: BlockWorkoutOut[], longRunDay?: DayKey): BlockWorkoutOut[] => {
+  if (!longRunDay) return workouts
+  const weekKeyOf = (dateStr: string) => format(startOfWeek(parseISO(dateStr), { weekStartsOn: 0 }), 'yyyy-MM-dd')
+  const weeks = new Map<string, BlockWorkoutOut[]>()
+  for (const w of workouts) {
+    const key = weekKeyOf(w.date)
+    if (!weeks.has(key)) weeks.set(key, [])
+    weeks.get(key)!.push(w)
+  }
+  for (const [weekStart, items] of weeks) {
+    const longRuns = items.filter((w) => w.type === 'long_run')
+    if (longRuns.length !== 1) continue
+    const lr = longRuns[0]
+    const targetDate = addDaysStr(weekStart, DAY_INDEX[longRunDay])
+    if (lr.date === targetDate) continue
+    const targetItem = items.find((w) => w.date === targetDate)
+    if (!targetItem) continue
+    const lrDate = lr.date
+    lr.date = targetItem.date
+    targetItem.date = lrDate
+  }
+  return workouts
+}
+
+// Same Sun-Sat calendar-week convention as normalizeWeeklyVolume and the
+// block-splitting in generate() — week 1 is a short stub (journey.startDate
+// through that week's Saturday) when the season doesn't start on a Sunday,
+// every week after that is a full Sun-Sat week.
 const computeWeekBreakdown = (journey: JourneyDoc) => {
   const weeks: { weekNum: number; start: string; end: string; stage: JourneyStage | undefined }[] = []
   let cursor = journey.startDate
   let weekNum = 1
+  const firstDow = parseISO(cursor).getDay() // 0=Sun..6=Sat
+  if (firstDow !== 0 && cursor <= journey.goalRaceDate) {
+    const stubEnd = dateMin(addDaysStr(cursor, 6 - firstDow), journey.goalRaceDate)
+    const midweek = dateMin(addDaysStr(cursor, 3), journey.goalRaceDate)
+    const stage = journey.stages.find((s) => midweek >= s.startDate && midweek <= s.endDate)
+    weeks.push({ weekNum, start: cursor, end: stubEnd, stage })
+    cursor = addDaysStr(stubEnd, 1)
+    weekNum++
+  }
   while (cursor <= journey.goalRaceDate && weeks.length < 200) {
     const end = dateMin(addDaysStr(cursor, 6), journey.goalRaceDate)
     const midweek = dateMin(addDaysStr(cursor, 3), journey.goalRaceDate)
@@ -356,6 +415,7 @@ interface AthleteSummary {
   injuryHistory: string
   currentShape: CurrentShape | ''
   longRunMinutes?: number
+  longRunDay?: DayKey
   goalRaceEvent: string
   goalRaceDistance: RaceDistance | ''
   goalRaceDate: string
@@ -438,6 +498,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         injuryHistory: d.injuryHistory || '',
         currentShape: CURRENT_SHAPES.includes(d.currentShape) ? d.currentShape : '',
         longRunMinutes: d.longRunMinutes,
+        longRunDay: DAY_ORDER.includes(d.longRunDay) ? d.longRunDay : undefined,
         goalRaceEvent: d.goalRaceEvent || '',
         goalRaceDistance: RACE_DISTANCES.includes(d.goalRaceDistance) ? d.goalRaceDistance : '',
         goalRaceDate: d.goalRaceDate || '',
@@ -603,6 +664,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         injuryHistory: summary.injuryHistory || null,
         currentShape: summary.currentShape || null,
         longRunMinutes: summary.longRunMinutes ?? null,
+        longRunDay: summary.longRunDay || null,
         goalRaceEvent: summary.goalRaceEvent || null,
         goalRaceDistance: summary.goalRaceDistance || null,
         goalRaceDate: summary.goalRaceDate || null,
@@ -692,6 +754,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         injuryHistory: profile.injuryHistory,
         currentShape: profile.currentShape,
         longRunMinutes: profile.longRunMinutes,
+        longRunDay: profile.longRunDay,
         coachNotes: profile.coachPrivateNotes,
         goalRaceEvent: profile.goalRaceEvent || 'Goal Race',
         goalRaceDistance: profile.goalRaceDistance,
@@ -792,8 +855,20 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
       setJourneyPreview(journeyDoc)
 
       // 2. Split the season into ~14-day blocks, capped for cost/time.
+      // Block boundaries are aligned to Sunday (matching the calendar-week
+      // convention used everywhere else in the app) so no Sun-Sat week ever
+      // gets split across two separate block-generation calls, which would
+      // make normalizeWeeklyVolume see only part of that week's days at a
+      // time. If the season doesn't start on a Sunday, the first block is a
+      // short "stub" running only to that week's Saturday.
       const blocks: { startDate: string; endDate: string }[] = []
       let cursor = journeyDoc.startDate
+      const firstDow = parseISO(cursor).getDay() // 0=Sun..6=Sat
+      if (firstDow !== 0 && cursor <= journeyDoc.goalRaceDate) {
+        const stubEnd = dateMin(addDaysStr(cursor, 6 - firstDow), journeyDoc.goalRaceDate)
+        blocks.push({ startDate: cursor, endDate: stubEnd })
+        cursor = addDaysStr(stubEnd, 1)
+      }
       while (cursor <= journeyDoc.goalRaceDate && blocks.length < MAX_BLOCKS) {
         const end = dateMin(addDaysStr(cursor, BLOCK_DAYS - 1), journeyDoc.goalRaceDate)
         blocks.push({ startDate: cursor, endDate: end })
@@ -842,7 +917,8 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         }
         const plan: BlockPlanOut = data.plan
         if (i === 0) firstBlockSummary = plan.blockSummary
-        normalizeWeeklyVolume(plan.workouts, stagesForBlock, journeyDoc.startDate)
+        enforceLongRunDay(plan.workouts, athleteContext.longRunDay)
+        normalizeWeeklyVolume(plan.workouts, stagesForBlock, journeyDoc.startDate, journeyDoc.goalRaceDate)
 
         for (const w of plan.workouts) {
           if (w.type === 'rest') continue
@@ -967,6 +1043,22 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
                   <button key={min} type="button" onClick={() => setAthleteField('longRunMinutes', min)}
                     className={`px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${summary.longRunMinutes === min ? 'bg-primary text-primary-foreground border-primary' : 'border-input text-muted-foreground hover:border-primary'}`}>
                     {min}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">{t.longRunDayLabel}</p>
+              <div className="flex flex-wrap gap-1.5">
+                <button type="button" onClick={() => setAthleteField('longRunDay', undefined)}
+                  className={`px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${!summary.longRunDay ? 'bg-primary text-primary-foreground border-primary' : 'border-input text-muted-foreground hover:border-primary'}`}>
+                  {t.longRunDayNone}
+                </button>
+                {DAY_ORDER.map((day) => (
+                  <button key={day} type="button" onClick={() => setAthleteField('longRunDay', day)}
+                    className={`px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${summary.longRunDay === day ? 'bg-primary text-primary-foreground border-primary' : 'border-input text-muted-foreground hover:border-primary'}`}>
+                    {DAY_LABELS[uiLang][day]}
                   </button>
                 ))}
               </div>
