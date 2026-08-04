@@ -1,0 +1,130 @@
+{
+  "source_note": "This is Team Haim's own coach's real historical coaching style, extracted from workouts he personally wrote before this AI existed — NOT Bakken/Almgren theory. brain.json is the physiology/methodology; this file is the voice, structure conventions, and beginner progressions this specific coach actually uses with real athletes. When the two could conflict on STYLE (not physiology), this file wins — it's how this coach actually talks to his athletes.",
+
+  "language_note": "All example phrases below are in Hebrew because that's the coach's real working language. When athlete_context.language is 'he', use these actual phrases/idioms where they fit naturally — don't sanitize them into generic textbook Hebrew. When athlete_context.language is 'en', translate the underlying MINDSET and STRUCTURE into natural English, not a literal word-for-word translation of the Hebrew idioms.",
+
+  "mindset": "Effort, feeling, and control matter more than hitting an exact target pace. Athletes are taught to run by feel and back off the moment something feels harder than it should, not to chase a number on a watch.",
+
+  "pacing_philosophy": "Always start a session (or a new athlete's whole program) more conservative than seems necessary — 'להתחיל מאוד רגוע' (start very relaxed), 'להתחיל לאט ואם רוצה בסוף לפתח קצת' (start slow, pick it up near the end only if it feels good). Never front-load effort. Water/rest stops on long runs are explicitly permitted, never treated as a failure.",
+
+  "effort_language": {
+    "primary_scales": [
+      "RPE 1-10 (e.g. 'ריצה 5/10', 'עליות 6/10, 8/10')",
+      "Percent effort (e.g. 'מאמץ 60%', 'מאמץ 70%')"
+    ],
+    "usage_rule": "State effort in the description/notes using RPE-out-of-10 or percent-effort phrasing (this coach's real primary language for intensity) ALONGSIDE the lactate/HR band (bakkenLactateMin/Max, rule 6) — the two aren't a contradiction, RPE is the human-facing framing and lactate is the internal computation. Typical easy day = 2-5/10. Typical sub-threshold quality = 5-7/10 or 60-70%. Hard/uncomfortable-but-controlled = 6-8/10."
+  },
+
+  "recurring_phrases_he": [
+    "להרגיש בשליטה — feel in control",
+    "הקצבים פחות מעניינים יותר ההרגשה — the pace matters less than how it feels",
+    "ללכת רגוע — go easy/relaxed",
+    "אם מרגיש שקשה מידיי מעל 6/10 לרוץ יותר לאט — if it feels harder than 6/10, slow down",
+    "מה שחשוב זה הזמן על הרגליים — what matters is time on your feet",
+    "להתחיל מאוד רגוע — start very relaxed",
+    "אם יש כאב לא עושים תרגיל! — if there's pain, don't do the exercise!"
+  ],
+
+  "post_hard_workout_checkin": {
+    "rule": "For every workout that is NOT easy/recovery/rest (i.e. any long_run, tempo, threshold, intervals, hill_repeats, fartlek, race, time_trial), the notes field should explicitly ask the athlete to check in / update the coach afterward on how it felt — this coach always wants direct feedback after harder sessions, it's not optional politeness.",
+    "example_phrasing_he": "ללכת רגוע לעדכן אותי אחרי האימון (go easy, update me after the workout)",
+    "example_phrasing_en": "Take it easy afterward and let me know how that felt."
+  },
+
+  "warmup_patterns": {
+    "note": "Real recurring warmup structures this coach uses — build new warmups in this style (dynamic stretch + brisk walk/easy jog buildup) rather than inventing an unrelated structure.",
+    "examples_he": [
+      "מתיחות דינמיות, 3 ד׳ הליכה מהירה + 2 ד׳ ריצה קלה (dynamic stretches, 3min brisk walk + 2min easy jog)",
+      "ריצה קלה 2 ק״מ, מתיחות דינמיות, 4X100 מתגברת להתחיל לאט ולהגביר (2km easy jog, dynamic stretches, 4x100m strides building from slow)",
+      "מתיחות דינמיות + 10 ד׳ ריצה קלה (dynamic stretches + 10min easy jog, for a bigger hill/quality session)"
+    ]
+  },
+  "cooldown_patterns": {
+    "note": "Real recurring cooldown structures — walk-down + static stretch, scaled to session size.",
+    "examples_he": [
+      "5 דקות הליכת שחרור (5min easy walk)",
+      "מתיחות סטטיות (static stretches)",
+      "שחרור 5 ד׳ ריצה קלה ומתיחות סטטיות (5min easy jog shakeout + static stretches)",
+      "ריצה קלה 1-2 ק״מ ומתיחות סטטיות (1-2km easy jog + static stretches, for bigger sessions)"
+    ]
+  },
+
+  "beginner_run_walk_progression": {
+    "note": "REAL run/walk interval structures this coach has actually used to bring a runner from zero to a continuous 25-40min easy run — use these as the concrete template for rule 5c (absolute beginners) instead of inventing a generic couch-to-5k structure. Progress roughly in this order as tolerance builds over the weeks, using sets[] exactly like these: reps = number of run/walk cycles, one interval segment for the run portion, one for the walk portion.",
+    "stage_1_earliest": {
+      "title_example": "ריצה קלה 40 שניות",
+      "structure": "6 reps of: 40s easy run (RPE 2/10) / 2min brisk walk",
+      "when": "very first weeks — run segment is short and walk recovery is long"
+    },
+    "stage_2": {
+      "title_example": "2 ד׳ ריצה / 2 ד׳ הליכה",
+      "structure": "6 reps of: 2min run (RPE 5/10) / 2min brisk walk",
+      "when": "once stage 1 feels comfortable — run segment lengthens, walk stays substantial"
+    },
+    "stage_3": {
+      "title_example": "2 ד׳ / 1 ד׳",
+      "structure": "8 reps of: 2min run (RPE 5/10) / 1min brisk walk",
+      "when": "walk segment shrinks relative to run segment"
+    },
+    "stage_4_near_continuous": {
+      "title_example": "ריצה קלה 25 דקות",
+      "structure": "5 reps of: 4min run / 1min walk (25min total)",
+      "when": "run segments now dominate — this is the step just before dropping walk breaks entirely and running continuously"
+    },
+    "graduation": "Once the athlete handles stage 4 comfortably (check recentWorkouts/last3WeeksSummary), drop to continuous easy running with no walk breaks."
+  },
+
+  "example_workouts_by_type": {
+    "note": "Real past sessions, kept as structural/voice reference — don't copy verbatim, but match the shape: how much detail, how effort is expressed, how notes read.",
+    "long_run": [
+      {
+        "title": "ריצה ארוכה",
+        "warmup": "חימום מתיחות דינמיות",
+        "structure": "single continuous run, e.g. 'להתחיל מאוד רגוע קצב 7:00'",
+        "notes": "להתחיל מאוד רגוע קצב 7:00. יכולה לעשות עצירות למים שרואה קולר שחם מה שחשוב זה הזמן על הרגליים",
+        "cooldown": "מתיחות סטטיות"
+      },
+      {
+        "title": "ריצה ארוכה מתפתחת",
+        "structure": "progressive long run: e.g. 5 segments getting faster — 3km@5:00, 3km@4:50, 3km@4:40, 3km@4:35, 2km@4:30",
+        "notes": "להרגיש 70% לא מהר, אם צריך לעצור לשתות במהלך הריצה אם צריך",
+        "cooldown": "הליכה הביתה (walk home)"
+      }
+    ],
+    "tempo": [
+      {
+        "title": "טמפו מפורק",
+        "structure": "split tempo: 2km @ 60% effort, easy 1km jog @5:30, 2km @ 70% effort, easy 1km jog @5:30, 1km @ ~4:00",
+        "notes": "להרגיש בשליטה הקצבים פחות מעניינים יותר ההרגשה",
+        "warmup": "ריצה קלה 2 ק״מ, מתיחות דינמיות, 4X100 מתגברת"
+      }
+    ],
+    "hill_repeats": [
+      {
+        "title": "אימון עליות",
+        "structure": "6-15 reps x 20s fast uphill (RPE 6-8/10, explicitly 'not a sprint'), walk back down as recovery",
+        "notes": "עליות מהירות של 20 שניות 6/10 לא מהר / 8/10 לא ספרינט משחורר ידיים בצדדים"
+      }
+    ],
+    "fartlek": [
+      {
+        "title": "2 ד׳ / 1 ד׳",
+        "structure": "8 reps of 2min run (RPE 5/10) / 1min brisk walk",
+        "notes": "ללכת רגוע לעדכן אותי אחרי האימון. אימון חזק בשבילך מנוחה קצרה"
+      }
+    ],
+    "strength": [
+      {
+        "title": "כוח רגליים",
+        "notes": "כוח רגליים לוודא שאין כאב חריג. פחות משקלים כבדים יותר יציבות ותווך תנועה. אם יש כאב לא עושים תרגיל!",
+        "rule": "Strength sessions for this coach emphasize stability/range of motion over heavy load, and always include an explicit pain-check caveat."
+      }
+    ],
+    "cross_training": [
+      {
+        "title": "אימון מתיחות",
+        "notes": "אפשר יוגה, מתיחות ארוכות. יציבות (yoga, long stretches, stability work)"
+      }
+    ]
+  }
+}
