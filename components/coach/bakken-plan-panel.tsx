@@ -13,14 +13,14 @@ import {
   deleteDoc,
   serverTimestamp,
 } from 'firebase/firestore'
-import { format, addDays, parseISO, startOfWeek } from 'date-fns'
+import { format, addDays, parseISO } from 'date-fns'
 import { toast } from 'sonner'
 import { Loader2, Sparkles } from 'lucide-react'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
 import { useLatestStepTest } from '@/hooks/useLatestStepTest'
-import { saveJourney } from '@/lib/journey'
+import { saveJourney, getJourney, stageDisplayName } from '@/lib/journey'
 import { interpolateAtLactate } from '@/lib/physiology'
 import type { WorkoutType, JourneyDoc, JourneyStage } from '@/lib/types'
 import type { PlanAthleteContext, BlockStageInfo, SkeletonRequest, SkeletonOut } from '@/lib/bakken/plan-prompt'
@@ -169,6 +169,13 @@ const UI = {
     generatingBlock: (from: string, to: string, i: number, total: number) => `Generating ${from} → ${to} (block ${i}/${total})...`,
     seasonWritten: (n: number) => `Bakken season plan written: ${n} workouts`,
     generateFailed: 'Failed to generate Bakken AI plan',
+    weekBreakdownTitle: 'Week-by-week breakdown',
+    weekBreakdownHint: 'Week 1 starts on the season start date shown below, whatever weekday that is — not the calendar week.',
+    weekCol: 'Week',
+    datesCol: 'Dates',
+    phaseCol: 'Phase',
+    targetKmCol: 'Target km',
+    seasonStarts: (d: string) => `Season starts ${d}`,
   },
   he: {
     cardTitle: 'מאמן AI בקן',
@@ -213,6 +220,13 @@ const UI = {
     generatingBlock: (from: string, to: string, i: number, total: number) => `יוצר ${from} → ${to} (בלוק ${i}/${total})...`,
     seasonWritten: (n: number) => `תוכנית העונה של בקן נכתבה: ${n} אימונים`,
     generateFailed: 'יצירת תוכנית ה-AI של בקן נכשלה',
+    weekBreakdownTitle: 'פירוט שבועי',
+    weekBreakdownHint: 'שבוע 1 מתחיל בתאריך תחילת העונה המוצג למטה, יהיה אשר יהיה יום השבוע — לא בשבוע הקלנדרי.',
+    weekCol: 'שבוע',
+    datesCol: 'תאריכים',
+    phaseCol: 'שלב',
+    targetKmCol: 'ק"מ יעד',
+    seasonStarts: (d: string) => `העונה מתחילה ב-${d}`,
   },
 } as const
 
@@ -247,8 +261,19 @@ const localId = (prefix: string) =>
 // trusting the model's arithmetic. Only touches the `distance` (total km)
 // field on running-type sessions — never the rep structure (sets/intervals),
 // so "5x6min" stays "5x6min", just the day's total km moves.
-const normalizeWeeklyVolume = (workouts: BlockWorkoutOut[], stagesForBlock: BlockStageInfo[]): BlockWorkoutOut[] => {
-  const weekKeyOf = (dateStr: string) => format(startOfWeek(parseISO(dateStr), { weekStartsOn: 0 }), 'yyyy-MM-dd')
+const normalizeWeeklyVolume = (workouts: BlockWorkoutOut[], stagesForBlock: BlockStageInfo[], seasonStartDate: string): BlockWorkoutOut[] => {
+  // Weeks are anchored to the athlete's actual season start date, not a fixed
+  // calendar Sunday — a season starting mid-week (e.g. Wednesday) must have
+  // its "week 1" run Wed→Tue, otherwise the first bucket only holds a few
+  // real days but still gets normalized against a full 7-day target, forcing
+  // that handful of days to absorb a whole week's worth of km.
+  const daysSinceStart = (dateStr: string) =>
+    Math.floor((parseISO(dateStr).getTime() - parseISO(seasonStartDate).getTime()) / 86400000)
+  const weekKeyOf = (dateStr: string) => {
+    const dayIndex = daysSinceStart(dateStr)
+    const weekIndex = Math.floor(dayIndex / 7)
+    return addDaysStr(seasonStartDate, weekIndex * 7)
+  }
   const weeks = new Map<string, BlockWorkoutOut[]>()
   for (const w of workouts) {
     const key = weekKeyOf(w.date)
@@ -270,6 +295,24 @@ const normalizeWeeklyVolume = (workouts: BlockWorkoutOut[], stagesForBlock: Bloc
     }
   }
   return workouts
+}
+
+// Same anchor rule as normalizeWeeklyVolume, for coach-facing display: week 1
+// is the 7 days starting at journey.startDate, not the calendar week, so the
+// coach can visually confirm the AI actually respected a mid-week start.
+const computeWeekBreakdown = (journey: JourneyDoc) => {
+  const weeks: { weekNum: number; start: string; end: string; stage: JourneyStage | undefined }[] = []
+  let cursor = journey.startDate
+  let weekNum = 1
+  while (cursor <= journey.goalRaceDate && weeks.length < 200) {
+    const end = dateMin(addDaysStr(cursor, 6), journey.goalRaceDate)
+    const midweek = dateMin(addDaysStr(cursor, 3), journey.goalRaceDate)
+    const stage = journey.stages.find((s) => midweek >= s.startDate && midweek <= s.endDate)
+    weeks.push({ weekNum, start: cursor, end, stage })
+    cursor = addDaysStr(end, 1)
+    weekNum++
+  }
+  return weeks
 }
 
 /**
@@ -328,6 +371,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
   const [summary, setSummary] = useState<AthleteSummary | null>(null)
   const [coachNotes, setCoachNotes] = useState('')
   const [savingNotes, setSavingNotes] = useState(false)
+  const [journeyPreview, setJourneyPreview] = useState<JourneyDoc | null>(null)
 
   // Let the coach review/adjust the athlete's availability — and see
   // everything else the brain will actually use — right before
@@ -366,6 +410,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
       setScheduleLoaded(true)
     }
     load()
+    getJourney(athleteId, 'bakken_season').then((j) => { if (!cancelled) setJourneyPreview(j) })
     return () => { cancelled = true }
   }, [athleteId])
 
@@ -702,6 +747,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         updatedAt: new Date(),
       }
       await saveJourney(athleteId, journeyDoc)
+      setJourneyPreview(journeyDoc)
 
       // 2. Split the season into ~14-day blocks, capped for cost/time.
       const blocks: { startDate: string; endDate: string }[] = []
@@ -741,6 +787,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
               totalBlocks: blocks.length,
               startDate: blocks[i].startDate,
               endDate: blocks[i].endDate,
+              seasonStartDate: journeyDoc.startDate,
               stages: stagesForBlock,
               previousBlockTail,
             },
@@ -753,7 +800,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         }
         const plan: BlockPlanOut = data.plan
         if (i === 0) firstBlockSummary = plan.blockSummary
-        normalizeWeeklyVolume(plan.workouts, stagesForBlock)
+        normalizeWeeklyVolume(plan.workouts, stagesForBlock, journeyDoc.startDate)
 
         for (const w of plan.workouts) {
           if (w.type === 'rest') continue
@@ -998,6 +1045,35 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         {progress && <div className="text-sm text-muted-foreground">{progress}</div>}
         {lastSummary && (
           <div className="text-sm text-muted-foreground border-t pt-4 whitespace-pre-wrap">{lastSummary}</div>
+        )}
+        {journeyPreview && journeyPreview.stages.length > 0 && (
+          <div className="border-t pt-4 space-y-2">
+            <div className="text-sm font-medium">{t.weekBreakdownTitle}</div>
+            <div className="text-xs text-muted-foreground">{t.weekBreakdownHint}</div>
+            <div className="text-xs text-muted-foreground">{t.seasonStarts(journeyPreview.startDate)}</div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-muted-foreground border-b">
+                    <th className="text-start py-1 pe-2">{t.weekCol}</th>
+                    <th className="text-start py-1 pe-2">{t.datesCol}</th>
+                    <th className="text-start py-1 pe-2">{t.phaseCol}</th>
+                    <th className="text-start py-1">{t.targetKmCol}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {computeWeekBreakdown(journeyPreview).map((w) => (
+                    <tr key={w.weekNum} className="border-b border-border/50">
+                      <td className="py-1 pe-2">{w.weekNum}</td>
+                      <td className="py-1 pe-2">{w.start} – {w.end}</td>
+                      <td className="py-1 pe-2">{w.stage ? stageDisplayName(w.stage, uiLang === 'he') : '—'}</td>
+                      <td className="py-1">{w.stage?.weeklyVolumeKm ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         )}
       </CardContent>
     </Card>

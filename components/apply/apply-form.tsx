@@ -23,9 +23,6 @@ const RACE_DISTANCE_LABELS: Record<'en' | 'he', Record<RaceDistance, string>> = 
 // — more options than a handful of round-10 buttons, so someone doesn't
 // have to round their real weekly km up or down significantly.
 const MILEAGE_PRESETS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 80, 90, 100, 120, 150]
-const HOUR_OPTIONS = [0, 1, 2, 3, 4, 5, 6]
-const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) => i)
-const SECOND_OPTIONS = Array.from({ length: 60 }, (_, i) => i)
 const DAYS_PRESETS = [3, 4, 5, 6, 7]
 const FACILITIES: Facility[] = ['track', 'gym', 'treadmill', 'trails']
 const FACILITY_LABELS: Record<'en' | 'he', Record<Facility, string>> = {
@@ -122,7 +119,6 @@ export function ApplyForm() {
       : [...form.preferredDays, d])
 
   const inputCls = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a84c]"
-  const selectCls = "w-full border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a84c] bg-white"
   const t = (en: string, he: string) => (language === 'he' ? he : en)
 
   const showRaceHours = form.recentRaceDistance === 'half_marathon' || form.recentRaceDistance === 'marathon'
@@ -279,7 +275,7 @@ export function ApplyForm() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">{t('Average weekly mileage (km)', 'ק"מ שבועי ממוצע')}</label>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 mb-2">
                 {MILEAGE_PRESETS.map((km) => (
                   <button key={km} type="button" onClick={() => set('weeklyMileage', km)}
                     className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${form.weeklyMileage === km ? 'bg-[#1a2744] text-white border-[#1a2744]' : 'border-gray-200 text-gray-600 hover:border-[#1a2744]'}`}>
@@ -287,6 +283,9 @@ export function ApplyForm() {
                   </button>
                 ))}
               </div>
+              <input type="number" min={0} step={1} className={inputCls} value={form.weeklyMileage}
+                onChange={(e) => set('weeklyMileage', e.target.value === '' ? '' : Number(e.target.value))}
+                placeholder={t('Or type your exact km/week', 'או הקלד/י ק"מ מדויק')} dir="ltr" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">{t('Recent race result (optional)', 'תוצאת מירוץ אחרונה (לא חובה)')}</label>
@@ -303,22 +302,20 @@ export function ApplyForm() {
                 <div className={`grid gap-2 ${showRaceHours ? 'grid-cols-3' : 'grid-cols-2'}`} dir="ltr">
                   {showRaceHours && (
                     <div>
-                      <select className={selectCls} value={form.recentRaceHours} onChange={(e) => set('recentRaceHours', Number(e.target.value))}>
-                        {HOUR_OPTIONS.map((h) => <option key={h} value={h}>{h} {t('hr', 'שע')}</option>)}
-                      </select>
+                      <input type="number" min={0} max={23} className={inputCls} value={form.recentRaceHours}
+                        onChange={(e) => set('recentRaceHours', e.target.value === '' ? 0 : Number(e.target.value))} />
+                      <span className="block text-[11px] text-gray-400 mt-0.5">{t('hours', 'שעות')}</span>
                     </div>
                   )}
                   <div>
-                    <select className={selectCls} value={form.recentRaceMinutes} onChange={(e) => set('recentRaceMinutes', e.target.value === '' ? '' : Number(e.target.value))}>
-                      <option value="">{t('min', 'דק')}</option>
-                      {MINUTE_OPTIONS.map((m) => <option key={m} value={m}>{m} {t('min', 'דק')}</option>)}
-                    </select>
+                    <input type="number" min={0} max={59} className={inputCls} value={form.recentRaceMinutes}
+                      onChange={(e) => set('recentRaceMinutes', e.target.value === '' ? '' : Number(e.target.value))} />
+                    <span className="block text-[11px] text-gray-400 mt-0.5">{t('minutes', 'דקות')}</span>
                   </div>
                   <div>
-                    <select className={selectCls} value={form.recentRaceSeconds} onChange={(e) => set('recentRaceSeconds', e.target.value === '' ? '' : Number(e.target.value))}>
-                      <option value="">{t('sec', 'שנ')}</option>
-                      {SECOND_OPTIONS.map((s) => <option key={s} value={s}>{s} {t('sec', 'שנ')}</option>)}
-                    </select>
+                    <input type="number" min={0} max={59} className={inputCls} value={form.recentRaceSeconds}
+                      onChange={(e) => set('recentRaceSeconds', e.target.value === '' ? '' : Number(e.target.value))} />
+                    <span className="block text-[11px] text-gray-400 mt-0.5">{t('seconds', 'שניות')}</span>
                   </div>
                 </div>
               </div>
