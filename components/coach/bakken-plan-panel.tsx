@@ -15,7 +15,7 @@ import {
 } from 'firebase/firestore'
 import { format, addDays, parseISO } from 'date-fns'
 import { toast } from 'sonner'
-import { Loader2, Sparkles } from 'lucide-react'
+import { Loader2, Sparkles, X } from 'lucide-react'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
@@ -95,7 +95,7 @@ type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced' | 'professional'
 type RaceDistance = '1500m' | 'mile' | '3000m' | '5k' | '10k' | '15k' | 'half_marathon' | 'marathon'
 type CurrentShape = 'just_starting' | 'returning' | 'consistent' | 'peak_fitness'
 const EXPERIENCE_LEVELS: ExperienceLevel[] = ['beginner', 'intermediate', 'advanced', 'professional']
-const MILEAGE_PRESETS = [15, 25, 35, 45, 55, 65, 80]
+const MILEAGE_PRESETS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 80, 90, 100, 120, 150]
 const RACE_DISTANCES: RaceDistance[] = ['1500m', 'mile', '3000m', '5k', '10k', '15k', 'half_marathon', 'marathon']
 const RACE_DISTANCE_LABELS: Record<RaceDistance, string> = {
   '1500m': '1500m', mile: 'Mile', '3000m': '3000m', '5k': '5K', '10k': '10K', '15k': '15K', half_marathon: 'Half Marathon', marathon: 'Marathon',
@@ -176,6 +176,15 @@ const UI = {
     phaseCol: 'Phase',
     targetKmCol: 'Target km',
     seasonStarts: (d: string) => `Season starts ${d}`,
+    mileageCustomPlaceholder: 'Or type exact km/week',
+    addPrTitle: 'Add a race result',
+    prDistanceLabel: 'Distance',
+    prTimeLabel: 'Finish time',
+    prHours: 'hours', prMinutes: 'minutes', prSeconds: 'seconds',
+    prDateLabel: 'Date',
+    addBtn: 'Add',
+    removeBtn: 'Remove',
+    noPRsYet: 'No race results yet.',
   },
   he: {
     cardTitle: 'מאמן AI בקן',
@@ -225,6 +234,15 @@ const UI = {
     weekCol: 'שבוע',
     datesCol: 'תאריכים',
     phaseCol: 'שלב',
+    mileageCustomPlaceholder: 'או הקלד/י ק"מ מדויק',
+    addPrTitle: 'הוספת תוצאת מירוץ',
+    prDistanceLabel: 'מרחק',
+    prTimeLabel: 'זמן סיום',
+    prHours: 'שעות', prMinutes: 'דקות', prSeconds: 'שניות',
+    prDateLabel: 'תאריך',
+    addBtn: 'הוסף',
+    removeBtn: 'הסר',
+    noPRsYet: 'עדיין אין תוצאות מירוץ.',
     targetKmCol: 'ק"מ יעד',
     seasonStarts: (d: string) => `העונה מתחילה ב-${d}`,
   },
@@ -372,6 +390,29 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
   const [coachNotes, setCoachNotes] = useState('')
   const [savingNotes, setSavingNotes] = useState(false)
   const [journeyPreview, setJourneyPreview] = useState<JourneyDoc | null>(null)
+  const [prDistance, setPrDistance] = useState<RaceDistance | ''>('')
+  const [prHours, setPrHours] = useState(0)
+  const [prMinutes, setPrMinutes] = useState<number | ''>('')
+  const [prSeconds, setPrSeconds] = useState<number | ''>('')
+  const [prDate, setPrDate] = useState(new Date().toISOString().slice(0, 10))
+
+  const addPersonalRecord = () => {
+    if (!summary || !prDistance) return
+    const m = prMinutes === '' ? 0 : prMinutes
+    const s = prSeconds === '' ? 0 : prSeconds
+    if (prHours === 0 && m === 0 && s === 0) return
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const time = prHours > 0 ? `${prHours}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`
+    setSummary({
+      ...summary,
+      personalRecords: [{ event: RACE_DISTANCE_LABELS[prDistance], time, date: prDate }, ...summary.personalRecords],
+    })
+    setPrDistance(''); setPrHours(0); setPrMinutes(''); setPrSeconds('')
+  }
+  const removePersonalRecord = (idx: number) => {
+    if (!summary) return
+    setSummary({ ...summary, personalRecords: summary.personalRecords.filter((_, i) => i !== idx) })
+  }
 
   // Let the coach review/adjust the athlete's availability — and see
   // everything else the brain will actually use — right before
@@ -566,6 +607,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         goalRaceDistance: summary.goalRaceDistance || null,
         goalRaceDate: summary.goalRaceDate || null,
         goalRaceTarget: summary.goalRaceTarget || null,
+        personalRecords: summary.personalRecords,
       })
 
       const profileSnap = await getDoc(doc(db, 'users', athleteId))
@@ -878,7 +920,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
 
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-1">{t.weeklyMileage}</p>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-1.5 mb-1.5">
                 {MILEAGE_PRESETS.map((km) => (
                   <button key={km} type="button" onClick={() => setAthleteField('weeklyMileage', km)}
                     className={`px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${summary.weeklyMileage === km ? 'bg-primary text-primary-foreground border-primary' : 'border-input text-muted-foreground hover:border-primary'}`}>
@@ -886,6 +928,10 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
                   </button>
                 ))}
               </div>
+              <input type="number" min={0} step={1} value={summary.weeklyMileage ?? ''}
+                onChange={(e) => setAthleteField('weeklyMileage', e.target.value === '' ? undefined : Number(e.target.value))}
+                placeholder={t.mileageCustomPlaceholder} dir="ltr"
+                className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs" />
             </div>
 
             <div>
@@ -969,14 +1015,61 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
               )}
             </div>
 
-            {summary.personalRecords.length > 0 && (
-              <div className="text-xs">
-                <span className="text-muted-foreground">{t.recentPRs}</span>
-                <span className="text-foreground">
-                  {summary.personalRecords.map((p) => `${p.event} ${p.time} (${p.date})`).join(' · ')}
-                </span>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">{t.recentPRs}</p>
+              {summary.personalRecords.length === 0 ? (
+                <p className="text-xs text-muted-foreground">{t.noPRsYet}</p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {summary.personalRecords.map((p, i) => (
+                    <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-input text-[11px] text-foreground">
+                      {p.event} {p.time} ({p.date})
+                      <button type="button" onClick={() => removePersonalRecord(i)} aria-label={t.removeBtn}>
+                        <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="rounded-md border border-dashed border-input p-2 space-y-1.5">
+                <p className="text-[11px] font-medium text-muted-foreground">{t.addPrTitle}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {RACE_DISTANCES.map((dist) => (
+                    <button key={dist} type="button" onClick={() => setPrDistance(dist)}
+                      className={`px-2 py-0.5 rounded-full border text-[11px] font-medium transition-colors ${prDistance === dist ? 'bg-primary text-primary-foreground border-primary' : 'border-input text-muted-foreground hover:border-primary'}`}>
+                      {RACE_DISTANCE_LABELS[dist]}
+                    </button>
+                  ))}
+                </div>
+                <div className={`grid gap-1.5 ${prDistance === 'half_marathon' || prDistance === 'marathon' ? 'grid-cols-3' : 'grid-cols-2'}`} dir="ltr">
+                  {(prDistance === 'half_marathon' || prDistance === 'marathon') && (
+                    <div>
+                      <input type="number" min={0} max={23} value={prHours} onChange={(e) => setPrHours(e.target.value === '' ? 0 : Number(e.target.value))}
+                        className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs" />
+                      <span className="block text-[10px] text-muted-foreground mt-0.5">{t.prHours}</span>
+                    </div>
+                  )}
+                  <div>
+                    <input type="number" min={0} max={59} value={prMinutes} onChange={(e) => setPrMinutes(e.target.value === '' ? '' : Number(e.target.value))}
+                      className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs" />
+                    <span className="block text-[10px] text-muted-foreground mt-0.5">{t.prMinutes}</span>
+                  </div>
+                  <div>
+                    <input type="number" min={0} max={59} value={prSeconds} onChange={(e) => setPrSeconds(e.target.value === '' ? '' : Number(e.target.value))}
+                      className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs" />
+                    <span className="block text-[10px] text-muted-foreground mt-0.5">{t.prSeconds}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input type="date" value={prDate} onChange={(e) => setPrDate(e.target.value)}
+                    className="rounded-md border border-input bg-background px-2 py-1 text-xs" />
+                  <button type="button" onClick={addPersonalRecord} disabled={!prDistance}
+                    className="ms-auto px-3 py-1 rounded-md bg-primary text-primary-foreground text-xs font-medium disabled:opacity-50">
+                    {t.addBtn}
+                  </button>
+                </div>
               </div>
-            )}
+            </div>
 
             {hasLabTest ? (
               <div className="text-xs rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 px-2 py-1.5">
