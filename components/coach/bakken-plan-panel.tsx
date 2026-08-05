@@ -310,14 +310,18 @@ const localId = (prefix: string) =>
 // drifting well off the stage's weeklyVolumeKm target in practice. This is
 // the deterministic backstop: after generation, actually sum each calendar
 // week's distance and rescale if it's off by more than 15%, instead of
-// trusting the model's arithmetic. Only touches the `distance` (total km)
-// field on running-type sessions — never the rep structure (sets/intervals),
-// so "5x6min" stays "5x6min", just the day's total km moves.
+// trusting the model's arithmetic. Only touches flexible-distance sessions
+// (easy/long_run/recovery) — never the rep structure (sets/intervals) on a
+// structured session, so "5x6min" stays "5x6min". Rescales `duration`
+// alongside `distance` by the same factor so pace stays what it was —
+// distance-only rescaling used to silently turn a normal-paced long run
+// into an impossibly fast one once its distance got stretched.
 const normalizeWeeklyVolume = (
   workouts: BlockWorkoutOut[],
   stagesForBlock: BlockStageInfo[],
   seasonStartDate: string,
   goalRaceDate: string,
+  longRunMinutesCap?: number,
 ): BlockWorkoutOut[] => {
   // Weeks are standard Sunday-Saturday calendar weeks — matching the km-per-
   // week widgets and week view everywhere else in the app (they all default
@@ -376,7 +380,30 @@ const normalizeWeeklyVolume = (
     if (ratio > 1.15 || ratio < 0.85) {
       const scale = flexibleTarget / flexibleActual
       for (const w of flexibleItems) {
-        if (w.distance != null) w.distance = Math.max(1, Math.round(w.distance * scale))
+        if (w.distance == null) continue
+        // Scale duration by the SAME factor as distance so the implied pace
+        // stays what it was — scaling distance alone (the old behavior)
+        // left duration untouched, which silently turned a normal ~5:00/km
+        // long run into something like 3:34/km once its distance got
+        // stretched to close a weekly-volume gap. Verified in production:
+        // a 100min long run scaled to 28km this way, an impossible pace for
+        // a session described as "very relaxed".
+        const originalDistance = w.distance
+        const originalDuration = w.duration
+        w.distance = Math.max(1, Math.round(originalDistance * scale))
+        if (originalDuration != null) {
+          w.duration = Math.max(5, Math.round((originalDuration * scale) / 5) * 5)
+          // The long run duration cap (athlete_context.longRunMinutes, rule
+          // 12) is a hard ceiling the model is supposed to respect on its
+          // own, but this rescale can push it past that after the fact —
+          // clamp duration back to the cap and recompute distance to match
+          // the ORIGINAL pace at that shorter duration, rather than leaving
+          // an over-cap duration or a now-inconsistent pace.
+          if (w.type === 'long_run' && longRunMinutesCap && w.duration > longRunMinutesCap && originalDuration > 0) {
+            w.duration = longRunMinutesCap
+            w.distance = Math.max(1, Math.round(originalDistance * (longRunMinutesCap / originalDuration)))
+          }
+        }
       }
     }
   }
@@ -437,12 +464,53 @@ const enforceWeekSchedule = (workouts: BlockWorkoutOut[], weekSchedule: Record<D
 // The prompt tells the model longRunDay is a hard rule (see rule 2 in
 // plan-prompt.ts), but in practice it still occasionally misses a week —
 // same story as weekly volume. Deterministic backstop: for each Sun-Sat
-// week, if there's exactly one long_run and it's not already on
-// longRunDay, swap dates with whatever's currently on that day (full
-// session content moves with it, only the two dates trade places). Skips a
-// week if the target weekday isn't present in this block's data at all
-// (only happens at a season/goal-race boundary) — nothing safe to swap with.
-const enforceLongRunDay = (workouts: BlockWorkoutOut[], longRunDay?: DayKey): BlockWorkoutOut[] => {
+// week, exactly one long_run should exist, on longRunDay.
+//   - 2+ long_run entries in the same week (a real bug seen in practice —
+//     the model duplicated it onto a second day): keep whichever one is
+//     already on longRunDay (or the first one if none is), demote every
+//     other long_run that week to a plain easy day instead of leaving two
+//     long runs in the same week.
+//   - exactly 1 long_run, wrong day: swap dates with whatever's currently
+//     on longRunDay (full session content moves with it, only the two
+//     dates trade places).
+//   - 0 long_run: nothing safe to do, skip (can't invent a session).
+// Skips the date-swap step if the target weekday isn't present in this
+// block's data at all (only happens at a season/goal-race boundary).
+// Rule 11 says AM is always the easier, T1-anchored half of a double-
+// threshold day and PM is the harder one (T1-ish early season, sharpening
+// toward T2 later) — this is the hard invariant the coach actually cares
+// about (confirmed explicitly: "keep the AM easier T1 and PM can be T1 or
+// faster around T2"). Verified in testing that duration is NOT a safe proxy
+// for this — the model sometimes picks a PM rep-format that happens to run
+// a few minutes longer than AM's even though the ZONE (T1 vs T2) was
+// already correct; swapping on duration in that case would flip a correct
+// T1-AM/T2-PM pairing into a wrong T2-AM/T1-PM one, which is worse, not
+// better. Swap on LACTATE instead — the actual thing that must stay
+// correct: if AM's assigned lactate ends up higher than PM's (i.e. AM
+// somehow became the harder session), swap which full session sits in
+// which slot so AM always ends up the lower-lactate (easier) one.
+const enforceAmPmOrder = (workouts: BlockWorkoutOut[]): BlockWorkoutOut[] => {
+  const byDate = new Map<string, { am?: BlockWorkoutOut; pm?: BlockWorkoutOut }>()
+  for (const w of workouts) {
+    if (w.session !== 'am' && w.session !== 'pm') continue
+    if (!byDate.has(w.date)) byDate.set(w.date, {})
+    byDate.get(w.date)![w.session] = w
+  }
+  for (const { am, pm } of byDate.values()) {
+    if (!am || !pm) continue
+    if (am.bakkenLactateMin == null || pm.bakkenLactateMin == null) continue
+    if (am.bakkenLactateMin <= pm.bakkenLactateMin) continue
+    const amDate = am.date
+    const pmDate = pm.date
+    const amCopy: BlockWorkoutOut = { ...am }
+    const pmCopy: BlockWorkoutOut = { ...pm }
+    Object.assign(am, pmCopy, { date: amDate, session: 'am' as const })
+    Object.assign(pm, amCopy, { date: pmDate, session: 'pm' as const })
+  }
+  return workouts
+}
+
+const enforceLongRunDay = (workouts: BlockWorkoutOut[], longRunDay: DayKey | undefined, language: 'en' | 'he'): BlockWorkoutOut[] => {
   if (!longRunDay) return workouts
   const weekKeyOf = (dateStr: string) => format(startOfWeek(parseISO(dateStr), { weekStartsOn: 0 }), 'yyyy-MM-dd')
   const weeks = new Map<string, BlockWorkoutOut[]>()
@@ -453,11 +521,30 @@ const enforceLongRunDay = (workouts: BlockWorkoutOut[], longRunDay?: DayKey): Bl
   }
   for (const [weekStart, items] of weeks) {
     const longRuns = items.filter((w) => w.type === 'long_run')
-    if (longRuns.length !== 1) continue
-    const lr = longRuns[0]
+    if (longRuns.length === 0) continue
+    if (longRuns.length > 1) {
+      const targetDate = addDaysStr(weekStart, DAY_INDEX[longRunDay])
+      const keeper = longRuns.find((w) => w.date === targetDate) ?? longRuns[0]
+      for (const extra of longRuns) {
+        if (extra === keeper) continue
+        extra.type = 'easy'
+        extra.title = language === 'he' ? 'ריצה קלה' : 'Easy Run'
+        extra.description = language === 'he'
+          ? 'ריצה קלה ורגועה, מתחת לסף T1.'
+          : 'Easy, relaxed running, below your T1 threshold.'
+        extra.sets = []
+        extra.bakkenLactateMin = 1.0
+        extra.bakkenLactateMax = 1.2
+        extra.targetThresholdLevel = null
+        extra.comparisonGroup = null
+        extra.thresholdDistance = null
+      }
+    }
+    const lr = longRuns.find((w) => w.type === 'long_run') // re-check after any demotions above
+    if (!lr) continue
     const targetDate = addDaysStr(weekStart, DAY_INDEX[longRunDay])
     if (lr.date === targetDate) continue
-    const targetItem = items.find((w) => w.date === targetDate)
+    const targetItem = items.find((w) => w.date === targetDate && w !== lr)
     if (!targetItem) continue
     const lrDate = lr.date
     lr.date = targetItem.date
@@ -1091,8 +1178,9 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         const plan: BlockPlanOut = data.plan
         if (i === 0) firstBlockSummary = plan.blockSummary
         enforceWeekSchedule(plan.workouts, weekSchedule, athleteContext.language)
-        enforceLongRunDay(plan.workouts, athleteContext.longRunDay)
-        normalizeWeeklyVolume(plan.workouts, stagesForBlock, journeyDoc.startDate, journeyDoc.goalRaceDate)
+        enforceAmPmOrder(plan.workouts)
+        enforceLongRunDay(plan.workouts, athleteContext.longRunDay, athleteContext.language)
+        normalizeWeeklyVolume(plan.workouts, stagesForBlock, journeyDoc.startDate, journeyDoc.goalRaceDate, athleteContext.longRunMinutes)
 
         for (const w of plan.workouts) {
           if (w.type === 'rest') continue

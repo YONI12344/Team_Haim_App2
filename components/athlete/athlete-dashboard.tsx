@@ -89,6 +89,7 @@ function NewAthleteRedirect() {
 
 export function AthleteDashboard() {
   const router = useRouter()
+  const { user } = useAuth()
   const { permission, enableNotifications } = useNotifications()
   const [notifBannerDismissed, setNotifBannerDismissed] = useState(false)
 
@@ -98,11 +99,21 @@ export function AthleteDashboard() {
     }
   }, [])
 
-  // Save Strava connection from URL params
+  // Save Strava connection from URL params. Waits for `user` to be ready
+  // (Firebase Auth is still hydrating right after the full-page OAuth
+  // redirect back from Strava) and re-runs once it is — previously this
+  // ran once on mount with `user` fixed in its closure, so on a fresh
+  // connect it very often fired before auth was ready: the users/{id}
+  // stravaId write was silently skipped (gated on user?.id) and the whole
+  // chain had no .catch, so a permission-denied write from an
+  // unauthenticated request failed with nothing shown anywhere — the
+  // athlete would see "connected" with no error, but sync could later
+  // fail depending on what state was actually persisted.
   useEffect(() => {
     if (typeof window === "undefined") return
     const params = new URLSearchParams(window.location.search)
     if (params.get("strava") !== "connected") return
+    if (!user?.id) return
     const stravaId = params.get("stravaId")
     const stravaName = params.get("stravaName")
     const accessToken = params.get("accessToken")
@@ -118,7 +129,7 @@ export function AthleteDashboard() {
           // and had no owner field at all before, so any signed-in athlete
           // could read or overwrite any OTHER athlete's Strava tokens by
           // guessing/enumerating strava_<id> doc ids.
-          userId: user?.id || null,
+          userId: user.id,
           name: stravaName || "",
           accessToken,
           refreshToken: refreshToken || "",
@@ -127,15 +138,16 @@ export function AthleteDashboard() {
         }, { merge: true }).then(() => {
           console.log("✅ Strava saved!")
           // Also save stravaId to user document
-          if (user?.id) {
-            setDoc(doc(db, "users", user.id), { stravaId: Number(stravaId), stravaConnected: true }, { merge: true })
-          }
+          return setDoc(doc(db, "users", user.id), { stravaId: Number(stravaId), stravaConnected: true }, { merge: true })
+        }).then(() => {
           window.history.replaceState({}, "", "/athlete")
+        }).catch((err) => {
+          console.error("Strava connection save failed:", err)
+          toast.error(t.stravaConnectBtn)
         })
       })
     })
-  }, [])
-  const { user } = useAuth()
+  }, [user?.id])
   // logs/assigned below are on real-time onSnapshot listeners, so a
   // successful sync's Firestore writes flow into this screen automatically
   // — no manual refetch callback needed here (unlike the Schedule page's

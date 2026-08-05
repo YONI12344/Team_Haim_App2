@@ -16,8 +16,14 @@ export async function POST(request: NextRequest) {
       currentToken = refreshed.access_token
     }
 
-    // Fetch last 30 activities from Strava (cheap — one API call)
-    const activities = await getStravaActivities(currentToken, 30)
+    // Fetch last 100 activities from Strava (still cheap — one API call
+    // regardless of per_page). Was 30, which is only ~2-3 weeks of history
+    // for an athlete training daily/twice-daily — a coach deleting a day
+    // to re-test matching (or an athlete syncing after a gap) would find
+    // that day's activity had already rolled off this window and re-sync
+    // would correctly report 0 new activities, since Strava's own API
+    // response for "most recent N" never even included it anymore.
+    const activities = await getStravaActivities(currentToken, 100)
 
     // Map activities to a date lookup
     const activitiesByDate: Record<string, any[]> = {}

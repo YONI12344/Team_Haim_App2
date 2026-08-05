@@ -46,7 +46,7 @@ import { db, storage } from '@/lib/firebase'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
 import { toast } from 'sonner'
-import { getCoachInfo } from '@/lib/coach'
+import { useStravaSync } from '@/hooks/useStravaSync'
 import type {
   AthleteProfile as AthleteProfileType,
   Discipline,
@@ -143,95 +143,17 @@ export function AthleteProfile() {
   const [saving, setSaving] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [stravaConnecting, setStravaConnecting] = useState(false)
-  const [stravaSyncing, setStravaSyncing] = useState(false)
   const [stravaConnected, setStravaConnected] = useState(false)
   const [lastSync, setLastSync] = useState<string | null>(null)
+  // Shared with the Dashboard/Schedule pages' own sync buttons
+  // (hooks/useStravaSync.ts) — this page used to carry its own third copy
+  // of the fetch+match logic, which never wrote assignedWorkoutId or
+  // marked anything completed, so a sync done from here could never
+  // actually land in the athlete's matched workout tab even though the
+  // raw activity was saved.
+  const { syncing: stravaSyncing, sync: handleStravaSync } = useStravaSync(user?.id || '')
 
-  const handleStravaSync = async () => {
-    if (!user?.id) return
-    setStravaSyncing(true)
-    try {
-      const { doc, getDoc, collection, addDoc, serverTimestamp, query, where, getDocs } = await import('firebase/firestore')
-      const { db } = await import('@/lib/firebase')
-      // Get athlete's own stravaId from their user profile
-      const userSnap = await getDoc(doc(db, 'users', user.id))
-      const stravaId = userSnap.data()?.stravaId
-      if (!stravaId) { toast.error(t.stravaConnectBtn); return }
-      const snap = await getDoc(doc(db, 'strava_connections', `strava_${stravaId}`))
-      if (!snap.exists()) { toast.error(t.stravaConnectBtn); return }
-      const stravaData = snap.data()
-      const res = await fetch('/api/strava/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, accessToken: stravaData.accessToken, refreshToken: stravaData.refreshToken, expiresAt: stravaData.expiresAt }),
-      })
-      const data = await res.json()
-      if (data.success) {
-        let saved = 0
-        for (const activity of data.activities) {
-          const existing = await getDocs(query(collection(db, 'logs'), where('stravaActivityId', '==', activity.stravaActivityId), where('athleteId', '==', user.id)))
-          if (!existing.empty) {
-            // Update splits in case format changed
-            await updateDoc(doc(db, 'logs', existing.docs[0].id), {
-              splitLogs: activity.splitLogs || [],
-              averageHeartRate: activity.averageHeartRate || null,
-              elevationGain: activity.elevationGain || null,
-              stravaName: activity.stravaName || '',
-            })
-            continue
-          }
-          await addDoc(collection(db, 'logs'), {
-            athleteId: user.id,
-            workoutId: `strava_${activity.stravaActivityId}`,
-            stravaActivityId: activity.stravaActivityId,
-            startTime: activity.startTime || null,
-            stravaName: activity.stravaName || '',
-            date: activity.date,
-            actualDistance: activity.distanceKm,
-            actualPace: activity.avgPace,
-            effort: null,
-            comment: '',
-            splitLogs: activity.splitLogs || [],
-            averageHeartRate: activity.averageHeartRate || null,
-            elevationGain: activity.elevationGain || null,
-            source: 'strava',
-            feedbackStatus: 'pending',
-            createdAt: serverTimestamp(),
-          })
-          saved++
-        }
-        toast.success(`Synced ${saved} new workouts from Strava!`)
-        // Notify coach (fire-and-forget) — this path (bulk Strava import,
-        // often backfilling past days) previously saved logs silently with
-        // no notification at all, unlike every other way an athlete logs
-        // a workout.
-        if (saved > 0) {
-          ;(async () => {
-            try {
-              const coachInfo = await getCoachInfo()
-              if (!coachInfo?.uid) return
-              const athleteSnap = await getDoc(doc(db, 'users', user.id))
-              if (athleteSnap.data()?.mutedByCoach === true) return
-              fetch('/api/send-notification', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  userId: coachInfo.uid,
-                  title: `${athleteSnap.data()?.name || 'ספורטאי'} סנכרן מ-Strava`,
-                  body: saved === 1 ? 'אימון חדש אחד נוסף' : `${saved} אימונים חדשים נוספו`,
-                  data: { type: 'workout_update' },
-                  url: `/coach/athletes/${user.id}/planner`,
-                }),
-              }).catch(() => {})
-            } catch {}
-          })()
-        }
-      }
-    } catch (err) { console.error(err); toast.error('Sync failed') }
-    finally { setStravaSyncing(false) }
-  }
-
-    const handleStravaConnect = () => {
+  const handleStravaConnect = () => {
     setStravaConnecting(true)
     const params = new URLSearchParams({
       client_id: '255142',
@@ -678,7 +600,7 @@ export function AthleteProfile() {
               {stravaConnecting ? t.stravaConnectingBtn : stravaConnected ? t.stravaReconnectBtn : t.stravaConnectBtn}
             </Button>
             {stravaConnected && (
-              <Button onClick={handleStravaSync} disabled={stravaSyncing} className="bg-[#c9a84c] hover:bg-[#c9a84c]/90 text-[#0a1628] font-semibold">
+              <Button onClick={() => handleStravaSync()} disabled={stravaSyncing} className="bg-[#c9a84c] hover:bg-[#c9a84c]/90 text-[#0a1628] font-semibold">
                 {stravaSyncing ? t.stravaSyncingBtn : t.stravaSyncBtn}
               </Button>
             )}
