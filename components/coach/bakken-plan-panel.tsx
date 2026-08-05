@@ -334,6 +334,23 @@ const normalizeWeeklyVolume = (
     if (!weeks.has(key)) weeks.set(key, [])
     weeks.get(key)!.push(w)
   }
+  // Only "easy"/"long_run"/"recovery" days have a genuinely flexible
+  // distance — run a bit longer or shorter and the session is still
+  // exactly what it says. tempo/threshold/intervals/hill_repeats/fartlek
+  // are the OPPOSITE: their distance is a fixed consequence of a specific
+  // rep count at a specific pace (e.g. 5x6min at threshold pace is
+  // whatever km that comes out to, not a number you can freely dial up or
+  // down without changing the actual structure). Rescaling those distances
+  // to hit a weekly total produced physically impossible sessions in
+  // practice — verified: a 5x6min threshold session and an 8x(1min/1min)
+  // fartlek both got inflated to ~19km, nothing close to what those reps
+  // actually cover. So the weekly-volume gap is only ever closed by
+  // adjusting the flexible-distance days; structured session distances are
+  // never touched here (they should already be realistic from the prompt
+  // — see rule 12b in plan-prompt.ts — and if the model gets one wrong,
+  // that's a prompt-accuracy problem, not something to paper over by
+  // silently stretching an interval session into an impossible distance).
+  const FLEXIBLE_DISTANCE_TYPES = new Set(['easy', 'long_run', 'recovery'])
   for (const [weekStart, items] of weeks) {
     const midweek = addDaysStr(weekStart, 3)
     const stage = stagesForBlock.find((s) => midweek >= s.startDate && midweek <= s.endDate)
@@ -345,12 +362,20 @@ const normalizeWeeklyVolume = (
       Math.floor((parseISO(rangeEnd).getTime() - parseISO(rangeStart).getTime()) / 86400000) + 1))
     const target = stage.weeklyVolumeKm * (daysInSeason / 7)
     if (target <= 0) continue
-    const actual = items.reduce((sum, w) => sum + (w.distance || 0), 0)
-    if (actual <= 0) continue
-    const ratio = actual / target
+
+    const flexibleItems = items.filter((w) => FLEXIBLE_DISTANCE_TYPES.has(w.type))
+    const fixedTotal = items
+      .filter((w) => !FLEXIBLE_DISTANCE_TYPES.has(w.type))
+      .reduce((sum, w) => sum + (w.distance || 0), 0)
+    const flexibleTarget = target - fixedTotal
+    if (flexibleTarget <= 0) continue // fixed-structure sessions alone already meet/exceed target — nothing to add via easy days
+
+    const flexibleActual = flexibleItems.reduce((sum, w) => sum + (w.distance || 0), 0)
+    if (flexibleActual <= 0) continue
+    const ratio = flexibleActual / flexibleTarget
     if (ratio > 1.15 || ratio < 0.85) {
-      const scale = target / actual
-      for (const w of items) {
+      const scale = flexibleTarget / flexibleActual
+      for (const w of flexibleItems) {
         if (w.distance != null) w.distance = Math.max(1, Math.round(w.distance * scale))
       }
     }
