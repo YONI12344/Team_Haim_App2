@@ -23,7 +23,7 @@ import { useLanguage } from '@/contexts/language-context'
 import { useWorkoutTypeLabels } from '@/lib/workout-labels'
 import { toast } from 'sonner'
 import { WorkoutLogForm } from '@/components/athlete/workout-log-form'
-import { personalTargetRangeForLevel, personalTargetRangeWithBaseline, formatTargetRange, paceToSec, secToPace } from '@/lib/physiology'
+import { personalTargetRangeForLevel, personalTargetRangeWithBaseline, formatTargetRange, paceToSec, secToPace, stepsFromPhysiologySummary } from '@/lib/physiology'
 import { useLatestStepTest } from '@/hooks/useLatestStepTest'
 import { useWorkoutLactateGroups, latestSessionSteps, groupKeyFor } from '@/hooks/useWorkoutLactateGroups'
 import { useStravaSync } from '@/hooks/useStravaSync'
@@ -616,7 +616,13 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
       ? personalTargetRangeWithBaseline(latestSessionSteps(workoutGroups.get(groupKeyFor(w.workout, w.workoutId)), undefined, latestSteps), latestSteps, targetLevel)
       : null
     const source: 'override' | 'recent' | 'lab' = w.targetOverride ? 'override' : recent ? 'recent' : 'lab'
-    const auto = targetLevel ? (recent || personalTargetRangeForLevel(latestSteps, targetLevel)) : null
+    // A real multi-point step test is preferred, but when there isn't one,
+    // fall back to the coach's own manually-entered T1/T2/T3 estimate
+    // (athlete-physiology.tsx's "manual" save) — same interpolation math,
+    // just a shorter curve, so the athlete still sees a real personalized
+    // pace instead of nothing.
+    const effectiveSteps = latestSteps && latestSteps.length >= 2 ? latestSteps : stepsFromPhysiologySummary(athlete?.physiology)
+    const auto = targetLevel ? (recent || personalTargetRangeForLevel(effectiveSteps, targetLevel)) : null
     const range = targetLevel
       ? (w.targetOverride
           ? { paceRangeSec: [w.targetOverride.paceMinSec, w.targetOverride.paceMaxSec] as [number, number],

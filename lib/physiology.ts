@@ -384,6 +384,32 @@ export function secToPace(sec: number | null | undefined): string {
 }
 
 /**
+ * Synthesizes a minimal LactateStep[] from a coach's manually-entered T1/T2/
+ * T3 pace estimate (PhysiologySummary with source:'manual', or even a
+ * source:'test' summary when the underlying full step-test steps[] aren't
+ * loaded) — anchored at the exact same fixed lactate markers the Lab itself
+ * uses for T1/T2/T3 (LT1_TARGET/LT2_TARGET/LT3_TARGET), so it's consistent
+ * with what "T1/T2/T3" already means everywhere else in the app, not a new
+ * invented scale. This lets interpolateAtLactate() compute a real pace/HR
+ * target from a coach's own estimate exactly the same way it would from a
+ * real multi-point step test — no separate formula, same math, just a
+ * shorter (2-3 point) curve. Requires at least lt2PaceSec (the app's one
+ * hard requirement for saving a manual entry, see athlete-physiology.tsx)
+ * plus one more point to have anything to interpolate between; returns null
+ * otherwise rather than a misleading single-point "curve".
+ */
+export function stepsFromPhysiologySummary(
+  phys: Partial<Pick<PhysiologySummary, 'lt1PaceSec' | 'lt1Hr' | 'lt2PaceSec' | 'lt2Hr' | 'lt3PaceSec' | 'lt3Hr'>> | null | undefined,
+): LactateStep[] | null {
+  if (!phys?.lt2PaceSec) return null
+  const points: LactateStep[] = []
+  if (phys.lt1PaceSec) points.push({ pace: secToPace(phys.lt1PaceSec), hr: phys.lt1Hr ?? null, lactate: LT1_TARGET })
+  points.push({ pace: secToPace(phys.lt2PaceSec), hr: phys.lt2Hr ?? null, lactate: LT2_TARGET })
+  if (phys.lt3PaceSec) points.push({ pace: secToPace(phys.lt3PaceSec), hr: phys.lt3Hr ?? null, lactate: LT3_TARGET })
+  return points.length >= 2 ? points : null
+}
+
+/**
  * Linear interpolation of the pace (and HR) at a target lactate value.
  * Steps must have valid paces; sorted internally by lactate ascending.
  * Returns null when the target is outside the measured lactate range.

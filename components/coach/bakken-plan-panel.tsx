@@ -21,7 +21,7 @@ import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
 import { useLatestStepTest } from '@/hooks/useLatestStepTest'
 import { saveJourney, getJourney, stageDisplayName } from '@/lib/journey'
-import { interpolateAtLactate } from '@/lib/physiology'
+import { interpolateAtLactate, stepsFromPhysiologySummary } from '@/lib/physiology'
 import type { WorkoutType, JourneyDoc, JourneyStage } from '@/lib/types'
 import type { PlanAthleteContext, BlockStageInfo, SkeletonRequest, SkeletonOut } from '@/lib/bakken/plan-prompt'
 import { Button } from '@/components/ui/button'
@@ -643,7 +643,14 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
     }
   }
 
-  const hasLabTest = !!labSteps && labSteps.length >= 2
+  // A full multi-point step test is the gold standard, but a coach's own
+  // manually-entered T1/T2/T3 estimate (athlete-physiology.tsx's "manual"
+  // save path, source:'manual') is also a real, usable basis for computing
+  // personalized pace/HR targets — same interpolation math (rule 6b in
+  // plan-prompt.ts), just a shorter curve. Treat either as "has real data".
+  const manualPhysiologySteps = stepsFromPhysiologySummary(summary?.physiology)
+  const effectiveLabSteps = labSteps && labSteps.length >= 2 ? labSteps : manualPhysiologySteps
+  const hasLabTest = !!effectiveLabSteps && effectiveLabSteps.length >= 2
 
   const buildWeekSummary = (
     recentAssigned: any[],
@@ -684,9 +691,9 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
     let targetOverride:
       | { paceMinSec: number; paceMaxSec: number; hrMin?: number; hrMax?: number }
       | undefined
-    if (labSteps && labSteps.length >= 2 && w.bakkenLactateMin != null && w.bakkenLactateMax != null) {
-      const atMin = interpolateAtLactate(labSteps, w.bakkenLactateMin)
-      const atMax = interpolateAtLactate(labSteps, w.bakkenLactateMax)
+    if (effectiveLabSteps && effectiveLabSteps.length >= 2 && w.bakkenLactateMin != null && w.bakkenLactateMax != null) {
+      const atMin = interpolateAtLactate(effectiveLabSteps, w.bakkenLactateMin)
+      const atMax = interpolateAtLactate(effectiveLabSteps, w.bakkenLactateMax)
       if (atMin && atMax) {
         const paceSecs = [atMin.paceSecPerKm, atMax.paceSecPerKm].sort((a, b) => a - b)
         targetOverride = {
@@ -871,7 +878,9 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
           ? profile.personalRecords.slice(0, 5).map((p: any) => ({ event: p.event, time: p.time, date: p.date }))
           : [],
         physiology: {
-          hasLabTest: !!labSteps && labSteps.length >= 2,
+          hasLabTest: !!labSteps && labSteps.length >= 2
+            ? true
+            : !!stepsFromPhysiologySummary(profile.physiology),
           lt1PaceSec: profile.physiology?.lt1PaceSec ?? null,
           lt1Hr: profile.physiology?.lt1Hr ?? null,
           lt2PaceSec: profile.physiology?.lt2PaceSec ?? null,
