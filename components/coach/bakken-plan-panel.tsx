@@ -178,6 +178,9 @@ const UI = {
     notesFailed: 'Failed to save notes',
     profileNotFound: 'Athlete profile not found',
     clearingPrevious: 'Clearing previous Bakken-generated season...',
+    continuingSeason: (from: string) => `Continuing existing season from ${from}...`,
+    seasonAlreadyComplete: 'This season is already fully generated through the goal race — nothing left to add.',
+    forceRestartLabel: 'Start over from scratch (wipes and rebuilds the whole season instead of continuing it)',
     setGoalRaceFirst: "Set a Goal Race Date for this athlete first — go to their profile page → Profile tab → Edit Profile → Goal Race Date — then generate the Bakken season plan.",
     designingSkeleton: 'Designing season skeleton...',
     skeletonFailed: (err: string) => `Skeleton generation failed: ${err}. Try again.`,
@@ -248,6 +251,9 @@ const UI = {
     notesFailed: 'שמירת ההערות נכשלה',
     profileNotFound: 'פרופיל הספורטאי לא נמצא',
     clearingPrevious: 'מנקה עונה קודמת שנוצרה על ידי בקן...',
+    continuingSeason: (from: string) => `ממשיך את העונה הקיימת מ-${from}...`,
+    seasonAlreadyComplete: 'העונה הזו כבר נוצרה במלואה עד מירוץ היעד — אין מה להוסיף.',
+    forceRestartLabel: 'להתחיל מחדש לגמרי (מוחק ובונה את כל העונה מחדש במקום להמשיך)',
     setGoalRaceFirst: 'קבע/י תאריך מירוץ יעד לספורטאי קודם — לך/י לעמוד הפרופיל שלו ← לשונית פרופיל ← עריכת פרופיל ← תאריך מירוץ יעד — ואז צור/י את תוכנית העונה של בקן.',
     designingSkeleton: 'מתכנן שלד עונה...',
     skeletonFailed: (err: string) => `יצירת השלד נכשלה: ${err}. נסה/י שוב.`,
@@ -471,6 +477,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
   const [lastSummary, setLastSummary] = useState<string | null>(null)
   const [weekSchedule, setWeekSchedule] = useState<Record<DayKey, DayType>>(DEFAULT_WEEK_SCHEDULE)
   const [generationBlocks, setGenerationBlocks] = useState<number>(MAX_BLOCKS)
+  const [forceRestart, setForceRestart] = useState(false)
   const [scheduleLoaded, setScheduleLoaded] = useState(false)
   const [summary, setSummary] = useState<AthleteSummary | null>(null)
   const [coachNotes, setCoachNotes] = useState('')
@@ -713,22 +720,6 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
       }
       const profile = profileSnap.data() as any
 
-      // Regeneration must REPLACE the previous Bakken-generated season, not
-      // stack on top of it. Without this, every re-click during testing (or
-      // any future re-generate) leaves the prior run's workouts in place —
-      // doubled/overlapping sessions on the same dates, weekly km silently
-      // summing both runs, and (via the journey doc below) scrambled stage
-      // labels once more than one Bakken journey exists at once. Only
-      // deletes assignedWorkouts this feature created (source:'bakken') —
-      // never touches anything the coach assigned manually.
-      setProgress(t.clearingPrevious)
-      const priorSnap = await getDocs(
-        query(collection(db, 'assignedWorkouts'), where('athleteId', '==', athleteId), where('source', '==', 'bakken')),
-      )
-      if (!priorSnap.empty) {
-        await Promise.all(priorSnap.docs.map((d) => deleteDoc(d.ref)))
-      }
-
       if (!profile.goalRaceDate) {
         toast.error(t.setGoalRaceFirst)
         return
@@ -816,80 +807,133 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         language: (profile.preferredLanguage as 'en' | 'he') || 'he',
       }
 
-      // 1. Season skeleton — one Bakken-brain call decides phase lengths
-      // (in weeks), volume ramp, and key workout types per phase. Only the
-      // date arithmetic below is code, not the model.
-      const startDateStr = format(today, 'yyyy-MM-dd')
-      const totalWeeksAvailable = Math.max(
-        1,
-        Math.ceil((new Date(profile.goalRaceDate).getTime() - today.getTime()) / (7 * 86400000)),
-      )
-      const currentWeeklyKm = actualAvgWeeklyKm ?? profile.weeklyMileage ?? 30
-      const skeletonReq: SkeletonRequest = {
-        totalWeeksAvailable,
-        currentWeeklyKm,
-        peakWeeklyKmHint: profile.weeklyKmRange?.max,
-      }
-      setProgress(t.designingSkeleton)
-      const skeletonRes = await fetch('/api/bakken-coach/generate-skeleton', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ athlete: athleteContext, skeleton: skeletonReq }),
-      })
-      const skeletonData = await skeletonRes.json()
-      if (skeletonData.error || !Array.isArray(skeletonData.skeleton?.stages) || skeletonData.skeleton.stages.length === 0) {
-        toast.error(t.skeletonFailed(skeletonData.error || 'malformed response'))
+      // Continue an existing season instead of wiping it, whenever
+      // possible. A click of Generate used to unconditionally delete every
+      // prior Bakken-generated workout and rebuild the whole season from
+      // today — harmless the first time, but the moment a coach used the
+      // block-count control to generate a season in pieces and came back
+      // later to add more, that same click would silently destroy the
+      // weeks already generated (and possibly already run/logged) and
+      // restart the entire season from today instead of picking up where
+      // it left off. Now: if a season already exists for this exact goal
+      // race, reuse its skeleton/stages untouched and just append new
+      // blocks starting the day after the last day already generated.
+      // forceRestart (an explicit coach opt-in) always takes the old wipe-
+      // and-rebuild-from-today path instead.
+      const existingBakken = assigned.filter((w: any) => w.source === 'bakken')
+      const lastGeneratedDate: string | null = existingBakken.length
+        ? existingBakken.reduce((max: string, w: any) => (w.scheduledDate > max ? w.scheduledDate : max), existingBakken[0].scheduledDate)
+        : null
+      const existingJourney = forceRestart ? null : await getJourney(athleteId, 'bakken_season')
+      const canContinue = !!(existingJourney && lastGeneratedDate && existingJourney.goalRaceDate === profile.goalRaceDate)
+
+      if (canContinue && lastGeneratedDate! >= existingJourney!.goalRaceDate) {
+        toast.success(t.seasonAlreadyComplete)
         return
       }
-      const skeletonOut: SkeletonOut = skeletonData.skeleton
 
-      // Normalize week-counts so they sum exactly to totalWeeksAvailable —
-      // the model can be off by a week or two; the last stage absorbs any
-      // remainder so the season still lands exactly on goalRaceDate.
-      const rawStages = skeletonOut.stages.filter((s) => s.weeks > 0)
-      const weekSum = rawStages.reduce((s, st) => s + st.weeks, 0)
-      if (weekSum !== totalWeeksAvailable && rawStages.length > 0) {
-        const diff = totalWeeksAvailable - weekSum
-        rawStages[rawStages.length - 1].weeks = Math.max(1, rawStages[rawStages.length - 1].weeks + diff)
-      }
+      let journeyDoc: JourneyDoc
+      let resumeCursor: string
+      let previousBlockTail: Array<{ date: string; type: string; title: string }> | undefined
 
-      let dateCursor = startDateStr
-      const stages: JourneyStage[] = rawStages.map((s, i) => {
-        const isLast = i === rawStages.length - 1
-        const stageEnd = isLast ? profile.goalRaceDate : addDaysStr(dateCursor, s.weeks * 7 - 1)
-        const stage: JourneyStage = {
-          id: localId('stage'),
-          name: s.name,
-          type: s.type,
-          startDate: dateCursor,
-          endDate: stageEnd,
-          focus: s.focus,
-          weeklyVolumeKm: s.weeklyVolumeKm,
-          keyWorkouts: s.keyWorkouts,
-          milestones: s.milestones,
+      if (canContinue) {
+        journeyDoc = existingJourney!
+        resumeCursor = addDaysStr(lastGeneratedDate!, 1)
+        previousBlockTail = existingBakken
+          .sort((a: any, b: any) => a.scheduledDate.localeCompare(b.scheduledDate))
+          .slice(-3)
+          .map((w: any) => ({ date: w.scheduledDate, type: w.workout?.type || '', title: w.workout?.title || '' }))
+        setProgress(t.continuingSeason(resumeCursor))
+        setJourneyPreview(journeyDoc)
+      } else {
+        // Full rebuild — wipe any prior Bakken-generated workouts and start
+        // the season fresh from today. Only deletes assignedWorkouts this
+        // feature created (source:'bakken') — never touches anything the
+        // coach assigned manually.
+        setProgress(t.clearingPrevious)
+        const priorSnap = await getDocs(
+          query(collection(db, 'assignedWorkouts'), where('athleteId', '==', athleteId), where('source', '==', 'bakken')),
+        )
+        if (!priorSnap.empty) {
+          await Promise.all(priorSnap.docs.map((d) => deleteDoc(d.ref)))
         }
-        dateCursor = addDaysStr(stageEnd, 1)
-        return stage
-      })
 
-      const journeyDoc: JourneyDoc = {
-        // Stable, not localId('journey') — each regenerate must overwrite
-        // the same journey doc (saveJourney does a setDoc), not create a
-        // second one that overlaps the first and scrambles which stage the
-        // calendar shows for a given week.
-        id: 'bakken_season',
-        title: skeletonOut.title,
-        goalRaceEvent: profile.goalRaceEvent || 'Goal Race',
-        goalRaceDate: profile.goalRaceDate,
-        goalRaceTarget: profile.goalRaceTarget,
-        startDate: startDateStr,
-        stages,
-        createdBy: user.id,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        // 1. Season skeleton — one Bakken-brain call decides phase lengths
+        // (in weeks), volume ramp, and key workout types per phase. Only the
+        // date arithmetic below is code, not the model.
+        const startDateStr = format(today, 'yyyy-MM-dd')
+        const totalWeeksAvailable = Math.max(
+          1,
+          Math.ceil((new Date(profile.goalRaceDate).getTime() - today.getTime()) / (7 * 86400000)),
+        )
+        const currentWeeklyKm = actualAvgWeeklyKm ?? profile.weeklyMileage ?? 30
+        const skeletonReq: SkeletonRequest = {
+          totalWeeksAvailable,
+          currentWeeklyKm,
+          peakWeeklyKmHint: profile.weeklyKmRange?.max,
+        }
+        setProgress(t.designingSkeleton)
+        const skeletonRes = await fetch('/api/bakken-coach/generate-skeleton', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ athlete: athleteContext, skeleton: skeletonReq }),
+        })
+        const skeletonData = await skeletonRes.json()
+        if (skeletonData.error || !Array.isArray(skeletonData.skeleton?.stages) || skeletonData.skeleton.stages.length === 0) {
+          toast.error(t.skeletonFailed(skeletonData.error || 'malformed response'))
+          return
+        }
+        const skeletonOut: SkeletonOut = skeletonData.skeleton
+
+        // Normalize week-counts so they sum exactly to totalWeeksAvailable —
+        // the model can be off by a week or two; the last stage absorbs any
+        // remainder so the season still lands exactly on goalRaceDate.
+        const rawStages = skeletonOut.stages.filter((s) => s.weeks > 0)
+        const weekSum = rawStages.reduce((s, st) => s + st.weeks, 0)
+        if (weekSum !== totalWeeksAvailable && rawStages.length > 0) {
+          const diff = totalWeeksAvailable - weekSum
+          rawStages[rawStages.length - 1].weeks = Math.max(1, rawStages[rawStages.length - 1].weeks + diff)
+        }
+
+        let dateCursor = startDateStr
+        const stages: JourneyStage[] = rawStages.map((s, i) => {
+          const isLast = i === rawStages.length - 1
+          const stageEnd = isLast ? profile.goalRaceDate : addDaysStr(dateCursor, s.weeks * 7 - 1)
+          const stage: JourneyStage = {
+            id: localId('stage'),
+            name: s.name,
+            type: s.type,
+            startDate: dateCursor,
+            endDate: stageEnd,
+            focus: s.focus,
+            weeklyVolumeKm: s.weeklyVolumeKm,
+            keyWorkouts: s.keyWorkouts,
+            milestones: s.milestones,
+          }
+          dateCursor = addDaysStr(stageEnd, 1)
+          return stage
+        })
+
+        journeyDoc = {
+          // Stable, not localId('journey') — each fresh rebuild must
+          // overwrite the same journey doc (saveJourney does a setDoc),
+          // not create a second one that overlaps the first and scrambles
+          // which stage the calendar shows for a given week.
+          id: 'bakken_season',
+          title: skeletonOut.title,
+          goalRaceEvent: profile.goalRaceEvent || 'Goal Race',
+          goalRaceDate: profile.goalRaceDate,
+          goalRaceTarget: profile.goalRaceTarget,
+          startDate: startDateStr,
+          stages,
+          createdBy: user.id,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }
+        await saveJourney(athleteId, journeyDoc)
+        setJourneyPreview(journeyDoc)
+        resumeCursor = journeyDoc.startDate
       }
-      await saveJourney(athleteId, journeyDoc)
-      setJourneyPreview(journeyDoc)
 
       // 2. Split the season into ~14-day blocks, capped for cost/time.
       // Block boundaries are aligned to Sunday (matching the calendar-week
@@ -900,7 +944,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
       // short "stub" running only to that week's Saturday.
       const effectiveMaxBlocks = Math.min(Math.max(1, generationBlocks), MAX_BLOCKS)
       const blocks: { startDate: string; endDate: string }[] = []
-      let cursor = journeyDoc.startDate
+      let cursor = resumeCursor
       const firstDow = parseISO(cursor).getDay() // 0=Sun..6=Sat
       if (firstDow !== 0 && cursor <= journeyDoc.goalRaceDate) {
         const stubEnd = dateMin(addDaysStr(cursor, 6 - firstDow), journeyDoc.goalRaceDate)
@@ -914,7 +958,10 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
       }
 
       // 3. Fill in each block from the Bakken brain, writing as we go.
-      let previousBlockTail: Array<{ date: string; type: string; title: string }> | undefined
+      // previousBlockTail is already seeded above when continuing an
+      // existing season (from the real last-generated workouts), so rule 9
+      // (no repeat hard day across the boundary) still holds even when the
+      // "boundary" is between an old generate() call and this new one.
       let totalWritten = 0
       let firstBlockSummary: string | null = null
 
@@ -1304,6 +1351,11 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
             placeholder={t.generationBlocksCustomPlaceholder}
             className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs" />
         </div>
+        <label className="flex items-start gap-2 text-xs text-muted-foreground">
+          <input type="checkbox" checked={forceRestart} onChange={(e) => setForceRestart(e.target.checked)}
+            className="mt-0.5" />
+          {t.forceRestartLabel}
+        </label>
         <Button onClick={generate} disabled={loading || !summary}>
           {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
           {t.generateBtn}
