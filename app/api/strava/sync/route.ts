@@ -4,14 +4,17 @@ import { getStravaActivities, refreshStravaToken } from '@/lib/strava'
 export async function POST(request: NextRequest) {
   try {
     const { userId, accessToken, refreshToken, expiresAt, priorityDate } = await request.json()
+    console.log('[strava-sync] request', { userId, hasAccessToken: !!accessToken, hasRefreshToken: !!refreshToken, expiresAt, priorityDate })
 
     if (!userId || !accessToken) {
+      console.log('[strava-sync] missing required fields')
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
     // Refresh token if needed
     let currentToken = accessToken
     if (Date.now() / 1000 > expiresAt - 300) {
+      console.log('[strava-sync] token expired, refreshing')
       const refreshed = await refreshStravaToken(refreshToken)
       currentToken = refreshed.access_token
     }
@@ -24,6 +27,10 @@ export async function POST(request: NextRequest) {
     // would correctly report 0 new activities, since Strava's own API
     // response for "most recent N" never even included it anymore.
     const activities = await getStravaActivities(currentToken, 100)
+    console.log('[strava-sync] fetched from Strava', {
+      count: activities.length,
+      dates: activities.slice(0, 5).map(a => ({ id: a.id, date: a.start_date_local, type: a.type })),
+    })
 
     // Map activities to a date lookup
     const activitiesByDate: Record<string, any[]> = {}
@@ -140,6 +147,7 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    console.log('[strava-sync] returning', { count: results.length, dates: Object.keys(activitiesByDate) })
     return NextResponse.json({
       success: true,
       activities: results,
@@ -147,7 +155,7 @@ export async function POST(request: NextRequest) {
       dates: Object.keys(activitiesByDate),
     })
   } catch (error) {
-    console.error('Strava sync error:', error)
+    console.error('[strava-sync] error', error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Sync failed' },
       { status: 500 },
