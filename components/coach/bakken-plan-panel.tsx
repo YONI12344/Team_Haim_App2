@@ -74,6 +74,16 @@ interface WeekAgg {
 const BLOCK_DAYS = 14
 const MAX_BLOCKS = 10 // safety cap: 20 weeks of upfront generation per click
 
+// Coach-selectable cap on how far ahead to generate per click — separate
+// from MAX_BLOCKS, which stays the hard safety ceiling for 'full_season'.
+type GenerationScope = 'one_block' | 'four_blocks' | 'full_season'
+const GENERATION_SCOPE_BLOCKS: Record<GenerationScope, number> = {
+  one_block: 1,
+  four_blocks: 4,
+  full_season: MAX_BLOCKS,
+}
+const GENERATION_SCOPES: GenerationScope[] = ['one_block', 'four_blocks', 'full_season']
+
 type DayKey = 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday'
 type DayType = 'workout' | 'rest' | 'off'
 const DAY_ORDER: DayKey[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
@@ -159,7 +169,9 @@ const UI = {
     availability: 'Availability (edit before generating if needed)',
     availabilityLoaded: 'Loaded from athlete onboarding — adjust here if it changed.',
     loading: 'Loading...',
-    generateBtn: 'Generate full season',
+    generateBtn: 'Generate',
+    generationScopeLabel: 'How far ahead to generate this click',
+    generationScopeLabels: { one_block: '1 block (~2 weeks)', four_blocks: '4 blocks (~8 weeks)', full_season: 'Full season' } as Record<GenerationScope, string>,
     notesSaved: 'Notes saved',
     notesFailed: 'Failed to save notes',
     profileNotFound: 'Athlete profile not found',
@@ -221,7 +233,9 @@ const UI = {
     availability: 'זמינות (ניתן לערוך לפני היצירה)',
     availabilityLoaded: 'נטען מהאונבורדינג של הספורטאי — התאם כאן אם השתנה.',
     loading: 'טוען...',
-    generateBtn: 'צור עונה מלאה',
+    generateBtn: 'צור',
+    generationScopeLabel: 'עד כמה קדימה ליצור בלחיצה הזו',
+    generationScopeLabels: { one_block: 'בלוק אחד (~שבועיים)', four_blocks: '4 בלוקים (~8 שבועות)', full_season: 'עונה מלאה' } as Record<GenerationScope, string>,
     notesSaved: 'ההערות נשמרו',
     notesFailed: 'שמירת ההערות נכשלה',
     profileNotFound: 'פרופיל הספורטאי לא נמצא',
@@ -445,6 +459,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
   const [progress, setProgress] = useState<string | null>(null)
   const [lastSummary, setLastSummary] = useState<string | null>(null)
   const [weekSchedule, setWeekSchedule] = useState<Record<DayKey, DayType>>(DEFAULT_WEEK_SCHEDULE)
+  const [generationScope, setGenerationScope] = useState<GenerationScope>('full_season')
   const [scheduleLoaded, setScheduleLoaded] = useState(false)
   const [summary, setSummary] = useState<AthleteSummary | null>(null)
   const [coachNotes, setCoachNotes] = useState('')
@@ -490,6 +505,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         ) as Record<DayKey, DayType>
         setWeekSchedule(collapsed)
       }
+      if (GENERATION_SCOPES.includes(d.bakkenGenerationScope)) setGenerationScope(d.bakkenGenerationScope)
       setSummary({
         name: d.name || 'Athlete',
         language: d.preferredLanguage === 'en' ? 'en' : 'he',
@@ -657,6 +673,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
       await updateDoc(doc(db, 'users', athleteId), {
         weekSchedule,
         daysPerWeek: derivedDaysPerWeek,
+        bakkenGenerationScope: generationScope,
         coachPrivateNotes: coachNotes,
         preferredLanguage: summary.language,
         experienceLevel: summary.experienceLevel || null,
@@ -861,6 +878,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
       // make normalizeWeeklyVolume see only part of that week's days at a
       // time. If the season doesn't start on a Sunday, the first block is a
       // short "stub" running only to that week's Saturday.
+      const effectiveMaxBlocks = GENERATION_SCOPE_BLOCKS[generationScope]
       const blocks: { startDate: string; endDate: string }[] = []
       let cursor = journeyDoc.startDate
       const firstDow = parseISO(cursor).getDay() // 0=Sun..6=Sat
@@ -869,7 +887,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         blocks.push({ startDate: cursor, endDate: stubEnd })
         cursor = addDaysStr(stubEnd, 1)
       }
-      while (cursor <= journeyDoc.goalRaceDate && blocks.length < MAX_BLOCKS) {
+      while (cursor <= journeyDoc.goalRaceDate && blocks.length < effectiveMaxBlocks) {
         const end = dateMin(addDaysStr(cursor, BLOCK_DAYS - 1), journeyDoc.goalRaceDate)
         blocks.push({ startDate: cursor, endDate: end })
         cursor = addDaysStr(end, 1)
@@ -1220,6 +1238,17 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
                   ))}
                 </div>
               </div>
+            ))}
+          </div>
+        </div>
+        <div>
+          <p className="text-xs font-medium text-muted-foreground mb-1">{t.generationScopeLabel}</p>
+          <div className="flex flex-wrap gap-1.5">
+            {GENERATION_SCOPES.map((scope) => (
+              <button key={scope} type="button" onClick={() => setGenerationScope(scope)}
+                className={`px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${generationScope === scope ? 'bg-primary text-primary-foreground border-primary' : 'border-input text-muted-foreground hover:border-primary'}`}>
+                {t.generationScopeLabels[scope]}
+              </button>
             ))}
           </div>
         </div>
