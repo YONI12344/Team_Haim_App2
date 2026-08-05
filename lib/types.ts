@@ -109,10 +109,17 @@ export interface AthleteProfile {
   // Coach-set weekday the long run must fall on every week — a hard rule
   // for the Bakken AI plan generator, not a preference.
   longRunDay?: 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday'
-  // Coach-set cap on how far ahead the Bakken AI generator writes per click
-  // — one block (~2 weeks), four blocks (~8 weeks), or the full season up
-  // to the app's own safety cap. Defaults to full_season when unset.
-  bakkenGenerationScope?: 'one_block' | 'four_blocks' | 'full_season'
+  // Coach-set cap on how many ~14-day blocks the Bakken AI generator
+  // writes per click — an exact number (1 = ~2 weeks, up to the app's own
+  // MAX_BLOCKS safety ceiling for "full season"). Defaults to the ceiling
+  // when unset.
+  bakkenGenerationBlocks?: number
+  // Optional tune-up race/time trial mid-season — the Bakken AI gives it a
+  // short light taper beforehand and resumes the normal plan right after,
+  // without disrupting the season's main periodization.
+  testRaceDate?: string
+  testRaceEvent?: string
+  testRaceDistance?: string
   // Athlete's chosen UI language at the time onboarding was completed —
   // used so AI-generated plans/feedback are written in the athlete's
   // language rather than defaulting to Hebrew.

@@ -74,15 +74,11 @@ interface WeekAgg {
 const BLOCK_DAYS = 14
 const MAX_BLOCKS = 10 // safety cap: 20 weeks of upfront generation per click
 
-// Coach-selectable cap on how far ahead to generate per click — separate
-// from MAX_BLOCKS, which stays the hard safety ceiling for 'full_season'.
-type GenerationScope = 'one_block' | 'four_blocks' | 'full_season'
-const GENERATION_SCOPE_BLOCKS: Record<GenerationScope, number> = {
-  one_block: 1,
-  four_blocks: 4,
-  full_season: MAX_BLOCKS,
-}
-const GENERATION_SCOPES: GenerationScope[] = ['one_block', 'four_blocks', 'full_season']
+// Coach-selectable cap on how many blocks to generate per click — quick
+// presets, plus a free number input for exact control (see
+// GENERATION_BLOCK_PRESETS usage below). Always clamped to MAX_BLOCKS,
+// which stays the hard safety ceiling no matter what the coach types.
+const GENERATION_BLOCK_PRESETS = [1, 4, MAX_BLOCKS]
 
 type DayKey = 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday'
 type DayType = 'workout' | 'rest' | 'off'
@@ -170,8 +166,14 @@ const UI = {
     availabilityLoaded: 'Loaded from athlete onboarding — adjust here if it changed.',
     loading: 'Loading...',
     generateBtn: 'Generate',
-    generationScopeLabel: 'How far ahead to generate this click',
-    generationScopeLabels: { one_block: '1 block (~2 weeks)', four_blocks: '4 blocks (~8 weeks)', full_season: 'Full season' } as Record<GenerationScope, string>,
+    generationScopeLabel: 'How many blocks to generate this click (1 block ≈ 2 weeks)',
+    generationBlocksCustomPlaceholder: 'Or type exact number of blocks',
+    fullSeasonBtn: (n: number) => `Full season (${n})`,
+    testRaceTitle: 'Test race / time trial (optional)',
+    testRaceHint: "A tune-up race mid-season — I'll add a short light taper before it and get straight back to the normal plan after, no full peak taper.",
+    testRaceEventLabel: 'Event name',
+    testRaceDateLabel: 'Date',
+    testRaceDistanceLabel: 'Distance',
     notesSaved: 'Notes saved',
     notesFailed: 'Failed to save notes',
     profileNotFound: 'Athlete profile not found',
@@ -234,8 +236,14 @@ const UI = {
     availabilityLoaded: 'נטען מהאונבורדינג של הספורטאי — התאם כאן אם השתנה.',
     loading: 'טוען...',
     generateBtn: 'צור',
-    generationScopeLabel: 'עד כמה קדימה ליצור בלחיצה הזו',
-    generationScopeLabels: { one_block: 'בלוק אחד (~שבועיים)', four_blocks: '4 בלוקים (~8 שבועות)', full_season: 'עונה מלאה' } as Record<GenerationScope, string>,
+    generationScopeLabel: 'כמה בלוקים ליצור בלחיצה הזו (בלוק אחד ≈ שבועיים)',
+    generationBlocksCustomPlaceholder: 'או הקלד/י מספר בלוקים מדויק',
+    fullSeasonBtn: (n: number) => `עונה מלאה (${n})`,
+    testRaceTitle: 'מירוץ הכנה / מבחן זמן (לא חובה)',
+    testRaceHint: 'מירוץ הכנה באמצע העונה — אוסיף טייפר קל וקצר לפניו ואחזור מיד לתוכנית הרגילה אחריו, בלי טייפר מלא כמו לפני מירוץ היעד.',
+    testRaceEventLabel: 'שם האירוע',
+    testRaceDateLabel: 'תאריך',
+    testRaceDistanceLabel: 'מרחק',
     notesSaved: 'ההערות נשמרו',
     notesFailed: 'שמירת ההערות נכשלה',
     profileNotFound: 'פרופיל הספורטאי לא נמצא',
@@ -434,6 +442,9 @@ interface AthleteSummary {
   goalRaceDistance: RaceDistance | ''
   goalRaceDate: string
   goalRaceTarget: string
+  testRaceEvent: string
+  testRaceDistance: RaceDistance | ''
+  testRaceDate: string
   physiology?: {
     lt1PaceSec?: number | null; lt1Hr?: number | null
     lt2PaceSec?: number | null; lt2Hr?: number | null
@@ -459,7 +470,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
   const [progress, setProgress] = useState<string | null>(null)
   const [lastSummary, setLastSummary] = useState<string | null>(null)
   const [weekSchedule, setWeekSchedule] = useState<Record<DayKey, DayType>>(DEFAULT_WEEK_SCHEDULE)
-  const [generationScope, setGenerationScope] = useState<GenerationScope>('full_season')
+  const [generationBlocks, setGenerationBlocks] = useState<number>(MAX_BLOCKS)
   const [scheduleLoaded, setScheduleLoaded] = useState(false)
   const [summary, setSummary] = useState<AthleteSummary | null>(null)
   const [coachNotes, setCoachNotes] = useState('')
@@ -505,7 +516,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         ) as Record<DayKey, DayType>
         setWeekSchedule(collapsed)
       }
-      if (GENERATION_SCOPES.includes(d.bakkenGenerationScope)) setGenerationScope(d.bakkenGenerationScope)
+      if (typeof d.bakkenGenerationBlocks === 'number') setGenerationBlocks(Math.min(Math.max(1, d.bakkenGenerationBlocks), MAX_BLOCKS))
       setSummary({
         name: d.name || 'Athlete',
         language: d.preferredLanguage === 'en' ? 'en' : 'he',
@@ -519,6 +530,9 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         goalRaceDistance: RACE_DISTANCES.includes(d.goalRaceDistance) ? d.goalRaceDistance : '',
         goalRaceDate: d.goalRaceDate || '',
         goalRaceTarget: d.goalRaceTarget || '',
+        testRaceEvent: d.testRaceEvent || '',
+        testRaceDistance: RACE_DISTANCES.includes(d.testRaceDistance) ? d.testRaceDistance : '',
+        testRaceDate: d.testRaceDate || '',
         physiology: d.physiology,
         personalRecords: Array.isArray(d.personalRecords)
           ? d.personalRecords.slice(0, 5).map((p: any) => ({ event: p.event, time: p.time, date: p.date }))
@@ -673,7 +687,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
       await updateDoc(doc(db, 'users', athleteId), {
         weekSchedule,
         daysPerWeek: derivedDaysPerWeek,
-        bakkenGenerationScope: generationScope,
+        bakkenGenerationBlocks: generationBlocks,
         coachPrivateNotes: coachNotes,
         preferredLanguage: summary.language,
         experienceLevel: summary.experienceLevel || null,
@@ -686,6 +700,9 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         goalRaceDistance: summary.goalRaceDistance || null,
         goalRaceDate: summary.goalRaceDate || null,
         goalRaceTarget: summary.goalRaceTarget || null,
+        testRaceEvent: summary.testRaceEvent || null,
+        testRaceDistance: summary.testRaceDistance || null,
+        testRaceDate: summary.testRaceDate || null,
         personalRecords: summary.personalRecords,
       })
 
@@ -777,6 +794,9 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         goalRaceDistance: profile.goalRaceDistance,
         goalRaceDate: profile.goalRaceDate,
         goalRaceTarget: profile.goalRaceTarget,
+        testRaceEvent: profile.testRaceEvent,
+        testRaceDistance: profile.testRaceDistance,
+        testRaceDate: profile.testRaceDate,
         personalRecords: Array.isArray(profile.personalRecords)
           ? profile.personalRecords.slice(0, 5).map((p: any) => ({ event: p.event, time: p.time, date: p.date }))
           : [],
@@ -878,7 +898,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
       // make normalizeWeeklyVolume see only part of that week's days at a
       // time. If the season doesn't start on a Sunday, the first block is a
       // short "stub" running only to that week's Saturday.
-      const effectiveMaxBlocks = GENERATION_SCOPE_BLOCKS[generationScope]
+      const effectiveMaxBlocks = Math.min(Math.max(1, generationBlocks), MAX_BLOCKS)
       const blocks: { startDate: string; endDate: string }[] = []
       let cursor = journeyDoc.startDate
       const firstDow = parseISO(cursor).getDay() // 0=Sun..6=Sat
@@ -1125,6 +1145,34 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
               )}
             </div>
 
+            <div className="rounded-md border border-dashed border-input p-2 space-y-1.5">
+              <p className="text-xs font-medium text-muted-foreground">{t.testRaceTitle}</p>
+              <p className="text-[11px] text-muted-foreground">{t.testRaceHint}</p>
+              <div>
+                <p className="text-[11px] font-medium text-muted-foreground mb-1">{t.testRaceDistanceLabel}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {RACE_DISTANCES.map((dist) => (
+                    <button key={dist} type="button" onClick={() => setAthleteField('testRaceDistance', dist)}
+                      className={`px-2 py-0.5 rounded-full border text-[11px] font-medium transition-colors ${summary.testRaceDistance === dist ? 'bg-primary text-primary-foreground border-primary' : 'border-input text-muted-foreground hover:border-primary'}`}>
+                      {RACE_DISTANCE_LABELS[dist]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <p className="text-[11px] font-medium text-muted-foreground mb-1">{t.testRaceEventLabel}</p>
+                  <input type="text" value={summary.testRaceEvent} onChange={(e) => setAthleteField('testRaceEvent', e.target.value)}
+                    className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs" />
+                </div>
+                <div>
+                  <p className="text-[11px] font-medium text-muted-foreground mb-1">{t.testRaceDateLabel}</p>
+                  <input type="date" value={summary.testRaceDate} onChange={(e) => setAthleteField('testRaceDate', e.target.value)}
+                    className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs" />
+                </div>
+              </div>
+            </div>
+
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-1">{t.recentPRs}</p>
               {summary.personalRecords.length === 0 ? (
@@ -1243,14 +1291,18 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         </div>
         <div>
           <p className="text-xs font-medium text-muted-foreground mb-1">{t.generationScopeLabel}</p>
-          <div className="flex flex-wrap gap-1.5">
-            {GENERATION_SCOPES.map((scope) => (
-              <button key={scope} type="button" onClick={() => setGenerationScope(scope)}
-                className={`px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${generationScope === scope ? 'bg-primary text-primary-foreground border-primary' : 'border-input text-muted-foreground hover:border-primary'}`}>
-                {t.generationScopeLabels[scope]}
+          <div className="flex flex-wrap gap-1.5 mb-1.5">
+            {GENERATION_BLOCK_PRESETS.map((n) => (
+              <button key={n} type="button" onClick={() => setGenerationBlocks(n)}
+                className={`px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${generationBlocks === n ? 'bg-primary text-primary-foreground border-primary' : 'border-input text-muted-foreground hover:border-primary'}`}>
+                {n === MAX_BLOCKS ? t.fullSeasonBtn(n) : n}
               </button>
             ))}
           </div>
+          <input type="number" min={1} max={MAX_BLOCKS} value={generationBlocks}
+            onChange={(e) => setGenerationBlocks(e.target.value === '' ? 1 : Math.min(Math.max(1, Number(e.target.value)), MAX_BLOCKS))}
+            placeholder={t.generationBlocksCustomPlaceholder}
+            className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs" />
         </div>
         <Button onClick={generate} disabled={loading || !summary}>
           {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
