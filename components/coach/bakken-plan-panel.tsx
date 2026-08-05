@@ -362,6 +362,53 @@ const DAY_INDEX: Record<DayKey, number> = {
   sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6,
 }
 
+// The prompt tells the model 'rest'/'off' days in weekSchedule are a hard
+// rule (see rule 2 in plan-prompt.ts), but verified in practice it still
+// trains on them anyway — same unreliability as longRunDay below.
+// Deterministic backstop: find every day where the model put real
+// training on a rest/off day, and every day where it left a *workout* day
+// empty (typed "rest" when weekSchedule said the athlete could train) —
+// pair them up and swap dates, so the actual training content just moves
+// to the correct day instead of being lost. Only forces an outright
+// conversion to "rest" (nulling out the session) when there are more
+// misplaced-training days than empty-workout-days to swap with, which
+// shouldn't normally happen since both counts are driven by the same
+// 7-day week.
+const enforceWeekSchedule = (workouts: BlockWorkoutOut[], weekSchedule: Record<DayKey, DayType> | undefined, language: 'en' | 'he'): BlockWorkoutOut[] => {
+  if (!weekSchedule) return workouts
+  const dayTypeOf = (dateStr: string): DayType => weekSchedule[DAY_ORDER[parseISO(dateStr).getDay()]]
+  const isRestDay = (dateStr: string) => dayTypeOf(dateStr) !== 'workout'
+
+  const misplacedTraining = workouts.filter((w) => w.type !== 'rest' && isRestDay(w.date))
+  const emptyWorkoutDays = workouts.filter((w) => w.type === 'rest' && !isRestDay(w.date))
+
+  const swapCount = Math.min(misplacedTraining.length, emptyWorkoutDays.length)
+  for (let i = 0; i < swapCount; i++) {
+    const a = misplacedTraining[i]
+    const b = emptyWorkoutDays[i]
+    const aDate = a.date
+    a.date = b.date
+    b.date = aDate
+  }
+
+  for (let i = swapCount; i < misplacedTraining.length; i++) {
+    const w = misplacedTraining[i]
+    w.type = 'rest'
+    w.title = language === 'he' ? 'יום מנוחה' : 'Rest Day'
+    w.description = ''
+    w.duration = null
+    w.distance = null
+    w.sets = []
+    w.bakkenLactateMin = null
+    w.bakkenLactateMax = null
+    w.targetThresholdLevel = null
+    w.comparisonGroup = null
+    w.thresholdDistance = null
+  }
+
+  return workouts
+}
+
 // The prompt tells the model longRunDay is a hard rule (see rule 2 in
 // plan-prompt.ts), but in practice it still occasionally misses a week —
 // same story as weekly volume. Deterministic backstop: for each Sun-Sat
@@ -692,7 +739,12 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
       // Persist whatever the coach set/adjusted above (schedule, notes, and
       // every editable athlete field) before reading the profile back —
       // this is exactly what the brain sees as athlete_context.*.
-      const derivedDaysPerWeek = DAY_ORDER.filter((day) => weekSchedule[day] !== 'off').length
+      // Only 'workout' days count as real training days — 'rest' is the
+      // coach's own deliberate day off, not a day that happens to be
+      // "available." Counting it as a training day (the old behavior:
+      // everything except 'off') was the root cause of plans effectively
+      // training every day regardless of how many days were marked rest.
+      const derivedDaysPerWeek = DAY_ORDER.filter((day) => weekSchedule[day] === 'workout').length
       await updateDoc(doc(db, 'users', athleteId), {
         weekSchedule,
         daysPerWeek: derivedDaysPerWeek,
@@ -1004,6 +1056,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         }
         const plan: BlockPlanOut = data.plan
         if (i === 0) firstBlockSummary = plan.blockSummary
+        enforceWeekSchedule(plan.workouts, weekSchedule, athleteContext.language)
         enforceLongRunDay(plan.workouts, athleteContext.longRunDay)
         normalizeWeeklyVolume(plan.workouts, stagesForBlock, journeyDoc.startDate, journeyDoc.goalRaceDate)
 

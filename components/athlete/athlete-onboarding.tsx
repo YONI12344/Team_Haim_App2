@@ -189,7 +189,7 @@ export function AthleteOnboarding() {
         goalRaceTarget: form.goalRaceTarget || null,
         events: form.events ? form.events.split(',').map((e: string) => e.trim()).filter(Boolean) : [],
         weekSchedule: form.weekSchedule,
-        daysPerWeek: DAY_ORDER.filter((day) => form.weekSchedule[day] !== 'off').length,
+        daysPerWeek: DAY_ORDER.filter((day) => form.weekSchedule[day] === 'workout').length,
         injuryHistory: form.injuryHistory || null,
         currentShape: form.currentShape || null,
         preferredLanguage: language,
