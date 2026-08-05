@@ -38,8 +38,9 @@
   "workout_mechanics_and_first_principles": {
     "double_threshold": {
       "the_breakthrough": "View two sessions as one long session with a functional rest break (6-8 hours) in the middle.",
-      "am_session": "Longer repeats (e.g., 5 x 6 min or 4 x 10 min) at lower lactate (~2.0-2.5 mmol/L).",
-      "pm_session": "Shorter repeats (e.g., 10-12 x 1000m or 25 x 400m) at slightly higher lactate (~3.0-3.5 mmol/L).",
+      "am_session": "Longer repeats at lower lactate (~2.0-2.5 mmol/L) — vary the rep length across the season instead of always the same one: 5 x 6 min, 4 x 10 min, 4 x 8 min, 3 x 10 min, 2km reps (e.g. 4-5 x 2km), 3km reps (e.g. 3 x 3km), or mile/1km reps (e.g. 6-8 x 1 mile or 1km) when a shorter, sharper AM session fits the phase better.",
+      "pm_session": "Shorter repeats at slightly higher lactate (~3.0-3.5 mmol/L) — vary similarly: 10-12 x 1000m, 25 x 400m, or mile/1km reps.",
+      "progression_within_a_season": "Base phase favors the LONGER AM formats (3km/2km/8-10min reps) at controlled sub-threshold pace — building durability. As the season moves through build into peak, the AM session should generally shorten and quicken toward a faster, more race-pace-adjacent effort (e.g. mile/1km reps at a sharper pace) — this is the natural progression from 'controlled volume' toward 'race sharpness'. EXCEPTION: for a marathon-distance athlete, don't over-shorten the AM session even in peak — marathon LT2 pace sits close to actual race pace (see distance_specific_adjustments.marathon.threshold_link), so keep some longer-format or marathon-pace-adjacent reps in the mix throughout, rather than converging on short fast reps the way a 5k/10k athlete's peak work would.",
       "rationale": "Hits the body before delayed inflammatory responses (24-72h) fully set in."
     },
     "micro_intervals_45_15": {
@@ -53,8 +54,9 @@
       "purpose": "Hammers VO2max directly to raise the 'peak' of the performance pyramid."
     },
     "hill_intervals": {
-      "structure": "24 x 35s uphill with jog back recovery.",
-      "benefits": "Builds running strength and VO2max with lower mechanical impact stress."
+      "structure": "e.g. 10-24 x 20-35s uphill, hard effort, with jog/walk back down as recovery — length and rep count scale with the athlete's track and the phase.",
+      "benefits": "Builds running strength and VO2max with lower mechanical impact stress.",
+      "intensity": "This is genuinely HARD effort — RPE 7-9/10, well above threshold, targeting roughly 3.5-5.0 mmol/L (VO2max-adjacent territory), NOT sub-threshold controlled work. Don't label or pace hills like the T1/T2 double-threshold days (workout_mechanics_and_first_principles.double_threshold) — hills are the week's 'hard quality' stimulus (see training_structures_by_level.ambitious_elite.standard_week, Saturday), distinct in both effort and purpose from the controlled sub-threshold Tue/Thu sessions."
     }
   },
   "training_structures_by_level": {
