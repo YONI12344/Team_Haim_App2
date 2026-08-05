@@ -74,6 +74,13 @@
     "graduation": "Once the athlete handles stage 4 comfortably (check recentWorkouts/last3WeeksSummary), drop to continuous easy running with no walk breaks."
   },
 
+  "signature_kenyan_fartlek": {
+    "note": "This coach's own signature Kenyan Fartlek structure — distinct from a generic 'alternating hard/easy' fartlek. Use this specific cycle whenever a Kenyan Fartlek is called for (rule 16 in the block prompt), not an invented pattern.",
+    "cycle": "One repeating cycle = 2min hard + 1min medium + 1min fast + 1min medium (5 minutes per cycle). Build as intervals[] with these 4 segments in this exact order, reps = number of times the cycle repeats.",
+    "effort_by_segment": "hard ~ RPE 6-7/10 (sub-threshold, controlled), medium ~ RPE 4-5/10 (active recovery, not full easy), fast ~ RPE 8-9/10 (genuinely fast, at or above threshold pace by the end of the session) — the session is deliberately built to trend harder as it goes, ending past threshold, not staying at one constant controlled effort like a normal Golden Zone session.",
+    "progression": "Number of cycle repeats increases as the athlete's fitness improves across the season (more cycles = a longer session) — this is a session that grows with the athlete, not a fixed template.",
+    "usage": "Works well as a standalone session on its own, often placed early in a bigger workout as an opener/primer. For elite/ambitious-track athletes on a double-threshold day, this can be the AM session, paired with a PM 'fast ladder' session: e.g. 200m x10 and/or 300m x8 at fast pace with ~90s medium-effort rest between reps (not full recovery jog — keep the legs moving)."
+  },
   "example_workouts_by_type": {
     "note": "Real past sessions, kept as structural/voice reference — don't copy verbatim, but match the shape: how much detail, how effort is expressed, how notes read.",
     "long_run": [
