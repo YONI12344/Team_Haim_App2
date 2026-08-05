@@ -138,7 +138,8 @@ const UI = {
     knowsAbout: (name: string) => `Everything Bakken AI knows about ${name} — edit here before generating if it changed`,
     planLanguage: 'Plan language (workout text, warmup/cooldown, notes)',
     experienceLevel: 'Experience level',
-    weeklyMileage: 'Weekly mileage (km)',
+    weeklyMileage: 'CURRENT weekly mileage (km) — what they run now, not a target',
+    weeklyMileageHint: "The AI ramps up FROM this number — don't enter the goal you're building toward. If the athlete has real logged history, that overrides this field automatically; this is only the fallback for brand-new athletes.",
     injuryHistory: 'Injury history',
     injuryPlaceholder: 'Any current or recurring injuries?',
     currentShapeLabel: 'Current shape',
@@ -211,7 +212,8 @@ const UI = {
     knowsAbout: (name: string) => `כל מה שמאמן ה-AI של בקן יודע על ${name} — ניתן לערוך כאן לפני היצירה אם משהו השתנה`,
     planLanguage: 'שפת התוכנית (טקסט האימון, חימום/שחרור, הערות)',
     experienceLevel: 'רמת ניסיון',
-    weeklyMileage: 'ק"מ שבועי',
+    weeklyMileage: 'ק"מ שבועי נוכחי (מה שהוא/היא רצים היום, לא היעד)',
+    weeklyMileageHint: 'ה-AI בונה עלייה בהדרגה מהמספר הזה — אל תזינו כאן את היעד שאליו שואפים. אם יש היסטוריית ריצות אמיתית לספורטאי, היא תגבר אוטומטית על השדה הזה; זהו רק גיבוי לספורטאים חדשים לגמרי.',
     injuryHistory: 'היסטוריית פציעות',
     injuryPlaceholder: 'פציעות נוכחיות או חוזרות?',
     currentShapeLabel: 'כושר נוכחי',
@@ -1081,6 +1083,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
 
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-1">{t.weeklyMileage}</p>
+              <p className="text-[11px] text-muted-foreground mb-1.5">{t.weeklyMileageHint}</p>
               <div className="flex flex-wrap gap-1.5 mb-1.5">
                 {MILEAGE_PRESETS.map((km) => (
                   <button key={km} type="button" onClick={() => setAthleteField('weeklyMileage', km)}
