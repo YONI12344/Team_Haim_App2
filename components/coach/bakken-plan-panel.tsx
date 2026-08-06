@@ -1022,9 +1022,10 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         setJourneyPreview(journeyDoc)
       } else {
         // Full rebuild — wipe any prior Bakken-generated workouts and start
-        // the season fresh from today. Only deletes assignedWorkouts this
-        // feature created (source:'bakken') — never touches anything the
-        // coach assigned manually.
+        // the season fresh from the upcoming Sunday (see seasonStartDate
+        // below). Only deletes assignedWorkouts this feature created
+        // (source:'bakken') — never touches anything the coach assigned
+        // manually.
         setProgress(t.clearingPrevious)
         const priorSnap = await getDocs(
           query(collection(db, 'assignedWorkouts'), where('athleteId', '==', athleteId), where('source', '==', 'bakken')),
@@ -1036,10 +1037,21 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         // 1. Season skeleton — one Bakken-brain call decides phase lengths
         // (in weeks), volume ramp, and key workout types per phase. Only the
         // date arithmetic below is code, not the model.
-        const startDateStr = format(today, 'yyyy-MM-dd')
+        //
+        // A brand-new season always starts on the upcoming Sunday, never
+        // mid-week — generating on a Thursday used to start a short 2-3 day
+        // "stub" week right away, which regularly cut the long run's
+        // designated day out of that first partial week entirely (either
+        // it had already passed, or there wasn't a full week to place it
+        // in), and left the athlete with a half-built first week. Skipping
+        // straight to the next full Sun-Sat week means every week
+        // (including the very first) gets the real long-run-day placement
+        // and full weekly-volume logic from day one.
+        const seasonStartDate = today.getDay() === 0 ? today : addDays(today, 7 - today.getDay())
+        const startDateStr = format(seasonStartDate, 'yyyy-MM-dd')
         const totalWeeksAvailable = Math.max(
           1,
-          Math.ceil((new Date(profile.goalRaceDate).getTime() - today.getTime()) / (7 * 86400000)),
+          Math.ceil((new Date(profile.goalRaceDate).getTime() - seasonStartDate.getTime()) / (7 * 86400000)),
         )
         const currentWeeklyKm = actualAvgWeeklyKm ?? profile.weeklyMileage ?? 30
         const skeletonReq: SkeletonRequest = {
