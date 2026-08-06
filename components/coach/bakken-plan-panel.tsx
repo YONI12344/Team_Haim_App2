@@ -138,8 +138,8 @@ const UI = {
     knowsAbout: (name: string) => `Everything Bakken AI knows about ${name} — edit here before generating if it changed`,
     planLanguage: 'Plan language (workout text, warmup/cooldown, notes)',
     experienceLevel: 'Experience level',
-    weeklyMileage: 'CURRENT weekly mileage (km) — what they run now, not a target',
-    weeklyMileageHint: "The AI ramps up FROM this number — don't enter the goal you're building toward. If the athlete has real logged history, that overrides this field automatically; this is only the fallback for brand-new athletes.",
+    weeklyMileage: 'Starting weekly mileage (km) — what the season ramps up FROM',
+    weeklyMileageHint: "Your number here always wins as the season's starting point, even if recent logged runs were lower (e.g. the athlete was injured/traveling and you know their real base). Leave it blank to let real logged history from the last 3 weeks set it automatically instead.",
     injuryHistory: 'Injury history',
     injuryPlaceholder: 'Any current or recurring injuries?',
     currentShapeLabel: 'Current shape',
@@ -212,8 +212,8 @@ const UI = {
     knowsAbout: (name: string) => `כל מה שמאמן ה-AI של בקן יודע על ${name} — ניתן לערוך כאן לפני היצירה אם משהו השתנה`,
     planLanguage: 'שפת התוכנית (טקסט האימון, חימום/שחרור, הערות)',
     experienceLevel: 'רמת ניסיון',
-    weeklyMileage: 'ק"מ שבועי נוכחי (מה שהוא/היא רצים היום, לא היעד)',
-    weeklyMileageHint: 'ה-AI בונה עלייה בהדרגה מהמספר הזה — אל תזינו כאן את היעד שאליו שואפים. אם יש היסטוריית ריצות אמיתית לספורטאי, היא תגבר אוטומטית על השדה הזה; זהו רק גיבוי לספורטאים חדשים לגמרי.',
+    weeklyMileage: 'ק"מ שבועי התחלתי — ממנו התוכנית בונה עלייה',
+    weeklyMileageHint: 'המספר שתזינו כאן תמיד יקבע את נקודת ההתחלה של העונה, גם אם הריצות האחרונות שנרשמו היו נמוכות יותר (למשל אם הספורטאי היה פצוע/בנסיעה ואתם יודעים מה הבסיס האמיתי שלו). השאירו ריק כדי לתת להיסטוריית הריצות האמיתית מ-3 השבועות האחרונים לקבוע זאת אוטומטית.',
     injuryHistory: 'היסטוריית פציעות',
     injuryPlaceholder: 'פציעות נוכחיות או חוזרות?',
     currentShapeLabel: 'כושר נוכחי',
@@ -932,11 +932,10 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         week3: buildWeekSummary(recentAssigned, logs, today, 0),
       }
 
-      // Anchor the season's starting volume to what the athlete has ACTUALLY
-      // been running (averaged over whichever of the last 3 weeks have real
-      // logged data), not the onboarding self-report — that number can be
-      // stale or optimistic. Falls back to the self-report only when there's
-      // no logged history yet (brand new athlete).
+      // Real average weekly km actually run (over whichever of the last 3
+      // weeks have logged data). Used as the season's starting volume only
+      // when the coach hasn't set an explicit weeklyMileage override below
+      // — a coach-entered number is intentional and always wins.
       const realWeeks = [last3WeeksSummary.week1, last3WeeksSummary.week2, last3WeeksSummary.week3]
         .filter((w): w is WeekAgg => w !== null && w.totalActual > 0)
       const actualAvgWeeklyKm = realWeeks.length
@@ -1053,7 +1052,13 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
           1,
           Math.ceil((new Date(profile.goalRaceDate).getTime() - seasonStartDate.getTime()) / (7 * 86400000)),
         )
-        const currentWeeklyKm = actualAvgWeeklyKm ?? profile.weeklyMileage ?? 30
+        // The coach's own entered number is an intentional override and
+        // always wins when set (e.g. "start at 15" even though the last 3
+        // weeks were low because the athlete was injured/traveling) — real
+        // logged history is only the fallback for when the coach hasn't
+        // set anything, so a brand-new athlete's plan still anchors to
+        // reality instead of a hardcoded default.
+        const currentWeeklyKm = profile.weeklyMileage ?? actualAvgWeeklyKm ?? 30
         const skeletonReq: SkeletonRequest = {
           totalWeeksAvailable,
           currentWeeklyKm,
