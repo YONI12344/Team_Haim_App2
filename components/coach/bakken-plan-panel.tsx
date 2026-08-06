@@ -316,12 +316,39 @@ const localId = (prefix: string) =>
 // alongside `distance` by the same factor so pace stays what it was —
 // distance-only rescaling used to silently turn a normal-paced long run
 // into an impossibly fast one once its distance got stretched.
+// Every Nth week within a base/build/peak stage gets its flexible-volume
+// target cut by 25% — a standard cutback/deload week so fatigue can
+// actually absorb into fitness instead of accumulating in one uninterrupted
+// ramp for the whole stage. Nothing in the brain or the prompt handled this
+// at all before (verified: no "cutback"/"deload"/"recovery week" mention
+// anywhere in brain.json or plan-prompt.ts) — this is a genuine gap, not a
+// prompt-reliability issue, so it's implemented directly here rather than
+// left to the model to remember across every block-generation call.
+// Beginners/recreational athletes cut back more often (every 3rd week,
+// less fatigue tolerance) than everyone else (every 4th).
+const CUTBACK_STAGE_TYPES = new Set(['base', 'build', 'peak'])
+const CUTBACK_VOLUME_MULTIPLIER = 0.75
+const isCutbackWeek = (
+  weekStart: string,
+  stage: BlockStageInfo,
+  experienceLevel: string | undefined,
+): boolean => {
+  if (!CUTBACK_STAGE_TYPES.has(stage.type)) return false
+  const interval = experienceLevel === 'beginner' ? 3 : 4
+  const weeksSinceStageStart = Math.floor(
+    (parseISO(weekStart).getTime() - parseISO(stage.startDate).getTime()) / (7 * 86400000),
+  )
+  const weekNumber = weeksSinceStageStart + 1 // 1-indexed
+  return weekNumber > 0 && weekNumber % interval === 0
+}
+
 const normalizeWeeklyVolume = (
   workouts: BlockWorkoutOut[],
   stagesForBlock: BlockStageInfo[],
   seasonStartDate: string,
   goalRaceDate: string,
   longRunMinutesCap?: number,
+  experienceLevel?: string,
 ): BlockWorkoutOut[] => {
   // Weeks are standard Sunday-Saturday calendar weeks — matching the km-per-
   // week widgets and week view everywhere else in the app (they all default
@@ -364,7 +391,8 @@ const normalizeWeeklyVolume = (
     const rangeEnd = dateMin(weekEnd, goalRaceDate)
     const daysInSeason = Math.max(0, Math.min(7,
       Math.floor((parseISO(rangeEnd).getTime() - parseISO(rangeStart).getTime()) / 86400000) + 1))
-    const target = stage.weeklyVolumeKm * (daysInSeason / 7)
+    const cutback = isCutbackWeek(weekStart, stage, experienceLevel)
+    const target = stage.weeklyVolumeKm * (daysInSeason / 7) * (cutback ? CUTBACK_VOLUME_MULTIPLIER : 1)
     if (target <= 0) continue
 
     const flexibleItems = items.filter((w) => FLEXIBLE_DISTANCE_TYPES.has(w.type))
@@ -1197,7 +1225,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         enforceWeekSchedule(plan.workouts, weekSchedule, athleteContext.language)
         enforceAmPmOrder(plan.workouts)
         enforceLongRunDay(plan.workouts, athleteContext.longRunDay, athleteContext.language)
-        normalizeWeeklyVolume(plan.workouts, stagesForBlock, journeyDoc.startDate, journeyDoc.goalRaceDate, athleteContext.longRunMinutes)
+        normalizeWeeklyVolume(plan.workouts, stagesForBlock, journeyDoc.startDate, journeyDoc.goalRaceDate, athleteContext.longRunMinutes, athleteContext.experienceLevel)
 
         for (const w of plan.workouts) {
           if (w.type === 'rest') continue
