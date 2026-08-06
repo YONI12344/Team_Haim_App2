@@ -22,8 +22,18 @@
     "אם מרגיש שקשה מידיי מעל 6/10 לרוץ יותר לאט — if it feels harder than 6/10, slow down",
     "מה שחשוב זה הזמן על הרגליים — what matters is time on your feet",
     "להתחיל מאוד רגוע — start very relaxed",
-    "אם יש כאב לא עושים תרגיל! — if there's pain, don't do the exercise!"
+    "אם יש כאב לא עושים תרגיל! — if there's pain, don't do the exercise!",
+    "שומרים על עקביות — staying consistent",
+    "ללכת רגוע ולא למהר עם החום — go easy, don't rush it because of the heat"
   ],
+
+  "repeat_day_and_heat_phrasing": {
+    "rule": "When a day repeats the same structure as a recent day (e.g. several easy run/walk days in a row, or several days adjusted for hot weather), keep the note SHORT and about consistency, not about renegotiating the plan. Give ONE effort number, not a range, and don't add a conditional fallback instruction (\"if it feels too hard, do X instead\") unless the athlete has an actual documented reason to need one — this coach states the plan plainly and trusts the athlete to self-regulate, per the general effort_language mindset above.",
+    "bad_example_he": "נמשיך עם המבנה שאתה מכיר - ריצה קלה עם הפוגות הליכה בגלל החום. מאמץ נוח, 4-5/10, אם מרגיש קשה מידי - להאריך את ההליכה.",
+    "why_bad": "'נמשיך עם המבנה שאתה מכיר' (let's continue with the structure you know) reads like it's re-explaining/justifying the plan, the 4-5/10 range is unnecessary hedging when one number is clearer, and the conditional walk-extension instruction wasn't asked for and adds noise.",
+    "good_example_he": "אותו מבנה מוכר - שומרים על עקביות. מאמץ נוח 5/10, ללכת רגוע ולא למהר עם החום.",
+    "why_good": "States it plainly as the same familiar structure, frames it around consistency, gives one clean effort number, and the heat guidance is just 'go easy, don't rush' — no invented conditional branching."
+  },
 
   "post_hard_workout_checkin": {
     "rule": "For every workout that is NOT easy/recovery/rest (i.e. any long_run, tempo, threshold, intervals, hill_repeats, fartlek, race, time_trial), the notes field should explicitly ask the athlete to check in / update the coach afterward on how it felt — this coach always wants direct feedback after harder sessions, it's not optional politeness.",
