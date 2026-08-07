@@ -1,0 +1,15 @@
+{
+  "_note": "Deterministic safety numbers used as code-level backstops after generation (components/coach/bakken-plan-panel.tsx) — not prompt text the AI can ignore. Edit these directly (here, or via the local brain editor at /dev/brain-editor) to change the hard limits without touching code.",
+  "easyDayMinutesCap": {
+    "_note": "Max minutes for a plain easy/recovery day with no fixed rep structure. A day over this gets its duration clamped and distance recomputed at the same pace.",
+    "beginner": 60,
+    "intermediate": 90,
+    "advancedPlus": 120
+  },
+  "cutbackWeek": {
+    "_note": "Every Nth week within a base/build/peak stage gets its flexible-volume target cut by cutbackVolumeMultiplier.",
+    "intervalWeeksBeginner": 3,
+    "intervalWeeksDefault": 4,
+    "volumeMultiplier": 0.75
+  }
+}
