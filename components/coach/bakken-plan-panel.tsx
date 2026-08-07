@@ -538,6 +538,66 @@ const enforceAmPmOrder = (workouts: BlockWorkoutOut[]): BlockWorkoutOut[] => {
   return workouts
 }
 
+// Verified against the real API that the prompt's "no two big days back to
+// back" instruction (rule 9 in plan-prompt.ts) is not reliable on its own —
+// a real test run produced 3 violations across 2 blocks, including right
+// at the block boundary (the exact case the rule calls a hard-rule
+// violation). Deterministic backstop, same pattern as enforceLongRunDay:
+// demote one of any two adjacent "big" days to easy, preferring to keep
+// whichever one lands on the athlete's actual long-run day.
+const BIG_WORKOUT_TYPES = new Set(['long_run', 'tempo', 'threshold', 'intervals', 'hill_repeats', 'fartlek'])
+const demoteToEasyRun = (w: BlockWorkoutOut, language: 'en' | 'he') => {
+  w.type = 'easy'
+  w.title = language === 'he' ? 'ריצה קלה' : 'Easy Run'
+  w.description = language === 'he'
+    ? 'ריצה קלה ורגועה — יום התאוששות בין שני אימונים מאתגרים.'
+    : 'Easy, relaxed running — a recovery day between two demanding sessions.'
+  w.sets = []
+  w.bakkenLactateMin = 1.0
+  w.bakkenLactateMax = 1.2
+  w.targetThresholdLevel = null
+  w.comparisonGroup = null
+  w.thresholdDistance = null
+}
+const enforceNoBackToBackBigDays = (
+  workouts: BlockWorkoutOut[],
+  previousBlockTail: Array<{ date: string; type: string; title: string }> | undefined,
+  longRunDay: DayKey | undefined,
+  language: 'en' | 'he',
+): BlockWorkoutOut[] => {
+  const sorted = [...workouts].sort((a, b) => a.date.localeCompare(b.date))
+  const dayGap = (a: string, b: string) => Math.round((parseISO(b).getTime() - parseISO(a).getTime()) / 86400000)
+  const isProtectedLongRun = (w: BlockWorkoutOut) =>
+    w.type === 'long_run' && !!longRunDay && DAY_ORDER[parseISO(w.date).getDay()] === longRunDay
+
+  // Block-boundary case: the tail's last day already happened (written in a
+  // prior generate() call) and can't be changed — only this block's own
+  // first day can be fixed, even if it happens to be the long-run day
+  // (a missed long run this one week beats stacking two hard days).
+  if (previousBlockTail && previousBlockTail.length > 0 && sorted.length > 0) {
+    const lastTail = previousBlockTail[previousBlockTail.length - 1]
+    const first = sorted[0]
+    if (dayGap(lastTail.date, first.date) === 1 && BIG_WORKOUT_TYPES.has(lastTail.type) && BIG_WORKOUT_TYPES.has(first.type)) {
+      demoteToEasyRun(first, language)
+    }
+  }
+
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1]
+    const cur = sorted[i]
+    if (dayGap(prev.date, cur.date) !== 1) continue
+    if (!BIG_WORKOUT_TYPES.has(prev.type) || !BIG_WORKOUT_TYPES.has(cur.type)) continue
+    // Re-check type in case a prior iteration already demoted `prev`.
+    if (!BIG_WORKOUT_TYPES.has(prev.type) || !BIG_WORKOUT_TYPES.has(cur.type)) continue
+    if (isProtectedLongRun(cur) && !isProtectedLongRun(prev)) {
+      demoteToEasyRun(prev, language)
+    } else {
+      demoteToEasyRun(cur, language)
+    }
+  }
+  return workouts
+}
+
 const enforceLongRunDay = (workouts: BlockWorkoutOut[], longRunDay: DayKey | undefined, language: 'en' | 'he'): BlockWorkoutOut[] => {
   if (!longRunDay) return workouts
   const weekKeyOf = (dateStr: string) => format(startOfWeek(parseISO(dateStr), { weekStartsOn: 0 }), 'yyyy-MM-dd')
@@ -1043,7 +1103,12 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         resumeCursor = addDaysStr(lastGeneratedDate!, 1)
         previousBlockTail = existingBakken
           .sort((a: any, b: any) => a.scheduledDate.localeCompare(b.scheduledDate))
-          .slice(-3)
+          // 10, not 3 — rule 9's adjacency check only needs the last couple
+          // of days, but rule 12's cross-block threshold/fartlek format
+          // ROTATION check needs enough real history to actually see "this
+          // exact format has been the only one for the last several weeks"
+          // instead of just the immediately preceding day or two.
+          .slice(-10)
           .map((w: any) => ({ date: w.scheduledDate, type: w.workout?.type || '', title: w.workout?.title || '' }))
         setProgress(t.continuingSeason(resumeCursor))
         setJourneyPreview(journeyDoc)
@@ -1225,6 +1290,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         enforceWeekSchedule(plan.workouts, weekSchedule, athleteContext.language)
         enforceAmPmOrder(plan.workouts)
         enforceLongRunDay(plan.workouts, athleteContext.longRunDay, athleteContext.language)
+        enforceNoBackToBackBigDays(plan.workouts, previousBlockTail, athleteContext.longRunDay, athleteContext.language)
         normalizeWeeklyVolume(plan.workouts, stagesForBlock, journeyDoc.startDate, journeyDoc.goalRaceDate, athleteContext.longRunMinutes, athleteContext.experienceLevel)
 
         for (const w of plan.workouts) {
@@ -1235,7 +1301,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
 
         previousBlockTail = plan.workouts
           .filter((w) => w.type !== 'rest')
-          .slice(-3)
+          .slice(-10) // see the -10 comment above — same reasoning
           .map((w) => ({ date: w.date, type: w.type, title: w.title }))
       }
 
