@@ -342,6 +342,21 @@ const isCutbackWeek = (
   return weekNumber > 0 && weekNumber % interval === 0
 }
 
+// No cap at all existed for a plain "easy"/"recovery" day (only long_run
+// had longRunMinutesCap) — verified in practice: when a week has very few
+// flexible-distance days left to absorb that week's volume target, ALL of
+// it can land on a single easy day, producing something like a 300min/40km
+// "easy" run. Same safety idea as the long-run cap, just no per-athlete
+// preset the way there is for long runs — scaled by level instead: a
+// beginner/recreational easy day realistically never needs to exceed an
+// hour, while an advanced/professional athlete's daily easy runs (not
+// their actual long run) can legitimately run 90-120min at real volume.
+const easyDayMinutesCap = (experienceLevel: string | undefined): number => {
+  if (experienceLevel === 'beginner') return 60
+  if (experienceLevel === 'advanced' || experienceLevel === 'professional') return 120
+  return 90 // intermediate, or unset
+}
+
 const normalizeWeeklyVolume = (
   workouts: BlockWorkoutOut[],
   stagesForBlock: BlockStageInfo[],
@@ -382,6 +397,16 @@ const normalizeWeeklyVolume = (
   // that's a prompt-accuracy problem, not something to paper over by
   // silently stretching an interval session into an impossible distance).
   const FLEXIBLE_DISTANCE_TYPES = new Set(['easy', 'long_run', 'recovery'])
+  // A beginner run/walk "easy" session (rule 5c) and a quality long run
+  // (rule 12's long_run guidance, intervals[]-based) both have a REAL fixed
+  // rep structure even though their top-level type is 'easy'/'long_run' —
+  // found via local-bakken-test.ts: rescaling their top-level
+  // distance/duration while leaving that structure untouched produced a
+  // session whose badge said "90min/12km" while its actual sets[] was
+  // still "6 reps of 40s run" (a real ~16min session) — the two numbers
+  // had nothing to do with each other. Only a session with NO sets[] at
+  // all (a plain continuous run) is genuinely free to stretch or shrink.
+  const hasFixedStructure = (w: BlockWorkoutOut) => (w.sets || []).length > 0
   for (const [weekStart, items] of weeks) {
     const midweek = addDaysStr(weekStart, 3)
     const stage = stagesForBlock.find((s) => midweek >= s.startDate && midweek <= s.endDate)
@@ -395,9 +420,9 @@ const normalizeWeeklyVolume = (
     const target = stage.weeklyVolumeKm * (daysInSeason / 7) * (cutback ? CUTBACK_VOLUME_MULTIPLIER : 1)
     if (target <= 0) continue
 
-    const flexibleItems = items.filter((w) => FLEXIBLE_DISTANCE_TYPES.has(w.type))
+    const flexibleItems = items.filter((w) => FLEXIBLE_DISTANCE_TYPES.has(w.type) && !hasFixedStructure(w))
     const fixedTotal = items
-      .filter((w) => !FLEXIBLE_DISTANCE_TYPES.has(w.type))
+      .filter((w) => !FLEXIBLE_DISTANCE_TYPES.has(w.type) || hasFixedStructure(w))
       .reduce((sum, w) => sum + (w.distance || 0), 0)
     const flexibleTarget = target - fixedTotal
     if (flexibleTarget <= 0) continue // fixed-structure sessions alone already meet/exceed target — nothing to add via easy days
@@ -416,30 +441,69 @@ const normalizeWeeklyVolume = (
         // stretched to close a weekly-volume gap. Verified in production:
         // a 100min long run scaled to 28km this way, an impossible pace for
         // a session described as "very relaxed".
-        const originalDistance = w.distance
         const originalDuration = w.duration
-        w.distance = Math.max(1, Math.round(originalDistance * scale))
+        w.distance = Math.max(1, Math.round(w.distance * scale))
         if (originalDuration != null) {
           w.duration = Math.max(5, Math.round((originalDuration * scale) / 5) * 5)
-          // The long run duration cap (athlete_context.longRunMinutes, rule
-          // 12) is a hard ceiling the model is supposed to respect on its
-          // own, but this rescale can push it past that after the fact —
-          // clamp duration back to the cap and recompute distance to match
-          // the ORIGINAL pace at that shorter duration, rather than leaving
-          // an over-cap duration or a now-inconsistent pace.
-          if (w.type === 'long_run' && longRunMinutesCap && w.duration > longRunMinutesCap && originalDuration > 0) {
-            w.duration = longRunMinutesCap
-            w.distance = Math.max(1, Math.round(originalDistance * (longRunMinutesCap / originalDuration)))
-          }
         }
       }
     }
   }
+
+  // Unconditional safety cap — a rescale above only clamps things it
+  // actually touched, so a day whose RAW model output was already over
+  // cap (no rescale needed since the week's total already happened to be
+  // within tolerance) sailed straight through uncapped. Verified in
+  // practice: an advanced profile's easy day came out at 135min/22km
+  // straight from the model, no rescale involved at all. Runs over every
+  // flexible-distance, non-structured day regardless of whether it was
+  // touched above.
+  const easyCap = easyDayMinutesCap(experienceLevel)
+  for (const w of workouts) {
+    if (hasFixedStructure(w) || w.duration == null || w.distance == null || w.duration <= 0) continue
+    const pace = w.distance / w.duration
+    if (w.type === 'long_run' && longRunMinutesCap && w.duration > longRunMinutesCap) {
+      w.duration = longRunMinutesCap
+      w.distance = Math.max(1, Math.round(pace * longRunMinutesCap))
+    } else if (FLEXIBLE_DISTANCE_TYPES.has(w.type) && w.type !== 'long_run' && w.duration > easyCap) {
+      w.duration = easyCap
+      w.distance = Math.max(1, Math.round(pace * easyCap))
+    }
+  }
+
   return workouts
 }
 
 const DAY_INDEX: Record<DayKey, number> = {
   sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6,
+}
+
+// Found via local-bakken-test.ts across multiple profiles: the model
+// sometimes emits type:"off" (not a valid workout type — the schema only
+// has "rest") for a day the coach's weekSchedule tagged "off", bleeding
+// weekSchedule's own vocabulary ('off'/'rest'/'workout') into the
+// workout's type field. This is worse than it looks: enforceWeekSchedule
+// below only swaps DATES for misplaced content, it never corrects a
+// bogus type — so an "off" entry that got matched with a real workout day
+// during that swap just relocates the invalid data instead of fixing it.
+// Runs first, before any other backstop, since "off" is never valid
+// content regardless of which date it lands on.
+const normalizeInvalidTypes = (workouts: BlockWorkoutOut[], language: 'en' | 'he'): BlockWorkoutOut[] => {
+  for (const w of workouts) {
+    if (w.type !== 'off') continue
+    w.type = 'rest'
+    w.title = language === 'he' ? 'יום מנוחה' : 'Rest Day'
+    w.description = ''
+    w.duration = null
+    w.distance = null
+    w.sets = []
+    w.bakkenLactateMin = null
+    w.bakkenLactateMax = null
+    w.targetThresholdLevel = null
+    w.comparisonGroup = null
+    w.thresholdDistance = null
+  }
+  return workouts
 }
 
 // The prompt tells the model 'rest'/'off' days in weekSchedule are a hard
@@ -1287,6 +1351,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         }
         const plan: BlockPlanOut = data.plan
         if (i === 0) firstBlockSummary = plan.blockSummary
+        normalizeInvalidTypes(plan.workouts, athleteContext.language)
         enforceWeekSchedule(plan.workouts, weekSchedule, athleteContext.language)
         enforceAmPmOrder(plan.workouts)
         enforceLongRunDay(plan.workouts, athleteContext.longRunDay, athleteContext.language)
