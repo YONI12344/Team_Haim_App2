@@ -29,6 +29,7 @@ import {
   normalizeInvalidTypes,
   enforceWeekSchedule,
   enforceAmPmOrder,
+  enforceSameDaySessionTags,
   enforceNoBackToBackBigDays,
   enforceLongRunDay,
   normalizeWeeklyVolume,
@@ -934,6 +935,12 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         enforceAmPmOrder(plan.workouts)
         enforceLongRunDay(plan.workouts, athleteContext.longRunDay, athleteContext.language)
         enforceNoBackToBackBigDays(plan.workouts, previousBlockTail, athleteContext.longRunDay, athleteContext.language)
+        // Runs LAST among the date/session-touching backstops — enforceLongRunDay
+        // swaps dates (not sessions) when relocating a long run, which can land
+        // it on a date that already has a tagged am/pm entry; verified in
+        // practice that running this before enforceLongRunDay left exactly
+        // that kind of freshly-created pairing untagged.
+        enforceSameDaySessionTags(plan.workouts)
         normalizeWeeklyVolume(plan.workouts, stagesForBlock, journeyDoc.startDate, journeyDoc.goalRaceDate, athleteContext.longRunMinutes, athleteContext.experienceLevel)
 
         for (const w of plan.workouts) {

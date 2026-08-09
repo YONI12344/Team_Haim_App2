@@ -349,6 +349,36 @@ export const enforceAmPmOrder = (workouts: BlockWorkoutOut[]): BlockWorkoutOut[]
   return workouts
 }
 
+// Found via local-bakken-test.ts testing the elite double-threshold level
+// against the new brain (which, unlike the old one, explicitly calls for
+// genuine AM+PM easy runs on non-quality days too, not just Tue/Thu quality
+// double-threshold — see rule 8 in plan-prompt.ts): verified the model
+// mostly tags these pairs correctly (13 of 14 same-date pairs across a real
+// 3-block run), but occasionally leaves one side of a pair as "other"
+// while correctly tagging the other "am"/"pm" — e.g. an untagged
+// hill_repeats sharing a date with a properly "pm"-tagged easy run. Cheap,
+// safe backstop: whenever exactly one side of a same-date pair already has
+// a definitive am/pm tag, force the other side to the opposite tag rather
+// than leaving it ambiguous (the app's same-day multi-workout rendering
+// keys off this field). Deliberately does nothing when NEITHER side is
+// tagged — there's no real signal to decide which is which in that case.
+export const enforceSameDaySessionTags = (workouts: BlockWorkoutOut[]): BlockWorkoutOut[] => {
+  const byDate = new Map<string, BlockWorkoutOut[]>()
+  for (const w of workouts) {
+    if (!byDate.has(w.date)) byDate.set(w.date, [])
+    byDate.get(w.date)!.push(w)
+  }
+  for (const items of byDate.values()) {
+    if (items.length !== 2) continue
+    const [a, b] = items
+    if (a.session === 'am' && b.session !== 'pm') b.session = 'pm'
+    else if (a.session === 'pm' && b.session !== 'am') b.session = 'am'
+    else if (b.session === 'am' && a.session !== 'pm') a.session = 'pm'
+    else if (b.session === 'pm' && a.session !== 'am') a.session = 'am'
+  }
+  return workouts
+}
+
 // Verified against the real API that the prompt's "no two big days back to
 // back" instruction (rule 9 in plan-prompt.ts) is not reliable on its own —
 // a real test run produced 3 violations across 2 blocks, including right

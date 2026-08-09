@@ -1,127 +1,290 @@
 {
-  "assistant_identity": {
-    "name": "Elite Norwegian Method & Almgren Applied Intelligence",
-    "origin": "Synthesized from the clinical research of Marius Bakken, MD, and the world-class application of Andreas Almgren.",
-    "core_axiom": "Intensity must be precise enough to be tolerated and repeated. Success is built by training hard enough, often enough, for long enough, rather than as hard as possible."
+  "title": "The Norwegian Method: A Complete Guide to Threshold Training",
+  "meta_information": {
+    "foundational_pioneers": [
+      "Marius Bakken, MD",
+      "Gjert Ingebrigtsen & Ingebrigtsen Brothers",
+      "Andreas Almgren",
+      "Kristian Blummenfelt"
+    ],
+    "core_philosophy": "You do not improve by training as hard as possible. You improve by training hard enough, often enough, for long enough. Precision creates continuity, and continuity creates high-quality volume."
   },
-  "methodology_foundations": {
-    "bakken_clinical_origin": "Derived from over 5,500 personal lactate tests to identify the metabolic 'Sweet Spot' where adaptation is highest and systemic cost is lowest.",
-    "almgren_elite_model": "Focuses on maximizing training effect over a full year through consistency, using 647 meticulously logged sessions in 2025 to refine the 'perfect' plan.",
-    "the_breakthrough_framing": "Double threshold days are viewed as a single long session with a functional rest break (6-8 hours) to maximize quality volume without hitting delayed inflammatory responses (24-72h)."
-  },
-  "physiological_markers_and_zones": {
-    "lactate_threshold_definitions": {
-      "LT1_aerobic_threshold": "~1.5 mmol/L. The pace maintainable for 2-3 hours; fat burning is maximized.",
-      "LT2_anaerobic_threshold": "~4.0 mmol/L. The pace maintainable for ~1 hour. This is the 'hub' where lactate production equals clearance.",
-      "MLSS_maximal_lactate_steady_state": "The highest intensity where lactate remains stable rather than drifting upward."
+  "core_physiological_principles": {
+    "lactate_threshold_control": {
+      "definition": "Systematic monitoring and restriction of blood lactate levels during quality workouts to remain strictly at or below anaerobic threshold (OBLA).",
+      "mechanism": "By capping lactate accumulation, athletes prevent heavy central nervous system fatigue, excessive acidosis, and prolonged muscular damage. This allows for rapid recovery and high training frequency.",
+      "target_lactate_ceilings": {
+        "morning_session_lower_threshold": "1.8 mmol/L - 2.3 mmol/L.",
+        "evening_session_main_threshold": "2.5 mmol/L - 3.5 mmol/L.",
+        "absolute_upper_limit": "Never exceed 4.0 mmol/L during routine sub-threshold work."
+      }
     },
-    "the_golden_zone_scaling": {
-      "definition": "A conservative threshold approach training slightly slower than the LT2 edge to support recovery and repeatability.",
-      "pacing_adjustments": {
-        "very_short_intervals_45s_1m": "Run at or near threshold pace.",
-        "short_intervals_1_3m": "Run ~1-3% slower than threshold pace.",
-        "medium_intervals_4_5m": "Run ~3-6% slower than threshold pace.",
-        "long_intervals_8_12m": "Run ~6-9% slower than threshold pace."
+    "morning_vs_evening_threshold_dynamics": {
+      "morning_session_specs": {
+        "lactate_target": "1.8 - 2.3 mmol/L (Lower sub-threshold).",
+        "heart_rate_target": "75% - 82% Max HR.",
+        "perceived_effort": "RPE 5/10 (Controlled, easy threshold).",
+        "rep_length_philosophy": "Longer distance reps (e.g., 3k, 2k, 1 mile reps) @ controlled lower threshold pace.",
+        "physiological_purpose": "Build massive aerobic volume and capillary density without neuromuscular fatigue or excessive lactate accumulation."
       },
-      "lactate_target": "Bakken's 'Sweet Spot' is 2.3 to 3.0 mmol/L."
+      "evening_session_specs": {
+        "lactate_target": "2.5 - 3.5 mmol/L (Main sub-threshold).",
+        "heart_rate_target": "82% - 88% Max HR.",
+        "perceived_effort": "RPE 6-7/10 (Comfortably hard, sustainable).",
+        "rep_length_philosophy": "Shorter distance reps (e.g., 1000m, 800m, 400m, 200m reps) @ main threshold pace.",
+        "physiological_purpose": "Sharpen threshold velocity, biomechanical turnover, and lactate clearing capacity while maintaining low central fatigue."
+      }
     },
-    "intensity_triangulation": {
-      "lactate_meter": "The 'gold standard' for metabolic honesty; removes ego from training.",
-      "heart_rate": "Threshold usually falls between 85-90% of HRmax for trained athletes.",
-      "talk_test": "Speak 3-5 words between breaths; conversational ability should break down.",
-      "enhanced_rpe": "Threshold effort = 6-7/10 ('controlled discomfort'). 7+ is too hard."
+    "golden_zone_concept": {
+      "definition": "A conservative approach to threshold training where the athlete runs slightly slower than their absolute maximum lactate threshold to preserve recovery and consistency.",
+      "pacing_adjustments_by_track_distance": {
+        "very_short_intervals_200m_400m": "Executed at around actual lactate threshold pace.",
+        "short_intervals_800m_1000m": "Executed approximately 1% to 3% slower than lactate threshold pace.",
+        "medium_intervals_1mile_2k": "Executed approximately 3% to 6% slower than lactate threshold pace.",
+        "long_intervals_3k": "Executed approximately 6% to 9% slower than lactate threshold pace."
+      }
+    },
+    "easy_running_intensity_rule": {
+      "heart_rate_cap": "Strictly under 70% of maximum heart rate (Max HR).",
+      "effort_guidelines": "RPE 2-3/10 for trained athletes; strictly RPE 3/10 for beginners.",
+      "purpose": "Build aerobic capillary bed without autonomic or structural stress. Avoids 'zombie training' (easy runs being executed too fast)."
+    },
+    "muscle_tone_management": {
+      "concept": "Mechanical tension and muscular stiffness ('muscle tone') act as a primary recovery limiter alongside metabolic stress.",
+      "application": "Splitting threshold volume into morning and afternoon blocks (or shorter interval sets) maintains optimal neuromuscular elasticity without causing structural breakdown."
     }
   },
-  "core_coaching_mechanics": {
-    "tone_management_system": {
-      "muscle_tone_definition": "Baseline tension at rest ('the spring'). Managing tone is more critical than managing soreness.",
-      "daily_structure": "AM sessions use longer repeats (6-10 min) to moderate tone. PM sessions use shorter, faster work to utilize the primed system.",
-      "the_easy_rule": "Easy runs must be <70% of HRmax with 'NO EXCEPTIONS' to reduce muscular and nervous system tone."
+  "custom_fartlek_hills_and_long_run_framework": {
+    "norwegian_custom_fartlek": {
+      "definition": "A structured 5-minute cycle fartlek used as a versatile alternative to rigid track reps.",
+      "structure": "1 cycle = 2 min @ RPE 6-7/10 (7/10 effort) + 1 min @ RPE 5/10 (5/10 medium float) + 1 min @ RPE 7/10 (7/10 hard effort) + 1 min @ RPE 5/10 (5/10 medium float).",
+      "execution": "Repeat 4 to 8 cycles (20 to 40 minutes of total quality sub-threshold work). Great for standalone single threshold days or evening workouts."
     },
-    "treadmill_standardization": {
-      "benefits": "Standardizes speed, surface, and weather. Eliminates environmental variables for precise lactate/HR comparison.",
-      "performance_signal": "A 'Green Light' session is a low warm-up HR combined with high speed at target lactate.",
-      "biomechanics": "Reduces vertical displacement and likely muscular stress, allowing more work."
+    "kenyan_fartlek": {
+      "definition": "Continuous aerobic progression fartlek consisting of 1 min sub-threshold surge / 1 min floating recovery.",
+      "application": "Introduced in early base phases and inside long runs to build rhythm, lactate shuttling, and mental focus without accumulating high lactate."
+    },
+    "controlled_hill_workouts": {
+      "definition": "Short uphill reps on moderate gradients (4-6%) designed to maintain stride power, foot strike mechanics, and muscle tone without spiking blood lactate.",
+      "prescriptions": [
+        "Beginners: 6-10 reps of 40s to 1 min hill jog @ RPE 4-5/10 with walk down rest.",
+        "Advanced: 15-20 reps of 200m uphill @ controlled 5K effort (jog down recovery)."
+      ]
+    },
+    "integrated_long_run_workouts": {
+      "concept": "Embedding sub-threshold blocks or alternating pace segments into the second half of long easy runs to build durable race-specific aerobic power.",
+      "variations": {
+        "alternating_kilometers": "1 km Easy (<70% Max HR) / 1 km @ T2 (Main threshold pace) / 1 km @ T1 (Lower threshold pace). Repeat for 6-12 km inside the long run.",
+        "kenyan_fartlek_long_run": "First 50-60% easy (<70% Max HR), followed by 20-30 minutes of (1 min sub-threshold / 1 min easy float).",
+        "second_half_progression": "First 60% easy (<70% Max HR); final 40% executed at steady sub-threshold effort (~1.8-2.2 mmol/L)."
+      }
     }
   },
-  "workout_library": {
-    "micro_intervals_45_15": {
-      "rationale": "Highest speed and HR at lowest corresponding lactate.",
-      "threshold_version": "Target ~3.0 mmol/L. 15-20 reps (developing), 28-35 reps (elite).",
-      "5k_pace_version": "vVO2max stimulus with lower breakdown than long intervals. 12-15 reps (developing), 20-25 reps (elite)."
+  "macrocycle_seasonal_progression_framework": {
+    "phase_1_base_foundation_building": {
+      "duration": "8 - 12 weeks.",
+      "primary_focus": "High aerobic volume, low lactate accumulation, building structural muscle tone, and introducing track rep discipline.",
+      "track_rep_distinction": "Morning reps: 3k reps, 2k reps, 1 mile reps @ lower threshold (1.8-2.2 mmol/L). Evening reps: 1000m, 800m reps @ main threshold (2.5-3.0 mmol/L).",
+      "long_run_and_fartlek": "Easy long runs incorporating early Kenyan Fartlek blocks (1 min on / 1 min float).",
+      "hill_integration": "Weekly controlled hill sessions (15-20x 200m) to maintain power and muscle elasticity."
     },
-    "signature_threshold_intervals": {
-      "5_x_6_min": "The bread-and-butter 30-minute block with 2-min recovery.",
-      "25_x_400m": "A cornerstone quality session with 30s rest for 10K specific work.",
-      "12_x_1000m": "Standard LT2 session with 1-min rest.",
-      "4_x_10_min": "Longer intervals used for Half Marathon/Marathon preparation."
+    "phase_2_specific_aerobic_development": {
+      "duration": "6 - 8 weeks.",
+      "primary_focus": "Expanding sub-threshold density, refining pacing, and introducing alternating-week VO2max work.",
+      "track_rep_distinction": "Morning reps: 2k, 1 mile reps @ lower threshold. Evening reps: 800m, 600m, 400m reps or Norwegian Custom Fartlek cycles.",
+      "long_run_and_fartlek": "Integrated long runs with Alternating Kilometers (1 km Easy / 1 km T2 / 1 km T1).",
+      "vo2max_alternate_weeks": "Every 2nd week, replace Saturday hills/threshold with goal-race specific VO2 max workouts (e.g., 6-8x 800m fast or 3-4x 2k fast)."
     },
-    "vO2max_and_x_elements": {
-      "norwegian_4x4": "Four 4-min intervals at 90-95% HRmax with 3-min active recovery to raise the 'aerobic peak'.",
-      "hill_intervals": "Builds running strength and VO2max with less mechanical stress. Almgren's set: 24 x 35s uphill (80s jog back).",
-      "threshold_plus": "Intensity slightly above LT2 (Lactate ~6.0). Reduced distance (7-8km) to handle race-level acid."
+    "phase_3_race_specific_sharpening_and_confidence": {
+      "duration": "4 - 6 weeks.",
+      "primary_focus": "Maximizing speed at threshold, race-pace confidence workouts, high turnover, and fine-tuning lactate clearing.",
+      "track_rep_distinction": "Morning reps: 1 mile, 1000m reps. Evening reps: High-turnover 400m and 200m track reps @ sub-threshold speed with strict 30-45s recovery.",
+      "race_confidence_workouts": "Goal-race specific simulation sessions (e.g., 5K runner doing 5x 1000m @ target race pace with controlled lactate; Marathoner doing 3x 5k @ marathon pace inside a 22 km run).",
+      "vo2max_and_hills": "Race-specific VO2 max workouts maintained every 14 days."
+    },
+    "phase_4_taper_and_race_execution": {
+      "duration": "1 - 2 weeks.",
+      "primary_focus": "Volume reduction by 30-50% while retaining high-frequency threshold touchpoints to preserve neuromuscular muscle tone and fresh legs.",
+      "workout_adjustments": "Short sub-threshold track sessions (e.g., 8-10x 400m or 5x 800m @ threshold pace with long recovery) 4 days before race day."
     }
   },
-  "training_tiers_by_level": {
-    "recreational_singles_3_to_4_runs": {
-      "philosophy": "Maximizing repeatable load while managing fatigue.",
-      "weekly_pattern": "Mon (Easy), Wed (Intervals), Fri (Long Run), Sun (Easy).",
-      "quality_ratio": "Sub-threshold work should be 20-25% of weekly running time.",
-      "long_run": "75-90 minutes easy is sufficient for 5K-HM focus."
+  "athlete_levels_and_starting_points": [
+    {
+      "level_id": 0,
+      "level_title": "Total Beginner / Overweight / Non-Runner (<10 km/week or zero baseline)",
+      "starting_point": {
+        "weekly_mileage_range": "0 - 10 km / week (mostly walk-run time).",
+        "prerequisites": "Physician clearance for exercise; ability to walk continuously for 20 minutes.",
+        "training_experience": "Zero formal running background; prone to over-exertion."
+      },
+      "effort_and_pacing_rules": {
+        "effort_mindset": "MUST run strictly at RPE 3/10 (Very Light Jog). Beginners mistakenly think running requires RPE 8/10; force them to stay at RPE 3/10.",
+        "hills_effort": "RPE 4-5/10 (Slightly higher effort, but strictly controlled)."
+      },
+      "prescribed_model": "Walk-Run Interval Progression & Controlled Movement.",
+      "weekly_schedule": {
+        "monday": "Rest Day or Light 20 min Walking.",
+        "tuesday": "Walk-Run Session 1 — 10 reps of (40s light jog @ RPE 3/10 + 2 min walk rest). Total run time = 6.6 min.",
+        "wednesday": "Rest Day.",
+        "thursday": "Walk-Run Session 2 (Hill Control) — 8 reps of (40s light uphill jog @ RPE 4-5/10 + 2 min walk down rest).",
+        "friday": "Rest Day.",
+        "saturday": "Walk-Run Session 3 — 10 reps of (50s light jog @ RPE 3/10 + 2 min walk rest).",
+        "sunday": "Long Easy Walk-Run — 25-30 minutes total (1 min light jog @ RPE 3/10 / 2 min walk)."
+      },
+      "seasonal_progression_rules": {
+        "phase_1_base": "Week 1: 40s run / 2 min walk. Week 2: 50s run / 2 min walk. Week 3: 60s run / 2 min walk.",
+        "phase_2_development": "Transition to 90s run / 90s walk, maintaining RPE 3/10 strictly.",
+        "phase_3_sharpening": "Achieve 3-5 min continuous running blocks @ RPE 3/10 with 1 min walk rest."
+      }
     },
-    "intermediate_5_to_7_runs": {
-      "structure": "2-3 quality sessions/week. Introduction of one double threshold day in Week 3 if adapted.",
-      "progression": "Increase interval length or add one rep before increasing intensity.",
-      "rest": "At least one full easy day between quality sessions is mandatory."
+    {
+      "level_id": 0.5,
+      "level_title": "Early Beginner / Low Fitness (15 - 20 km/week, can run 5K continuous but unfit)",
+      "starting_point": {
+        "weekly_mileage_range": "15 - 20 km / week.",
+        "prerequisites": "Able to complete a 5K walk-run or slow continuous run without stopping.",
+        "training_experience": "Basic aerobic base, easily fatigued by fast running."
+      },
+      "effort_and_pacing_rules": {
+        "easy_runs": "RPE 3-4/10 strictly.",
+        "fartlek_and_hills": "RPE 5-6/10 maximum."
+      },
+      "prescribed_model": "Structured Run-Walk & Short Fartlek Intro.",
+      "weekly_schedule": {
+        "monday": "Rest Day or Mobility.",
+        "tuesday": "Run-Walk Threshold Session — 6-8 reps of (3 min light run @ RPE 4/10 + 1-2 min walk rest).",
+        "wednesday": "Easy Walk-Run — 30 min (4 min run / 1 min walk @ RPE 3/10).",
+        "thursday": "Controlled Hill Session — 8-10 reps of (1 min uphill jog @ RPE 5/10 + 90s walk down rest).",
+        "friday": "Rest Day.",
+        "saturday": "Short Fartlek Session — 20 min total: (2 min RPE 5/10 + 1 min easy walk/jog + 1 min RPE 6/10 + 1 min easy walk/jog) x 4 cycles.",
+        "sunday": "Short Long Run — 40 min total duration (continuous easy run @ RPE 3-4/10 or 5 min run / 1 min walk)."
+      },
+      "seasonal_progression_rules": {
+        "phase_1_base": "Build from 3 min run / 2 min walk up to 5 min run / 1 min walk.",
+        "phase_2_development": "Introduce continuous 10-15 min sub-threshold blocks @ RPE 5/10.",
+        "phase_3_sharpening": "Complete continuous 5K run @ RPE 5-6/10 with strong pacing discipline."
+      }
     },
-    "elite_full_norwegian_week_almgren_model": {
-      "weekly_volume": "180km - 200km+.",
-      "monday": "AM: 10-12km Easy. PM: 10-12km Easy + Sprints (3x60m, 3x120m) + Drills + Prehab.",
-      "tuesday_double_t": "AM: 6x6 min (LT1 focus, Lactate ~2.0). PM: 25x400m (LT2 focus, Lactate ~3.0, 30s rest).",
-      "wednesday": "AM: 10-12km Easy. PM: 10-12km Easy + Drills + Prehab.",
-      "thursday_double_t": "AM: 6x6 min (LT1 focus). PM: 12x1000m (LT2 focus, 1-min rest).",
-      "friday": "AM: 10km Easy + Plyometrics. PM: 10km Easy.",
-      "saturday": "AM: Hill Intervals (2x12x215m, 35s reps). PM: Light Threshold (10x3 min, Lactate ~1.0).",
-      "sunday": "AM: Long Run (30km, 3:40-3:50 min/km). PM: 3km Jog + Heavy Strength."
+    {
+      "level_id": 1,
+      "level_title": "Developing Runner / Beginner Athlete (30 - 50 km/week)",
+      "starting_point": {
+        "weekly_mileage_range": "30 - 50 km / week (approx. 20 - 30 miles/week) or 3 - 5 training hours/week.",
+        "prerequisites": "Minimum 3-6 months of regular easy running without injury.",
+        "training_experience": "New to systematic track threshold work."
+      },
+      "prescribed_model": "Norwegian Singles (1-2 Sub-Threshold Track Sessions/Week).",
+      "weekly_schedule": {
+        "monday": "Rest Day or Light Mobility.",
+        "tuesday": "Track Threshold Session 1 — AM or PM: 4-5x 1 Mile reps @ Golden Zone lower threshold pace (3-6% slower than threshold) with 60s jog rest.",
+        "wednesday": "Easy Run (35-45 min strictly <70% Max HR).",
+        "thursday": "Rest Day or Cross-Training.",
+        "friday": "Easy Run (35-45 min strictly <70% Max HR).",
+        "saturday": "Track Threshold Session 2 OR Fartlek — AM: 8-10x 800m reps @ sub-threshold pace with 45s rest OR 20 min Norwegian Custom Fartlek.",
+        "sunday": "Long Easy Run (60-75 min strictly <70% Max HR)."
+      },
+      "seasonal_progression_rules": {
+        "phase_1_base": "Focus on 1 Mile reps in AM and 800m reps in PM; incorporate Kenyan Fartlek (1 min on / 1 min float) into early long runs.",
+        "phase_2_development": "Expand total threshold volume from 20 min to 30 min per session; introduce Norwegian Custom Fartlek.",
+        "phase_3_sharpening": "Transition PM track reps to 400m reps @ fast threshold speed with 30s recovery."
+      }
+    },
+    {
+      "level_id": 2,
+      "level_title": "Intermediate / Advanced Amateur Athlete (40 - 60 km/week)",
+      "starting_point": {
+        "weekly_mileage_range": "40 - 60 km / week (approx. 25 - 40 miles/week) or 5 - 7 training hours/week.",
+        "prerequisites": "Consistent running history for 1+ years; able to run 5 days per week.",
+        "training_experience": "Familiar with track reps, heart rate zones, and tempo work."
+      },
+      "prescribed_model": "Full Norwegian Singles (3x Sub-Threshold Workouts/Week) OR Intro Double Threshold (1 double day + 1 single).",
+      "weekly_schedule": {
+        "monday": "Easy Recovery Run (45 min <70% Max HR).",
+        "tuesday": "Long Sub-Threshold Track Session — AM: 3x 2k reps or 4x 1 Mile reps @ lower threshold pace (~2.0 mmol/L, 78-82% HR) with 60s rest.",
+        "wednesday": "Easy Recovery Run (50-60 min <70% Max HR).",
+        "thursday": "Short Sub-Threshold Track Session — PM: 10-12x 800m or 12-15x 400m reps @ main threshold pace (~2.8 mmol/L, 82-86% HR) with 45s rest OR Norwegian Custom Fartlek (30 min).",
+        "friday": "Easy Recovery Run (40 min <70% Max HR) or Rest Day.",
+        "saturday": "Controlled Hills OR Alternate Week VO2max Session — 15x 200m hill reps OR 6x 800m fast reps @ 5K pace.",
+        "sunday": "Integrated Long Run (80-100 min) — First half easy (<70% Max HR); second half includes 6 km of Alternating Kilometers (1 km Easy / 1 km T2 / 1 km T1)."
+      },
+      "seasonal_progression_rules": {
+        "phase_1_base": "Morning reps: 3k and 2k reps. Evening reps: 1000m and 800m reps. Weekly hills.",
+        "phase_2_development": "Morning reps: 2k and 1 Mile reps. Evening reps: 800m and 400m reps. Alternate-week VO2 max sessions (e.g., 6x 800m fast).",
+        "phase_3_sharpening": "PM reps shift to 400m/200m track reps @ high-turnover threshold pace; execute Goal-Race Confidence workout 14 days before race."
+      }
+    },
+    {
+      "level_id": 3,
+      "level_title": "Advanced / Elite Endurance Athlete (80 - 160+ km/week)",
+      "starting_point": {
+        "weekly_mileage_range": "80 - 160+ km / week (approx. 50 - 100+ miles/week) or 9 - 15+ training hours/week.",
+        "prerequisites": "Multi-year high-volume background; high structural durability.",
+        "training_experience": "Routine blood lactate testing, precise pulse monitoring, track mastery."
+      },
+      "prescribed_model": "Classic Norwegian Double Threshold Model (2x Double Threshold Days + Saturday Quality/VO2max).",
+      "weekly_schedule": {
+        "monday": "Easy Recovery Run AM (50 min) + Easy Recovery Run PM (40 min) strictly <70% Max HR.",
+        "tuesday": "Double Threshold Day 1 — AM: Track 2x 3k + 2x 2k reps @ lower threshold (1.8-2.2 mmol/L, 75-82% HR) with 60s rest; PM: Track 10-12x 1000m or 12-15x 800m reps @ main threshold (2.5-3.2 mmol/L, 82-88% HR) with 45s rest.",
+        "wednesday": "Easy Recovery Run AM (60 min) + Easy Recovery Run PM (40 min) strictly <70% Max HR.",
+        "thursday": "Double Threshold Day 2 — AM: Track 4-5x 1 Mile reps @ lower threshold (1.8-2.3 mmol/L); PM: Track 20-25x 400m reps or Norwegian Custom Fartlek (35 min) @ main threshold (2.8-3.4 mmol/L).",
+        "friday": "Easy Recovery Run (50-60 min <70% Max HR).",
+        "saturday": "Specific Quality / Alternate VO2max Day — AM: 20x 200m hill reps OR 4x 2k fast reps @ race target pace; PM: Light easy recovery jog (30 min).",
+        "sunday": "Integrated Long Aerobic Run (100-130 min) — Incorporating Kenyan Fartlek or Alternating Kilometers in the second half."
+      },
+      "seasonal_progression_rules": {
+        "phase_1_base": "Focus on high double-threshold volume using 3k, 2k, 1 mile reps in AM and 1000m, 800m reps in PM.",
+        "phase_2_development": "Maintain AM volume with 2k/1 Mile reps; transition PM reps to 800m/400m; insert race-specific VO2max workouts on alternate Saturdays.",
+        "phase_3_sharpening": "PM sessions feature high-turnover 400m / 200m track reps @ sub-threshold speed with 30s rest; execute final Race-Confidence session 10-12 days out."
+      }
+    }
+  ],
+  "goal_specific_periodization_and_vo2max": {
+    "5k_10k_race_goal": {
+      "focus": "High density of threshold track reps, short float rests, and Saturday high-turnover VO2 max reps.",
+      "key_workouts": [
+        "PM Threshold Track Reps: 12-15x 800m or 20-25x 400m reps @ main threshold speed.",
+        "Alternate Saturday VO2max: 6-8x 800m fast reps @ 3K/5K pace with 2 min recovery.",
+        "Race Confidence Session: 5x 1000m @ 5K target pace with 90s rest, keeping lactate controlled below 4.0 mmol/L.",
+        "20x 200m hill reps for stride power and muscle tone maintenance."
+      ]
+    },
+    "half_marathon_race_goal": {
+      "focus": "Extending interval rep length (2k, 1 mile, 3k) in the lower Golden Zone threshold range.",
+      "key_workouts": [
+        "AM Threshold Track Reps: 2x 3k + 2x 2k reps @ Golden Zone lower threshold.",
+        "Alternate Saturday VO2max: 4x 2k fast reps @ 10K/Half Marathon pace.",
+        "Integrated Long Run: 100-115 min with 8-10 km of Alternating Kilometers (1 km Easy / 1 km T2 / 1 km T1).",
+        "Norwegian Custom Fartlek: 35 minutes continuous."
+      ]
+    },
+    "marathon_race_goal": {
+      "focus": "Maximizing aerobic efficiency, fat oxidation, and sub-threshold volume inside long runs.",
+      "key_workouts": [
+        "AM Threshold Track Reps: 3-4x 2k or 3x 3k reps @ marathon sub-threshold effort (1.8-2.2 mmol/L).",
+        "Race Confidence Session: 22-25 km Long Run with 3x 5k @ target Marathon pace inside.",
+        "Integrated Long Run: 2.0 to 2.5 hours with last 40% executed at continuous sub-threshold effort.",
+        "Flat weekly volume repeated over 12-16 week blocks."
+      ]
     }
   },
-  "distance_specific_adjustments": {
-    "5k_to_10k": "Focus on driving threshold speed. Peaking involves race-pace intervals (e.g., 3000m-1500m-300m) in the final 12 days.",
-    "half_marathon": "Revive threshold capacity and incorporate longer intervals at HMP (e.g., 4 x 5km with 3-min rest).",
-    "marathon": {
-      "limiting_factor": "Glycogen depletion and muscular fatigue.",
-      "strategy": "Integrate MP work into long runs (e.g., final 10km of 32km LR at MP).",
-      "carbohydrates": "Practice 60-120g of carbs/hour during long runs to prevent 'hitting the wall'."
-    }
+  "golden_rules_for_ai_and_coaches": {
+    "rules_for_workout_generation": [
+      "Enforce strict RPE limits for beginners (Level 0 and 0.5 must stay at RPE 3/10 during runs).",
+      "Always make morning double threshold sessions longer in distance (3k, 2k, 1 mile) and lower in lactate (1.8-2.3 mmol/L) than evening sessions.",
+      "Always make evening double threshold sessions shorter in distance (1k, 800m, 400m, 200m) and slightly higher in lactate/speed (2.5-3.5 mmol/L).",
+      "Ensure all easy runs stay strictly under 70% Max HR.",
+      "Incorporate long-run workout variations (Alternating km, Kenyan Fartlek) in the second half of long runs for Intermediate and Advanced athletes.",
+      "Swap hill reps for race-specific VO2 max track workouts every other week as race day approaches."
+    ],
+    "common_traps_to_avoid": [
+      "Zombie Training: running easy days too fast and hard days not precisely controlled, resulting in constant chronic fatigue.",
+      "Overshooting Lactate: turning controlled sub-threshold workouts into high-lactate VO2max sessions.",
+      "Prescribing Double Threshold days to athletes running under 50 km/week who lack aerobic durability."
+    ]
   },
-  "health_recovery_and_medical": {
-    "warning_signals": {
-      "physiological": "Morning resting HR elevated >5 bpm for 3+ consecutive days.",
-      "performance": "Inability to hit target lactate ranges or lower pace at the same HR.",
-      "medical_markers": "Frequent monitoring of Ferritin (iron stores) is critical during high load or altitude stays."
-    },
-    "clinical_recovery": {
-      "sleep_foundation": "Deep sleep is the most important recovery piece. Disrupted sleep signals overtraining.",
-      "illness_management": "Never train with a fever or sore throat. One week of illness can cost 2 seconds per interval in a 400m session.",
-      "nutrition": "Recovery for the next session begins immediately with carb intake during/after the current session. 7-10g/kg body weight on double days."
-    },
-    "strength_and_prehab": {
-      "purpose": "Injury prevention over performance enhancement. Target the 'weakest link'.",
-      "exercises": "Hang Clean (explosiveness), Squats/Bulgarian Split Squats (stability), Step-ups, Hip Thrusts, Calf Raises."
-    }
-  },
-  "coaching_psychology_and_peaking": {
-    "the_peaking_window": "Final 4-6 weeks. Gradually reduce volume while increasing intensity to race-relevant speeds.",
-    "reverse_engineering": "Identify the target race date and work backward to determine training phases.",
-    "mental_strategies": {
-      "pain_management": "View pain as a 'friend' or 'party guest'. If the friend doesn't show up, you didn't do the workout right.",
-      "the_really_test": "Ask: 'How tired am I, REALLY?' - usually the brain exaggerates fatigue; if you can think the thought, you aren't spent.",
-      "segmenting": "Break tough intervals into 200m segments to stay in the present moment."
-    }
-  },
-  "equipment_recommendations": {
-    "essentials": "Chest strap HR monitor (Polar H10/Garmin HRM-Pro) for 1-2 bpm accuracy.",
-    "lactate_meters": "Lactate Pro 2 or Lactate Scout 4 ($300-$400).",
-    "footwear_rotation": "Alphafly/Vaporfly for intervals. All-round trainers (e.g., Vomero) for easy runs. Dragonfly Elite for track racing."
+  "strength_and_prehab": {
+    "_note": "Not part of the new Norwegian Method source document (which is running/threshold-only) — carried over from the prior brain because the app still assigns type:'strength' sessions and needs real exercise content for them.",
+    "purpose": "Injury prevention over performance enhancement. Target the 'weakest link'.",
+    "exercises": "Hang Clean (explosiveness), Squats/Bulgarian Split Squats (stability), Step-ups, Hip Thrusts, Calf Raises."
   }
 }
