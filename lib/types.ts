@@ -124,6 +124,34 @@ export interface AthleteProfile {
   // used so AI-generated plans/feedback are written in the athlete's
   // language rather than defaulting to Hebrew.
   preferredLanguage?: 'en' | 'he'
+  // Fixed sessions the coach wants on the calendar every week (or every
+  // other week) regardless of season phase — a gym day, yoga, a standing
+  // cross-training slot. The Bakken AI generator always includes these on
+  // their designated day rather than deciding fresh each time; set once,
+  // applies to every future generation until changed. Stored at the
+  // athlete level (not on a specific journey/stage) so it survives a full
+  // season regenerate.
+  recurringActivities?: Array<{
+    id: string
+    dayOfWeek: 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday'
+    frequency: 'every_week' | 'every_other_week'
+    type: string // a WorkoutType, e.g. 'strength' | 'cross_training'
+    title: string
+    notes?: string
+  }>
+  // Coach-defined weekday -> workout-type skeleton per season phase, e.g.
+  // { build: { tuesday: 'threshold', thursday: 'long_run' } } — when set
+  // for a given stage type, the Bakken AI generator uses that EXACT type
+  // on that weekday every week that phase is active (filling in the real
+  // pace/structure itself), instead of deciding which day gets which
+  // quality type on its own. Days not listed stay the AI's own call.
+  // Keyed by JourneyStageType so it naturally reapplies to whichever
+  // "build"/"peak"/etc. stage exists in a freshly-generated season, since
+  // stages themselves are recreated fresh on every skeleton regenerate.
+  stageDayTypeTemplates?: Partial<Record<JourneyStageType, Partial<Record<
+    'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday',
+    string
+  >>>>
   createdAt: Date
   updatedAt: Date
 }

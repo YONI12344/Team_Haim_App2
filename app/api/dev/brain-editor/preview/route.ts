@@ -7,7 +7,7 @@ import {
   type PlanAthleteContext, type BlockRequest, type BlockStageInfo,
 } from '@/lib/bakken/plan-prompt'
 import {
-  normalizeInvalidTypes, enforceWeekSchedule, enforceAmPmOrder, enforceSameDaySessionTags,
+  normalizeInvalidTypes, enforceWeekSchedule, enforceDayTypeTemplate, enforceAmPmOrder, enforceSameDaySessionTags,
   enforceNoBackToBackBigDays, enforceLongRunDay, normalizeWeeklyVolume,
   type DayKey, type BlockWorkoutOut,
 } from '@/lib/bakken/backstops'
@@ -162,6 +162,7 @@ export async function POST(req: NextRequest) {
     // 3. Same backstops production uses
     normalizeInvalidTypes(workouts, profile.athlete.language)
     enforceWeekSchedule(workouts, profile.athlete.weekSchedule as Record<DayKey, 'workout' | 'rest' | 'off'>, profile.athlete.language)
+    enforceDayTypeTemplate(workouts, stagesForBlock)
     enforceAmPmOrder(workouts)
     enforceLongRunDay(workouts, profile.athlete.longRunDay as DayKey | undefined, profile.athlete.language)
     enforceNoBackToBackBigDays(workouts, undefined, profile.athlete.longRunDay as DayKey | undefined, profile.athlete.language)

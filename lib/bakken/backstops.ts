@@ -54,6 +54,89 @@ export const DAY_INDEX: Record<DayKey, number> = {
 
 const addDaysStr = (dateStr: string, n: number) => format(addDays(parseISO(dateStr), n), 'yyyy-MM-dd')
 const dateMin = (a: string, b: string) => (a < b ? a : b)
+const weekKeyOf = (dateStr: string) => format(startOfWeek(parseISO(dateStr), { weekStartsOn: 0 }), 'yyyy-MM-dd')
+
+// Coach-set fixed weekly sessions (AthleteProfile.recurringActivities) are a
+// hard rule in the prompt (rule 2b), but per this session's established
+// pattern, a "hard rule" phrased in prose alone isn't reliable enough to
+// skip a code-level safety net for — same reasoning as every other
+// backstop here. Verified in a real test run this needed two real fixes
+// beyond the basic insert: (1) a bare "duration: null" placeholder violates
+// the schema's own expectation that every non-rest type has a duration —
+// defaults to 45min, a reasonable typical gym/yoga length; (2) inserting
+// it ALONGSIDE an existing "rest" entry (rather than replacing it) created
+// a same-date pair where neither side is tagged am/pm — enforceSameDay
+// SessionTags correctly leaves that alone since neither side has a real
+// signal, so the ambiguity survived. A rest day getting a real activity
+// isn't a genuine two-session day, it's just "this day became a gym day"
+// — so a rest-only day gets overwritten in place instead of added to.
+// Otherwise additive (never replaces a REAL existing session) — only
+// skips a date already at 2 real entries (e.g. a double-threshold pair),
+// since forcing a 3rd same-date entry isn't a case the rest of the app's
+// same-day rendering is built to handle.
+const RECURRING_ACTIVITY_DEFAULT_MINUTES = 45
+export const enforceRecurringActivities = (
+  workouts: BlockWorkoutOut[],
+  recurringActivities: Array<{
+    dayOfWeek: DayKey
+    frequency: 'every_week' | 'every_other_week'
+    type: string
+    title: string
+    notes?: string
+  }> | undefined,
+  seasonStartDate: string,
+  language: 'en' | 'he',
+): BlockWorkoutOut[] => {
+  if (!recurringActivities || recurringActivities.length === 0) return workouts
+  const seasonWeekStart = weekKeyOf(seasonStartDate)
+  const weeksPresent = new Set(workouts.map((w) => weekKeyOf(w.date)))
+  for (const activity of recurringActivities) {
+    for (const weekStart of weeksPresent) {
+      const weekNumber = Math.floor(
+        (parseISO(weekStart).getTime() - parseISO(seasonWeekStart).getTime()) / (7 * 86400000),
+      ) + 1
+      if (activity.frequency === 'every_other_week' && weekNumber % 2 === 0) continue
+      const targetDate = addDaysStr(weekStart, DAY_INDEX[activity.dayOfWeek])
+      const dayEntries = workouts.filter((w) => w.date === targetDate)
+      if (dayEntries.some((w) => w.type === activity.type && w.title === activity.title)) continue
+
+      const restEntries = dayEntries.filter((w) => w.type === 'rest')
+      if (restEntries.length > 0 && restEntries.length === dayEntries.length) {
+        // The whole day is currently just rest placeholder(s) — overwrite
+        // the first one in place and drop any extras, rather than adding a
+        // second, ambiguous same-date entry next to a day that's really
+        // just "nothing happening here."
+        const target = restEntries[0]
+        target.type = activity.type
+        target.title = activity.title
+        target.description = activity.notes || (language === 'he' ? 'אימון קבוע שבועי.' : 'Standing weekly session.')
+        target.duration = RECURRING_ACTIVITY_DEFAULT_MINUTES
+        target.distance = null
+        target.sets = []
+        for (const extra of restEntries.slice(1)) {
+          const idx = workouts.indexOf(extra)
+          if (idx >= 0) workouts.splice(idx, 1)
+        }
+        continue
+      }
+
+      if (dayEntries.length >= 2) continue
+      workouts.push({
+        date: targetDate,
+        session: dayEntries.length === 1
+          ? (dayEntries[0].session === 'am' ? 'pm' : dayEntries[0].session === 'pm' ? 'am' : 'other')
+          : 'other',
+        type: activity.type,
+        title: activity.title,
+        description: activity.notes || (language === 'he' ? 'אימון קבוע שבועי.' : 'Standing weekly session.'),
+        duration: RECURRING_ACTIVITY_DEFAULT_MINUTES,
+        distance: null,
+        sets: [],
+      })
+    }
+  }
+  return workouts
+}
 
 // The model asking it to "check the weekly sum" in the prompt (see rule 3 in
 // plan-prompt.ts) isn't reliable enough on its own — weekly totals kept
@@ -297,6 +380,53 @@ export const enforceWeekSchedule = (workouts: BlockWorkoutOut[], weekSchedule: R
     w.thresholdDistance = null
   }
 
+  return workouts
+}
+
+// Coach-defined day->type skeleton per stage (AthleteProfile.
+// stageDayTypeTemplates, rule 2c) is another prose "hard rule" that
+// verified in a real test run to drift — 5 of 6 weeks matched exactly,
+// but the last week swapped which day got which type (threshold landed
+// on Thursday instead of Tuesday, fartlek on Tuesday instead of Thursday).
+// Deterministic backstop: for each week, if the day the template
+// designates doesn't have the required type, look for ANOTHER day that
+// same week which DOES have that type and swap their full content (not
+// just dates) — this fixes exactly the observed failure mode ("right
+// content, wrong day") without inventing session content from scratch.
+// If no same-week day has the required type at all, there's nothing safe
+// to swap into place (synthesizing a whole valid threshold/fartlek
+// session's structure here would mean re-implementing significant AI
+// logic in plain code) — left alone in that case, same trade-off
+// enforceLongRunDay makes when there's no long_run to work with at all.
+export const enforceDayTypeTemplate = (
+  workouts: BlockWorkoutOut[],
+  stagesForBlock: BlockStageInfo[],
+): BlockWorkoutOut[] => {
+  const weeks = new Map<string, BlockWorkoutOut[]>()
+  for (const w of workouts) {
+    const key = weekKeyOf(w.date)
+    if (!weeks.has(key)) weeks.set(key, [])
+    weeks.get(key)!.push(w)
+  }
+  for (const [weekStart, items] of weeks) {
+    const midweek = addDaysStr(weekStart, 3)
+    const stage = stagesForBlock.find((s) => midweek >= s.startDate && midweek <= s.endDate)
+    if (!stage?.dayTypeTemplate) continue
+    for (const [dayKey, requiredType] of Object.entries(stage.dayTypeTemplate)) {
+      if (!requiredType) continue
+      const targetDate = addDaysStr(weekStart, DAY_INDEX[dayKey as DayKey])
+      const targetItem = items.find((w) => w.date === targetDate)
+      if (!targetItem || targetItem.type === requiredType) continue
+      const candidate = items.find((w) => w !== targetItem && w.type === requiredType)
+      if (!candidate) continue
+      const targetDateStr = targetItem.date
+      const candidateDateStr = candidate.date
+      const targetCopy: BlockWorkoutOut = { ...targetItem }
+      const candidateCopy: BlockWorkoutOut = { ...candidate }
+      Object.assign(targetItem, candidateCopy, { date: targetDateStr })
+      Object.assign(candidate, targetCopy, { date: candidateDateStr })
+    }
+  }
   return workouts
 }
 

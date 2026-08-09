@@ -17,6 +17,7 @@ import { format, addDays, parseISO, startOfWeek } from 'date-fns'
 import { toast } from 'sonner'
 import { Loader2, Sparkles, X } from 'lucide-react'
 import { db } from '@/lib/firebase'
+import { useWorkoutTypeLabels } from '@/lib/workout-labels'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
 import { useLatestStepTest } from '@/hooks/useLatestStepTest'
@@ -30,6 +31,8 @@ import {
   enforceWeekSchedule,
   enforceAmPmOrder,
   enforceSameDaySessionTags,
+  enforceRecurringActivities,
+  enforceDayTypeTemplate,
   enforceNoBackToBackBigDays,
   enforceLongRunDay,
   normalizeWeeklyVolume,
@@ -71,6 +74,16 @@ const DAY_TYPE_LABELS: Record<'en' | 'he', Record<DayType, string>> = {
   en: { workout: 'Available', rest: 'Rest day', off: "Can't run" },
   he: { workout: 'זמין', rest: 'יום מנוחה', off: 'לא זמין' },
 }
+const STAGE_TYPE_LABELS: Record<'en' | 'he', Record<'base' | 'build' | 'peak' | 'taper' | 'race_week', string>> = {
+  en: { base: 'Base', build: 'Build', peak: 'Peak', taper: 'Taper', race_week: 'Race Week' },
+  he: { base: 'בסיס', build: 'בנייה', peak: 'שיא', taper: 'הפחתת עומסים', race_week: 'שבוע מרוץ' },
+}
+// The workout types that actually make sense to fix onto a specific
+// weekday in a coach-defined skeleton — excludes race/time_trial/rest
+// (those are decided by other mechanisms, not a recurring weekly slot).
+const DAY_TEMPLATE_TYPE_OPTIONS: string[] = [
+  'easy', 'long_run', 'tempo', 'threshold', 'intervals', 'hill_repeats', 'fartlek', 'recovery',
+]
 const DEFAULT_WEEK_SCHEDULE: Record<DayKey, DayType> = {
   sunday: 'workout', monday: 'workout', tuesday: 'workout', wednesday: 'workout',
   thursday: 'workout', friday: 'rest', saturday: 'workout',
@@ -127,6 +140,16 @@ const UI = {
     longRunNone: 'No cap',
     longRunDayLabel: 'Long run day (hard rule — every week)',
     longRunDayNone: "AI decides",
+    recurringTitle: 'Recurring weekly activities',
+    recurringHint: 'A gym day, yoga, standing cross-training — set once, always included regardless of phase.',
+    recurringAdd: 'Add recurring activity',
+    recurringTitlePlaceholder: 'Title (e.g. "Gym")',
+    recurringNotesPlaceholder: 'Notes (optional)',
+    everyWeek: 'Every week',
+    everyOtherWeek: 'Every other week',
+    dayTemplateTitle: 'Day-type template per season phase',
+    dayTemplateHint: 'Assign which day gets which workout type for each phase — the AI fills in the actual content, you decide the skeleton. Leave a day blank to let the AI decide.',
+    dayTemplateAiDecides: 'AI decides',
     goalDistance: 'Goal race distance',
     raceName: 'Race name (optional)',
     raceNamePlaceholder: 'e.g. Tel Aviv Marathon',
@@ -201,6 +224,16 @@ const UI = {
     longRunNone: 'ללא תקרה',
     longRunDayLabel: 'יום הריצה הארוכה (כלל קבוע — כל שבוע)',
     longRunDayNone: 'ה-AI מחליט',
+    recurringTitle: 'אימונים קבועים שבועיים',
+    recurringHint: 'יום כושר, יוגה, אימון חיזוק קבוע — מגדירים פעם אחת, תמיד ייכלל ללא קשר לשלב העונה.',
+    recurringAdd: 'הוסף אימון קבוע',
+    recurringTitlePlaceholder: 'כותרת (למשל "חדר כושר")',
+    recurringNotesPlaceholder: 'הערות (לא חובה)',
+    everyWeek: 'כל שבוע',
+    everyOtherWeek: 'כל שבוע שני',
+    dayTemplateTitle: 'תבנית ימים לפי שלב עונה',
+    dayTemplateHint: 'קבעו איזה יום מקבל איזה סוג אימון בכל שלב — ה-AI ימלא את התוכן בפועל, אתם קובעים את השלד. השאירו יום ריק כדי לתת ל-AI להחליט.',
+    dayTemplateAiDecides: 'ה-AI מחליט',
     goalDistance: 'מרחק היעד',
     raceName: 'שם המירוץ (לא חובה)',
     raceNamePlaceholder: 'לדוגמה: מרתון תל אביב',
@@ -364,6 +397,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
   const { language: uiLang } = useLanguage()
   const t = UI[uiLang]
   const { steps: labSteps } = useLatestStepTest(athleteId)
+  const workoutTypeLabels = useWorkoutTypeLabels()
   const [loading, setLoading] = useState(false)
   const [progress, setProgress] = useState<string | null>(null)
   const [lastSummary, setLastSummary] = useState<string | null>(null)
@@ -374,6 +408,21 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
   const [summary, setSummary] = useState<AthleteSummary | null>(null)
   const [coachNotes, setCoachNotes] = useState('')
   const [savingNotes, setSavingNotes] = useState(false)
+  // Fixed weekly/every-other-week sessions (gym, yoga, standing cross-
+  // training) the coach sets once — always included by the AI generator
+  // regardless of phase, see rule 2b in plan-prompt.ts.
+  const [recurringActivities, setRecurringActivities] = useState<Array<{
+    id: string
+    dayOfWeek: DayKey
+    frequency: 'every_week' | 'every_other_week'
+    type: string
+    title: string
+    notes?: string
+  }>>([])
+  // Coach-defined weekday->type skeleton per season-stage TYPE (base/build/
+  // peak/etc.) — the AI generator uses the exact type on that weekday for
+  // any week that stage is active instead of deciding itself. See rule 2c.
+  const [stageDayTypeTemplates, setStageDayTypeTemplates] = useState<Record<string, Partial<Record<DayKey, string>>>>({})
   const [journeyPreview, setJourneyPreview] = useState<JourneyDoc | null>(null)
   const [prDistance, setPrDistance] = useState<RaceDistance | ''>('')
   const [prHours, setPrHours] = useState(0)
@@ -438,6 +487,8 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
           : [],
       })
       setCoachNotes(d.coachPrivateNotes || '')
+      setRecurringActivities(Array.isArray(d.recurringActivities) ? d.recurringActivities : [])
+      setStageDayTypeTemplates(d.stageDayTypeTemplates && typeof d.stageDayTypeTemplates === 'object' ? d.stageDayTypeTemplates : {})
       setScheduleLoaded(true)
     }
     load()
@@ -615,6 +666,8 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         testRaceDistance: summary.testRaceDistance || null,
         testRaceDate: summary.testRaceDate || null,
         personalRecords: summary.personalRecords,
+        recurringActivities,
+        stageDayTypeTemplates,
       })
 
       const profileSnap = await getDoc(doc(db, 'users', athleteId))
@@ -709,6 +762,11 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         },
         last3WeeksSummary,
         recentWorkouts,
+        recurringActivities: Array.isArray(profile.recurringActivities) && profile.recurringActivities.length > 0
+          ? profile.recurringActivities.map((r: any) => ({
+              dayOfWeek: r.dayOfWeek, frequency: r.frequency, type: r.type, title: r.title, notes: r.notes,
+            }))
+          : undefined,
         language: (profile.preferredLanguage as 'en' | 'he') || 'he',
       }
 
@@ -905,6 +963,11 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
             weeklyVolumeKm: s.weeklyVolumeKm,
             startDate: s.startDate,
             endDate: s.endDate,
+            // Coach-defined day->type skeleton for this stage TYPE (not this
+            // specific stage instance) — stored on the athlete profile so it
+            // survives a full season regenerate, since stages themselves get
+            // recreated fresh each time. See rule 2c in plan-prompt.ts.
+            dayTypeTemplate: (profile.stageDayTypeTemplates as any)?.[s.type],
           }))
 
         const res = await fetch('/api/bakken-coach/generate-plan', {
@@ -932,9 +995,11 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         if (i === 0) firstBlockSummary = plan.blockSummary
         normalizeInvalidTypes(plan.workouts, athleteContext.language)
         enforceWeekSchedule(plan.workouts, weekSchedule, athleteContext.language)
+        enforceDayTypeTemplate(plan.workouts, stagesForBlock)
         enforceAmPmOrder(plan.workouts)
         enforceLongRunDay(plan.workouts, athleteContext.longRunDay, athleteContext.language)
         enforceNoBackToBackBigDays(plan.workouts, previousBlockTail, athleteContext.longRunDay, athleteContext.language)
+        enforceRecurringActivities(plan.workouts, athleteContext.recurringActivities, journeyDoc.startDate, athleteContext.language)
         // Runs LAST among the date/session-touching backstops — enforceLongRunDay
         // swaps dates (not sessions) when relocating a long run, which can land
         // it on a date that already has a tagged am/pm entry; verified in
@@ -1086,6 +1151,82 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div className="rounded-md border border-dashed border-input p-2 space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">{t.recurringTitle}</p>
+              <p className="text-[11px] text-muted-foreground">{t.recurringHint}</p>
+              {recurringActivities.map((activity, idx) => (
+                <div key={activity.id} className="flex flex-wrap items-center gap-1.5 rounded-md bg-muted/40 p-1.5">
+                  <select value={activity.dayOfWeek}
+                    onChange={(e) => setRecurringActivities(recurringActivities.map((a, i) => i === idx ? { ...a, dayOfWeek: e.target.value as DayKey } : a))}
+                    className="rounded-md border border-input bg-background px-1.5 py-1 text-[11px]">
+                    {DAY_ORDER.map((day) => <option key={day} value={day}>{DAY_LABELS[uiLang][day]}</option>)}
+                  </select>
+                  <select value={activity.frequency}
+                    onChange={(e) => setRecurringActivities(recurringActivities.map((a, i) => i === idx ? { ...a, frequency: e.target.value as 'every_week' | 'every_other_week' } : a))}
+                    className="rounded-md border border-input bg-background px-1.5 py-1 text-[11px]">
+                    <option value="every_week">{t.everyWeek}</option>
+                    <option value="every_other_week">{t.everyOtherWeek}</option>
+                  </select>
+                  <select value={activity.type}
+                    onChange={(e) => setRecurringActivities(recurringActivities.map((a, i) => i === idx ? { ...a, type: e.target.value } : a))}
+                    className="rounded-md border border-input bg-background px-1.5 py-1 text-[11px]">
+                    <option value="strength">{workoutTypeLabels.strength}</option>
+                    <option value="cross_training">{workoutTypeLabels.cross_training}</option>
+                  </select>
+                  <input type="text" value={activity.title} placeholder={t.recurringTitlePlaceholder}
+                    onChange={(e) => setRecurringActivities(recurringActivities.map((a, i) => i === idx ? { ...a, title: e.target.value } : a))}
+                    className="min-w-[100px] flex-1 rounded-md border border-input bg-background px-1.5 py-1 text-[11px]" />
+                  <input type="text" value={activity.notes || ''} placeholder={t.recurringNotesPlaceholder}
+                    onChange={(e) => setRecurringActivities(recurringActivities.map((a, i) => i === idx ? { ...a, notes: e.target.value } : a))}
+                    className="min-w-[100px] flex-1 rounded-md border border-input bg-background px-1.5 py-1 text-[11px]" />
+                  <button type="button" onClick={() => setRecurringActivities(recurringActivities.filter((_, i) => i !== idx))}
+                    className="rounded-md p-1 text-muted-foreground hover:text-destructive">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+              <Button type="button" variant="outline" size="sm" className="h-7 text-[11px]"
+                onClick={() => setRecurringActivities([...recurringActivities, {
+                  id: localId('recurring'), dayOfWeek: 'monday', frequency: 'every_week', type: 'strength', title: '', notes: '',
+                }])}>
+                {t.recurringAdd}
+              </Button>
+            </div>
+
+            <div className="rounded-md border border-dashed border-input p-2 space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">{t.dayTemplateTitle}</p>
+              <p className="text-[11px] text-muted-foreground">{t.dayTemplateHint}</p>
+              {(['base', 'build', 'peak', 'taper', 'race_week'] as const).map((stageType) => (
+                <div key={stageType} className="rounded-md bg-muted/40 p-1.5">
+                  <p className="text-[11px] font-semibold text-muted-foreground mb-1">{STAGE_TYPE_LABELS[uiLang][stageType]}</p>
+                  <div className="flex flex-wrap gap-1">
+                    {DAY_ORDER.map((day) => (
+                      <div key={day} className="flex flex-col items-center gap-0.5">
+                        <span className="text-[9px] text-muted-foreground">{DAY_LABELS[uiLang][day]}</span>
+                        <select
+                          value={stageDayTypeTemplates[stageType]?.[day] || ''}
+                          onChange={(e) => {
+                            const value = e.target.value
+                            setStageDayTypeTemplates((prev) => {
+                              const next = { ...prev, [stageType]: { ...prev[stageType] } }
+                              if (value) next[stageType]![day] = value
+                              else delete next[stageType]![day]
+                              return next
+                            })
+                          }}
+                          className="rounded-md border border-input bg-background px-1 py-0.5 text-[10px]">
+                          <option value="">{t.dayTemplateAiDecides}</option>
+                          {DAY_TEMPLATE_TYPE_OPTIONS.map((wt) => (
+                            <option key={wt} value={wt}>{(workoutTypeLabels as Record<string, string>)[wt] || wt}</option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
 
             <div>
