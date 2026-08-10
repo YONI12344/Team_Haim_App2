@@ -20,7 +20,8 @@ interface ExerciseGroup {
   exerciseId: string
   exerciseName: string
   logs: ExerciseLogEntry[]
-  personalBest: number | null
+  isTimed: boolean
+  personalBest: number | null // weight (kg) or duration (sec), per isTimed
   lastDate: string
 }
 
@@ -37,6 +38,7 @@ function loadLogs(uid: string): Promise<ExerciseLogEntry[]> {
         workoutDate: data.workoutDate || '',
         sets: Array.isArray(data.sets) ? data.sets : [],
         maxWeightKg: data.maxWeightKg ?? null,
+        maxDurationSec: data.maxDurationSec ?? null,
         createdAt: data.createdAt?.toDate?.() || new Date(),
         updatedAt: data.updatedAt?.toDate?.() || new Date(),
       } as ExerciseLogEntry
@@ -72,6 +74,7 @@ export function AthleteExerciseProgress() {
           exerciseId: log.exerciseId,
           exerciseName: log.exerciseName,
           logs: [log],
+          isTimed: false,
           personalBest: null,
           lastDate: log.workoutDate,
         })
@@ -80,7 +83,11 @@ export function AthleteExerciseProgress() {
     for (const group of map.values()) {
       group.logs.sort((a, b) => a.workoutDate.localeCompare(b.workoutDate))
       const weights = group.logs.map((l) => l.maxWeightKg).filter((w): w is number => typeof w === 'number')
-      group.personalBest = weights.length ? Math.max(...weights) : null
+      const durations = group.logs.map((l) => l.maxDurationSec).filter((d): d is number => typeof d === 'number')
+      group.isTimed = weights.length === 0 && durations.length > 0
+      group.personalBest = group.isTimed
+        ? (durations.length ? Math.max(...durations) : null)
+        : (weights.length ? Math.max(...weights) : null)
       group.lastDate = group.logs[group.logs.length - 1]?.workoutDate || ''
     }
     return [...map.values()].sort((a, b) => b.lastDate.localeCompare(a.lastDate))
@@ -97,9 +104,10 @@ export function AthleteExerciseProgress() {
   }
 
   if (selectedGroup) {
+    const unit = selectedGroup.isTimed ? 'שניות' : 'ק"ג'
     const chartData = selectedGroup.logs.map((l) => ({
       date: new Date(l.workoutDate).toLocaleDateString('he-IL', { day: 'numeric', month: 'short' }),
-      weight: l.maxWeightKg ?? 0,
+      value: (selectedGroup.isTimed ? l.maxDurationSec : l.maxWeightKg) ?? 0,
     }))
     return (
       <div className="space-y-4 pb-24" dir="rtl">
@@ -116,7 +124,7 @@ export function AthleteExerciseProgress() {
           {selectedGroup.personalBest != null && (
             <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
               <Trophy className="h-3.5 w-3.5 text-[#c9a84c]" />
-              שיא אישי: {selectedGroup.personalBest} ק&quot;ג
+              שיא אישי: {selectedGroup.personalBest} {unit}
             </p>
           )}
         </div>
@@ -129,7 +137,7 @@ export function AthleteExerciseProgress() {
                 <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#9ca3af' }} />
                 <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} domain={['auto', 'auto']} />
                 <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #f0f0f0', borderRadius: '12px' }} />
-                <Line type="monotone" dataKey="weight" stroke="#c9a84c" strokeWidth={2} dot={{ fill: '#c9a84c', r: 4 }} />
+                <Line type="monotone" dataKey="value" stroke="#c9a84c" strokeWidth={2} dot={{ fill: '#c9a84c', r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -142,7 +150,10 @@ export function AthleteExerciseProgress() {
               <div key={log.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
                 <span className="text-sm text-gray-500">{new Date(log.workoutDate).toLocaleDateString('he-IL')}</span>
                 <span className="text-sm font-medium text-[#0a1628]">
-                  {log.sets.map((s) => (s.weightKg != null ? `${s.weightKg}` : '—')).join(' / ')} ק&quot;ג
+                  {log.sets.map((s) => {
+                    const v = selectedGroup.isTimed ? s.durationSec : s.weightKg
+                    return v != null ? `${v}` : '—'
+                  }).join(' / ')} {unit}
                 </span>
               </div>
             ))}
@@ -155,8 +166,8 @@ export function AthleteExerciseProgress() {
   return (
     <div className="space-y-4 pb-24" dir="rtl">
       <div>
-        <h1 className="text-2xl md:text-3xl font-serif font-bold text-[#0a1628]">התקדמות בכוח</h1>
-        <p className="text-gray-500 text-sm">משקלים והתקדמות לפי תרגיל</p>
+        <h1 className="text-2xl md:text-3xl font-serif font-bold text-[#0a1628]">התקדמות בכוח ומתיחות</h1>
+        <p className="text-gray-500 text-sm">משקלים וזמנים לפי תרגיל</p>
       </div>
 
       {groups.length === 0 ? (
@@ -182,7 +193,7 @@ export function AthleteExerciseProgress() {
               {group.personalBest != null && (
                 <div className="text-left">
                   <p className="text-lg font-black text-[#c9a84c] leading-none">{group.personalBest}</p>
-                  <p className="text-[10px] text-gray-400 mt-1">ק&quot;ג שיא</p>
+                  <p className="text-[10px] text-gray-400 mt-1">{group.isTimed ? 'שניות שיא' : 'ק"ג שיא'}</p>
                 </div>
               )}
             </button>

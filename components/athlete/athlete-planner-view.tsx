@@ -810,13 +810,13 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
           <p className="text-sm text-navy text-right">{t.coachNotesLabel}: {w.workout.notes}</p>
         </div>
       )}
-      {/* Structured strength workout — step through exercises with video +
-          weight logging instead of the generic log form below. */}
-      {w.workout.type === 'strength' && !!w.workout.strengthBlocks?.length && (
+      {/* Structured strength/stretch workout — step through exercises with
+          video + weight/timer logging instead of the generic log form below. */}
+      {(w.workout.type === 'strength' || w.workout.type === 'stretch') && !!w.workout.strengthBlocks?.length && (
         <div className="px-4 py-3 border-t border-border">
           <Link href={`/athlete/lift/${w.id}`}>
             <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold">
-              💪 התחל אימון כוח
+              {w.workout.type === 'stretch' ? '🧘 התחל מתיחות' : '💪 התחל אימון כוח'}
             </Button>
           </Link>
         </div>

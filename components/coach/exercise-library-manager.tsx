@@ -17,7 +17,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Plus, Pencil, Trash2, Loader2, Dumbbell, Video } from 'lucide-react'
+import { Plus, Pencil, Trash2, Loader2, Dumbbell, Video, Timer } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/auth-context'
 import { isCoachEmail } from '@/lib/constants'
@@ -26,7 +27,16 @@ import { listExercises, saveExercise, deleteExercise, uploadExerciseVideo } from
 import { BODY_ZONES, ZONE_IDS } from '@/lib/injury-data'
 import { cn } from '@/lib/utils'
 
-const emptyForm = { name: '', instructions: '', defaultSets: '', defaultReps: '', injuryZones: [] as string[] }
+const emptyForm = {
+  name: '',
+  instructions: '',
+  category: 'strength' as 'strength' | 'stretch',
+  isTimed: false,
+  defaultDurationSec: '',
+  defaultSets: '',
+  defaultReps: '',
+  injuryZones: [] as string[],
+}
 
 export function ExerciseLibraryManager() {
   const { user } = useAuth()
@@ -42,6 +52,7 @@ export function ExerciseLibraryManager() {
   const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<ExerciseLibraryItem | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [filterCategory, setFilterCategory] = useState<'strength' | 'stretch'>('strength')
   const fileRef = useRef<HTMLInputElement>(null)
 
   const load = async () => {
@@ -59,7 +70,7 @@ export function ExerciseLibraryManager() {
 
   const openAdd = () => {
     setEditing(null)
-    setForm(emptyForm)
+    setForm({ ...emptyForm, category: filterCategory })
     setVideoFile(null)
     setDialogOpen(true)
   }
@@ -69,6 +80,9 @@ export function ExerciseLibraryManager() {
     setForm({
       name: exercise.name,
       instructions: exercise.instructions || '',
+      category: exercise.category || 'strength',
+      isTimed: !!exercise.isTimed,
+      defaultDurationSec: exercise.defaultDurationSec != null ? String(exercise.defaultDurationSec) : '',
       defaultSets: exercise.defaultSets != null ? String(exercise.defaultSets) : '',
       defaultReps: exercise.defaultReps || '',
       injuryZones: exercise.injuryZones || [],
@@ -85,6 +99,9 @@ export function ExerciseLibraryManager() {
         id: editing?.id,
         name: form.name.trim(),
         instructions: form.instructions.trim() || undefined,
+        category: form.category,
+        isTimed: form.isTimed,
+        defaultDurationSec: form.isTimed && form.defaultDurationSec ? Number(form.defaultDurationSec) : undefined,
         defaultSets: form.defaultSets ? Number(form.defaultSets) : undefined,
         defaultReps: form.defaultReps.trim() || undefined,
         injuryZones: form.injuryZones,
@@ -99,6 +116,9 @@ export function ExerciseLibraryManager() {
           id,
           name: form.name.trim(),
           instructions: form.instructions.trim() || undefined,
+          category: form.category,
+          isTimed: form.isTimed,
+          defaultDurationSec: form.isTimed && form.defaultDurationSec ? Number(form.defaultDurationSec) : undefined,
           defaultSets: form.defaultSets ? Number(form.defaultSets) : undefined,
           defaultReps: form.defaultReps.trim() || undefined,
           injuryZones: form.injuryZones,
@@ -143,22 +163,51 @@ export function ExerciseLibraryManager() {
         <div>
           <h2 className="text-lg font-semibold">ספריית תרגילים</h2>
           <p className="text-xs text-muted-foreground">
-            תרגילים לאימוני כוח — שם, סרטון הדגמה, הוראות, סטים/חזרות ברירת מחדל. נבחרים בבניית אימון כוח ומופיעים לספורטאי במצב אימון (Lift Mode).
+            תרגילים לאימוני כוח ומתיחות — שם, סרטון הדגמה, הוראות, סטים/חזרות או זמן ברירת מחדל. נבחרים בבניית אימון ומופיעים לספורטאי במצב אימון.
           </p>
         </div>
         <Button onClick={openAdd} size="sm"><Plus className="h-4 w-4 mr-1" />הוסף תרגיל</Button>
       </div>
 
-      {loading ? (
-        <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-      ) : exercises.length === 0 ? (
-        <div className="text-center py-10 text-muted-foreground">
-          <Dumbbell className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          <p className="text-sm">אין עדיין תרגילים בספרייה</p>
-        </div>
-      ) : (
+      <div className="flex gap-1.5">
+        <button
+          type="button"
+          onClick={() => setFilterCategory('strength')}
+          className={cn(
+            'px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors',
+            filterCategory === 'strength' ? 'bg-[#0a1628] text-white border-[#0a1628]' : 'bg-white text-gray-500 border-gray-200',
+          )}
+        >
+          כוח
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilterCategory('stretch')}
+          className={cn(
+            'px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors',
+            filterCategory === 'stretch' ? 'bg-[#0a1628] text-white border-[#0a1628]' : 'bg-white text-gray-500 border-gray-200',
+          )}
+        >
+          מתיחות
+        </button>
+      </div>
+
+      {(() => {
+        const visible = exercises.filter((ex) => (ex.category || 'strength') === filterCategory)
+        if (loading) {
+          return <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+        }
+        if (visible.length === 0) {
+          return (
+            <div className="text-center py-10 text-muted-foreground">
+              <Dumbbell className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">אין עדיין תרגילים בקטגוריה הזו</p>
+            </div>
+          )
+        }
+        return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {exercises.map((ex) => (
+          {visible.map((ex) => (
             <Card key={ex.id}>
               <CardContent className="p-3 space-y-2">
                 {ex.videoUrl ? (
@@ -169,8 +218,15 @@ export function ExerciseLibraryManager() {
                   </div>
                 )}
                 <div>
-                  <p className="text-sm font-semibold">{ex.name}</p>
-                  {(ex.defaultSets || ex.defaultReps) && (
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-semibold">{ex.name}</p>
+                    {ex.isTimed && <Timer className="h-3 w-3 text-[#c9a84c] shrink-0" />}
+                  </div>
+                  {ex.isTimed ? (
+                    ex.defaultDurationSec != null && (
+                      <p className="text-xs text-muted-foreground">{ex.defaultDurationSec} שניות{ex.defaultSets ? ` · ${ex.defaultSets} סטים` : ''}</p>
+                    )
+                  ) : (ex.defaultSets || ex.defaultReps) && (
                     <p className="text-xs text-muted-foreground">{ex.defaultSets ? `${ex.defaultSets} סטים` : ''}{ex.defaultSets && ex.defaultReps ? ' · ' : ''}{ex.defaultReps || ''}</p>
                   )}
                   {ex.instructions && <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{ex.instructions}</p>}
@@ -196,7 +252,8 @@ export function ExerciseLibraryManager() {
             </Card>
           ))}
         </div>
-      )}
+        )
+      })()}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md w-full max-h-[90vh] overflow-y-auto" dir="rtl">
@@ -208,15 +265,54 @@ export function ExerciseLibraryManager() {
               <Label className="text-xs font-semibold">שם התרגיל</Label>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="למשל: סקוואט" dir="rtl" />
             </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">קטגוריה</Label>
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, category: 'strength' })}
+                  className={cn(
+                    'flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors',
+                    form.category === 'strength' ? 'bg-[#0a1628] text-white border-[#0a1628]' : 'bg-white text-gray-500 border-gray-200',
+                  )}
+                >
+                  כוח
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, category: 'stretch' })}
+                  className={cn(
+                    'flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors',
+                    form.category === 'stretch' ? 'bg-[#0a1628] text-white border-[#0a1628]' : 'bg-white text-gray-500 border-gray-200',
+                  )}
+                >
+                  מתיחות
+                </button>
+              </div>
+            </div>
+            <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
+              <div className="flex items-center gap-1.5">
+                <Timer className="h-3.5 w-3.5 text-muted-foreground" />
+                <Label className="text-xs font-semibold">תרגיל מבוסס זמן (לא חזרות)</Label>
+              </div>
+              <Switch checked={form.isTimed} onCheckedChange={(v) => setForm({ ...form, isTimed: v })} />
+            </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold">סטים (ברירת מחדל)</Label>
                 <Input type="number" min={1} value={form.defaultSets} onChange={(e) => setForm({ ...form, defaultSets: e.target.value })} placeholder="3" />
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">חזרות (ברירת מחדל)</Label>
-                <Input value={form.defaultReps} onChange={(e) => setForm({ ...form, defaultReps: e.target.value })} placeholder="8-12" dir="rtl" />
-              </div>
+              {form.isTimed ? (
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">משך (שניות)</Label>
+                  <Input type="number" min={1} value={form.defaultDurationSec} onChange={(e) => setForm({ ...form, defaultDurationSec: e.target.value })} placeholder="30" />
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">חזרות (ברירת מחדל)</Label>
+                  <Input value={form.defaultReps} onChange={(e) => setForm({ ...form, defaultReps: e.target.value })} placeholder="8-12" dir="rtl" />
+                </div>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold">אזורי פציעה רלוונטיים (אופציונלי)</Label>

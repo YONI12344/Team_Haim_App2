@@ -23,23 +23,30 @@ function genId(prefix: string) {
 interface Props {
   blocks: StrengthBlock[]
   onChange: (blocks: StrengthBlock[]) => void
+  // Which half of the exercise library to offer — a strength workout only
+  // picks from category 'strength' exercises, a stretch workout only from
+  // 'stretch'. Defaults to 'strength' for any caller that predates this.
+  category?: 'strength' | 'stretch'
 }
 
-// Builds the structured strength-workout content that powers Lift Mode
-// (components/athlete/lift-mode.tsx) — a list of blocks, each either a
+// Builds the structured strength/stretch-workout content that powers Lift
+// Mode (components/athlete/lift-mode.tsx) — a list of blocks, each either a
 // single exercise ("Set 1") or a superset (2+ exercises back to back with
 // no rest between them). Every exercise is picked from the coach's own
 // exercise library so it always carries a real video + instructions.
-export function StrengthBlockBuilder({ blocks, onChange }: Props) {
-  const [library, setLibrary] = useState<ExerciseLibraryItem[]>([])
+export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }: Props) {
+  const [allExercises, setAllExercises] = useState<ExerciseLibraryItem[]>([])
   const [loadingLibrary, setLoadingLibrary] = useState(true)
 
   useEffect(() => {
-    listExercises().then(setLibrary).catch(console.error).finally(() => setLoadingLibrary(false))
+    listExercises().then(setAllExercises).catch(console.error).finally(() => setLoadingLibrary(false))
   }, [])
 
+  const library = allExercises.filter((ex) => (ex.category || 'strength') === category)
+  const blockLabelPrefix = category === 'stretch' ? 'מתיחה' : 'סט'
+
   const addBlock = () => {
-    onChange([...blocks, { id: genId('block'), label: `סט ${blocks.length + 1}`, exercises: [] }])
+    onChange([...blocks, { id: genId('block'), label: `${blockLabelPrefix} ${blocks.length + 1}`, exercises: [] }])
   }
 
   const removeBlock = (blockId: string) => {
@@ -61,13 +68,14 @@ export function StrengthBlockBuilder({ blocks, onChange }: Props) {
       instructions: ex.instructions,
       targetSets: ex.defaultSets || 3,
       targetReps: ex.defaultReps || '10',
+      targetDurationSec: ex.isTimed ? (ex.defaultDurationSec || 30) : undefined,
       notes: '',
     }
     onChange(blocks.map((b) => (b.id === blockId ? { ...b, exercises: [...b.exercises, newExercise] } : b)))
     // A block with 2+ exercises is a superset by definition — relabel it
     // automatically unless the coach already gave it a custom name.
     const block = blocks.find((b) => b.id === blockId)
-    if (block && block.exercises.length === 1 && /^סט \d+$/.test(block.label)) {
+    if (block && block.exercises.length === 1 && /^(סט|מתיחה) \d+$/.test(block.label)) {
       onChange(blocks.map((b) => (b.id === blockId
         ? { ...b, label: `סופרסט`, exercises: [...b.exercises, newExercise] }
         : b)))
@@ -100,7 +108,7 @@ export function StrengthBlockBuilder({ blocks, onChange }: Props) {
           <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
         ) : library.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-6">
-            אין עדיין תרגילים בספרייה — הוסיפו תרגילים בלשונית "ספריית תרגילים" לפני בניית אימון כוח מובנה.
+            אין עדיין תרגילי {category === 'stretch' ? 'מתיחות' : 'כוח'} בספרייה — הוסיפו תרגילים בלשונית &quot;ספריית תרגילים&quot; (קטגוריית {category === 'stretch' ? 'מתיחות' : 'כוח'}) לפני בניית אימון מובנה.
           </p>
         ) : blocks.length === 0 ? (
           <p className="text-muted-foreground text-center py-8">לא נוספו בלוקים עדיין</p>
@@ -134,12 +142,21 @@ export function StrengthBlockBuilder({ blocks, onChange }: Props) {
                             onChange={(e) => updateExercise(block.id, ex.id, { targetSets: Number(e.target.value) || 1 })}
                             className="h-8 text-sm" />
                         </div>
-                        <div className="space-y-1">
-                          <Label className="text-[11px]">חזרות</Label>
-                          <Input value={ex.targetReps}
-                            onChange={(e) => updateExercise(block.id, ex.id, { targetReps: e.target.value })}
-                            placeholder="8-12" className="h-8 text-sm" dir="rtl" />
-                        </div>
+                        {ex.targetDurationSec != null ? (
+                          <div className="space-y-1">
+                            <Label className="text-[11px]">משך (שניות)</Label>
+                            <Input type="number" min={1} value={ex.targetDurationSec}
+                              onChange={(e) => updateExercise(block.id, ex.id, { targetDurationSec: Number(e.target.value) || 1 })}
+                              className="h-8 text-sm" />
+                          </div>
+                        ) : (
+                          <div className="space-y-1">
+                            <Label className="text-[11px]">חזרות</Label>
+                            <Input value={ex.targetReps}
+                              onChange={(e) => updateExercise(block.id, ex.id, { targetReps: e.target.value })}
+                              placeholder="8-12" className="h-8 text-sm" dir="rtl" />
+                          </div>
+                        )}
                       </div>
                       <Input value={ex.notes || ''}
                         onChange={(e) => updateExercise(block.id, ex.id, { notes: e.target.value })}

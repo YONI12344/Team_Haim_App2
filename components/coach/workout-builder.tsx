@@ -494,7 +494,7 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
             targetOffsetSec: iv.targetOffsetSec ?? null,
           })),
         })),
-        strengthBlocks: type === 'strength' && strengthBlocks.length > 0 ? strengthBlocks : null,
+        strengthBlocks: (type === 'strength' || type === 'stretch') && strengthBlocks.length > 0 ? strengthBlocks : null,
         updatedAt: serverTimestamp(),
         updatedBy: user?.id || null,
         // Editing a copied (hidden) workout makes it a real library workout —
@@ -776,11 +776,11 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
           </CardContent>
         </Card>
 
-        {/* Workout Sets — strength workouts get the structured
+        {/* Workout Sets — strength and stretch workouts get the structured
             block/superset builder (powers Lift Mode) instead of the
             generic running-oriented sets UI below. */}
-        {type === 'strength' ? (
-          <StrengthBlockBuilder blocks={strengthBlocks} onChange={setStrengthBlocks} />
+        {type === 'strength' || type === 'stretch' ? (
+          <StrengthBlockBuilder blocks={strengthBlocks} onChange={setStrengthBlocks} category={type === 'stretch' ? 'stretch' : 'strength'} />
         ) : (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">

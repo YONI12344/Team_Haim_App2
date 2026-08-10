@@ -7,15 +7,65 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Loader2, ChevronLeft, ChevronRight, Check, X, TrendingUp } from 'lucide-react'
+import { Loader2, ChevronLeft, ChevronRight, Check, X, TrendingUp, Play, Square } from 'lucide-react'
 import { toast } from 'sonner'
 import type { AssignedWorkout, StrengthBlockExercise } from '@/lib/types'
 
-type SetProgress = { completed: boolean; weightKg?: number | null }
+type SetProgress = { completed: boolean; weightKg?: number | null; durationSec?: number | null }
 type Progress = Record<string, SetProgress[]>
 
+const LIFT_MODE_TYPES = ['strength', 'stretch'] as const
+
 function emptyProgressFor(exercise: StrengthBlockExercise): SetProgress[] {
-  return Array.from({ length: Math.max(1, exercise.targetSets) }, () => ({ completed: false, weightKg: null }))
+  return Array.from({ length: Math.max(1, exercise.targetSets) }, () => ({ completed: false, weightKg: null, durationSec: null }))
+}
+
+// Self-contained start/stop countdown for a timed set (a stretch hold, a
+// plank) — used instead of the weight input when the exercise has a
+// targetDurationSec. Keeps its own running/remaining state locally since
+// only the current block's exercises are ever mounted at once.
+function SetTimer({ targetSec, savedSec, completed, onDone }: {
+  targetSec: number
+  savedSec?: number | null
+  completed: boolean
+  onDone: (sec: number) => void
+}) {
+  const [running, setRunning] = useState(false)
+  const [remaining, setRemaining] = useState(targetSec)
+
+  useEffect(() => {
+    if (!running) return
+    if (remaining <= 0) {
+      setRunning(false)
+      onDone(targetSec)
+      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(250)
+      return
+    }
+    const t = setTimeout(() => setRemaining((r) => r - 1), 1000)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [running, remaining])
+
+  const start = () => { setRemaining(targetSec); setRunning(true) }
+  const stop = () => { setRunning(false); onDone(targetSec - remaining) }
+
+  if (running) {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="font-mono text-base font-semibold text-[#0a1628] w-10 text-center">{remaining}</span>
+        <Button type="button" size="sm" variant="outline" onClick={stop} className="h-9 text-xs">
+          <Square className="h-3.5 w-3.5 mr-1" />עצור
+        </Button>
+      </div>
+    )
+  }
+
+  return (
+    <Button type="button" size="sm" variant={completed ? 'outline' : 'default'} onClick={start} className="h-9 text-xs">
+      <Play className="h-3.5 w-3.5 mr-1" />
+      {completed ? `שוב · בוצע ${savedSec ?? targetSec} שניות` : `התחל · ${targetSec} שניות`}
+    </Button>
+  )
 }
 
 export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
@@ -33,7 +83,7 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
         const snap = await getDoc(doc(db, 'assignedWorkouts', assignedWorkoutId))
         if (!snap.exists()) { setError('האימון לא נמצא'); return }
         const data = { id: snap.id, ...snap.data() } as AssignedWorkout
-        if (data.workout?.type !== 'strength' || !data.workout.strengthBlocks?.length) {
+        if (!LIFT_MODE_TYPES.includes(data.workout?.type as typeof LIFT_MODE_TYPES[number]) || !data.workout.strengthBlocks?.length) {
           setError('לאימון הזה אין תרגילים מובנים למצב אימון')
           return
         }
@@ -85,6 +135,14 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
     })
   }
 
+  const setDuration = (exerciseId: string, setIdx: number, durationSec: number) => {
+    setProgress((prev) => {
+      const next = { ...prev, [exerciseId]: prev[exerciseId].map((s, i) => (i === setIdx ? { ...s, durationSec, completed: true } : s)) }
+      persistProgress(next)
+      return next
+    })
+  }
+
   const finishWorkout = async () => {
     setFinishing(true)
     try {
@@ -103,6 +161,7 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
           const sets = progress[ex.id] || []
           if (!sets.length) continue
           const weights = sets.map((s) => s.weightKg).filter((w): w is number => typeof w === 'number')
+          const durations = sets.map((s) => s.durationSec).filter((d): d is number => typeof d === 'number')
           const logId = `${assignedWorkoutId}_${ex.exerciseId}`
           batch.set(doc(db, 'exerciseLogs', logId), {
             id: logId,
@@ -111,8 +170,9 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
             exerciseName: ex.name,
             assignedWorkoutId,
             workoutDate: assigned?.scheduledDate,
-            sets: sets.map((s) => ({ weightKg: s.weightKg ?? null, completed: s.completed })),
+            sets: sets.map((s) => ({ weightKg: s.weightKg ?? null, durationSec: s.durationSec ?? null, completed: s.completed })),
             maxWeightKg: weights.length ? Math.max(...weights) : null,
+            maxDurationSec: durations.length ? Math.max(...durations) : null,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           }, { merge: true })
@@ -153,7 +213,9 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
       </div>
 
       <div>
-        <p className="text-xs text-muted-foreground">{assigned.workout.title}</p>
+        <p className="text-xs text-muted-foreground">
+          {assigned.workout.type === 'stretch' ? '🧘' : '💪'} {assigned.workout.title}
+        </p>
         <h1 className="text-lg font-semibold">{block.label}</h1>
         <p className="text-xs text-muted-foreground">בלוק {blockIndex + 1} מתוך {blocks.length}</p>
       </div>
@@ -170,37 +232,55 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
               <h2 className="font-semibold">{ex.name}</h2>
               {ex.instructions && <p className="text-xs text-muted-foreground">{ex.instructions}</p>}
               {ex.notes && <p className="text-xs text-primary">{ex.notes}</p>}
-              <p className="text-xs text-muted-foreground">יעד: {ex.targetSets} סטים × {ex.targetReps} חזרות</p>
+              <p className="text-xs text-muted-foreground">
+                {ex.targetDurationSec != null
+                  ? `יעד: ${ex.targetSets} סטים × ${ex.targetDurationSec} שניות`
+                  : `יעד: ${ex.targetSets} סטים × ${ex.targetReps} חזרות`}
+              </p>
               <div className="space-y-1.5 pt-1">
                 {(progress[ex.id] || []).map((set, i) => (
                   <div key={i} className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => toggleSet(ex.id, i)}
-                      aria-pressed={set.completed}
-                      className={`flex h-9 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition-colors ${
-                        set.completed
-                          ? 'bg-emerald-600 border-emerald-600 text-white'
-                          : 'border-input text-muted-foreground bg-muted/40'
-                      }`}
-                    >
-                      {set.completed ? <Check className="h-4 w-4" /> : <span className="h-4 w-4 rounded-full border-2 border-current" />}
-                      סט {i + 1}
-                      {set.completed && ' · בוצע'}
-                    </button>
-                    <Input
-                      type="number"
-                      inputMode="decimal"
-                      placeholder='משקל ק"ג'
-                      value={set.weightKg ?? ''}
-                      onChange={(e) => setWeight(ex.id, i, e.target.value)}
-                      className="h-9 text-sm max-w-[110px]"
-                    />
+                    {ex.targetDurationSec != null ? (
+                      <>
+                        <span className="text-xs text-muted-foreground w-10 shrink-0">סט {i + 1}</span>
+                        <SetTimer
+                          targetSec={ex.targetDurationSec}
+                          savedSec={set.durationSec}
+                          completed={set.completed}
+                          onDone={(sec) => setDuration(ex.id, i, sec)}
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => toggleSet(ex.id, i)}
+                          aria-pressed={set.completed}
+                          className={`flex h-9 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition-colors ${
+                            set.completed
+                              ? 'bg-emerald-600 border-emerald-600 text-white'
+                              : 'border-input text-muted-foreground bg-muted/40'
+                          }`}
+                        >
+                          {set.completed ? <Check className="h-4 w-4" /> : <span className="h-4 w-4 rounded-full border-2 border-current" />}
+                          סט {i + 1}
+                          {set.completed && ' · בוצע'}
+                        </button>
+                        <Input
+                          type="number"
+                          inputMode="decimal"
+                          placeholder='משקל ק"ג'
+                          value={set.weightKg ?? ''}
+                          onChange={(e) => setWeight(ex.id, i, e.target.value)}
+                          className="h-9 text-sm max-w-[110px]"
+                        />
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
               <p className="text-[11px] text-muted-foreground pt-0.5">
-                לחצו על &quot;סט X&quot; לסימון שהסט בוצע
+                {ex.targetDurationSec != null ? 'לחצו התחל להפעלת הטיימר לכל סט' : 'לחצו על "סט X" לסימון שהסט בוצע'}
               </p>
             </div>
           </div>

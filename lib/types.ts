@@ -377,6 +377,17 @@ export interface ExerciseLibraryItem {
   instructions?: string
   defaultSets?: number
   defaultReps?: string // free text, e.g. "8-12" or "10 each side"
+  // Which workout builder this exercise is offered in — missing means
+  // 'strength' (every exercise created before this field existed). Lets
+  // the library and the block-exercise picker split strength lifts from
+  // stretches instead of one long mixed list.
+  category?: 'strength' | 'stretch'
+  // Timed exercise (a stretch hold, a plank) instead of a reps-based one —
+  // Lift Mode (components/athlete/lift-mode.tsx) shows a start/stop timer
+  // in place of a weight input when set, for this exercise and any
+  // StrengthBlockExercise built from it.
+  isTimed?: boolean
+  defaultDurationSec?: number
   // Injury zones (lib/injury-data.ts BODY_ZONES keys) this exercise is a
   // relevant rehab/prevention movement for — coach-tagged, surfaced on the
   // athlete's injury zone page (components/athlete/athlete-injury-view.tsx).
@@ -387,7 +398,7 @@ export interface ExerciseLibraryItem {
 }
 
 // A "Set 1" (single exercise) or "Superset 1" (2+ exercises done back to
-// back with no rest between them) inside a strength workout.
+// back with no rest between them) inside a strength or stretch workout.
 export interface StrengthBlock {
   id: string
   label: string // e.g. "Set 1", "Superset 1" — coach-editable
@@ -402,6 +413,10 @@ export interface StrengthBlockExercise {
   instructions?: string // denormalized
   targetSets: number
   targetReps: string // free text, e.g. "8-12" or "10 each side"
+  // Denormalized from ExerciseLibraryItem.isTimed/defaultDurationSec at
+  // build time — when set, Lift Mode shows a start/stop timer for this
+  // exercise's sets instead of a weight input; targetReps is unused then.
+  targetDurationSec?: number
   notes?: string
 }
 
@@ -505,11 +520,12 @@ export interface AssignedWorkout {
   // range; otherwise the target is computed live from the athlete's own
   // step-test data every time.
   targetOverride?: { paceMinSec: number; paceMaxSec: number; hrMin?: number; hrMax?: number }
-  // Lift Mode progress for a 'strength' workout — keyed by
+  // Lift Mode progress for a 'strength' or 'stretch' workout — keyed by
   // StrengthBlockExercise.id, one entry per completed/logged set (array
   // index = set number). The athlete (or coach) fills this in live while
-  // stepping through components/athlete/lift-mode.tsx.
-  strengthProgress?: Record<string, Array<{ completed: boolean; weightKg?: number | null }>>
+  // stepping through components/athlete/lift-mode.tsx. durationSec is set
+  // instead of weightKg for timed exercises (StrengthBlockExercise.targetDurationSec).
+  strengthProgress?: Record<string, Array<{ completed: boolean; weightKg?: number | null; durationSec?: number | null }>>
   completedAt?: Date
   actualDuration?: number
   actualDistance?: number
@@ -533,8 +549,9 @@ export interface ExerciseLogEntry {
   exerciseName: string // denormalized, survives library edits/deletes
   assignedWorkoutId: string
   workoutDate: string // AssignedWorkout.scheduledDate, for chronological sort
-  sets: Array<{ weightKg?: number | null; completed: boolean }>
+  sets: Array<{ weightKg?: number | null; durationSec?: number | null; completed: boolean }>
   maxWeightKg?: number | null // derived at write time, for quick PB display
+  maxDurationSec?: number | null // derived at write time, for timed exercises
   createdAt: Date
   updatedAt: Date
 }

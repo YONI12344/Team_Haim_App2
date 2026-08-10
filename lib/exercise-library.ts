@@ -32,6 +32,9 @@ interface RawExerciseDoc {
   instructions?: string
   defaultSets?: number
   defaultReps?: string
+  category?: 'strength' | 'stretch'
+  isTimed?: boolean
+  defaultDurationSec?: number
   injuryZones?: string[]
   createdBy?: string
   createdAt?: { toDate?: () => Date }
@@ -47,6 +50,9 @@ function mapExercise(id: string, data: RawExerciseDoc): ExerciseLibraryItem {
     instructions: data.instructions,
     defaultSets: data.defaultSets,
     defaultReps: data.defaultReps,
+    category: data.category,
+    isTimed: data.isTimed,
+    defaultDurationSec: data.defaultDurationSec,
     injuryZones: data.injuryZones,
     createdBy: data.createdBy || '',
     createdAt: data.createdAt?.toDate?.() || new Date(),
@@ -81,6 +87,9 @@ export async function saveExercise(
       instructions: exercise.instructions ?? null,
       defaultSets: exercise.defaultSets ?? null,
       defaultReps: exercise.defaultReps ?? null,
+      category: exercise.category ?? 'strength',
+      isTimed: exercise.isTimed ?? false,
+      defaultDurationSec: exercise.defaultDurationSec ?? null,
       injuryZones: exercise.injuryZones ?? [],
       createdBy: exercise.createdBy,
       createdAt: existing.exists() ? existing.data().createdAt : serverTimestamp(),
