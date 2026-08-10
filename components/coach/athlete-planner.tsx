@@ -15,7 +15,7 @@ import {
   ArrowLeft, ChevronLeft, ChevronRight, Plus, X,
   Loader2, Clock, Check, Calendar, Copy, Pencil, Trash2, ClipboardPaste,
   BarChart2, Sparkles, Send, FlaskConical, Target, NotebookPen, User, Eye, AlertTriangle,
-  ClipboardList, Repeat,
+  ClipboardList, Repeat, Folder,
 } from 'lucide-react'
 import Link from 'next/link'
 import {
@@ -160,7 +160,9 @@ export function AthletePlanner({ athleteId }: Props) {
   // onto the calendar. Level itself is stored on the athlete profile
   // (same experienceLevel field used by the assign page's level filter).
   const [bankWorkouts, setBankWorkouts] = useState<Workout[]>([])
-  const [showBankPanel, setShowBankPanel] = useState(true)
+  // Which type-folders are expanded, e.g. { easy: true } — folders start
+  // closed so the browser stays compact under the calendar.
+  const [openBankFolders, setOpenBankFolders] = useState<Record<string, boolean>>({})
   useEffect(() => {
     if (!athlete?.experienceLevel) { setBankWorkouts([]); return }
     getDocs(query(collection(db, 'workouts'), where('bankLevel', '==', athlete.experienceLevel)))
@@ -856,6 +858,18 @@ export function AthletePlanner({ athleteId }: Props) {
 
   const selectedAW = useMemo(() => assignedWorkouts.find(w => w.id === selectedAssignedId) || null, [assignedWorkouts, selectedAssignedId])
 
+  // Workout Bank folder browser — one folder per workout type within the
+  // athlete's level, so it reads as level (already fixed above) → type →
+  // workouts, instead of one long flat list.
+  const bankByType = useMemo(() => {
+    const groups: Record<string, Workout[]> = {}
+    for (const w of bankWorkouts) {
+      if (!groups[w.type]) groups[w.type] = []
+      groups[w.type].push(w)
+    }
+    return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]))
+  }, [bankWorkouts])
+
   // Last-14-days analysis (computed from loaded state, no API call)
   const analysisData = useMemo(() => {
     const cutoff = format(addDays(new Date(), -14), 'yyyy-MM-dd')
@@ -1108,9 +1122,7 @@ export function AthletePlanner({ athleteId }: Props) {
   )
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4">
-      {/* Main content */}
-      <div className="flex-1 min-w-0 space-y-4">
+    <div className="space-y-4">
 
         {/* Athlete header */}
         <div className="flex items-center gap-3 flex-wrap">
@@ -1603,6 +1615,76 @@ export function AthletePlanner({ athleteId }: Props) {
           </Card>
         )}
 
+        {/* Workout Bank folder browser — jumps open right under whichever
+            date the coach just clicked, instead of sitting as a permanent
+            sidebar squeezing the calendar. One folder per workout type
+            within the athlete's level (level picker is in the header
+            above); saving a workout with bankLevel set to this athlete's
+            level makes it show up here automatically, no extra step. */}
+        {selectedDate && (
+          <Card className="border-gold/30 bg-gold/[0.03]">
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-sm flex items-center gap-1.5">
+                <Folder className="h-4 w-4 text-gold"/>
+                בנק אימונים
+                {athlete?.experienceLevel && (
+                  <span className="text-xs font-normal text-muted-foreground">
+                    — {athlete.experienceLevel === 'beginner' ? 'מתחילים' : athlete.experienceLevel === 'intermediate' ? 'בינוני' : athlete.experienceLevel === 'advanced' ? 'מתקדם' : 'עילית'}
+                  </span>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              {!athlete?.experienceLevel ? (
+                <p className="text-xs text-muted-foreground">בחרו רמה למעלה כדי לראות את הבנק המתאים.</p>
+              ) : bankByType.length === 0 ? (
+                <p className="text-xs text-muted-foreground">אין עדיין אימונים בבנק לרמה הזו.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {bankByType.map(([type, items]) => (
+                    <div key={type} className="rounded-lg border border-border overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setOpenBankFolders(p => ({ ...p, [type]: !p[type] }))}
+                        className="w-full flex items-center justify-between px-2.5 py-2 text-xs font-semibold text-navy bg-white hover:bg-gold/5 transition-colors"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <Folder className="h-3.5 w-3.5 text-gold"/>
+                          {workoutTypeLabels?.[type as WorkoutType] || type}
+                          <span className="text-muted-foreground font-normal">({items.length})</span>
+                        </span>
+                        <ChevronLeft className={cn('h-3.5 w-3.5 transition-transform', openBankFolders[type] && '-rotate-90')}/>
+                      </button>
+                      {openBankFolders[type] && (
+                        <div className="px-2 pb-2 pt-1 space-y-1 bg-gold/[0.02]">
+                          {items.map((w) => (
+                            <div
+                              key={w.id}
+                              draggable
+                              onDragStart={(e) => handleBankDragStart(e, w)}
+                              onClick={async () => {
+                                await assignWorkoutToDate(w, format(selectedDate, 'yyyy-MM-dd'))
+                                toast.success(`נוסף: ${w.title}`)
+                              }}
+                              className="rounded-md border border-border bg-white px-2.5 py-1.5 text-xs cursor-pointer hover:border-gold/50 transition-colors"
+                              title="לחצו להוספה ליום שנבחר, או גררו לכל יום אחר ביומן"
+                            >
+                              <p className="font-medium text-navy truncate">{w.title}</p>
+                              <p className="text-muted-foreground">
+                                {w.duration ? `${w.duration} דק'` : ''}{w.duration && w.distance ? ' · ' : ''}{w.distance ? `${w.distance} ק"מ` : ''}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Original application data — collapsed by default. Only the
             leads/ collection has the FULL original form; the athlete's own
             profile only got a handful of structured fields copied over on
@@ -1785,8 +1867,6 @@ export function AthletePlanner({ athleteId }: Props) {
           )}
         </Card>
 
-      </div>
-
       {/* Weekly Summary Dialog */}
       <Dialog open={showWeeklySummary} onOpenChange={setShowWeeklySummary}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" dir="rtl">
@@ -1831,9 +1911,6 @@ export function AthletePlanner({ athleteId }: Props) {
           )}
         </DialogContent>
       </Dialog>
-
-      {/* Right sidebar */}
-      <div className="w-full lg:w-80 lg:flex-shrink-0 space-y-4">
 
         {/* Lab summary — thresholds at a glance; full test entry lives in the Lab tab */}
         <Card>
@@ -2197,38 +2274,6 @@ export function AthletePlanner({ athleteId }: Props) {
             )}
           </CardContent>
         </Card>
-      </div>
-
-      {/* Workout Bank side panel — draggable onto the calendar. Shows this
-          athlete's own experienceLevel folder; empty state points at the
-          level picker above / the Bank tab if nothing's tagged yet. */}
-      <div className="lg:w-72 flex-shrink-0 space-y-2">
-        <button type="button" onClick={() => setShowBankPanel((v) => !v)}
-          className="flex items-center gap-1.5 text-sm font-semibold text-navy w-full">
-          <ChevronLeft className={cn('h-4 w-4 transition-transform', showBankPanel && '-rotate-90')} />
-          בנק אימונים {athlete?.experienceLevel && `— ${athlete.experienceLevel === 'beginner' ? 'מתחילים' : athlete.experienceLevel === 'intermediate' ? 'בינוני' : athlete.experienceLevel === 'advanced' ? 'מתקדם' : 'עילית'}`}
-        </button>
-        {showBankPanel && (
-          !athlete?.experienceLevel ? (
-            <p className="text-xs text-muted-foreground">בחרו רמה למעלה כדי לראות את הבנק המתאים.</p>
-          ) : bankWorkouts.length === 0 ? (
-            <p className="text-xs text-muted-foreground">אין עדיין אימונים בבנק לרמה הזו.</p>
-          ) : (
-            <div className="space-y-1.5 max-h-[70vh] overflow-y-auto pr-1">
-              {bankWorkouts.map((w) => (
-                <div key={w.id} draggable onDragStart={(e) => handleBankDragStart(e, w)}
-                  className="rounded-lg border border-border bg-white px-2.5 py-2 text-xs cursor-grab active:cursor-grabbing hover:border-gold/50 transition-colors"
-                  title="גררו ליום ביומן">
-                  <p className="font-medium text-navy truncate">{w.title}</p>
-                  <p className="text-muted-foreground">
-                    {workoutTypeLabels?.[w.type] || w.type}{w.duration ? ` · ${w.duration} דק'` : ''}{w.distance ? ` · ${w.distance} ק"מ` : ''}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )
-        )}
-      </div>
 
       {/* Quick-assign sheet — tap a day, tap a type, enter numbers, done */}
       <Dialog open={!!quickAssignDate} onOpenChange={(open) => { if (!open) { setQuickAssignDate(null); resetQuickAssign() } }}>
