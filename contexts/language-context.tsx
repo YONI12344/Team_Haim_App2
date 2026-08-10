@@ -870,6 +870,11 @@ export interface Translations {
   bankLevelLabel: string
   bankLevelNone: string
   bankLevelHint: string
+  bankStageLabel: string
+  bankStagePh: string
+  bankOrderLabel: string
+  bankOrderPh: string
+  bankStageHint: string
   labWorkoutTrends: string
   labWorkoutTrendsHint: string
   labNoTrendGroups: string
@@ -1741,6 +1746,11 @@ const translations: Record<Language, Translations> = {
     bankLevelLabel: 'Workout Bank level',
     bankLevelNone: 'Not in bank',
     bankLevelHint: 'Adds this workout to the Workout Bank for the chosen level — the Bakken AI generator can pick and scale it instead of inventing new content.',
+    bankStageLabel: 'Progression stage (optional)',
+    bankStagePh: 'e.g. Run/Walk Stage 1, Continuous',
+    bankOrderLabel: 'Progression order (optional)',
+    bankOrderPh: 'e.g. 1, 2, 3...',
+    bankStageHint: 'For a level where difficulty varies a lot week to week (like beginner run/walk) — group by stage and set order so the AI moves to the next harder one over time, instead of picking randomly within the whole level.',
     labWorkoutTrends: 'Workout trends',
     labWorkoutTrendsHint: 'Pace & HR over time, for workouts tagged with the same comparison group',
     labNoTrendGroups: 'No comparison groups yet',
@@ -2604,6 +2614,11 @@ const translations: Record<Language, Translations> = {
     bankLevelLabel: 'רמה בבנק האימונים',
     bankLevelNone: 'לא בבנק',
     bankLevelHint: 'מוסיף את האימון הזה לבנק האימונים עבור הרמה שנבחרה — מאמן ה-AI בקן יוכל לבחור ולהתאים אותו במקום להמציא תוכן חדש.',
+    bankStageLabel: 'שלב התקדמות (לא חובה)',
+    bankStagePh: 'למשל ריצה-הליכה שלב 1, רציף',
+    bankOrderLabel: 'סדר התקדמות (לא חובה)',
+    bankOrderPh: 'למשל 1, 2, 3...',
+    bankStageHint: 'לרמה שבה הקושי משתנה הרבה משבוע לשבוע (כמו ריצה-הליכה למתחילים) — קבצו לפי שלב וקבעו סדר כדי שה-AI יעבור לגרסה הקשה הבאה עם הזמן, במקום לבחור אקראית מתוך כל הרמה.',
     labWorkoutTrends: 'מגמות אימונים',
     labWorkoutTrendsHint: 'קצב ודופק לאורך זמן, לאימונים המתויגים באותה קבוצת השוואה',
     labNoTrendGroups: 'אין עדיין קבוצות השוואה',

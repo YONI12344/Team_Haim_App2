@@ -250,6 +250,8 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
   const [thresholdDistance, setThresholdDistance] = useState<number | ''>('')
   const [comparisonGroup, setComparisonGroup] = useState('')
   const [bankLevel, setBankLevel] = useState<ExperienceLevel | ''>('')
+  const [bankStage, setBankStage] = useState('')
+  const [bankOrder, setBankOrder] = useState<number | ''>('')
   const [existingGroups, setExistingGroups] = useState<string[]>([])
   const [sets, setSets] = useState<Partial<WorkoutSet>[]>([])
   const [strengthBlocks, setStrengthBlocks] = useState<StrengthBlock[]>([])
@@ -296,6 +298,8 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
           setThresholdDistance(data.thresholdDistance || '')
           setComparisonGroup(data.comparisonGroup || '')
           setBankLevel(data.bankLevel || '')
+          setBankStage(data.bankStage || '')
+          setBankOrder(data.bankOrder ?? '')
           setSets(Array.isArray(data.sets) ? data.sets.map((s: any) => ({
             ...s,
             // Migrate the old ambiguous "rest" field: it was only ever shown
@@ -408,6 +412,8 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
         thresholdDistance: type === 'threshold' && thresholdDistance ? Number(thresholdDistance) : null,
         comparisonGroup: comparisonGroup.trim() || null,
         bankLevel: bankLevel || null,
+        bankStage: bankLevel ? (bankStage.trim() || null) : null,
+        bankOrder: bankLevel && bankOrder !== '' ? Number(bankOrder) : null,
         sets: (sets as any[]).map((s, i) => ({
           id: s.id || `set-${i}`,
           reps: s.reps || 1,
@@ -661,6 +667,22 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
                 ))}
               </div>
               <p className="text-[11px] text-muted-foreground">{t.bankLevelHint}</p>
+              {bankLevel && (
+                <div className="grid grid-cols-2 gap-2 pt-1.5">
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">{t.bankStageLabel}</Label>
+                    <Input value={bankStage} onChange={(e) => setBankStage(e.target.value)}
+                      placeholder={t.bankStagePh} dir="auto" className="h-8 text-sm" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">{t.bankOrderLabel}</Label>
+                    <Input type="number" value={bankOrder}
+                      onChange={(e) => setBankOrder(e.target.value === '' ? '' : Number(e.target.value))}
+                      placeholder={t.bankOrderPh} className="h-8 text-sm" />
+                  </div>
+                  <p className="col-span-2 text-[11px] text-muted-foreground">{t.bankStageHint}</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

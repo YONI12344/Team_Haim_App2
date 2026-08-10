@@ -339,6 +339,18 @@ export interface Workout {
   // above) is the bank's other axis — a "level folder" in the UI is just
   // every workout sharing this bankLevel, grouped by type.
   bankLevel?: ExperienceLevel
+  // Progression sub-category within (bankLevel, type) — e.g. "Run/Walk
+  // Stage 1" vs "Run/Walk Stage 2" vs "Continuous", so the bank captures
+  // that a beginner in week 1 needs very different content than a
+  // beginner in week 8, not just a flat pile of "beginner easy" workouts.
+  // Free text, coach-defined, purely a grouping/label — bankOrder below
+  // is what the picker actually uses to know progression direction.
+  bankStage?: string
+  // Progression order within the same (bankLevel, type[, bankStage])
+  // bucket — lower numbers come first. Lets the generator move to "the
+  // next harder one" as weeks pass without needing to parse/match stage
+  // names. Ties/gaps are fine; only relative order matters.
+  bankOrder?: number
   createdBy: string
   createdAt: Date
   updatedAt: Date

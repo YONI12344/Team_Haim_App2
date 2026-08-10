@@ -17,11 +17,41 @@ const BANK_LEVEL_LABELS_HE: Record<ExperienceLevel, string> = {
   beginner: 'מתחילים', intermediate: 'בינוני', advanced: 'מתקדם', professional: 'עילית',
 }
 
+function BankItemGrid({ items, onRemove, removing }: { items: Workout[]; onRemove: (w: Workout) => void; removing: string | null }) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+      {items.map((w) => (
+        <Card key={w.id}>
+          <CardContent className="p-2.5 flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-sm font-medium truncate">{w.title}</p>
+              <p className="text-xs text-muted-foreground">
+                {w.duration ? `${w.duration} דק'` : ''}{w.duration && w.distance ? ' · ' : ''}{w.distance ? `${w.distance} ק"מ` : ''}
+              </p>
+            </div>
+            <div className="flex gap-1 shrink-0">
+              <Link href={`/coach/workouts/${w.id}/edit`}>
+                <Button variant="ghost" size="icon" className="h-7 w-7"><Pencil className="h-3.5 w-3.5" /></Button>
+              </Link>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
+                onClick={() => onRemove(w)} disabled={removing === w.id}>
+                {removing === w.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  )
+}
+
 // Coach-authored, real workouts the Bakken AI generator can pick from and
 // scale (duration/distance only) instead of inventing content — organized
-// as "folders" by athlete level, each grouped by workout type so it's
-// obvious at a glance how much variety exists per type (thin coverage =
-// the AI will repeat that type more often).
+// as "folders" by athlete level, then by type, then (when the coach sets
+// it) by progression stage/order — a beginner in week 1 (run/walk 40s)
+// needs very different content than a beginner in week 8 (near
+// continuous), so a flat pile of "beginner easy" workouts isn't enough on
+// its own; bankStage/bankOrder let a coach build an explicit ladder.
 export function WorkoutBankManager() {
   const workoutTypeLabels = useWorkoutTypeLabels()
   const [workouts, setWorkouts] = useState<Workout[]>([])
@@ -66,7 +96,7 @@ export function WorkoutBankManager() {
         <div>
           <h2 className="text-lg font-semibold">בנק אימונים</h2>
           <p className="text-sm text-muted-foreground">
-            אימונים אמיתיים שכתבתם, מאורגנים לפי רמת ספורטאי. מאמן ה-AI בקן בוחר ומתאים משך/מרחק מתוכם במקום להמציא תוכן — ככל שיש יותר גרסאות לכל סוג, כך פחות חזרתיות.
+            אימונים אמיתיים שכתבתם, מאורגנים לפי רמת ספורטאי ושלב התקדמות. מאמן ה-AI בקן בוחר ומתאים משך/מרחק מתוכם במקום להמציא תוכן — ככל שיש יותר גרסאות לכל סוג, כך פחות חזרתיות.
           </p>
         </div>
         <Link href="/coach/workouts/new">
@@ -92,39 +122,38 @@ export function WorkoutBankManager() {
               {levelWorkouts.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-2">אין עדיין אימונים ברמה הזו בבנק.</p>
               ) : (
-                Array.from(byType.entries()).map(([type, items]) => (
-                  <div key={type}>
-                    <p className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1.5">
-                      <span className={cn('inline-block px-1.5 py-0.5 rounded border text-[10px]', workoutTypeColors[type])}>
-                        {workoutTypeLabels[type]}
-                      </span>
-                      <span>{items.length} גרסאות</span>
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                      {items.map((w) => (
-                        <Card key={w.id}>
-                          <CardContent className="p-2.5 flex items-center justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium truncate">{w.title}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {w.duration ? `${w.duration} דק'` : ''}{w.duration && w.distance ? ' · ' : ''}{w.distance ? `${w.distance} ק"מ` : ''}
-                              </p>
+                Array.from(byType.entries()).map(([type, typeItems]) => {
+                  const items = [...typeItems].sort((a, b) => (a.bankOrder ?? 999) - (b.bankOrder ?? 999))
+                  const byStage = new Map<string, Workout[]>()
+                  for (const w of items) {
+                    const key = w.bankStage || ''
+                    if (!byStage.has(key)) byStage.set(key, [])
+                    byStage.get(key)!.push(w)
+                  }
+                  const hasStages = Array.from(byStage.keys()).some((k) => k !== '')
+                  return (
+                    <div key={type}>
+                      <p className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                        <span className={cn('inline-block px-1.5 py-0.5 rounded border text-[10px]', workoutTypeColors[type])}>
+                          {workoutTypeLabels[type]}
+                        </span>
+                        <span>{items.length} גרסאות</span>
+                      </p>
+                      {hasStages ? (
+                        <div className="space-y-2">
+                          {Array.from(byStage.entries()).map(([stage, stageItems]) => (
+                            <div key={stage || '_none'}>
+                              {stage && <p className="text-[11px] text-muted-foreground mb-1">↳ {stage}</p>}
+                              <BankItemGrid items={stageItems} onRemove={removeFromBank} removing={removing} />
                             </div>
-                            <div className="flex gap-1 shrink-0">
-                              <Link href={`/coach/workouts/${w.id}/edit`}>
-                                <Button variant="ghost" size="icon" className="h-7 w-7"><Pencil className="h-3.5 w-3.5" /></Button>
-                              </Link>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
-                                onClick={() => removeFromBank(w)} disabled={removing === w.id}>
-                                {removing === w.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
+                          ))}
+                        </div>
+                      ) : (
+                        <BankItemGrid items={items} onRemove={removeFromBank} removing={removing} />
+                      )}
                     </div>
-                  </div>
-                ))
+                  )
+                })
               )}
             </div>
           </details>
