@@ -17,7 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Plus, Pencil, Trash2, Loader2, Dumbbell, Video, Timer } from 'lucide-react'
+import { Plus, Pencil, Trash2, Loader2, Dumbbell, Video, Timer, Download } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/auth-context'
@@ -25,6 +25,7 @@ import { isCoachEmail } from '@/lib/constants'
 import type { ExerciseLibraryItem } from '@/lib/types'
 import { listExercises, saveExercise, deleteExercise, uploadExerciseVideo } from '@/lib/exercise-library'
 import { BODY_ZONES, ZONE_IDS } from '@/lib/injury-data'
+import { seedRunningStrengthProgram } from '@/lib/seed-running-strength-program'
 import { cn } from '@/lib/utils'
 
 const emptyForm = {
@@ -53,6 +54,7 @@ export function ExerciseLibraryManager() {
   const [deleteTarget, setDeleteTarget] = useState<ExerciseLibraryItem | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [filterCategory, setFilterCategory] = useState<'strength' | 'stretch'>('strength')
+  const [importing, setImporting] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const load = async () => {
@@ -155,6 +157,25 @@ export function ExerciseLibraryManager() {
     }
   }
 
+  const handleImportRunningProgram = async () => {
+    if (!user) return
+    setImporting(true)
+    try {
+      const result = await seedRunningStrengthProgram(user.id || '')
+      if (result.alreadyExisted) {
+        toast.info('התוכנית כבר יובאה בעבר')
+      } else {
+        toast.success(`יובאו ${result.exerciseCount} תרגילים ואימון "חיזוקים לריצה" — זמין בספריית האימונים`)
+        await load()
+      }
+    } catch (err) {
+      console.error('Error importing running strength program:', err)
+      toast.error('הייבוא נכשל')
+    } finally {
+      setImporting(false)
+    }
+  }
+
   if (!isCoach) return null
 
   return (
@@ -166,7 +187,13 @@ export function ExerciseLibraryManager() {
             תרגילים לאימוני כוח ומתיחות — שם, סרטון הדגמה, הוראות, סטים/חזרות או זמן ברירת מחדל. נבחרים בבניית אימון ומופיעים לספורטאי במצב אימון.
           </p>
         </div>
-        <Button onClick={openAdd} size="sm"><Plus className="h-4 w-4 mr-1" />הוסף תרגיל</Button>
+        <div className="flex gap-2">
+          <Button onClick={handleImportRunningProgram} disabled={importing} size="sm" variant="outline">
+            {importing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Download className="h-4 w-4 mr-1" />}
+            ייבוא: חיזוקים לריצה
+          </Button>
+          <Button onClick={openAdd} size="sm"><Plus className="h-4 w-4 mr-1" />הוסף תרגיל</Button>
+        </div>
       </div>
 
       <div className="flex gap-1.5">
