@@ -177,24 +177,31 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
                     <button
                       type="button"
                       onClick={() => toggleSet(ex.id, i)}
-                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border text-sm font-medium transition-colors ${
-                        set.completed ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-input text-muted-foreground'
+                      aria-pressed={set.completed}
+                      className={`flex h-9 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition-colors ${
+                        set.completed
+                          ? 'bg-emerald-600 border-emerald-600 text-white'
+                          : 'border-input text-muted-foreground bg-muted/40'
                       }`}
                     >
-                      {set.completed ? <Check className="h-4 w-4" /> : i + 1}
+                      {set.completed ? <Check className="h-4 w-4" /> : <span className="h-4 w-4 rounded-full border-2 border-current" />}
+                      סט {i + 1}
+                      {set.completed && ' · בוצע'}
                     </button>
-                    <span className="text-xs text-muted-foreground w-10">סט {i + 1}</span>
                     <Input
                       type="number"
                       inputMode="decimal"
                       placeholder='משקל ק"ג'
                       value={set.weightKg ?? ''}
                       onChange={(e) => setWeight(ex.id, i, e.target.value)}
-                      className="h-8 text-sm max-w-[110px]"
+                      className="h-9 text-sm max-w-[110px]"
                     />
                   </div>
                 ))}
               </div>
+              <p className="text-[11px] text-muted-foreground pt-0.5">
+                לחצו על &quot;סט X&quot; לסימון שהסט בוצע
+              </p>
             </div>
           </div>
         ))}
