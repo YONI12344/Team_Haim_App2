@@ -5,9 +5,9 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Plus, Dumbbell, Pencil, X, Loader2, FolderInput } from 'lucide-react'
+import { Plus, Dumbbell, Pencil, X, Trash2, Loader2, FolderInput } from 'lucide-react'
 import Link from 'next/link'
-import { collection, doc, getDocs, orderBy, query, updateDoc } from 'firebase/firestore'
+import { collection, deleteDoc, doc, getDocs, orderBy, query, updateDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { toast } from 'sonner'
 import type { ExperienceLevel, Workout, WorkoutType } from '@/lib/types'
@@ -68,8 +68,9 @@ function QuickMoveForm({ workout, onSaved, onCancel }: { workout: Workout; onSav
   )
 }
 
-function BankItemGrid({ items, onRemove, removing, onMoved, onEdit }: {
-  items: Workout[]; onRemove: (w: Workout) => void; removing: string | null; onMoved: () => void; onEdit: (w: Workout) => void
+function BankItemGrid({ items, onRemove, onDelete, removing, deleting, onMoved, onEdit }: {
+  items: Workout[]; onRemove: (w: Workout) => void; onDelete: (w: Workout) => void
+  removing: string | null; deleting: string | null; onMoved: () => void; onEdit: (w: Workout) => void
 }) {
   const [movingId, setMovingId] = useState<string | null>(null)
   return (
@@ -92,9 +93,13 @@ function BankItemGrid({ items, onRemove, removing, onMoved, onEdit }: {
                 <Button variant="ghost" size="icon" className="h-7 w-7" title="עריכה" onClick={() => onEdit(w)}>
                   <Pencil className="h-3.5 w-3.5" />
                 </Button>
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
+                <Button variant="ghost" size="icon" className="h-7 w-7" title="הסרה מהבנק — נשאר בספריית האימונים"
                   onClick={() => onRemove(w)} disabled={removing === w.id}>
                   {removing === w.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+                </Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" title="מחיקה לצמיתות"
+                  onClick={() => onDelete(w)} disabled={deleting === w.id}>
+                  {deleting === w.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                 </Button>
               </div>
             </div>
@@ -122,6 +127,7 @@ export function WorkoutBankManager() {
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [loading, setLoading] = useState(true)
   const [removing, setRemoving] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<string | null>(null)
   // Editing opens in a dialog over the current scroll position/open
   // folders instead of navigating to /coach/workouts/[id]/edit — the old
   // Link-based flow "jumped" away from wherever the coach was browsing.
@@ -154,6 +160,25 @@ export function WorkoutBankManager() {
       toast.error('הפעולה נכשלה')
     } finally {
       setRemoving(null)
+    }
+  }
+
+  // Full delete — removes the workout doc entirely, not just its bank
+  // folder tag. Already-assigned copies on athletes' schedules keep an
+  // embedded snapshot of the workout, so deleting the library entry
+  // doesn't affect days already scheduled.
+  const deleteWorkoutEntirely = async (workout: Workout) => {
+    if (!confirm(`למחוק לצמיתות את "${workout.title}"? הפעולה לא ניתנת לביטול. אימונים שכבר שובצו לספורטאים לא יושפעו.`)) return
+    setDeleting(workout.id)
+    try {
+      await deleteDoc(doc(db, 'workouts', workout.id))
+      setWorkouts((prev) => prev.filter((w) => w.id !== workout.id))
+      toast.success('נמחק לצמיתות')
+    } catch (err) {
+      console.error('Error deleting workout:', err)
+      toast.error('המחיקה נכשלה')
+    } finally {
+      setDeleting(null)
     }
   }
 
@@ -215,12 +240,12 @@ export function WorkoutBankManager() {
                           {Array.from(byStage.entries()).map(([stage, stageItems]) => (
                             <div key={stage || '_none'}>
                               {stage && <p className="text-[11px] text-muted-foreground mb-1">↳ {stage}</p>}
-                              <BankItemGrid items={stageItems} onRemove={removeFromBank} removing={removing} onMoved={() => load(true)} onEdit={setEditingWorkout} />
+                              <BankItemGrid items={stageItems} onRemove={removeFromBank} onDelete={deleteWorkoutEntirely} removing={removing} deleting={deleting} onMoved={() => load(true)} onEdit={setEditingWorkout} />
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <BankItemGrid items={items} onRemove={removeFromBank} removing={removing} onMoved={() => load(true)} onEdit={setEditingWorkout} />
+                        <BankItemGrid items={items} onRemove={removeFromBank} onDelete={deleteWorkoutEntirely} removing={removing} deleting={deleting} onMoved={() => load(true)} onEdit={setEditingWorkout} />
                       )}
                     </div>
                   )
