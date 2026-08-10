@@ -23,8 +23,10 @@ import { useAuth } from '@/contexts/auth-context'
 import { isCoachEmail } from '@/lib/constants'
 import type { ExerciseLibraryItem } from '@/lib/types'
 import { listExercises, saveExercise, deleteExercise, uploadExerciseVideo } from '@/lib/exercise-library'
+import { BODY_ZONES, ZONE_IDS } from '@/lib/injury-data'
+import { cn } from '@/lib/utils'
 
-const emptyForm = { name: '', instructions: '', defaultSets: '', defaultReps: '' }
+const emptyForm = { name: '', instructions: '', defaultSets: '', defaultReps: '', injuryZones: [] as string[] }
 
 export function ExerciseLibraryManager() {
   const { user } = useAuth()
@@ -69,6 +71,7 @@ export function ExerciseLibraryManager() {
       instructions: exercise.instructions || '',
       defaultSets: exercise.defaultSets != null ? String(exercise.defaultSets) : '',
       defaultReps: exercise.defaultReps || '',
+      injuryZones: exercise.injuryZones || [],
     })
     setVideoFile(null)
     setDialogOpen(true)
@@ -84,6 +87,7 @@ export function ExerciseLibraryManager() {
         instructions: form.instructions.trim() || undefined,
         defaultSets: form.defaultSets ? Number(form.defaultSets) : undefined,
         defaultReps: form.defaultReps.trim() || undefined,
+        injuryZones: form.injuryZones,
         videoUrl: editing?.videoUrl,
         videoPath: editing?.videoPath,
         createdBy: editing?.createdBy || user.id || '',
@@ -97,6 +101,7 @@ export function ExerciseLibraryManager() {
           instructions: form.instructions.trim() || undefined,
           defaultSets: form.defaultSets ? Number(form.defaultSets) : undefined,
           defaultReps: form.defaultReps.trim() || undefined,
+          injuryZones: form.injuryZones,
           videoUrl,
           videoPath,
           createdBy: editing?.createdBy || user.id || '',
@@ -169,6 +174,15 @@ export function ExerciseLibraryManager() {
                     <p className="text-xs text-muted-foreground">{ex.defaultSets ? `${ex.defaultSets} סטים` : ''}{ex.defaultSets && ex.defaultReps ? ' · ' : ''}{ex.defaultReps || ''}</p>
                   )}
                   {ex.instructions && <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{ex.instructions}</p>}
+                  {!!ex.injuryZones?.length && (
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {ex.injuryZones.map((zoneId) => (
+                        <span key={zoneId} className="text-[10px] font-semibold text-[#0a1628] bg-[#0a1628]/5 rounded-full px-2 py-0.5">
+                          {BODY_ZONES[zoneId]?.he || zoneId}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="flex gap-1.5">
                   <Button variant="outline" size="sm" className="h-7 text-xs flex-1" onClick={() => openEdit(ex)}>
@@ -202,6 +216,35 @@ export function ExerciseLibraryManager() {
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold">חזרות (ברירת מחדל)</Label>
                 <Input value={form.defaultReps} onChange={(e) => setForm({ ...form, defaultReps: e.target.value })} placeholder="8-12" dir="rtl" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">אזורי פציעה רלוונטיים (אופציונלי)</Label>
+              <p className="text-[11px] text-muted-foreground">
+                תרגיל זה יופיע לספורטאי בעמוד מניעת פציעות עבור האזורים שסומנו
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {ZONE_IDS.map((zoneId) => {
+                  const active = form.injuryZones.includes(zoneId)
+                  return (
+                    <button
+                      key={zoneId}
+                      type="button"
+                      onClick={() => setForm((prev) => ({
+                        ...prev,
+                        injuryZones: active
+                          ? prev.injuryZones.filter((z) => z !== zoneId)
+                          : [...prev.injuryZones, zoneId],
+                      }))}
+                      className={cn(
+                        'px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-colors',
+                        active ? 'bg-[#0a1628] text-white border-[#0a1628]' : 'bg-white text-gray-500 border-gray-200',
+                      )}
+                    >
+                      {BODY_ZONES[zoneId].he}
+                    </button>
+                  )
+                })}
               </div>
             </div>
             <div className="space-y-1.5">

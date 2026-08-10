@@ -138,6 +138,12 @@ export interface AthleteProfile {
     type: string // a WorkoutType, e.g. 'strength' | 'cross_training'
     title: string
     notes?: string
+    // When set, this activity reuses an existing workouts/{id} doc's real
+    // content (description, sets, strengthBlocks — e.g. an actual lift
+    // workout built in the strength platform, or a stretching routine)
+    // instead of a generic 45min stub. type/title above are then derived
+    // from that workout at generation time, not typed manually.
+    workoutId?: string
   }>
   // Coach-defined weekday -> workout-type skeleton per season phase, e.g.
   // { build: { tuesday: 'threshold', thursday: 'long_run' } } — when set
@@ -341,6 +347,10 @@ export interface ExerciseLibraryItem {
   instructions?: string
   defaultSets?: number
   defaultReps?: string // free text, e.g. "8-12" or "10 each side"
+  // Injury zones (lib/injury-data.ts BODY_ZONES keys) this exercise is a
+  // relevant rehab/prevention movement for — coach-tagged, surfaced on the
+  // athlete's injury zone page (components/athlete/athlete-injury-view.tsx).
+  injuryZones?: string[]
   createdBy: string
   createdAt: Date
   updatedAt: Date
@@ -480,6 +490,29 @@ export interface ExerciseLogEntry {
   workoutDate: string // AssignedWorkout.scheduledDate, for chronological sort
   sets: Array<{ weightKg?: number | null; completed: boolean }>
   maxWeightKg?: number | null // derived at write time, for quick PB display
+  createdAt: Date
+  updatedAt: Date
+}
+
+// A coach-diagnosed injury for one athlete, tied to a body zone (lib/injury-
+// data.ts BODY_ZONES key). Coach-write only; visible to the athlete on
+// their own /athlete/injury page only once visibleToAthlete is set — same
+// gating spirit as users.labVisibleToAthlete for the Lab page, but per
+// record instead of one global flag. rehabWorkoutId optionally points at
+// an existing strength assignedWorkouts/{id} (built/assigned the normal
+// way) that becomes this injury's "start rehab session" button, launching
+// Lift Mode so the session logs into the athlete's regular exerciseLogs
+// progress history like any other strength workout.
+export interface AthleteInjury {
+  id: string
+  athleteId: string
+  zoneId: string
+  title: string
+  description?: string
+  status: 'active' | 'recovered'
+  visibleToAthlete: boolean
+  rehabWorkoutId?: string
+  createdBy: string
   createdAt: Date
   updatedAt: Date
 }

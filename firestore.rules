@@ -69,6 +69,18 @@ service cloud.firestore {
       allow delete: if isCoach();
     }
 
+    // Coach-diagnosed injury records (per athlete, per body zone). Write is
+    // coach-only (unlike exerciseLogs/lactateTests self-serve); athlete can
+    // only read their own, and only once the coach flips visibleToAthlete —
+    // same per-record gating spirit as users.labVisibleToAthlete.
+    match /injuries/{docId} {
+      allow read: if request.auth != null
+        && (isCoach()
+            || (resource.data.athleteId == request.auth.uid
+                && resource.data.visibleToAthlete == true));
+      allow write: if isCoach();
+    }
+
     match /logs/{logId} {
       allow read: if request.auth != null
         && (isCoach() || resource.data.athleteId == request.auth.uid);
