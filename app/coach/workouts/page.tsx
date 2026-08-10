@@ -5,6 +5,7 @@ import { WorkoutLibrary } from '@/components/coach/workout-library'
 import { CoachPlanningHub } from '@/components/coach/coach-planning-hub'
 import { ExerciseLibraryManager } from '@/components/coach/exercise-library-manager'
 import { WorkoutBankManager } from '@/components/coach/workout-bank-manager'
+import { BankCleanup } from '@/components/coach/bank-cleanup'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useSearchParams } from 'next/navigation'
 
@@ -16,11 +17,13 @@ function WorkoutsContent() {
       <TabsList className="flex gap-1 h-auto">
         <TabsTrigger value="library">ספריית אימונים</TabsTrigger>
         <TabsTrigger value="bank">בנק אימונים</TabsTrigger>
+        <TabsTrigger value="cleanup">ניקוי וארגון</TabsTrigger>
         <TabsTrigger value="exercises">ספריית תרגילים</TabsTrigger>
         <TabsTrigger value="planning">מרכז תכנון</TabsTrigger>
       </TabsList>
       <TabsContent value="library"><WorkoutLibrary /></TabsContent>
       <TabsContent value="bank"><WorkoutBankManager /></TabsContent>
+      <TabsContent value="cleanup"><BankCleanup /></TabsContent>
       <TabsContent value="exercises"><ExerciseLibraryManager /></TabsContent>
       <TabsContent value="planning"><CoachPlanningHub /></TabsContent>
     </Tabs>

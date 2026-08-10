@@ -12,7 +12,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { format, startOfWeek, endOfWeek, addDays } from 'date-fns'
 import { cn } from '@/lib/utils'
-import type { AthleteProfile, Workout, WorkoutType, WeekSchedule, JourneyDoc } from '@/lib/types'
+import type { AthleteProfile, Workout, WorkoutType, WeekSchedule, JourneyDoc, ExperienceLevel } from '@/lib/types'
 import {
   collection,
   doc,
@@ -116,6 +116,14 @@ export function WorkoutAssign({ workoutId, athleteId }: WorkoutAssignProps) {
   const [athleteSummaries, setAthleteSummaries] = useState<Record<string, AthleteWeekSummary>>({})
   const [loadingSummary, setLoadingSummary] = useState<Record<string, boolean>>({})
 
+  // Filters the workout list down to the selected athlete's own Bank
+  // level — auto-set once exactly one athlete is picked (with a real
+  // bankLevel on their profile), but always manually overridable since a
+  // coach might deliberately want to assign a session from a different
+  // level, or browse the full library.
+  const [workoutLevelFilter, setWorkoutLevelFilter] = useState<ExperienceLevel | 'all'>('all')
+  const [levelFilterAutoSet, setLevelFilterAutoSet] = useState(false)
+
   useEffect(() => {
     const load = async () => {
       setLoading(true)
@@ -143,6 +151,7 @@ export function WorkoutAssign({ workoutId, athleteId }: WorkoutAssignProps) {
             trainingPaces: Array.isArray(data.trainingPaces) ? data.trainingPaces : [],
             goals: Array.isArray(data.goals) ? data.goals : [],
             coachId: data.coachId,
+            experienceLevel: data.experienceLevel,
             weekSchedule: data.weekSchedule,
             weeklyKmRange: data.weeklyKmRange,
             offWeekInterval: data.offWeekInterval,
@@ -253,13 +262,25 @@ export function WorkoutAssign({ workoutId, athleteId }: WorkoutAssignProps) {
 
   const toggleAthlete = (athlete: AthleteProfile) => {
     const isCurrentlySelected = selectedAthletes.includes(athlete.id)
-    setSelectedAthletes((prev) =>
-      isCurrentlySelected
-        ? prev.filter((a) => a !== athlete.id)
-        : [...prev, athlete.id],
-    )
+    const next = isCurrentlySelected
+      ? selectedAthletes.filter((a) => a !== athlete.id)
+      : [...selectedAthletes, athlete.id]
+    setSelectedAthletes(next)
     if (!isCurrentlySelected && !athleteSummaries[athlete.id]) {
       loadAthleteSummaryFor(athlete)
+    }
+    // Auto-filter the workout list to this athlete's own Bank level —
+    // only when exactly one athlete ends up selected (an unambiguous
+    // case) and only until the coach manually touches the filter
+    // themselves, so it doesn't fight a deliberate override.
+    if (next.length === 1 && !levelFilterAutoSet) {
+      const only = athletes.find((a) => a.id === next[0])
+      if (only?.experienceLevel) {
+        setWorkoutLevelFilter(only.experienceLevel)
+        setLevelFilterAutoSet(true)
+      }
+    } else if (next.length !== 1) {
+      setLevelFilterAutoSet(false)
     }
   }
 
@@ -352,13 +373,31 @@ export function WorkoutAssign({ workoutId, athleteId }: WorkoutAssignProps) {
         <Card>
           <CardHeader>
             <CardTitle>{t.selectWorkoutTitle}</CardTitle>
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {([
+                { key: 'all' as const, label: 'כל האימונים' },
+                { key: 'beginner' as const, label: 'מתחילים' },
+                { key: 'intermediate' as const, label: 'בינוני' },
+                { key: 'advanced' as const, label: 'מתקדם' },
+                { key: 'professional' as const, label: 'עילית' },
+              ]).map((opt) => (
+                <Button key={opt.key} type="button" size="sm" variant="outline"
+                  onClick={() => { setWorkoutLevelFilter(opt.key); setLevelFilterAutoSet(true) }}
+                  className={cn('h-7 text-xs', opt.key === workoutLevelFilter && 'bg-gold/10 border-gold text-gold')}>
+                  {opt.label}
+                </Button>
+              ))}
+            </div>
           </CardHeader>
           <CardContent>
             {workouts.length === 0 ? (
               <p className="text-sm text-muted-foreground py-6 text-center">{t.noWorkoutsInLibrary}</p>
             ) : (
               <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
-                {workouts.map((workout) => (
+                {(workoutLevelFilter === 'all' ? workouts : workouts.filter((w) => w.bankLevel === workoutLevelFilter)).length === 0 && (
+                  <p className="text-xs text-muted-foreground py-4 text-center">אין אימוני בנק ברמה הזו — נסו "כל האימונים" או שייכו אימונים לבנק בלשונית "בנק אימונים".</p>
+                )}
+                {(workoutLevelFilter === 'all' ? workouts : workouts.filter((w) => w.bankLevel === workoutLevelFilter)).map((workout) => (
                   <button
                     key={workout.id}
                     onClick={() => setSelectedWorkout(workout)}
