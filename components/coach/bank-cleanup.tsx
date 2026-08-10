@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Loader2, AlertTriangle, Copy, FolderTree, Sparkles } from 'lucide-react'
+import { Loader2, AlertTriangle, Copy, FolderTree, Sparkles, Trash2 } from 'lucide-react'
 import { addDoc, collection, doc, getDocs, serverTimestamp, writeBatch } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { toast } from 'sonner'
@@ -12,9 +12,9 @@ import { useAuth } from '@/contexts/auth-context'
 import type { ExperienceLevel, Workout } from '@/lib/types'
 import { useWorkoutTypeLabels } from '@/lib/workout-labels'
 import {
-  findEmptyStubs, findBadDurations, findBadReps, proposeTitleDisambiguation, proposeLevel,
+  findEmptyStubs, findBadDurations, findBadReps, findExactDuplicates, proposeTitleDisambiguation, proposeLevel,
   findCoverageGaps, buildAdaptedWorkout, LEVEL_LABEL_HE,
-  type WorkoutFlag, type TitleProposal, type CoverageGap,
+  type WorkoutFlag, type TitleProposal, type CoverageGap, type DuplicateGroup,
 } from '@/lib/bank-cleanup'
 
 const BANK_LEVELS: ExperienceLevel[] = ['beginner', 'intermediate', 'advanced', 'professional']
@@ -45,6 +45,8 @@ export function BankCleanup() {
 
   // Bug section: per-flag editable overrides + opt-in checkbox
   const [bugOverrides, setBugOverrides] = useState<Record<string, { checked: boolean; duration?: number }>>({})
+  // Exact-duplicates section: per-group (keyed by keepWorkoutId) editable title + opt-in
+  const [dupOverrides, setDupOverrides] = useState<Record<string, { checked: boolean; title: string }>>({})
   // Title section: per-proposal editable text + opt-in
   const [titleOverrides, setTitleOverrides] = useState<Record<string, { checked: boolean; title: string }>>({})
   // Level section: per-workout chosen level + opt-in
@@ -68,6 +70,7 @@ export function BankCleanup() {
   const stubs = useMemo(() => findEmptyStubs(workouts), [workouts])
   const badDurations = useMemo(() => findBadDurations(workouts), [workouts])
   const badReps = useMemo(() => findBadReps(workouts), [workouts])
+  const exactDuplicates = useMemo(() => findExactDuplicates(workouts), [workouts])
   const titleProposals = useMemo(() => proposeTitleDisambiguation(workouts), [workouts])
   const levelProposals = useMemo(() => workouts.map(proposeLevel), [workouts])
   const coverageGaps = useMemo(() => findCoverageGaps(workouts), [workouts])
@@ -85,6 +88,14 @@ export function BankCleanup() {
       return next
     })
   }, [badDurations, stubs])
+
+  useEffect(() => {
+    setDupOverrides((prev) => {
+      const next = { ...prev }
+      for (const g of exactDuplicates) if (!next[g.keepWorkoutId]) next[g.keepWorkoutId] = { checked: true, title: g.proposedTitle }
+      return next
+    })
+  }, [exactDuplicates])
 
   useEffect(() => {
     setTitleOverrides((prev) => {
@@ -125,6 +136,28 @@ export function BankCleanup() {
       }
       await commitInChunks(ops)
       toast.success(`עודכנו/נמחקו ${ops.length} אימונים`)
+      await load()
+    } catch (err) {
+      console.error(err); toast.error('הפעולה נכשלה')
+    } finally {
+      setApplying(null)
+    }
+  }
+
+  const applyDuplicates = async () => {
+    setApplying('duplicates')
+    try {
+      const ops: Array<{ id: string; data: Record<string, unknown> } | { id: string; delete: true }> = []
+      let keptCount = 0, deletedCount = 0
+      for (const g of exactDuplicates) {
+        const ov = dupOverrides[g.keepWorkoutId]
+        if (!ov?.checked) continue
+        ops.push({ id: g.keepWorkoutId, data: { title: ov.title } })
+        keptCount++
+        for (const id of g.deleteWorkoutIds) { ops.push({ id, delete: true }); deletedCount++ }
+      }
+      await commitInChunks(ops)
+      toast.success(`נשמרו ${keptCount} אימונים, נמחקו ${deletedCount} עותקים כפולים`)
       await load()
     } catch (err) {
       console.error(err); toast.error('הפעולה נכשלה')
@@ -261,7 +294,43 @@ export function BankCleanup() {
         </CardContent>
       </Card>
 
-      {/* Section 2: title disambiguation */}
+      {/* Section 2: exact duplicates — same title+duration+distance = the
+          same workout saved multiple times, not legitimate variety */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2"><Trash2 className="h-4 w-4 text-destructive" />כפילויות מדויקות ({exactDuplicates.length} קבוצות, {exactDuplicates.reduce((s, g) => s + g.deleteWorkoutIds.length, 0)} עותקים)</CardTitle>
+          <CardDescription>אותו שם + משך + מרחק = אותו אימון שנשמר כמה פעמים — שומר עותק אחד (העשיר ביותר), מוחק את השאר, ומוסיף את הק"מ לשם</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {exactDuplicates.length === 0 ? (
+            <p className="text-sm text-muted-foreground">לא נמצאו כפילויות מדויקות.</p>
+          ) : (
+            <>
+              <div className="max-h-96 overflow-y-auto space-y-1.5">
+                {exactDuplicates.map((g) => {
+                  const ov = dupOverrides[g.keepWorkoutId]
+                  if (!ov) return null
+                  return (
+                    <div key={g.keepWorkoutId} className="flex items-center gap-2 text-xs rounded-md bg-destructive/5 p-2">
+                      <input type="checkbox" checked={ov.checked} onChange={(e) => setDupOverrides((prev) => ({ ...prev, [g.keepWorkoutId]: { ...ov, checked: e.target.checked } }))} />
+                      <span className="text-muted-foreground shrink-0">שומר:</span>
+                      <Input value={ov.title} onChange={(e) => setDupOverrides((prev) => ({ ...prev, [g.keepWorkoutId]: { ...ov, title: e.target.value } }))}
+                        className="h-7 flex-1 text-xs" dir="auto" />
+                      <span className="text-destructive shrink-0">מוחק {g.deleteWorkoutIds.length} עותקים</span>
+                    </div>
+                  )
+                })}
+              </div>
+              <Button size="sm" onClick={applyDuplicates} disabled={applying === 'duplicates'} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                {applying === 'duplicates' ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
+                נקה כפילויות
+              </Button>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Section 3: title disambiguation */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2"><Copy className="h-4 w-4 text-blue-600" />שמות כפולים ({titleProposals.length})</CardTitle>
@@ -296,7 +365,7 @@ export function BankCleanup() {
         </CardContent>
       </Card>
 
-      {/* Section 3: bank level inference */}
+      {/* Section 4: bank level inference */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2"><FolderTree className="h-4 w-4 text-emerald-600" />שיוך לרמת בנק ({levelProposals.filter((p) => p.proposedLevel).length}/{workouts.length})</CardTitle>
@@ -330,7 +399,7 @@ export function BankCleanup() {
         </CardContent>
       </Card>
 
-      {/* Section 4: coverage gaps — adapted copies for missing levels */}
+      {/* Section 5: coverage gaps — adapted copies for missing levels */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2"><Sparkles className="h-4 w-4 text-gold" />פערי כיסוי — יצירת אימונים מותאמים ({coverageGaps.length})</CardTitle>
