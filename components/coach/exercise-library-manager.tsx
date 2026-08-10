@@ -26,6 +26,7 @@ import type { ExerciseLibraryItem } from '@/lib/types'
 import { listExercises, saveExercise, deleteExercise, uploadExerciseVideo } from '@/lib/exercise-library'
 import { BODY_ZONES, ZONE_IDS } from '@/lib/injury-data'
 import { seedRunningStrengthProgram } from '@/lib/seed-running-strength-program'
+import { seedRunnerStretchProgram } from '@/lib/seed-runner-stretch-program'
 import { cn } from '@/lib/utils'
 
 const emptyForm = {
@@ -54,7 +55,7 @@ export function ExerciseLibraryManager() {
   const [deleteTarget, setDeleteTarget] = useState<ExerciseLibraryItem | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [filterCategory, setFilterCategory] = useState<'strength' | 'stretch'>('strength')
-  const [importing, setImporting] = useState(false)
+  const [importingKey, setImportingKey] = useState<'strength' | 'stretch' | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const load = async () => {
@@ -159,7 +160,7 @@ export function ExerciseLibraryManager() {
 
   const handleImportRunningProgram = async () => {
     if (!user) return
-    setImporting(true)
+    setImportingKey('strength')
     try {
       const result = await seedRunningStrengthProgram(user.id || '')
       if (result.alreadyExisted) {
@@ -172,7 +173,26 @@ export function ExerciseLibraryManager() {
       console.error('Error importing running strength program:', err)
       toast.error('הייבוא נכשל')
     } finally {
-      setImporting(false)
+      setImportingKey(null)
+    }
+  }
+
+  const handleImportStretchProgram = async () => {
+    if (!user) return
+    setImportingKey('stretch')
+    try {
+      const result = await seedRunnerStretchProgram(user.id || '')
+      if (result.alreadyExisted) {
+        toast.info('שגרת המתיחות כבר יובאה בעבר')
+      } else {
+        toast.success(`יובאו ${result.exerciseCount} מתיחות ואימון "מתיחות סטטיות לרצים" — זמין בספריית האימונים`)
+        await load()
+      }
+    } catch (err) {
+      console.error('Error importing stretch program:', err)
+      toast.error('הייבוא נכשל')
+    } finally {
+      setImportingKey(null)
     }
   }
 
@@ -187,10 +207,14 @@ export function ExerciseLibraryManager() {
             תרגילים לאימוני כוח ומתיחות — שם, סרטון הדגמה, הוראות, סטים/חזרות או זמן ברירת מחדל. נבחרים בבניית אימון ומופיעים לספורטאי במצב אימון.
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={handleImportRunningProgram} disabled={importing} size="sm" variant="outline">
-            {importing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Download className="h-4 w-4 mr-1" />}
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={handleImportRunningProgram} disabled={importingKey !== null} size="sm" variant="outline">
+            {importingKey === 'strength' ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Download className="h-4 w-4 mr-1" />}
             ייבוא: חיזוקים לריצה
+          </Button>
+          <Button onClick={handleImportStretchProgram} disabled={importingKey !== null} size="sm" variant="outline">
+            {importingKey === 'stretch' ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Download className="h-4 w-4 mr-1" />}
+            ייבוא: מתיחות סטטיות
           </Button>
           <Button onClick={openAdd} size="sm"><Plus className="h-4 w-4 mr-1" />הוסף תרגיל</Button>
         </div>
