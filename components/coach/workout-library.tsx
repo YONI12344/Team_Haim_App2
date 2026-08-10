@@ -66,21 +66,36 @@ export function WorkoutLibrary() {
   // assignedWorkouts copy, so those library entries need their own
   // classification since there's no explicit source field on older docs.
   const [bakkenWorkoutIds, setBakkenWorkoutIds] = useState<Set<string>>(new Set())
+  // Every workouts/{id} referenced by ANY assignedWorkouts doc (any
+  // source) — used by the cleanup tool below to only ever offer deleting
+  // library templates nobody's actual schedule depends on.
+  const [assignedWorkoutIds, setAssignedWorkoutIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [duplicating, setDuplicating] = useState<string | null>(null)
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [bulkDeleting, setBulkDeleting] = useState(false)
+  // Cleanup tool: "delete everything created in this date range that was
+  // never assigned to any athlete" — defaults to the last 7 days.
+  const [cleanupOpen, setCleanupOpen] = useState(false)
+  const [cleanupFrom, setCleanupFrom] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().slice(0, 10)
+  })
+  const [cleanupTo, setCleanupTo] = useState(() => new Date().toISOString().slice(0, 10))
+  const [cleanupConfirmOpen, setCleanupConfirmOpen] = useState(false)
+  const [cleanupDeleting, setCleanupDeleting] = useState(false)
 
   const load = async () => {
     setLoading(true)
     try {
-      const [workoutsSnap, bakkenAssignedSnap] = await Promise.all([
+      const [workoutsSnap, bakkenAssignedSnap, allAssignedSnap] = await Promise.all([
         getDocs(query(collection(db, 'workouts'), orderBy('createdAt', 'desc'))),
         getDocs(query(collection(db, 'assignedWorkouts'), where('source', '==', 'bakken'))),
+        getDocs(collection(db, 'assignedWorkouts')),
       ])
       setBakkenWorkoutIds(new Set(bakkenAssignedSnap.docs.map((d) => d.data().workoutId).filter(Boolean)))
+      setAssignedWorkoutIds(new Set(allAssignedSnap.docs.map((d) => d.data().workoutId).filter(Boolean)))
       setWorkouts(
         workoutsSnap.docs
           // Hide per-week clones created by copy-week / paste
@@ -95,6 +110,41 @@ export function WorkoutLibrary() {
       setWorkouts([])
     } finally {
       setLoading(false)
+    }
+  }
+
+  const toDate = (v: any): Date | null => {
+    if (!v) return null
+    if (typeof v.toDate === 'function') return v.toDate()
+    const d = new Date(v)
+    return isNaN(d.getTime()) ? null : d
+  }
+  const cleanupCandidates = workouts.filter((w) => {
+    if (assignedWorkoutIds.has(w.id)) return false
+    const created = toDate((w as any).createdAt)
+    if (!created) return false
+    const fromD = new Date(cleanupFrom + 'T00:00:00')
+    const toD = new Date(cleanupTo + 'T23:59:59')
+    return created >= fromD && created <= toD
+  })
+
+  const handleCleanupDelete = async () => {
+    setCleanupDeleting(true)
+    try {
+      const ids = cleanupCandidates.map((w) => w.id)
+      for (let i = 0; i < ids.length; i += 450) {
+        const batch = writeBatch(db)
+        for (const id of ids.slice(i, i + 450)) batch.delete(doc(db, 'workouts', id))
+        await batch.commit()
+      }
+      toast.success(`נמחקו ${ids.length} אימונים`)
+      setCleanupConfirmOpen(false)
+      await load()
+    } catch (err) {
+      console.error('Error cleaning up workouts:', err)
+      toast.error('המחיקה נכשלה')
+    } finally {
+      setCleanupDeleting(false)
     }
   }
 
@@ -283,7 +333,52 @@ export function WorkoutLibrary() {
               מחק את כל אימוני Bakken AI ({bakkenCount})
             </Button>
           )}
+          <Button variant="ghost" size="sm" onClick={() => setCleanupOpen((v) => !v)}>
+            ניקוי לפי תאריך...
+          </Button>
         </div>
+      )}
+
+      {isCoach && cleanupOpen && (
+        <Card className="border-dashed">
+          <CardContent className="p-3 space-y-2">
+            <p className="text-xs font-medium">מחיקת אימונים לא משויכים לפי תאריך יצירה</p>
+            <p className="text-[11px] text-muted-foreground">
+              מוחק רק אימונים בספרייה שלא הוקצו לאף ספורטאי (assignedWorkouts) — אימונים שכן שויכו לספורטאי לא נמחקים, גם אם הם בטווח התאריכים.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="text-xs flex items-center gap-1.5">
+                מתאריך
+                <input type="date" value={cleanupFrom} onChange={(e) => setCleanupFrom(e.target.value)}
+                  className="rounded-md border border-input bg-background px-2 py-1 text-xs" />
+              </label>
+              <label className="text-xs flex items-center gap-1.5">
+                עד תאריך
+                <input type="date" value={cleanupTo} onChange={(e) => setCleanupTo(e.target.value)}
+                  className="rounded-md border border-input bg-background px-2 py-1 text-xs" />
+              </label>
+            </div>
+            {cleanupCandidates.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-1">אין אימונים לא-משויכים בטווח הזה.</p>
+            ) : (
+              <>
+                <p className="text-xs font-medium">{cleanupCandidates.length} אימונים יימחקו:</p>
+                <div className="max-h-40 overflow-y-auto space-y-1 rounded-md bg-muted/30 p-2">
+                  {cleanupCandidates.map((w) => (
+                    <div key={w.id} className="text-xs flex items-center justify-between gap-2">
+                      <span className="truncate">{w.title}</span>
+                      <span className="text-muted-foreground shrink-0">{workoutTypeLabels[w.type]}</span>
+                    </div>
+                  ))}
+                </div>
+                <Button variant="outline" size="sm" onClick={() => setCleanupConfirmOpen(true)} className="text-destructive hover:text-destructive border-destructive/30">
+                  <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                  מחק {cleanupCandidates.length} אימונים
+                </Button>
+              </>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {loading ? (
@@ -448,6 +543,28 @@ export function WorkoutLibrary() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {bulkDeleting ? 'מוחק...' : `מחק ${bakkenCount} אימונים`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Date-range cleanup confirmation */}
+      <AlertDialog open={cleanupConfirmOpen} onOpenChange={(open) => !open && setCleanupConfirmOpen(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>מחיקת {cleanupCandidates.length} אימונים</AlertDialogTitle>
+            <AlertDialogDescription>
+              נוצרו בין {cleanupFrom} ל-{cleanupTo}, ואף אחד מהם לא משויך לספורטאי כלשהו. לא ניתן לבטל פעולה זו.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cleanupDeleting}>ביטול</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCleanupDelete}
+              disabled={cleanupDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {cleanupDeleting ? 'מוחק...' : `מחק ${cleanupCandidates.length} אימונים`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
