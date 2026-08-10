@@ -148,12 +148,15 @@ export interface AthleteProfile {
   // Keyed by JourneyStageType so it naturally reapplies to whichever
   // "build"/"peak"/etc. stage exists in a freshly-generated season, since
   // stages themselves are recreated fresh on every skeleton regenerate.
-  // A day's value can be a single type, or an array of exactly two types
-  // when the coach wants two sessions that same day (e.g. lift + easy run,
-  // or a double-threshold day) — see rule 2c in plan-prompt.ts.
+  // A day's value can be a single type, an array of exactly two types when
+  // the coach wants two sessions that same day (e.g. lift + easy run, or a
+  // double-threshold day), or {rotateWeekly: [...]} to cycle one type per
+  // week on that day (e.g. fartlek one week, hills the next — a 2-item
+  // list is "every other week X, every other week Y") — see rule 2c in
+  // plan-prompt.ts.
   stageDayTypeTemplates?: Partial<Record<JourneyStageType, Partial<Record<
     'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday',
-    string | string[]
+    string | string[] | { rotateWeekly: string[] }
   >>>>
   // One-off calendar events (a flight, a wedding, an exam) that aren't
   // recurring and aren't the goal/prep race — the Bakken AI generator
@@ -166,6 +169,13 @@ export interface AthleteProfile {
     label: string
     notes?: string
   }>
+  // Cutback/down-week overrides for base/build/peak stages — the automatic
+  // default is every 3rd week (beginner) or 4th week (everyone else) at
+  // 75% volume (lib/bakken/safety-rules.json). These let the coach
+  // customize WHEN it happens and what it actually changes beyond volume.
+  cutbackIntervalWeeks?: number // e.g. 3 = a down week every 3rd week, overriding the automatic default
+  cutbackFewerDays?: boolean // on a cutback week, also drop one easy day entirely to full rest
+  cutbackDowngradeQuality?: boolean // on a cutback week, also downgrade that week's quality sessions to easy
   createdAt: Date
   updatedAt: Date
 }
@@ -299,6 +309,14 @@ export interface Workout {
   // one pace/HR-over-time comparison in the Lab, independent of the
   // lactate-specific grouping above.
   comparisonGroup?: string
+  // Who/what created this library entry — 'bakken' for every standalone
+  // workouts/{id} doc the Bakken AI generator writes (one per day, see
+  // bakken-plan-panel.tsx), unset/'coach' for anything the coach built by
+  // hand. Lets workout-library.tsx separate/bulk-clean Bakken's own
+  // one-off library clutter from real reusable coach-authored workouts.
+  // Older docs predating this field fall back to a live cross-reference
+  // against assignedWorkouts (source:'bakken') instead.
+  source?: 'bakken' | 'coach'
   // 'strength' workouts only: the structured exercise breakdown that
   // powers Lift Mode (components/athlete/lift-mode.tsx) — grouped into
   // blocks (a plain set, or a superset of 2+ exercises done back to back)
@@ -441,6 +459,27 @@ export interface AssignedWorkout {
   actualDuration?: number
   actualDistance?: number
   perceivedEffort?: number
+  createdAt: Date
+  updatedAt: Date
+}
+
+// One durable record per (athlete, exercise, workout completion), written
+// when the athlete finishes a strength workout in Lift Mode
+// (components/athlete/lift-mode.tsx). Unlike AssignedWorkout.strengthProgress
+// (which gets overwritten every time that workout is reopened), this is
+// append-only history — it's what powers the athlete's per-exercise
+// progress chart (components/athlete/athlete-exercise-progress.tsx).
+// Doc id is deterministic (`${assignedWorkoutId}_${exerciseId}`) so
+// re-finishing the same workout upserts instead of duplicating.
+export interface ExerciseLogEntry {
+  id: string
+  athleteId: string
+  exerciseId: string // StrengthBlockExercise.exerciseId / ExerciseLibraryItem.id
+  exerciseName: string // denormalized, survives library edits/deletes
+  assignedWorkoutId: string
+  workoutDate: string // AssignedWorkout.scheduledDate, for chronological sort
+  sets: Array<{ weightKg?: number | null; completed: boolean }>
+  maxWeightKg?: number | null // derived at write time, for quick PB display
   createdAt: Date
   updatedAt: Date
 }

@@ -56,6 +56,19 @@ service cloud.firestore {
       allow write: if isCoach();
     }
 
+    // Durable per-completion exercise history (weight logged per set),
+    // written by Lift Mode when a strength workout is finished — powers the
+    // athlete's progress chart at /athlete/progress. Separate from the
+    // overwritable assignedWorkouts.strengthProgress field. Same self-serve
+    // shape as lactateTests below.
+    match /exerciseLogs/{docId} {
+      allow read: if request.auth != null
+        && (isCoach() || resource.data.athleteId == request.auth.uid);
+      allow create, update: if isCoach()
+        || (request.auth != null && request.resource.data.athleteId == request.auth.uid);
+      allow delete: if isCoach();
+    }
+
     match /logs/{logId} {
       allow read: if request.auth != null
         && (isCoach() || resource.data.athleteId == request.auth.uid);

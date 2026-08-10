@@ -1,12 +1,13 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, getDoc, updateDoc, writeBatch, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Loader2, ChevronLeft, ChevronRight, Check, X } from 'lucide-react'
+import { Loader2, ChevronLeft, ChevronRight, Check, X, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
 import type { AssignedWorkout, StrengthBlockExercise } from '@/lib/types'
 
@@ -87,12 +88,37 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
   const finishWorkout = async () => {
     setFinishing(true)
     try {
-      await updateDoc(doc(db, 'assignedWorkouts', assignedWorkoutId), {
+      const batch = writeBatch(db)
+      batch.update(doc(db, 'assignedWorkouts', assignedWorkoutId), {
         strengthProgress: progress,
         status: 'completed',
         completedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       })
+      // Durable per-exercise history for the progress chart — separate from
+      // strengthProgress above, which gets overwritten if this workout is
+      // ever reopened. See ExerciseLogEntry in lib/types.ts.
+      for (const block of blocks) {
+        for (const ex of block.exercises) {
+          const sets = progress[ex.id] || []
+          if (!sets.length) continue
+          const weights = sets.map((s) => s.weightKg).filter((w): w is number => typeof w === 'number')
+          const logId = `${assignedWorkoutId}_${ex.exerciseId}`
+          batch.set(doc(db, 'exerciseLogs', logId), {
+            id: logId,
+            athleteId: assigned?.athleteId,
+            exerciseId: ex.exerciseId,
+            exerciseName: ex.name,
+            assignedWorkoutId,
+            workoutDate: assigned?.scheduledDate,
+            sets: sets.map((s) => ({ weightKg: s.weightKg ?? null, completed: s.completed })),
+            maxWeightKg: weights.length ? Math.max(...weights) : null,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          }, { merge: true })
+        }
+      }
+      await batch.commit()
       toast.success('כל הכבוד! האימון הושלם 💪')
       router.push('/athlete/schedule')
     } catch (err) {
@@ -121,6 +147,9 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" onClick={() => router.back()}><X className="h-4 w-4 mr-1" />יציאה</Button>
         <p className="text-xs text-muted-foreground">{doneSets}/{totalSets} סטים הושלמו</p>
+        <Button variant="ghost" size="sm" asChild>
+          <Link href="/athlete/progress"><TrendingUp className="h-4 w-4 mr-1" />התקדמות</Link>
+        </Button>
       </div>
 
       <div>
