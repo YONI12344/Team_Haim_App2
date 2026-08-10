@@ -10,11 +10,10 @@ import { ArrowLeft, Clock, Check, Loader2, MapPin, TrendingUp } from 'lucide-rea
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { format, startOfWeek, endOfWeek } from 'date-fns'
+import { format, startOfWeek, endOfWeek, addDays } from 'date-fns'
 import { cn } from '@/lib/utils'
-import type { AthleteProfile, Workout, WorkoutType, WeekSchedule } from '@/lib/types'
+import type { AthleteProfile, Workout, WorkoutType, WeekSchedule, JourneyDoc } from '@/lib/types'
 import {
-  addDoc,
   collection,
   doc,
   getDoc,
@@ -22,6 +21,7 @@ import {
   query,
   serverTimestamp,
   where,
+  writeBatch,
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/auth-context'
@@ -29,6 +29,42 @@ import { isCoachEmail } from '@/lib/constants'
 import { workoutTypeColors, useWorkoutTypeLabels } from '@/lib/workout-labels'
 import { useLanguage } from '@/contexts/language-context'
 import { listJourneys, computeJourneyProgress } from '@/lib/journey'
+
+type RepeatFrequency = 'none' | 'weekly' | 'biweekly'
+// Hard safety cap on how many occurrences a single "assign" click can
+// write, regardless of the chosen end date — matches the same
+// reasoning as the Bakken generator's MAX_BLOCKS: bounded cost/time per
+// click, coach can always click again to extend further.
+const MAX_OCCURRENCES = 52
+
+function occurrenceDates(start: Date, frequency: RepeatFrequency, until: Date | undefined): Date[] {
+  if (frequency === 'none' || !until) return [start]
+  const dates: Date[] = []
+  let cursor = start
+  const stepDays = frequency === 'weekly' ? 7 : 14
+  while (cursor <= until && dates.length < MAX_OCCURRENCES) {
+    dates.push(cursor)
+    cursor = addDays(cursor, stepDays)
+  }
+  return dates
+}
+
+/** Same "is this week an off/down week for this athlete" computation as
+ *  loadAthleteSummaryFor below, generalized to an arbitrary date instead
+ *  of always "today" — lets the recurrence generator skip an occurrence
+ *  that would land on a future down week, not just detect today's. */
+async function isDownWeekFor(athlete: AthleteProfile, journeys: JourneyDoc[], date: Date): Promise<boolean> {
+  const activeJourney = journeys.find((j) => new Date(j.startDate) <= date && new Date(j.goalRaceDate) >= date)
+    || journeys[journeys.length - 1]
+  if (!activeJourney) return false
+  const progress = computeJourneyProgress(activeJourney, date)
+  const stage = progress.activeStage
+  if (!stage) return false
+  const stageStart = new Date(stage.startDate)
+  const weekInStage = Math.max(1, Math.ceil((date.getTime() - stageStart.getTime()) / (7 * 86400000)))
+  const offInterval = athlete.offWeekInterval ?? 4
+  return weekInStage % offInterval === 0
+}
 
 interface WorkoutAssignProps {
   workoutId?: string
@@ -72,6 +108,9 @@ export function WorkoutAssign({ workoutId, athleteId }: WorkoutAssignProps) {
     athleteId ? [athleteId] : [],
   )
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
+  const [repeatFrequency, setRepeatFrequency] = useState<RepeatFrequency>('none')
+  const [repeatUntil, setRepeatUntil] = useState<Date | undefined>(() => addDays(new Date(), 12 * 7))
+  const [skipDownWeeks, setSkipDownWeeks] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const [athleteSummaries, setAthleteSummaries] = useState<Record<string, AthleteWeekSummary>>({})
@@ -229,25 +268,52 @@ export function WorkoutAssign({ workoutId, athleteId }: WorkoutAssignProps) {
     if (!selectedWorkout) { toast.error('Please select a workout'); return }
     if (selectedAthletes.length === 0) { toast.error('Please select at least one athlete'); return }
     if (!selectedDate) { toast.error('Please select a date'); return }
+    if (repeatFrequency !== 'none' && !repeatUntil) { toast.error('Please pick an end date for the repeat'); return }
 
     setIsSubmitting(true)
     try {
-      const scheduledDate = format(selectedDate, 'yyyy-MM-dd')
-      await Promise.all(
-        selectedAthletes.map((aid) =>
-          addDoc(collection(db, 'assignedWorkouts'), {
-            workoutId: selectedWorkout.id,
-            workout: selectedWorkout,
-            athleteId: aid,
-            assignedBy: user?.id || null,
-            scheduledDate,
-            status: 'scheduled',
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          }),
-        ),
+      const dates = occurrenceDates(selectedDate, repeatFrequency, repeatUntil)
+      // Firestore batches cap at 500 writes — a big recurrence × many
+      // athletes can exceed that, so collect every write first and commit
+      // in chunks rather than assuming one batch is always enough.
+      const pending: Array<{ ref: ReturnType<typeof doc>; data: Record<string, unknown> }> = []
+      for (const aid of selectedAthletes) {
+        const athlete = athletes.find((a) => a.id === aid)
+        // Only fetched when actually needed (repeat + skip both on) —
+        // avoids an extra read per athlete on the common single-date path.
+        const journeys = repeatFrequency !== 'none' && skipDownWeeks && athlete
+          ? await listJourneys(aid)
+          : []
+        for (const occDate of dates) {
+          if (repeatFrequency !== 'none' && skipDownWeeks && athlete && await isDownWeekFor(athlete, journeys, occDate)) {
+            continue
+          }
+          pending.push({
+            ref: doc(collection(db, 'assignedWorkouts')),
+            data: {
+              workoutId: selectedWorkout.id,
+              workout: selectedWorkout,
+              athleteId: aid,
+              assignedBy: user?.id || null,
+              scheduledDate: format(occDate, 'yyyy-MM-dd'),
+              status: 'scheduled',
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+            },
+          })
+        }
+      }
+      for (let i = 0; i < pending.length; i += 450) {
+        const batch = writeBatch(db)
+        for (const { ref, data } of pending.slice(i, i + 450)) batch.set(ref, data)
+        await batch.commit()
+      }
+      const written = pending.length
+      toast.success(
+        repeatFrequency === 'none'
+          ? `Workout assigned to ${selectedAthletes.length} athlete(s)!`
+          : `${written} workouts scheduled across ${selectedAthletes.length} athlete(s)!`,
       )
-      toast.success(`Workout assigned to ${selectedAthletes.length} athlete(s)!`)
       router.push('/coach/athletes')
     } catch (err) {
       console.error('Error assigning workout:', err)
@@ -472,13 +538,52 @@ export function WorkoutAssign({ workoutId, athleteId }: WorkoutAssignProps) {
           <CardHeader>
             <CardTitle>{t.selectDateTitle}</CardTitle>
           </CardHeader>
-          <CardContent className="flex justify-center">
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={setSelectedDate}
-              className="rounded-md border"
-            />
+          <CardContent className="space-y-4">
+            <div className="flex justify-center">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={setSelectedDate}
+                className="rounded-md border"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">חזרה</p>
+              <div className="flex flex-wrap gap-1.5">
+                {([
+                  { key: 'none' as const, label: 'ללא חזרה' },
+                  { key: 'weekly' as const, label: 'כל שבוע' },
+                  { key: 'biweekly' as const, label: 'כל שבועיים' },
+                ]).map((opt) => (
+                  <Button key={opt.key} type="button" size="sm" variant="outline"
+                    onClick={() => setRepeatFrequency(opt.key)}
+                    className={cn(opt.key === repeatFrequency && 'bg-gold/10 border-gold text-gold')}>
+                    {opt.label}
+                  </Button>
+                ))}
+              </div>
+              {repeatFrequency !== 'none' && (
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground shrink-0">עד תאריך:</span>
+                    <input type="date"
+                      value={repeatUntil ? format(repeatUntil, 'yyyy-MM-dd') : ''}
+                      onChange={(e) => setRepeatUntil(e.target.value ? new Date(e.target.value + 'T00:00:00') : undefined)}
+                      className="rounded-md border border-input bg-background px-2 py-1 text-xs" />
+                  </div>
+                  <label className="flex items-start gap-2 text-xs text-muted-foreground">
+                    <input type="checkbox" checked={skipDownWeeks} onChange={(e) => setSkipDownWeeks(e.target.checked)} className="mt-0.5" />
+                    לדלג על שבועות הפחתת עומסים של הספורטאי (לפי offWeekInterval)
+                  </label>
+                  <p className="text-[11px] text-muted-foreground">
+                    {selectedDate && repeatUntil
+                      ? `עד ${occurrenceDates(selectedDate, repeatFrequency, repeatUntil).length} מופעים${MAX_OCCURRENCES === occurrenceDates(selectedDate, repeatFrequency, repeatUntil).length ? ` (הגבלה של ${MAX_OCCURRENCES})` : ''} לכל ספורטאי שנבחר.`
+                      : ''}
+                  </p>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -508,6 +613,11 @@ export function WorkoutAssign({ workoutId, athleteId }: WorkoutAssignProps) {
               <span className="text-sm text-muted-foreground">{t.dateColon}</span>
               <p className="font-medium text-navy">
                 {selectedDate ? format(selectedDate, 'EEEE, MMMM d, yyyy') : t.notSelected}
+                {repeatFrequency !== 'none' && repeatUntil && (
+                  <span className="text-xs text-muted-foreground font-normal">
+                    {' '}· {repeatFrequency === 'weekly' ? 'כל שבוע' : 'כל שבועיים'} עד {format(repeatUntil, 'd/M/yyyy')}
+                  </span>
+                )}
               </p>
             </div>
 
@@ -536,7 +646,7 @@ export function WorkoutAssign({ workoutId, athleteId }: WorkoutAssignProps) {
 
             <Button
               onClick={handleAssign}
-              disabled={isSubmitting || !isCoach || !selectedWorkout || selectedAthletes.length === 0 || !selectedDate}
+              disabled={isSubmitting || !isCoach || !selectedWorkout || selectedAthletes.length === 0 || !selectedDate || (repeatFrequency !== 'none' && !repeatUntil)}
               className="w-full bg-gold hover:bg-gold/90 text-navy mt-4"
             >
               {isSubmitting ? t.assigningDots : t.assignWorkoutBtn}
