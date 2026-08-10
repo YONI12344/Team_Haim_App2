@@ -1,0 +1,167 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Plus, Trash2, Loader2 } from 'lucide-react'
+import type { ExerciseLibraryItem, StrengthBlock, StrengthBlockExercise } from '@/lib/types'
+import { listExercises } from '@/lib/exercise-library'
+
+function genId(prefix: string) {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+}
+
+interface Props {
+  blocks: StrengthBlock[]
+  onChange: (blocks: StrengthBlock[]) => void
+}
+
+// Builds the structured strength-workout content that powers Lift Mode
+// (components/athlete/lift-mode.tsx) — a list of blocks, each either a
+// single exercise ("Set 1") or a superset (2+ exercises back to back with
+// no rest between them). Every exercise is picked from the coach's own
+// exercise library so it always carries a real video + instructions.
+export function StrengthBlockBuilder({ blocks, onChange }: Props) {
+  const [library, setLibrary] = useState<ExerciseLibraryItem[]>([])
+  const [loadingLibrary, setLoadingLibrary] = useState(true)
+
+  useEffect(() => {
+    listExercises().then(setLibrary).catch(console.error).finally(() => setLoadingLibrary(false))
+  }, [])
+
+  const addBlock = () => {
+    onChange([...blocks, { id: genId('block'), label: `סט ${blocks.length + 1}`, exercises: [] }])
+  }
+
+  const removeBlock = (blockId: string) => {
+    onChange(blocks.filter((b) => b.id !== blockId))
+  }
+
+  const updateBlockLabel = (blockId: string, label: string) => {
+    onChange(blocks.map((b) => (b.id === blockId ? { ...b, label } : b)))
+  }
+
+  const addExercise = (blockId: string, exerciseId: string) => {
+    const ex = library.find((e) => e.id === exerciseId)
+    if (!ex) return
+    const newExercise: StrengthBlockExercise = {
+      id: genId('ex'),
+      exerciseId: ex.id,
+      name: ex.name,
+      videoUrl: ex.videoUrl,
+      instructions: ex.instructions,
+      targetSets: ex.defaultSets || 3,
+      targetReps: ex.defaultReps || '10',
+      notes: '',
+    }
+    onChange(blocks.map((b) => (b.id === blockId ? { ...b, exercises: [...b.exercises, newExercise] } : b)))
+    // A block with 2+ exercises is a superset by definition — relabel it
+    // automatically unless the coach already gave it a custom name.
+    const block = blocks.find((b) => b.id === blockId)
+    if (block && block.exercises.length === 1 && /^סט \d+$/.test(block.label)) {
+      onChange(blocks.map((b) => (b.id === blockId
+        ? { ...b, label: `סופרסט`, exercises: [...b.exercises, newExercise] }
+        : b)))
+    }
+  }
+
+  const removeExercise = (blockId: string, exerciseInstanceId: string) => {
+    onChange(blocks.map((b) => (b.id === blockId
+      ? { ...b, exercises: b.exercises.filter((e) => e.id !== exerciseInstanceId) }
+      : b)))
+  }
+
+  const updateExercise = (blockId: string, exerciseInstanceId: string, patch: Partial<StrengthBlockExercise>) => {
+    onChange(blocks.map((b) => (b.id === blockId
+      ? { ...b, exercises: b.exercises.map((e) => (e.id === exerciseInstanceId ? { ...e, ...patch } : e)) }
+      : b)))
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>בלוקים (סטים / סופרסטים)</CardTitle>
+        <Button type="button" variant="outline" size="sm" onClick={addBlock}>
+          <Plus className="h-4 w-4 mr-2" />
+          הוסף בלוק
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {loadingLibrary ? (
+          <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+        ) : library.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-6">
+            אין עדיין תרגילים בספרייה — הוסיפו תרגילים בלשונית "ספריית תרגילים" לפני בניית אימון כוח מובנה.
+          </p>
+        ) : blocks.length === 0 ? (
+          <p className="text-muted-foreground text-center py-8">לא נוספו בלוקים עדיין</p>
+        ) : (
+          <div className="space-y-4">
+            {blocks.map((block, bIdx) => (
+              <div key={block.id} className="rounded-lg border border-border overflow-hidden">
+                <div className="flex items-center justify-between gap-2 bg-muted/40 px-3 py-2">
+                  <Input
+                    value={block.label}
+                    onChange={(e) => updateBlockLabel(block.id, e.target.value)}
+                    className="h-7 text-sm font-semibold max-w-[160px]"
+                  />
+                  <Button type="button" variant="ghost" size="sm" onClick={() => removeBlock(block.id)} className="text-destructive hover:text-destructive h-7 w-7 p-0">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+                <div className="p-3 space-y-3">
+                  {block.exercises.map((ex) => (
+                    <div key={ex.id} className="rounded-md border border-border/60 p-2.5 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">{ex.name}</span>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => removeExercise(block.id, ex.id)} className="text-destructive hover:text-destructive h-6 w-6 p-0">
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-[11px]">סטים</Label>
+                          <Input type="number" min={1} value={ex.targetSets}
+                            onChange={(e) => updateExercise(block.id, ex.id, { targetSets: Number(e.target.value) || 1 })}
+                            className="h-8 text-sm" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[11px]">חזרות</Label>
+                          <Input value={ex.targetReps}
+                            onChange={(e) => updateExercise(block.id, ex.id, { targetReps: e.target.value })}
+                            placeholder="8-12" className="h-8 text-sm" dir="rtl" />
+                        </div>
+                      </div>
+                      <Input value={ex.notes || ''}
+                        onChange={(e) => updateExercise(block.id, ex.id, { notes: e.target.value })}
+                        placeholder="הערה לתרגיל הזה (לא חובה)" className="h-8 text-sm" dir="rtl" />
+                    </div>
+                  ))}
+                  <Select value="" onValueChange={(exerciseId) => addExercise(block.id, exerciseId)}>
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue placeholder={block.exercises.length === 0 ? 'הוסף תרגיל' : 'הוסף תרגיל נוסף לסופרסט'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {library.map((ex) => (
+                        <SelectItem key={ex.id} value={ex.id}>{ex.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}

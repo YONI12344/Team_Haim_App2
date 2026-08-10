@@ -299,9 +299,52 @@ export interface Workout {
   // one pace/HR-over-time comparison in the Lab, independent of the
   // lactate-specific grouping above.
   comparisonGroup?: string
+  // 'strength' workouts only: the structured exercise breakdown that
+  // powers Lift Mode (components/athlete/lift-mode.tsx) — grouped into
+  // blocks (a plain set, or a superset of 2+ exercises done back to back)
+  // so the athlete can step through the actual workout instead of reading
+  // a free-text description. Exercise name/video/instructions are
+  // denormalized from ExerciseLibraryItem at build time so a workout keeps
+  // showing the exact exercise it was built with even if the library entry
+  // is edited/deleted later.
+  strengthBlocks?: StrengthBlock[]
   createdBy: string
   createdAt: Date
   updatedAt: Date
+}
+
+// Coach-managed exercise library — reusable across every strength workout
+// so a video/instructions only need to be uploaded once per exercise.
+export interface ExerciseLibraryItem {
+  id: string
+  name: string
+  videoUrl?: string
+  videoPath?: string // Storage path, needed to delete the file on removal
+  instructions?: string
+  defaultSets?: number
+  defaultReps?: string // free text, e.g. "8-12" or "10 each side"
+  createdBy: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+// A "Set 1" (single exercise) or "Superset 1" (2+ exercises done back to
+// back with no rest between them) inside a strength workout.
+export interface StrengthBlock {
+  id: string
+  label: string // e.g. "Set 1", "Superset 1" — coach-editable
+  exercises: StrengthBlockExercise[]
+}
+
+export interface StrengthBlockExercise {
+  id: string
+  exerciseId: string // ExerciseLibraryItem.id — for future library lookups
+  name: string // denormalized from the library at build time
+  videoUrl?: string // denormalized
+  instructions?: string // denormalized
+  targetSets: number
+  targetReps: string // free text, e.g. "8-12" or "10 each side"
+  notes?: string
 }
 
 // Workout Set
@@ -389,6 +432,11 @@ export interface AssignedWorkout {
   // range; otherwise the target is computed live from the athlete's own
   // step-test data every time.
   targetOverride?: { paceMinSec: number; paceMaxSec: number; hrMin?: number; hrMax?: number }
+  // Lift Mode progress for a 'strength' workout — keyed by
+  // StrengthBlockExercise.id, one entry per completed/logged set (array
+  // index = set number). The athlete (or coach) fills this in live while
+  // stepping through components/athlete/lift-mode.tsx.
+  strengthProgress?: Record<string, Array<{ completed: boolean; weightKg?: number | null }>>
   completedAt?: Date
   actualDuration?: number
   actualDistance?: number

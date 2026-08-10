@@ -17,7 +17,8 @@ import { ArrowLeft, Plus, Trash2, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import type { Workout, WorkoutType, WorkoutSet } from '@/lib/types'
+import type { Workout, WorkoutType, WorkoutSet, StrengthBlock } from '@/lib/types'
+import { StrengthBlockBuilder } from '@/components/coach/strength-block-builder'
 import {
   addDoc,
   collection,
@@ -42,6 +43,7 @@ const workoutTypeOrder: WorkoutType[] = [
   'fartlek',
   'recovery',
   'strength',
+  'stretch',
   'cross_training',
   'swim',
   'bike',
@@ -244,6 +246,7 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
   const [comparisonGroup, setComparisonGroup] = useState('')
   const [existingGroups, setExistingGroups] = useState<string[]>([])
   const [sets, setSets] = useState<Partial<WorkoutSet>[]>([])
+  const [strengthBlocks, setStrengthBlocks] = useState<StrengthBlock[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [loading, setLoading] = useState(!!workoutId)
 
@@ -294,6 +297,7 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
             restBetweenReps: s.restBetweenReps || '',
             intervals: s.intervals || [],
           })) : [])
+          setStrengthBlocks(Array.isArray(data.strengthBlocks) ? data.strengthBlocks : [])
         } else {
           toast.error('Workout not found')
           if (onDone) onDone(); else router.push('/coach/workouts')
@@ -416,6 +420,7 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
             rest: iv.rest || '',
           })),
         })),
+        strengthBlocks: type === 'strength' && strengthBlocks.length > 0 ? strengthBlocks : null,
         updatedAt: serverTimestamp(),
         updatedBy: user?.id || null,
         // Editing a copied (hidden) workout makes it a real library workout —
@@ -663,7 +668,12 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
           </CardContent>
         </Card>
 
-        {/* Workout Sets */}
+        {/* Workout Sets — strength workouts get the structured
+            block/superset builder (powers Lift Mode) instead of the
+            generic running-oriented sets UI below. */}
+        {type === 'strength' ? (
+          <StrengthBlockBuilder blocks={strengthBlocks} onChange={setStrengthBlocks} />
+        ) : (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>{t.workoutSetsTitle}</CardTitle>
@@ -821,6 +831,7 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
             )}
           </CardContent>
         </Card>
+        )}
 
         {/* Notes */}
         <Card>

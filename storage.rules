@@ -27,5 +27,15 @@ service firebase.storage {
       allow write: if request.auth != null
         && request.auth.token.email == 'info.teamhaim@gmail.com';
     }
+    // Exercise library demo videos — any signed-in user (coach or athlete)
+    // may watch them, only the coach uploads/replaces/deletes.
+    match /exerciseVideos/{path=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && request.auth.token.email == 'info.teamhaim@gmail.com'
+        && request.resource.size < 200 * 1024 * 1024
+        && request.resource.contentType != null
+        && request.resource.contentType.matches('video/.*');
+    }
   }
 }
