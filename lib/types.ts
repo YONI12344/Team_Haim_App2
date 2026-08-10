@@ -332,6 +332,13 @@ export interface Workout {
   // showing the exact exercise it was built with even if the library entry
   // is edited/deleted later.
   strengthBlocks?: StrengthBlock[]
+  // Marks this workout as a Workout Bank entry for the given athlete
+  // level — a real, coach-authored session the Bakken AI generator can
+  // pick from and scale (duration/distance only, never restructure)
+  // instead of inventing new content for that type/level. type (already
+  // above) is the bank's other axis — a "level folder" in the UI is just
+  // every workout sharing this bankLevel, grouped by type.
+  bankLevel?: ExperienceLevel
   createdBy: string
   createdAt: Date
   updatedAt: Date

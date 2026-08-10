@@ -17,7 +17,7 @@ import { ArrowLeft, Plus, Trash2, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import type { Workout, WorkoutType, WorkoutSet, StrengthBlock } from '@/lib/types'
+import type { Workout, WorkoutType, WorkoutSet, StrengthBlock, ExperienceLevel } from '@/lib/types'
 import { StrengthBlockBuilder } from '@/components/coach/strength-block-builder'
 import {
   addDoc,
@@ -52,6 +52,11 @@ const workoutTypeOrder: WorkoutType[] = [
   'time_trial',
   'threshold',
 ]
+
+const BANK_LEVELS: ExperienceLevel[] = ['beginner', 'intermediate', 'advanced', 'professional']
+const BANK_LEVEL_LABELS: Record<ExperienceLevel, string> = {
+  beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced', professional: 'Professional',
+}
 
 interface WorkoutBuilderProps {
   workoutId?: string
@@ -244,6 +249,7 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
   const [targetMetrics, setTargetMetrics] = useState<Set<'pace' | 'hr' | 'lactate'>>(new Set(['pace', 'hr', 'lactate']))
   const [thresholdDistance, setThresholdDistance] = useState<number | ''>('')
   const [comparisonGroup, setComparisonGroup] = useState('')
+  const [bankLevel, setBankLevel] = useState<ExperienceLevel | ''>('')
   const [existingGroups, setExistingGroups] = useState<string[]>([])
   const [sets, setSets] = useState<Partial<WorkoutSet>[]>([])
   const [strengthBlocks, setStrengthBlocks] = useState<StrengthBlock[]>([])
@@ -289,6 +295,7 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
           setTargetMetrics(new Set(data.targetMetrics && data.targetMetrics.length ? data.targetMetrics : ['pace', 'hr', 'lactate']))
           setThresholdDistance(data.thresholdDistance || '')
           setComparisonGroup(data.comparisonGroup || '')
+          setBankLevel(data.bankLevel || '')
           setSets(Array.isArray(data.sets) ? data.sets.map((s: any) => ({
             ...s,
             // Migrate the old ambiguous "rest" field: it was only ever shown
@@ -400,6 +407,7 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
         targetMetrics: type === 'threshold' && targetThresholdLevel ? Array.from(targetMetrics) : null,
         thresholdDistance: type === 'threshold' && thresholdDistance ? Number(thresholdDistance) : null,
         comparisonGroup: comparisonGroup.trim() || null,
+        bankLevel: bankLevel || null,
         sets: (sets as any[]).map((s, i) => ({
           id: s.id || `set-${i}`,
           reps: s.reps || 1,
@@ -636,6 +644,23 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
                 {existingGroups.map(g => <option key={g} value={g} />)}
               </datalist>
               <p className="text-[11px] text-muted-foreground">{t.labComparisonGroupHint}</p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">{t.bankLevelLabel}</Label>
+              <div className="flex flex-wrap gap-1.5">
+                <button type="button" onClick={() => setBankLevel('')}
+                  className={`px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${!bankLevel ? 'bg-primary text-primary-foreground border-primary' : 'border-input text-muted-foreground hover:border-primary'}`}>
+                  {t.bankLevelNone}
+                </button>
+                {BANK_LEVELS.map((lvl) => (
+                  <button key={lvl} type="button" onClick={() => setBankLevel(lvl)}
+                    className={`px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${bankLevel === lvl ? 'bg-primary text-primary-foreground border-primary' : 'border-input text-muted-foreground hover:border-primary'}`}>
+                    {BANK_LEVEL_LABELS[lvl]}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground">{t.bankLevelHint}</p>
             </div>
           </CardContent>
         </Card>

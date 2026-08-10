@@ -867,6 +867,9 @@ export interface Translations {
   labComparisonGroupLabel: string
   labComparisonGroupPh: string
   labComparisonGroupHint: string
+  bankLevelLabel: string
+  bankLevelNone: string
+  bankLevelHint: string
   labWorkoutTrends: string
   labWorkoutTrendsHint: string
   labNoTrendGroups: string
@@ -1735,6 +1738,9 @@ const translations: Record<Language, Translations> = {
     labComparisonGroupLabel: 'Comparison group (optional)',
     labComparisonGroupPh: 'e.g. Fartlek A',
     labComparisonGroupHint: 'Give repeatable workouts (any type) the same name and every session you log will be compared together in the Lab — pace & HR over time.',
+    bankLevelLabel: 'Workout Bank level',
+    bankLevelNone: 'Not in bank',
+    bankLevelHint: 'Adds this workout to the Workout Bank for the chosen level — the Bakken AI generator can pick and scale it instead of inventing new content.',
     labWorkoutTrends: 'Workout trends',
     labWorkoutTrendsHint: 'Pace & HR over time, for workouts tagged with the same comparison group',
     labNoTrendGroups: 'No comparison groups yet',
@@ -2595,6 +2601,9 @@ const translations: Record<Language, Translations> = {
     labComparisonGroupLabel: 'קבוצת השוואה (אופציונלי)',
     labComparisonGroupPh: 'לדוגמה: פרטלק א׳',
     labComparisonGroupHint: 'תן לאימונים חוזרים (מכל סוג) אותו שם, וכל אימון שתירשם יושווה יחד במעבדה — קצב ודופק לאורך זמן.',
+    bankLevelLabel: 'רמה בבנק האימונים',
+    bankLevelNone: 'לא בבנק',
+    bankLevelHint: 'מוסיף את האימון הזה לבנק האימונים עבור הרמה שנבחרה — מאמן ה-AI בקן יוכל לבחור ולהתאים אותו במקום להמציא תוכן חדש.',
     labWorkoutTrends: 'מגמות אימונים',
     labWorkoutTrendsHint: 'קצב ודופק לאורך זמן, לאימונים המתויגים באותה קבוצת השוואה',
     labNoTrendGroups: 'אין עדיין קבוצות השוואה',
