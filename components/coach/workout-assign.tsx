@@ -12,7 +12,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { format, startOfWeek, endOfWeek, addDays } from 'date-fns'
 import { cn } from '@/lib/utils'
-import type { AthleteProfile, Workout, WorkoutType, WeekSchedule, JourneyDoc, ExperienceLevel } from '@/lib/types'
+import type { AthleteProfile, Workout, WorkoutType, WeekSchedule, ExperienceLevel } from '@/lib/types'
 import {
   collection,
   doc,
@@ -29,42 +29,7 @@ import { isCoachEmail } from '@/lib/constants'
 import { workoutTypeColors, useWorkoutTypeLabels } from '@/lib/workout-labels'
 import { useLanguage } from '@/contexts/language-context'
 import { listJourneys, computeJourneyProgress } from '@/lib/journey'
-
-type RepeatFrequency = 'none' | 'weekly' | 'biweekly'
-// Hard safety cap on how many occurrences a single "assign" click can
-// write, regardless of the chosen end date — matches the same
-// reasoning as the Bakken generator's MAX_BLOCKS: bounded cost/time per
-// click, coach can always click again to extend further.
-const MAX_OCCURRENCES = 52
-
-function occurrenceDates(start: Date, frequency: RepeatFrequency, until: Date | undefined): Date[] {
-  if (frequency === 'none' || !until) return [start]
-  const dates: Date[] = []
-  let cursor = start
-  const stepDays = frequency === 'weekly' ? 7 : 14
-  while (cursor <= until && dates.length < MAX_OCCURRENCES) {
-    dates.push(cursor)
-    cursor = addDays(cursor, stepDays)
-  }
-  return dates
-}
-
-/** Same "is this week an off/down week for this athlete" computation as
- *  loadAthleteSummaryFor below, generalized to an arbitrary date instead
- *  of always "today" — lets the recurrence generator skip an occurrence
- *  that would land on a future down week, not just detect today's. */
-async function isDownWeekFor(athlete: AthleteProfile, journeys: JourneyDoc[], date: Date): Promise<boolean> {
-  const activeJourney = journeys.find((j) => new Date(j.startDate) <= date && new Date(j.goalRaceDate) >= date)
-    || journeys[journeys.length - 1]
-  if (!activeJourney) return false
-  const progress = computeJourneyProgress(activeJourney, date)
-  const stage = progress.activeStage
-  if (!stage) return false
-  const stageStart = new Date(stage.startDate)
-  const weekInStage = Math.max(1, Math.ceil((date.getTime() - stageStart.getTime()) / (7 * 86400000)))
-  const offInterval = athlete.offWeekInterval ?? 4
-  return weekInStage % offInterval === 0
-}
+import { occurrenceDates, isDownWeekFor, MAX_OCCURRENCES, type RepeatFrequency } from '@/lib/recurrence'
 
 interface WorkoutAssignProps {
   workoutId?: string

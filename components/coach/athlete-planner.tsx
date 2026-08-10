@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useEffect, useState, useMemo, useCallback, type DragEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -15,7 +15,7 @@ import {
   ArrowLeft, ChevronLeft, ChevronRight, Plus, X,
   Loader2, Clock, Check, Calendar, Copy, Pencil, Trash2, ClipboardPaste,
   BarChart2, Sparkles, Send, FlaskConical, Target, NotebookPen, User, Eye, AlertTriangle,
-  ClipboardList,
+  ClipboardList, Repeat,
 } from 'lucide-react'
 import Link from 'next/link'
 import {
@@ -28,9 +28,10 @@ import { db, realtimeDb } from '@/lib/firebase'
 import { ref, push } from 'firebase/database'
 import {
   collection, doc, getDoc, getDocs, query,
-  where, addDoc, serverTimestamp, deleteDoc, updateDoc,
+  where, addDoc, serverTimestamp, deleteDoc, updateDoc, writeBatch,
 } from 'firebase/firestore'
-import type { AthleteProfile, Workout, AssignedWorkout, TrainingDayType, WorkoutLog, WorkoutType, JourneyDoc, JourneyStage, Lead } from '@/lib/types'
+import type { AthleteProfile, Workout, AssignedWorkout, TrainingDayType, WorkoutLog, WorkoutType, JourneyDoc, JourneyStage, Lead, ExperienceLevel } from '@/lib/types'
+import { occurrenceDates, isDownWeekFor, MAX_OCCURRENCES, type RepeatFrequency } from '@/lib/recurrence'
 import { sortBySession } from '@/lib/types'
 import { legacyEffortToNumber } from '@/lib/types'
 import { listJourneys, computeJourneyProgress, saveJourney, stageDisplayName, isRestWeek } from '@/lib/journey'
@@ -73,6 +74,10 @@ export function AthletePlanner({ athleteId }: Props) {
   const [athlete, setAthlete] = useState<AthleteProfile | null>(null)
   // Full active journey — powers season-aware planning in the month view
   const [activeJourney, setActiveJourney] = useState<JourneyDoc | null>(null)
+  // All of this athlete's journeys — kept for the "repeat this workout"
+  // control's down-week skip (isDownWeekFor needs the full list, not just
+  // whichever one is active today, since a repeat can run for months).
+  const [allJourneys, setAllJourneys] = useState<JourneyDoc[]>([])
   // All athletes — for the quick switcher in the header
   const [allAthletes, setAllAthletes] = useState<{ id: string; name: string }[]>([])
 
@@ -108,6 +113,15 @@ export function AthletePlanner({ athleteId }: Props) {
   // Copy-week paste mode: source week start while choosing a target week
   const [copiedWeekStart, setCopiedWeekStart] = useState<Date | null>(null)
 
+  // "Repeat this workout" — opened from the already-scheduled workout's
+  // detail header (clicking a day that has a workout), not from the drag
+  // itself, so a drag-drop stays a single simple placement.
+  const [showRepeatPanel, setShowRepeatPanel] = useState(false)
+  const [repeatFrequency, setRepeatFrequency] = useState<RepeatFrequency>('weekly')
+  const [repeatUntil, setRepeatUntil] = useState('')
+  const [repeatSkipDownWeeks, setRepeatSkipDownWeeks] = useState(true)
+  const [repeatSaving, setRepeatSaving] = useState(false)
+
   // AI coaching report — collapsed by default to keep the screen clean
   const [aiReport, setAiReport] = useState<any>(null)
   const [aiReportLoading, setAiReportLoading] = useState(false)
@@ -141,6 +155,44 @@ export function AthletePlanner({ athleteId }: Props) {
       .finally(() => { if (!cancelled) setLeadLoading(false) })
     return () => { cancelled = true }
   }, [athlete?.email])
+
+  // Workout Bank side panel — this athlete's own level's bank, draggable
+  // onto the calendar. Level itself is stored on the athlete profile
+  // (same experienceLevel field used by the assign page's level filter).
+  const [bankWorkouts, setBankWorkouts] = useState<Workout[]>([])
+  const [showBankPanel, setShowBankPanel] = useState(true)
+  useEffect(() => {
+    if (!athlete?.experienceLevel) { setBankWorkouts([]); return }
+    getDocs(query(collection(db, 'workouts'), where('bankLevel', '==', athlete.experienceLevel)))
+      .then((snap) => setBankWorkouts(snap.docs.map((d) => ({ ...(d.data() as Workout), id: d.id }))))
+      .catch((err) => console.error('Error loading bank workouts:', err))
+  }, [athlete?.experienceLevel])
+
+  const setAthleteLevel = async (level: ExperienceLevel) => {
+    if (!athlete) return
+    setAthlete({ ...athlete, experienceLevel: level })
+    try {
+      await updateDoc(doc(db, 'users', athleteId), { experienceLevel: level })
+    } catch (err) {
+      console.error('Error saving athlete level:', err)
+      toast.error('שמירת הרמה נכשלה')
+    }
+  }
+
+  // Native HTML5 drag-and-drop (no library in this repo) — a bank card
+  // sets its workout id as the drag payload; a calendar day cell reads it
+  // back on drop and assigns via the exact same path as the quick-assign
+  // dialog (assignWorkoutToDate below).
+  const handleBankDragStart = (e: DragEvent, workout: Workout) => {
+    e.dataTransfer.setData('text/plain', workout.id)
+    e.dataTransfer.effectAllowed = 'copy'
+  }
+  const handleDayDrop = (e: DragEvent, dateStr: string) => {
+    e.preventDefault()
+    const workoutId = e.dataTransfer.getData('text/plain')
+    const workout = bankWorkouts.find((w) => w.id === workoutId)
+    if (workout) assignWorkoutToDate(workout, dateStr)
+  }
 
   // Quick-assign sheet — opens when the coach taps a day on the calendar
   const [quickAssignDate, setQuickAssignDate] = useState<Date | null>(null)
@@ -199,6 +251,7 @@ export function AthletePlanner({ athleteId }: Props) {
             seasonBests: Array.isArray(d.seasonBests) ? d.seasonBests : [],
             trainingPaces: Array.isArray(d.trainingPaces) ? d.trainingPaces : [],
             goals: Array.isArray(d.goals) ? d.goals : [],
+            experienceLevel: d.experienceLevel,
             weekSchedule: d.weekSchedule,
             weeklyKmRange: d.weeklyKmRange,
             offWeekInterval: d.offWeekInterval,
@@ -219,6 +272,7 @@ export function AthletePlanner({ athleteId }: Props) {
           // Journey
           const today = new Date()
           const journeys = await listJourneys(athleteId)
+          setAllJourneys(journeys)
           const active = journeys.find(j =>
             new Date(j.startDate) <= today && new Date(j.goalRaceDate) >= today
           ) || journeys[journeys.length - 1]
@@ -527,6 +581,56 @@ export function AthletePlanner({ athleteId }: Props) {
       assignedBy: user.id || '', scheduledDate: dateStr, status: 'scheduled', session: finalSession,
       createdAt: new Date(), updatedAt: new Date(),
     } as AssignedWorkout])
+  }
+
+  /** Repeat an already-scheduled workout weekly/every-other-week onto
+   *  future dates. The clicked instance itself is left untouched — this
+   *  only adds new assignedWorkouts docs from the next occurrence on. */
+  const handleRepeatWorkout = async () => {
+    if (!user || !athlete || !selectedAW || !selectedDate || repeatFrequency === 'none' || !repeatUntil) return
+    setRepeatSaving(true)
+    try {
+      const until = new Date(repeatUntil)
+      const dates = occurrenceDates(selectedDate, repeatFrequency, until).slice(1) // skip the original instance
+      const batch = writeBatch(db)
+      let count = 0
+      for (const date of dates) {
+        if (repeatSkipDownWeeks && isDownWeekFor(athlete, allJourneys, date)) continue
+        const dateStr = format(date, 'yyyy-MM-dd')
+        const alreadyThere = assignedWorkouts.some(w => w.scheduledDate === dateStr && w.workoutId === selectedAW.workoutId)
+        if (alreadyThere) continue
+        const ref = doc(collection(db, 'assignedWorkouts'))
+        batch.set(ref, {
+          workoutId: selectedAW.workoutId,
+          workout: selectedAW.workout,
+          athleteId,
+          assignedBy: user.id || null,
+          scheduledDate: dateStr,
+          status: 'scheduled',
+          session: null,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        })
+        count++
+      }
+      if (count === 0) {
+        toast.error('לא נוצרו מופעים חדשים (כולם כבר קיימים או נופלים בשבועות פריקה)')
+        return
+      }
+      await batch.commit()
+      // Refresh from Firestore rather than reconstructing locally — simplest
+      // way to get real ids/timestamps for the newly written docs.
+      const snap = await getDocs(query(collection(db, 'assignedWorkouts'), where('athleteId', '==', athleteId)))
+      setAssignedWorkouts(snap.docs.map(d => ({ id: d.id, ...d.data() } as AssignedWorkout)))
+      toast.success(`נוספו ${count} מופעים חוזרים`)
+      setShowRepeatPanel(false)
+      setRepeatUntil('')
+    } catch (err) {
+      console.error('Error repeating workout:', err)
+      toast.error('שגיאה בשכפול האימון החוזר')
+    } finally {
+      setRepeatSaving(false)
+    }
   }
 
   /** Remove a workout from the library (assigned copies keep working) */
@@ -1044,6 +1148,19 @@ export function AthletePlanner({ athleteId }: Props) {
               {athlete?.weeklyKmRange && <span className="text-xs text-muted-foreground">{athlete.weeklyKmRange.min}–{athlete.weeklyKmRange.max} {t.km}</span>}
             </div>
           </div>
+          {/* Bank level — decides which folder shows in the side panel */}
+          <select
+            value={athlete?.experienceLevel || ''}
+            onChange={(e) => e.target.value && setAthleteLevel(e.target.value as ExperienceLevel)}
+            className="h-8 text-xs rounded-lg border border-border bg-white px-2 text-navy font-semibold cursor-pointer hover:border-gold/50 transition-colors flex-shrink-0"
+            title="רמת הספורטאי — קובעת איזה תיקייה בבנק האימונים מוצגת"
+          >
+            <option value="">רמה: לא נבחרה</option>
+            <option value="beginner">מתחילים</option>
+            <option value="intermediate">בינוני</option>
+            <option value="advanced">מתקדם</option>
+            <option value="professional">עילית</option>
+          </select>
           <Button size="sm" variant="outline" className="h-8 text-xs border-gold/40 text-gold hover:bg-gold/10 ml-auto flex-shrink-0"
             onClick={handleWeeklySummary} disabled={weeklySummaryLoading}>
             {weeklySummaryLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1"/> : <BarChart2 className="h-3.5 w-3.5 mr-1"/>}
@@ -1185,6 +1302,8 @@ export function AthletePlanner({ athleteId }: Props) {
                             if (copiedWorkout) handlePasteWorkout(dateStr)
                             else { setSelectedDate(day); resetQuickAssign(); setQuickAssignDate(day) }
                           }}
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={(e) => handleDayDrop(e, dateStr)}
                           className={cn('min-h-[130px] rounded-xl border transition-all cursor-pointer',
                             todayFlag ? 'border-gold bg-gold/5' : 'border-border hover:border-gold/40',
                             copiedWorkout ? 'hover:border-gold hover:bg-gold/5' : ''
@@ -1273,6 +1392,8 @@ export function AthletePlanner({ athleteId }: Props) {
                                   if (copiedWorkout && inMonth) handlePasteWorkout(dateStr)
                                   else if (inMonth) { setSelectedDate(day); resetQuickAssign(); setQuickAssignDate(day) }
                                 }}
+                                onDragOver={(e) => { if (inMonth) e.preventDefault() }}
+                                onDrop={(e) => { if (inMonth) handleDayDrop(e, dateStr) }}
                                 className={cn('min-h-[80px] rounded-lg p-1 border transition-all',
                                   !inMonth ? 'opacity-20 border-transparent' : 'border-border',
                                   todayFlag ? 'border-gold/60 bg-gold/5' : '',
@@ -1371,6 +1492,9 @@ export function AthletePlanner({ athleteId }: Props) {
                 </CardTitle>
                 {selectedAW && (
                   <div className="flex gap-1 flex-shrink-0">
+                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setShowRepeatPanel(v => !v)}>
+                      <Repeat className="h-3 w-3 mr-1"/>חזרה
+                    </Button>
                     <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setCopiedWorkout(selectedAW); setSelectedAssignedId(null); toast.success(t.toastAdded) }}>
                       <Copy className="h-3 w-3 mr-1"/>{t.copyBtn}
                     </Button>
@@ -1383,6 +1507,44 @@ export function AthletePlanner({ athleteId }: Props) {
                   </div>
                 )}
               </div>
+              {/* "Repeat this workout" — asks weekly/every-other-week + an
+                  end date, then writes future assignedWorkouts docs from
+                  this instance's date forward. Opened by the Repeat button
+                  above, not by the drag-drop itself (drag stays a single
+                  simple placement per the coach's request). */}
+              {selectedAW && showRepeatPanel && (
+                <div className="mt-2 p-2.5 rounded-lg border border-gold/40 bg-gold/5 flex flex-wrap items-end gap-2">
+                  <div className="flex flex-col gap-0.5">
+                    <label className="text-[10px] text-muted-foreground">תדירות</label>
+                    <select
+                      value={repeatFrequency}
+                      onChange={(e) => setRepeatFrequency(e.target.value as RepeatFrequency)}
+                      className="h-7 text-xs rounded-md border border-border bg-white px-1.5"
+                    >
+                      <option value="weekly">כל שבוע</option>
+                      <option value="biweekly">כל שבועיים</option>
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <label className="text-[10px] text-muted-foreground">עד תאריך (מקס׳ {MAX_OCCURRENCES} מופעים)</label>
+                    <input
+                      type="date"
+                      value={repeatUntil}
+                      onChange={(e) => setRepeatUntil(e.target.value)}
+                      min={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : undefined}
+                      className="h-7 text-xs rounded-md border border-border bg-white px-1.5"
+                    />
+                  </div>
+                  <label className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1 cursor-pointer">
+                    <Switch checked={repeatSkipDownWeeks} onCheckedChange={setRepeatSkipDownWeeks} className="scale-75"/>
+                    דלג על שבועות פריקה
+                  </label>
+                  <Button size="sm" className="h-7 text-xs" disabled={!repeatUntil || repeatSaving} onClick={handleRepeatWorkout}>
+                    {repeatSaving ? <Loader2 className="h-3 w-3 mr-1 animate-spin"/> : null}
+                    החל חזרה
+                  </Button>
+                </div>
+              )}
               {/* Beyond the athlete's rolling visibility window — offer to show it early */}
               {selectedAW && (() => {
                 const visW = athlete?.visibleWeeksAhead ?? 2
@@ -2035,6 +2197,37 @@ export function AthletePlanner({ athleteId }: Props) {
             )}
           </CardContent>
         </Card>
+      </div>
+
+      {/* Workout Bank side panel — draggable onto the calendar. Shows this
+          athlete's own experienceLevel folder; empty state points at the
+          level picker above / the Bank tab if nothing's tagged yet. */}
+      <div className="lg:w-72 flex-shrink-0 space-y-2">
+        <button type="button" onClick={() => setShowBankPanel((v) => !v)}
+          className="flex items-center gap-1.5 text-sm font-semibold text-navy w-full">
+          <ChevronLeft className={cn('h-4 w-4 transition-transform', showBankPanel && '-rotate-90')} />
+          בנק אימונים {athlete?.experienceLevel && `— ${athlete.experienceLevel === 'beginner' ? 'מתחילים' : athlete.experienceLevel === 'intermediate' ? 'בינוני' : athlete.experienceLevel === 'advanced' ? 'מתקדם' : 'עילית'}`}
+        </button>
+        {showBankPanel && (
+          !athlete?.experienceLevel ? (
+            <p className="text-xs text-muted-foreground">בחרו רמה למעלה כדי לראות את הבנק המתאים.</p>
+          ) : bankWorkouts.length === 0 ? (
+            <p className="text-xs text-muted-foreground">אין עדיין אימונים בבנק לרמה הזו.</p>
+          ) : (
+            <div className="space-y-1.5 max-h-[70vh] overflow-y-auto pr-1">
+              {bankWorkouts.map((w) => (
+                <div key={w.id} draggable onDragStart={(e) => handleBankDragStart(e, w)}
+                  className="rounded-lg border border-border bg-white px-2.5 py-2 text-xs cursor-grab active:cursor-grabbing hover:border-gold/50 transition-colors"
+                  title="גררו ליום ביומן">
+                  <p className="font-medium text-navy truncate">{w.title}</p>
+                  <p className="text-muted-foreground">
+                    {workoutTypeLabels?.[w.type] || w.type}{w.duration ? ` · ${w.duration} דק'` : ''}{w.distance ? ` · ${w.distance} ק"מ` : ''}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )
+        )}
       </div>
 
       {/* Quick-assign sheet — tap a day, tap a type, enter numbers, done */}
