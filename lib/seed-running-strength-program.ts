@@ -217,15 +217,18 @@ export async function seedRunningStrengthProgram(createdBy: string): Promise<{ w
       const saved = idByKey.get(be.key)
       if (!saved) throw new Error(`Seed exercise key not found: ${be.key}`)
       const { id, ex } = saved
+      // Only include instructions/targetDurationSec/notes when they have a
+      // real value — Firestore's client SDK rejects `undefined` field
+      // values outright (null or a missing key are fine, undefined isn't).
       return {
         id: genId('ex'),
         exerciseId: id,
         name: ex.name,
-        instructions: ex.instructions,
         targetSets: ex.defaultSets,
         targetReps: ex.defaultReps || '',
-        targetDurationSec: ex.isTimed ? ex.defaultDurationSec : undefined,
-        notes: be.notes,
+        ...(ex.instructions ? { instructions: ex.instructions } : {}),
+        ...(ex.isTimed ? { targetDurationSec: ex.defaultDurationSec } : {}),
+        ...(be.notes ? { notes: be.notes } : {}),
       }
     }),
   }))

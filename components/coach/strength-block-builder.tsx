@@ -68,8 +68,11 @@ export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }
       instructions: ex.instructions,
       targetSets: ex.defaultSets || 3,
       targetReps: ex.defaultReps || '10',
-      targetDurationSec: ex.isTimed ? (ex.defaultDurationSec || 30) : undefined,
       notes: '',
+      // Omit the key entirely rather than set undefined — Firestore's
+      // client SDK throws "Unsupported field value: undefined" on write,
+      // it only accepts null or a missing key for an empty optional field.
+      ...(ex.isTimed ? { targetDurationSec: ex.defaultDurationSec || 30 } : {}),
     }
     onChange(blocks.map((b) => (b.id === blockId ? { ...b, exercises: [...b.exercises, newExercise] } : b)))
     // A block with 2+ exercises is a superset by definition — relabel it
