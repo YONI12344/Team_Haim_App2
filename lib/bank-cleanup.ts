@@ -10,7 +10,7 @@
  * easier for a coach to spot-check than an opaque model call would be.
  */
 
-import type { ExperienceLevel, Workout, WorkoutType } from './types'
+import type { ExperienceLevel, Workout, WorkoutSet, WorkoutType } from './types'
 
 export type FlagReason = 'bad_duration' | 'bad_reps' | 'empty_stub'
 
@@ -151,4 +151,102 @@ export function proposeLevel(w: Workout): LevelProposal {
     }
   }
   return { workoutId: w.id, proposedLevel: null, ruleUsed: `type "${w.type}" has no reliable duration→level rule` }
+}
+
+// -------------------- adapted-copy generation for coverage gaps --------------------
+// "Keep how I write it, keep the structure, adapt warmup/cooldown, but
+// also scale the volume (reps → total distance/time) by level" — the
+// coach's own exact instruction. Structure (rep pattern/intervals shape)
+// is preserved byte-for-byte; only rep COUNT and the totals derived from
+// it scale, plus warmup/cooldown swap to the target level's real
+// template (from coach-voice.json's own warmup_patterns/cooldown_patterns
+// — not invented text).
+
+const BANK_LEVELS: ExperienceLevel[] = ['beginner', 'intermediate', 'advanced', 'professional']
+const LEVEL_WEIGHT: Record<ExperienceLevel, number> = { beginner: 1, intermediate: 2, advanced: 3, professional: 4 }
+export const LEVEL_LABEL_HE: Record<ExperienceLevel, string> = {
+  beginner: 'מתחילים', intermediate: 'בינוני', advanced: 'מתקדם', professional: 'עילית',
+}
+// Verbatim from lib/bakken/coach-voice.json's warmup_patterns/cooldown_patterns
+// (real recurring structures this coach actually uses) — not generated text.
+const WARMUP_BY_LEVEL: Record<ExperienceLevel, string> = {
+  beginner: 'מתיחות דינמיות, 3 ד׳ הליכה מהירה + 2 ד׳ ריצה קלה',
+  intermediate: 'ריצה קלה 2 ק״מ, מתיחות דינמיות, 4X100 מתגברת להתחיל לאט ולהגביר',
+  advanced: 'מתיחות דינמיות + 10 ד׳ ריצה קלה',
+  professional: 'מתיחות דינמיות + 10 ד׳ ריצה קלה',
+}
+const COOLDOWN_BY_LEVEL: Record<ExperienceLevel, string> = {
+  beginner: '5 דקות הליכת שחרור',
+  intermediate: 'שחרור 5 ד׳ ריצה קלה ומתיחות סטטיות',
+  advanced: 'ריצה קלה 1-2 ק״מ ומתיחות סטטיות',
+  professional: 'ריצה קלה 1-2 ק״מ ומתיחות סטטיות',
+}
+
+export interface CoverageGap {
+  type: WorkoutType
+  targetLevel: ExperienceLevel
+  templateWorkoutId: string
+  templateLevel: ExperienceLevel
+}
+
+/** For every type that has AT LEAST ONE bank-tagged workout somewhere,
+ *  find which levels have none yet — only types already started in the
+ *  bank get gap-filled, so this never invents coverage for a type the
+ *  coach hasn't chosen to bank at all. */
+export function findCoverageGaps(workouts: Workout[]): CoverageGap[] {
+  const relevantTypes = new Set<WorkoutType>([...EASY_FAMILY, ...QUALITY_FAMILY])
+  const byTypeLevel = new Map<WorkoutType, Map<ExperienceLevel, Workout[]>>()
+  for (const w of workouts) {
+    if (!w.bankLevel || !relevantTypes.has(w.type)) continue
+    if (!byTypeLevel.has(w.type)) byTypeLevel.set(w.type, new Map())
+    const byLevel = byTypeLevel.get(w.type)!
+    if (!byLevel.has(w.bankLevel)) byLevel.set(w.bankLevel, [])
+    byLevel.get(w.bankLevel)!.push(w)
+  }
+  const gaps: CoverageGap[] = []
+  for (const [type, byLevel] of byTypeLevel) {
+    for (const level of BANK_LEVELS) {
+      if (byLevel.has(level)) continue
+      let best: { level: ExperienceLevel; dist: number } | null = null
+      for (const lvl of byLevel.keys()) {
+        const dist = Math.abs(LEVEL_WEIGHT[lvl] - LEVEL_WEIGHT[level])
+        if (!best || dist < best.dist) best = { level: lvl, dist }
+      }
+      if (!best) continue
+      const candidates = byLevel.get(best.level)!
+      const template = candidates.reduce((a, b) => ((a.sets?.[0]?.reps || 0) >= (b.sets?.[0]?.reps || 0) ? a : b))
+      gaps.push({ type, targetLevel: level, templateWorkoutId: template.id, templateLevel: best.level })
+    }
+  }
+  return gaps
+}
+
+export type AdaptedWorkout = Omit<Workout, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>
+
+/** Builds the proposed adapted copy — same title/description/notes/voice
+ *  as the template, same rep STRUCTURE (order, rest patterns, intervals
+ *  shape all untouched), only reps count + totals scaled by the level
+ *  ratio, and warmup/cooldown swapped to the target level's template. */
+export function buildAdaptedWorkout(template: Workout, targetLevel: ExperienceLevel): AdaptedWorkout {
+  const templateLevel = template.bankLevel || 'intermediate'
+  const ratio = LEVEL_WEIGHT[targetLevel] / LEVEL_WEIGHT[templateLevel]
+  const scaleReps = (n: number) => Math.max(2, Math.round(n * ratio))
+
+  const scaledSets: WorkoutSet[] = (template.sets || []).map((s) => ({ ...s, reps: scaleReps(s.reps || 1) }))
+  const firstOrigReps = template.sets?.[0]?.reps || 1
+  const firstNewReps = scaledSets[0]?.reps || firstOrigReps
+  const totalsRatio = firstNewReps / firstOrigReps
+
+  return {
+    title: `${template.title} (${LEVEL_LABEL_HE[targetLevel]})`,
+    type: template.type,
+    description: template.description,
+    duration: template.duration != null ? Math.max(5, Math.round(template.duration * totalsRatio)) : template.duration,
+    distance: template.distance != null ? Math.round(template.distance * totalsRatio * 10) / 10 : template.distance,
+    sets: scaledSets,
+    warmup: WARMUP_BY_LEVEL[targetLevel],
+    cooldown: COOLDOWN_BY_LEVEL[targetLevel],
+    notes: template.notes,
+    bankLevel: targetLevel,
+  }
 }

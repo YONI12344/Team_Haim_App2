@@ -4,15 +4,17 @@ import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Loader2, AlertTriangle, Copy, FolderTree } from 'lucide-react'
-import { collection, doc, getDocs, writeBatch } from 'firebase/firestore'
+import { Loader2, AlertTriangle, Copy, FolderTree, Sparkles } from 'lucide-react'
+import { addDoc, collection, doc, getDocs, serverTimestamp, writeBatch } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { toast } from 'sonner'
+import { useAuth } from '@/contexts/auth-context'
 import type { ExperienceLevel, Workout } from '@/lib/types'
 import { useWorkoutTypeLabels } from '@/lib/workout-labels'
 import {
   findEmptyStubs, findBadDurations, findBadReps, proposeTitleDisambiguation, proposeLevel,
-  type WorkoutFlag, type TitleProposal,
+  findCoverageGaps, buildAdaptedWorkout, LEVEL_LABEL_HE,
+  type WorkoutFlag, type TitleProposal, type CoverageGap,
 } from '@/lib/bank-cleanup'
 
 const BANK_LEVELS: ExperienceLevel[] = ['beginner', 'intermediate', 'advanced', 'professional']
@@ -33,10 +35,13 @@ async function commitInChunks(ops: Array<{ id: string; data: Record<string, unkn
 }
 
 export function BankCleanup() {
+  const { user } = useAuth()
   const workoutTypeLabels = useWorkoutTypeLabels()
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [loading, setLoading] = useState(true)
   const [applying, setApplying] = useState<string | null>(null)
+  // Coverage-gap section: per-gap opt-in (keyed by type+targetLevel)
+  const [gapOverrides, setGapOverrides] = useState<Record<string, boolean>>({})
 
   // Bug section: per-flag editable overrides + opt-in checkbox
   const [bugOverrides, setBugOverrides] = useState<Record<string, { checked: boolean; duration?: number }>>({})
@@ -65,6 +70,8 @@ export function BankCleanup() {
   const badReps = useMemo(() => findBadReps(workouts), [workouts])
   const titleProposals = useMemo(() => proposeTitleDisambiguation(workouts), [workouts])
   const levelProposals = useMemo(() => workouts.map(proposeLevel), [workouts])
+  const coverageGaps = useMemo(() => findCoverageGaps(workouts), [workouts])
+  const gapKey = (g: CoverageGap) => `${g.type}::${g.targetLevel}`
 
   // Seed edit state whenever the underlying analysis changes (fresh load
   // or after an apply reloads the data) — stubs/bugs default ON (they're
@@ -94,6 +101,14 @@ export function BankCleanup() {
       return next
     })
   }, [levelProposals])
+
+  useEffect(() => {
+    setGapOverrides((prev) => {
+      const next = { ...prev }
+      for (const g of coverageGaps) { const k = gapKey(g); if (next[k] === undefined) next[k] = true }
+      return next
+    })
+  }, [coverageGaps])
 
   const workoutById = useMemo(() => new Map(workouts.map((w) => [w.id, w])), [workouts])
 
@@ -142,6 +157,33 @@ export function BankCleanup() {
         .map((p) => ({ id: p.workoutId, data: { bankLevel: levelOverrides[p.workoutId].level } }))
       await commitInChunks(ops)
       toast.success(`שויכו ${ops.length} אימונים לבנק`)
+      await load()
+    } catch (err) {
+      console.error(err); toast.error('הפעולה נכשלה')
+    } finally {
+      setApplying(null)
+    }
+  }
+
+  const applyGaps = async () => {
+    setApplying('gaps')
+    try {
+      const checked = coverageGaps.filter((g) => gapOverrides[gapKey(g)])
+      let created = 0
+      for (const g of checked) {
+        const template = workoutById.get(g.templateWorkoutId)
+        if (!template) continue
+        const adapted = buildAdaptedWorkout(template, g.targetLevel)
+        await addDoc(collection(db, 'workouts'), {
+          ...adapted,
+          source: 'coach',
+          createdBy: user?.id || null,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        })
+        created++
+      }
+      toast.success(`נוצרו ${created} אימונים מותאמים`)
       await load()
     } catch (err) {
       console.error(err); toast.error('הפעולה נכשלה')
@@ -285,6 +327,46 @@ export function BankCleanup() {
             {applying === 'levels' ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
             שייך לבנק
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Section 4: coverage gaps — adapted copies for missing levels */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2"><Sparkles className="h-4 w-4 text-gold" />פערי כיסוי — יצירת אימונים מותאמים ({coverageGaps.length})</CardTitle>
+          <CardDescription>
+            לכל סוג אימון שכבר יש לו לפחות רמה אחת בבנק, אבל חסר ברמות אחרות — יוצר עותק מהאימון הקרוב ביותר: אותו מבנה ונוסח בדיוק, כמות החזרות (ולכן משך/מרחק כולל) מותאמת לרמה, וחימום/שחרור מוחלפים בתבנית האמיתית שלכם לרמה הזו. תלוי בשיוך הרמות למעלה — הריצו את "שייך לבנק" קודם.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {coverageGaps.length === 0 ? (
+            <p className="text-sm text-muted-foreground">אין פערי כיסוי כרגע (או שעדיין לא שויכו רמות בבנק למעלה).</p>
+          ) : (
+            <>
+              <div className="max-h-96 overflow-y-auto space-y-1.5">
+                {coverageGaps.map((g) => {
+                  const template = workoutById.get(g.templateWorkoutId)
+                  if (!template) return null
+                  const k = gapKey(g)
+                  const preview = buildAdaptedWorkout(template, g.targetLevel)
+                  return (
+                    <div key={k} className="flex items-center gap-2 text-xs rounded-md bg-muted/40 p-2">
+                      <input type="checkbox" checked={!!gapOverrides[k]} onChange={(e) => setGapOverrides((prev) => ({ ...prev, [k]: e.target.checked }))} />
+                      <span className="text-muted-foreground shrink-0">{workoutTypeLabels[g.type]}</span>
+                      <span className="shrink-0 font-medium">{LEVEL_LABEL_HE[g.targetLevel]}</span>
+                      <span className="text-muted-foreground shrink-0">←</span>
+                      <span className="text-muted-foreground truncate">{template.title} ({LEVEL_LABEL_HE[g.templateLevel]})</span>
+                      <span className="flex-1 truncate">→ {preview.title}, {preview.sets?.[0]?.reps ?? '—'}× , {preview.duration ?? '—'} דק' , {preview.distance ?? '—'} ק"מ</span>
+                    </div>
+                  )
+                })}
+              </div>
+              <Button size="sm" onClick={applyGaps} disabled={applying === 'gaps'}>
+                {applying === 'gaps' ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
+                צור אימונים מסומנים
+              </Button>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>
