@@ -112,6 +112,11 @@ export function AthletePlanner({ athleteId }: Props) {
   const [copiedWorkout, setCopiedWorkout] = useState<AssignedWorkout | null>(null)
   // Copy-week paste mode: source week start while choosing a target week
   const [copiedWeekStart, setCopiedWeekStart] = useState<Date | null>(null)
+  // "Armed" bank workout — click a workout in the folder browser, then
+  // click any day on the calendar to place it there (same two-tap pattern
+  // as the copiedWorkout paste flow above, so it also works without drag,
+  // which plain HTML5 drag-and-drop doesn't support on touch devices).
+  const [armedBankWorkout, setArmedBankWorkout] = useState<Workout | null>(null)
 
   // "Repeat this workout" — opened from the already-scheduled workout's
   // detail header (clicking a day that has a workout), not from the drag
@@ -1249,6 +1254,22 @@ export function AthletePlanner({ athleteId }: Props) {
           </div>
         )}
 
+        {/* Bank-workout placement banner — mirrors the copy banner above */}
+        {armedBankWorkout && (
+          <div className="rounded-xl border-2 border-gold bg-gold/5 px-4 py-2 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Folder className="h-4 w-4 text-gold"/>
+              <p className="text-sm font-medium text-navy">נבחר: <span className="text-gold font-bold">{armedBankWorkout.title}</span> — לחץ על יום לשיבוץ</p>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => setArmedBankWorkout(null)}><X className="h-3.5 w-3.5"/></Button>
+          </div>
+        )}
+
+        {/* Calendar + Bank folder browser side by side on desktop while
+            browsing a date — the folder reserves no space until a date is
+            selected, so it never blocks the schedule itself. */}
+        <div className="flex flex-col lg:flex-row gap-4">
+        <div className="flex-1 min-w-0">
         {/* Calendar */}
         <Card>
           <CardContent className="pt-4">
@@ -1310,15 +1331,20 @@ export function AthletePlanner({ athleteId }: Props) {
                       const todayFlag = isToday(day)
                       return (
                         <div key={di}
-                          onClick={() => {
+                          onClick={async () => {
                             if (copiedWorkout) handlePasteWorkout(dateStr)
+                            else if (armedBankWorkout) {
+                              await assignWorkoutToDate(armedBankWorkout, dateStr)
+                              toast.success(`נוסף: ${armedBankWorkout.title}`)
+                              setArmedBankWorkout(null)
+                            }
                             else { setSelectedDate(day); resetQuickAssign(); setQuickAssignDate(day) }
                           }}
                           onDragOver={(e) => e.preventDefault()}
                           onDrop={(e) => handleDayDrop(e, dateStr)}
                           className={cn('min-h-[130px] rounded-xl border transition-all cursor-pointer',
                             todayFlag ? 'border-gold bg-gold/5' : 'border-border hover:border-gold/40',
-                            copiedWorkout ? 'hover:border-gold hover:bg-gold/5' : ''
+                            (copiedWorkout || armedBankWorkout) ? 'hover:border-gold hover:bg-gold/5' : ''
                           )}>
                           <div className="p-1.5 border-b border-border/40 text-center">
                             <p className={cn('text-xs font-bold', todayFlag ? 'text-gold' : 'text-navy/70')}>{format(day,'d')}</p>
@@ -1400,8 +1426,13 @@ export function AthletePlanner({ athleteId }: Props) {
                             const todayFlag = isToday(day)
                             return (
                               <div key={di}
-                                onClick={() => {
+                                onClick={async () => {
                                   if (copiedWorkout && inMonth) handlePasteWorkout(dateStr)
+                                  else if (armedBankWorkout && inMonth) {
+                                    await assignWorkoutToDate(armedBankWorkout, dateStr)
+                                    toast.success(`נוסף: ${armedBankWorkout.title}`)
+                                    setArmedBankWorkout(null)
+                                  }
                                   else if (inMonth) { setSelectedDate(day); resetQuickAssign(); setQuickAssignDate(day) }
                                 }}
                                 onDragOver={(e) => { if (inMonth) e.preventDefault() }}
@@ -1409,7 +1440,7 @@ export function AthletePlanner({ athleteId }: Props) {
                                 className={cn('min-h-[80px] rounded-lg p-1 border transition-all',
                                   !inMonth ? 'opacity-20 border-transparent' : 'border-border',
                                   todayFlag ? 'border-gold/60 bg-gold/5' : '',
-                                  copiedWorkout && inMonth ? 'cursor-pointer hover:border-gold' : ''
+                                  (copiedWorkout || armedBankWorkout) && inMonth ? 'cursor-pointer hover:border-gold' : ''
                                 )}>
                                 <p className={cn('text-[10px] font-semibold mb-1', todayFlag ? 'text-gold' : 'text-navy')}>{format(day,'d')}</p>
                                 <div className="space-y-0.5">
@@ -1488,6 +1519,83 @@ export function AthletePlanner({ athleteId }: Props) {
             )}
           </CardContent>
         </Card>
+        </div>
+
+        {/* Workout Bank folder browser — sits beside the schedule on
+            desktop (only reserving width once a date is picked, so it
+            never squeezes the calendar before then); stacks below it on
+            small screens. One folder per workout type within the
+            athlete's level (level picker is in the header above); saving
+            a workout with bankLevel set to this athlete's level makes it
+            show up here automatically, no extra step. Clicking a workout
+            arms it — click any day on the calendar (or drag) to place it,
+            same two-tap pattern as the copy/paste flow, so it also works
+            without drag on touch devices. */}
+        {selectedDate && (
+        <div className="lg:w-80 flex-shrink-0">
+          <Card className="border-gold/30 bg-gold/[0.03]">
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-sm flex items-center gap-1.5">
+                <Folder className="h-4 w-4 text-gold"/>
+                בנק אימונים
+                {athlete?.experienceLevel && (
+                  <span className="text-xs font-normal text-muted-foreground">
+                    — {athlete.experienceLevel === 'beginner' ? 'מתחילים' : athlete.experienceLevel === 'intermediate' ? 'בינוני' : athlete.experienceLevel === 'advanced' ? 'מתקדם' : 'עילית'}
+                  </span>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              {!athlete?.experienceLevel ? (
+                <p className="text-xs text-muted-foreground">בחרו רמה למעלה כדי לראות את הבנק המתאים.</p>
+              ) : bankByType.length === 0 ? (
+                <p className="text-xs text-muted-foreground">אין עדיין אימונים בבנק לרמה הזו.</p>
+              ) : (
+                <div className="space-y-1.5 max-h-[70vh] overflow-y-auto pr-1">
+                  {bankByType.map(([type, items]) => (
+                    <div key={type} className="rounded-lg border border-border overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setOpenBankFolders(p => ({ ...p, [type]: !p[type] }))}
+                        className="w-full flex items-center justify-between px-2.5 py-2 text-xs font-semibold text-navy bg-white hover:bg-gold/5 transition-colors"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <Folder className="h-3.5 w-3.5 text-gold"/>
+                          {workoutTypeLabels?.[type as WorkoutType] || type}
+                          <span className="text-muted-foreground font-normal">({items.length})</span>
+                        </span>
+                        <ChevronLeft className={cn('h-3.5 w-3.5 transition-transform', openBankFolders[type] && '-rotate-90')}/>
+                      </button>
+                      {openBankFolders[type] && (
+                        <div className="px-2 pb-2 pt-1 space-y-1 bg-gold/[0.02]">
+                          {items.map((w) => (
+                            <div
+                              key={w.id}
+                              draggable
+                              onDragStart={(e) => handleBankDragStart(e, w)}
+                              onClick={() => setArmedBankWorkout(prev => prev?.id === w.id ? null : w)}
+                              className={cn('rounded-md border bg-white px-2.5 py-1.5 text-xs cursor-pointer transition-colors',
+                                armedBankWorkout?.id === w.id ? 'border-gold ring-1 ring-gold' : 'border-border hover:border-gold/50'
+                              )}
+                              title="לחצו לבחירה ואז על יום ביומן לשיבוץ, או גררו ישירות ליום"
+                            >
+                              <p className="font-medium text-navy truncate">{w.title}</p>
+                              <p className="text-muted-foreground">
+                                {w.duration ? `${w.duration} דק'` : ''}{w.duration && w.distance ? ' · ' : ''}{w.distance ? `${w.distance} ק"מ` : ''}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+        )}
+        </div>
 
         {/* Athlete's exact view — the same component the athlete sees, for
             whichever date the coach last tapped on the calendar above.
@@ -1611,76 +1719,6 @@ export function AthletePlanner({ athleteId }: Props) {
                   שלח הערה
                 </Button>
               </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Workout Bank folder browser — jumps open right under whichever
-            date the coach just clicked, instead of sitting as a permanent
-            sidebar squeezing the calendar. One folder per workout type
-            within the athlete's level (level picker is in the header
-            above); saving a workout with bankLevel set to this athlete's
-            level makes it show up here automatically, no extra step. */}
-        {selectedDate && (
-          <Card className="border-gold/30 bg-gold/[0.03]">
-            <CardHeader className="pb-2 pt-4 px-4">
-              <CardTitle className="text-sm flex items-center gap-1.5">
-                <Folder className="h-4 w-4 text-gold"/>
-                בנק אימונים
-                {athlete?.experienceLevel && (
-                  <span className="text-xs font-normal text-muted-foreground">
-                    — {athlete.experienceLevel === 'beginner' ? 'מתחילים' : athlete.experienceLevel === 'intermediate' ? 'בינוני' : athlete.experienceLevel === 'advanced' ? 'מתקדם' : 'עילית'}
-                  </span>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              {!athlete?.experienceLevel ? (
-                <p className="text-xs text-muted-foreground">בחרו רמה למעלה כדי לראות את הבנק המתאים.</p>
-              ) : bankByType.length === 0 ? (
-                <p className="text-xs text-muted-foreground">אין עדיין אימונים בבנק לרמה הזו.</p>
-              ) : (
-                <div className="space-y-1.5">
-                  {bankByType.map(([type, items]) => (
-                    <div key={type} className="rounded-lg border border-border overflow-hidden">
-                      <button
-                        type="button"
-                        onClick={() => setOpenBankFolders(p => ({ ...p, [type]: !p[type] }))}
-                        className="w-full flex items-center justify-between px-2.5 py-2 text-xs font-semibold text-navy bg-white hover:bg-gold/5 transition-colors"
-                      >
-                        <span className="flex items-center gap-1.5">
-                          <Folder className="h-3.5 w-3.5 text-gold"/>
-                          {workoutTypeLabels?.[type as WorkoutType] || type}
-                          <span className="text-muted-foreground font-normal">({items.length})</span>
-                        </span>
-                        <ChevronLeft className={cn('h-3.5 w-3.5 transition-transform', openBankFolders[type] && '-rotate-90')}/>
-                      </button>
-                      {openBankFolders[type] && (
-                        <div className="px-2 pb-2 pt-1 space-y-1 bg-gold/[0.02]">
-                          {items.map((w) => (
-                            <div
-                              key={w.id}
-                              draggable
-                              onDragStart={(e) => handleBankDragStart(e, w)}
-                              onClick={async () => {
-                                await assignWorkoutToDate(w, format(selectedDate, 'yyyy-MM-dd'))
-                                toast.success(`נוסף: ${w.title}`)
-                              }}
-                              className="rounded-md border border-border bg-white px-2.5 py-1.5 text-xs cursor-pointer hover:border-gold/50 transition-colors"
-                              title="לחצו להוספה ליום שנבחר, או גררו לכל יום אחר ביומן"
-                            >
-                              <p className="font-medium text-navy truncate">{w.title}</p>
-                              <p className="text-muted-foreground">
-                                {w.duration ? `${w.duration} דק'` : ''}{w.duration && w.distance ? ' · ' : ''}{w.distance ? `${w.distance} ק"מ` : ''}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
             </CardContent>
           </Card>
         )}

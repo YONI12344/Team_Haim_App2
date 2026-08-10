@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Plus, Dumbbell, Pencil, X, Loader2, FolderInput } from 'lucide-react'
 import Link from 'next/link'
 import { collection, doc, getDocs, orderBy, query, updateDoc } from 'firebase/firestore'
@@ -12,6 +13,7 @@ import { toast } from 'sonner'
 import type { ExperienceLevel, Workout, WorkoutType } from '@/lib/types'
 import { workoutTypeColors, useWorkoutTypeLabels } from '@/lib/workout-labels'
 import { cn } from '@/lib/utils'
+import { WorkoutBuilder } from '@/components/coach/workout-builder'
 
 const BANK_LEVELS: ExperienceLevel[] = ['beginner', 'intermediate', 'advanced', 'professional']
 const BANK_LEVEL_LABELS_HE: Record<ExperienceLevel, string> = {
@@ -66,8 +68,8 @@ function QuickMoveForm({ workout, onSaved, onCancel }: { workout: Workout; onSav
   )
 }
 
-function BankItemGrid({ items, onRemove, removing, onMoved }: {
-  items: Workout[]; onRemove: (w: Workout) => void; removing: string | null; onMoved: () => void
+function BankItemGrid({ items, onRemove, removing, onMoved, onEdit }: {
+  items: Workout[]; onRemove: (w: Workout) => void; removing: string | null; onMoved: () => void; onEdit: (w: Workout) => void
 }) {
   const [movingId, setMovingId] = useState<string | null>(null)
   return (
@@ -87,9 +89,9 @@ function BankItemGrid({ items, onRemove, removing, onMoved }: {
                   onClick={() => setMovingId(movingId === w.id ? null : w.id)}>
                   <FolderInput className="h-3.5 w-3.5" />
                 </Button>
-                <Link href={`/coach/workouts/${w.id}/edit`}>
-                  <Button variant="ghost" size="icon" className="h-7 w-7"><Pencil className="h-3.5 w-3.5" /></Button>
-                </Link>
+                <Button variant="ghost" size="icon" className="h-7 w-7" title="עריכה" onClick={() => onEdit(w)}>
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
                 <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
                   onClick={() => onRemove(w)} disabled={removing === w.id}>
                   {removing === w.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
@@ -120,16 +122,22 @@ export function WorkoutBankManager() {
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [loading, setLoading] = useState(true)
   const [removing, setRemoving] = useState<string | null>(null)
+  // Editing opens in a dialog over the current scroll position/open
+  // folders instead of navigating to /coach/workouts/[id]/edit — the old
+  // Link-based flow "jumped" away from wherever the coach was browsing.
+  const [editingWorkout, setEditingWorkout] = useState<Workout | null>(null)
 
-  const load = async () => {
-    setLoading(true)
+  // `silent` skips the full-page spinner — used after an in-place edit so
+  // the refresh doesn't blow away scroll position and open <details>.
+  const load = async (silent = false) => {
+    if (!silent) setLoading(true)
     try {
       const snap = await getDocs(query(collection(db, 'workouts'), orderBy('title', 'asc')))
       setWorkouts(snap.docs.map((d) => ({ ...(d.data() as Workout), id: d.id })).filter((w) => !!w.bankLevel))
     } catch (err) {
       console.error('Error loading workout bank:', err)
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
 
@@ -207,12 +215,12 @@ export function WorkoutBankManager() {
                           {Array.from(byStage.entries()).map(([stage, stageItems]) => (
                             <div key={stage || '_none'}>
                               {stage && <p className="text-[11px] text-muted-foreground mb-1">↳ {stage}</p>}
-                              <BankItemGrid items={stageItems} onRemove={removeFromBank} removing={removing} onMoved={load} />
+                              <BankItemGrid items={stageItems} onRemove={removeFromBank} removing={removing} onMoved={() => load(true)} onEdit={setEditingWorkout} />
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <BankItemGrid items={items} onRemove={removeFromBank} removing={removing} onMoved={load} />
+                        <BankItemGrid items={items} onRemove={removeFromBank} removing={removing} onMoved={() => load(true)} onEdit={setEditingWorkout} />
                       )}
                     </div>
                   )
@@ -222,6 +230,23 @@ export function WorkoutBankManager() {
           </details>
         )
       })}
+
+      {/* In-place edit — opens over whichever folder/scroll position the
+          coach was at instead of navigating to a separate page. */}
+      <Dialog open={!!editingWorkout} onOpenChange={(open) => { if (!open) setEditingWorkout(null) }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>עריכת אימון</DialogTitle>
+          </DialogHeader>
+          {editingWorkout && (
+            <WorkoutBuilder
+              workoutId={editingWorkout.id}
+              hideBackButton
+              onDone={() => { setEditingWorkout(null); load(true) }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
