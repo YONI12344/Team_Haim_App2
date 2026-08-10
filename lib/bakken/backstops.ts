@@ -412,19 +412,55 @@ export const enforceDayTypeTemplate = (
     const midweek = addDaysStr(weekStart, 3)
     const stage = stagesForBlock.find((s) => midweek >= s.startDate && midweek <= s.endDate)
     if (!stage?.dayTypeTemplate) continue
-    for (const [dayKey, requiredType] of Object.entries(stage.dayTypeTemplate)) {
-      if (!requiredType) continue
+    for (const [dayKey, requiredRaw] of Object.entries(stage.dayTypeTemplate)) {
+      if (!requiredRaw) continue
+      // A day can require ONE type (the original behavior) or TWO (e.g.
+      // "lift + easy run" or double threshold) — same two-sessions-in-a-day
+      // mechanism already used for double threshold (rule 11), capped at 2
+      // since that's all a single date's am/pm slots can hold anywhere else
+      // in the app.
+      const requiredTypes = (Array.isArray(requiredRaw) ? requiredRaw : [requiredRaw]).filter(Boolean).slice(0, 2)
+      if (requiredTypes.length === 0) continue
       const targetDate = addDaysStr(weekStart, DAY_INDEX[dayKey as DayKey])
-      const targetItem = items.find((w) => w.date === targetDate)
-      if (!targetItem || targetItem.type === requiredType) continue
-      const candidate = items.find((w) => w !== targetItem && w.type === requiredType)
-      if (!candidate) continue
-      const targetDateStr = targetItem.date
-      const candidateDateStr = candidate.date
-      const targetCopy: BlockWorkoutOut = { ...targetItem }
-      const candidateCopy: BlockWorkoutOut = { ...candidate }
-      Object.assign(targetItem, candidateCopy, { date: targetDateStr })
-      Object.assign(candidate, targetCopy, { date: candidateDateStr })
+      const targetItems = items.filter((w) => w.date === targetDate)
+      const claimed = new Set<BlockWorkoutOut>()
+      for (const requiredType of requiredTypes) {
+        const satisfied = targetItems.find((w) => w.type === requiredType)
+        if (satisfied) { claimed.add(satisfied); continue }
+        // Repurpose whichever of this date's slots isn't already claimed
+        // and isn't itself satisfying one of this day's OTHER required
+        // types — the same "right content, wrong day" swap as before, just
+        // per-slot instead of assuming there's only one slot to fix.
+        const targetItem = targetItems.find((w) => !claimed.has(w) && !requiredTypes.includes(w.type))
+        if (!targetItem) continue // no free slot this date — leave unrepaired, same trade-off as no donor found
+        const candidate = items.find((w) => w !== targetItem && w.date !== targetDate && w.type === requiredType)
+        if (!candidate) continue
+        claimed.add(targetItem)
+        const targetDateStr = targetItem.date
+        const candidateDateStr = candidate.date
+        const targetCopy: BlockWorkoutOut = { ...targetItem }
+        const candidateCopy: BlockWorkoutOut = { ...candidate }
+        Object.assign(targetItem, candidateCopy, { date: targetDateStr })
+        Object.assign(candidate, targetCopy, { date: candidateDateStr })
+      }
+      // A genuine two-type day is a same-date pair by definition — tag it
+      // am/pm ourselves rather than leaving it to chance. Verified in
+      // practice: whichever pair got here via a fresh swap above usually
+      // inherited a usable tag from its donor, but a pair the model already
+      // got right on its own (both types correct from the start, no swap
+      // needed) can still arrive with neither side tagged, and
+      // enforceSameDaySessionTags deliberately won't guess when neither
+      // side has a tag. enforceAmPmOrder (runs right after this) then
+      // corrects am/pm ORDER by lactate — this only needs to guarantee
+      // both sides have SOME am/pm tag to fix order on.
+      if (requiredTypes.length === 2) {
+        const first = targetItems.find((w) => w.type === requiredTypes[0])
+        const second = targetItems.find((w) => w.type === requiredTypes[1] && w !== first)
+        if (first && second && first.session !== 'am' && first.session !== 'pm' && second.session !== 'am' && second.session !== 'pm') {
+          first.session = 'am'
+          second.session = 'pm'
+        }
+      }
     }
   }
   return workouts

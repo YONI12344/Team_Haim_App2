@@ -158,6 +158,8 @@ const UI = {
     dayTemplateTitle: 'Day-type template per season phase',
     dayTemplateHint: 'Assign which day gets which workout type for each phase — the AI fills in the actual content, you decide the skeleton. Leave a day blank to let the AI decide.',
     dayTemplateAiDecides: 'AI decides',
+    dayTemplateSecondHint: 'Optional second session the same day (e.g. lift + easy run, or double threshold)',
+    dayTemplateNoSecond: '(single session)',
     goalDistance: 'Goal race distance',
     raceName: 'Race name (optional)',
     raceNamePlaceholder: 'e.g. Tel Aviv Marathon',
@@ -181,7 +183,7 @@ const UI = {
     continueCurrentStageBtn: 'Continue current stage',
     wholeSeasonBtn: 'Whole season',
     stageAlreadyPassedError: 'That stage is already fully in the past — pick a later stage or "Whole season".',
-    generationCapNote: 'Each click generates up to ~20 weeks; click Generate again if the target is further out.',
+    generationCapNote: 'Each stage button generates from wherever you currently are THROUGH THE END of that stage (earlier stages included automatically) — not that stage in isolation. Each click generates up to ~20 weeks; click Generate again if the target is further out.',
     testRaceTitle: 'Test race / time trial (optional)',
     testRaceHint: "A tune-up race mid-season — I'll add a short light taper before it and get straight back to the normal plan after, no full peak taper.",
     testRaceEventLabel: 'Event name',
@@ -249,6 +251,8 @@ const UI = {
     dayTemplateTitle: 'תבנית ימים לפי שלב עונה',
     dayTemplateHint: 'קבעו איזה יום מקבל איזה סוג אימון בכל שלב — ה-AI ימלא את התוכן בפועל, אתם קובעים את השלד. השאירו יום ריק כדי לתת ל-AI להחליט.',
     dayTemplateAiDecides: 'ה-AI מחליט',
+    dayTemplateSecondHint: 'אימון שני אופציונלי באותו יום (למשל חדר כושר + ריצה קלה, או סף כפול)',
+    dayTemplateNoSecond: '(אימון בודד)',
     goalDistance: 'מרחק היעד',
     raceName: 'שם המירוץ (לא חובה)',
     raceNamePlaceholder: 'לדוגמה: מרתון תל אביב',
@@ -272,7 +276,7 @@ const UI = {
     continueCurrentStageBtn: 'המשך מהשלב הנוכחי',
     wholeSeasonBtn: 'כל העונה',
     stageAlreadyPassedError: 'השלב הזה כבר עבר לגמרי — בחרו שלב מאוחר יותר או "כל העונה".',
-    generationCapNote: 'כל לחיצה יוצרת עד כ-20 שבועות; אם היעד רחוק יותר, לחצו על "צור" שוב.',
+    generationCapNote: 'כל כפתור שלב יוצר מהנקודה הנוכחית עד סוף אותו שלב (השלבים הקודמים נכללים אוטומטית) — לא רק את השלב הזה בבידוד. כל לחיצה יוצרת עד כ-20 שבועות; אם היעד רחוק יותר, לחצו על "צור" שוב.',
     testRaceTitle: 'מירוץ הכנה / מבחן זמן (לא חובה)',
     testRaceHint: 'מירוץ הכנה באמצע העונה — אוסיף טייפר קל וקצר לפניו ואחזור מיד לתוכנית הרגילה אחריו, בלי טייפר מלא כמו לפני מירוץ היעד.',
     testRaceEventLabel: 'שם האירוע',
@@ -439,7 +443,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
   // Coach-defined weekday->type skeleton per season-stage TYPE (base/build/
   // peak/etc.) — the AI generator uses the exact type on that weekday for
   // any week that stage is active instead of deciding itself. See rule 2c.
-  const [stageDayTypeTemplates, setStageDayTypeTemplates] = useState<Record<string, Partial<Record<DayKey, string>>>>({})
+  const [stageDayTypeTemplates, setStageDayTypeTemplates] = useState<Record<string, Partial<Record<DayKey, string | string[]>>>>({})
   // One-off calendar events (flight, wedding, exam...) — the AI generator
   // keeps the event date itself light instead of a hard/big session, see
   // rule 2d in plan-prompt.ts.
@@ -1291,7 +1295,25 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
               <p className="text-xs font-medium text-muted-foreground">{t.dayTemplateTitle}</p>
               <p className="text-[11px] text-muted-foreground">{t.dayTemplateHint}</p>
               {(['base', 'build', 'peak', 'taper', 'race_week'] as const).map((stageType) => {
-                const overrideCount = Object.values(stageDayTypeTemplates[stageType] || {}).filter(Boolean).length
+                const overrideCount = Object.values(stageDayTypeTemplates[stageType] || {})
+                  .filter((v) => (Array.isArray(v) ? v.length > 0 : !!v)).length
+                const primaryOf = (day: DayKey) => {
+                  const v = stageDayTypeTemplates[stageType]?.[day]
+                  return (Array.isArray(v) ? v[0] : v) || ''
+                }
+                const secondaryOf = (day: DayKey) => {
+                  const v = stageDayTypeTemplates[stageType]?.[day]
+                  return (Array.isArray(v) ? v[1] : '') || ''
+                }
+                const setDayTemplate = (day: DayKey, primary: string, secondary: string) => {
+                  setStageDayTypeTemplates((prev) => {
+                    const next = { ...prev, [stageType]: { ...prev[stageType] } }
+                    if (!primary) delete next[stageType]![day]
+                    else if (secondary) next[stageType]![day] = [primary, secondary]
+                    else next[stageType]![day] = primary
+                    return next
+                  })
+                }
                 return (
                   <details key={stageType} className="rounded-md bg-muted/40 p-1.5">
                     <summary className="text-[11px] font-semibold text-muted-foreground cursor-pointer select-none flex items-center gap-1.5">
@@ -1303,28 +1325,35 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
                       )}
                     </summary>
                     <div className="flex flex-wrap gap-1 mt-1.5">
-                      {DAY_ORDER.map((day) => (
-                        <div key={day} className="flex flex-col items-center gap-0.5">
-                          <span className="text-[9px] text-muted-foreground">{DAY_LABELS[uiLang][day]}</span>
-                          <select
-                            value={stageDayTypeTemplates[stageType]?.[day] || ''}
-                            onChange={(e) => {
-                              const value = e.target.value
-                              setStageDayTypeTemplates((prev) => {
-                                const next = { ...prev, [stageType]: { ...prev[stageType] } }
-                                if (value) next[stageType]![day] = value
-                                else delete next[stageType]![day]
-                                return next
-                              })
-                            }}
-                            className="rounded-md border border-input bg-background px-1 py-0.5 text-[10px]">
-                            <option value="">{t.dayTemplateAiDecides}</option>
-                            {DAY_TEMPLATE_TYPE_OPTIONS.map((wt) => (
-                              <option key={wt} value={wt}>{(workoutTypeLabels as Record<string, string>)[wt] || wt}</option>
-                            ))}
-                          </select>
-                        </div>
-                      ))}
+                      {DAY_ORDER.map((day) => {
+                        const primary = primaryOf(day)
+                        const secondary = secondaryOf(day)
+                        return (
+                          <div key={day} className="flex flex-col items-center gap-0.5">
+                            <span className="text-[9px] text-muted-foreground">{DAY_LABELS[uiLang][day]}</span>
+                            <select
+                              value={primary}
+                              onChange={(e) => setDayTemplate(day, e.target.value, e.target.value ? secondary : '')}
+                              className="rounded-md border border-input bg-background px-1 py-0.5 text-[10px]">
+                              <option value="">{t.dayTemplateAiDecides}</option>
+                              {DAY_TEMPLATE_TYPE_OPTIONS.map((wt) => (
+                                <option key={wt} value={wt}>{(workoutTypeLabels as Record<string, string>)[wt] || wt}</option>
+                              ))}
+                            </select>
+                            <select
+                              value={secondary}
+                              disabled={!primary}
+                              onChange={(e) => setDayTemplate(day, primary, e.target.value)}
+                              title={t.dayTemplateSecondHint}
+                              className="rounded-md border border-input bg-background px-1 py-0.5 text-[10px] disabled:opacity-40">
+                              <option value="">{t.dayTemplateNoSecond}</option>
+                              {DAY_TEMPLATE_TYPE_OPTIONS.map((wt) => (
+                                <option key={wt} value={wt}>+{(workoutTypeLabels as Record<string, string>)[wt] || wt}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )
+                      })}
                     </div>
                   </details>
                 )

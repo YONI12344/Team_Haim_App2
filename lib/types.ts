@@ -148,9 +148,12 @@ export interface AthleteProfile {
   // Keyed by JourneyStageType so it naturally reapplies to whichever
   // "build"/"peak"/etc. stage exists in a freshly-generated season, since
   // stages themselves are recreated fresh on every skeleton regenerate.
+  // A day's value can be a single type, or an array of exactly two types
+  // when the coach wants two sessions that same day (e.g. lift + easy run,
+  // or a double-threshold day) — see rule 2c in plan-prompt.ts.
   stageDayTypeTemplates?: Partial<Record<JourneyStageType, Partial<Record<
     'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday',
-    string
+    string | string[]
   >>>>
   // One-off calendar events (a flight, a wedding, an exam) that aren't
   // recurring and aren't the goal/prep race — the Bakken AI generator
