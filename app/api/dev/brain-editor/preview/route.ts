@@ -8,7 +8,7 @@ import {
 } from '@/lib/bakken/plan-prompt'
 import {
   normalizeInvalidTypes, enforceWeekSchedule, enforceDayTypeTemplate, enforceAmPmOrder, enforceSameDaySessionTags,
-  enforceNoBackToBackBigDays, enforceLongRunDay, normalizeWeeklyVolume,
+  enforceNoBackToBackBigDays, enforceLongRunDay, enforceSpecialEvents, normalizeWeeklyVolume,
   type DayKey, type BlockWorkoutOut,
 } from '@/lib/bakken/backstops'
 
@@ -166,6 +166,7 @@ export async function POST(req: NextRequest) {
     enforceAmPmOrder(workouts)
     enforceLongRunDay(workouts, profile.athlete.longRunDay as DayKey | undefined, profile.athlete.language)
     enforceNoBackToBackBigDays(workouts, undefined, profile.athlete.longRunDay as DayKey | undefined, profile.athlete.language)
+    enforceSpecialEvents(workouts, profile.athlete.specialEvents, profile.athlete.language)
     enforceSameDaySessionTags(workouts)
     normalizeWeeklyVolume(workouts, stagesForBlock, seasonStart, '2099-01-01', profile.athlete.longRunMinutes, profile.athlete.experienceLevel)
 

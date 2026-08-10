@@ -292,6 +292,7 @@ export interface Translations {
   fartlek: string
   recovery: string
   strength: string
+  stretch: string
   crossTraining: string
   swimLabel: string
   bikeLabel: string
@@ -1191,6 +1192,7 @@ const translations: Record<Language, Translations> = {
     fartlek: 'Fartlek',
     recovery: 'Recovery',
     strength: 'Strength',
+    stretch: 'Stretch / Mobility',
     crossTraining: 'Cross Training',
     swimLabel: 'Swim',
     bikeLabel: 'Bike',
@@ -2055,6 +2057,7 @@ const translations: Record<Language, Translations> = {
     fartlek: 'פרטלק',
     recovery: 'התאוששות',
     strength: 'כוח',
+    stretch: 'מתיחות / ניידות',
     crossTraining: 'אימון משולב',
     swimLabel: 'שחייה',
     bikeLabel: 'אופניים',

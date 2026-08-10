@@ -313,7 +313,7 @@ export function buildTemplate(
  *  keyWorkouts text on stages; this file has no access to language context. */
 const TYPE_HE: Record<WorkoutType, string> = {
   easy: 'ריצה קלה', long_run: 'ריצה ארוכה', tempo: 'טמפו/סף', intervals: 'אינטרוולים',
-  hill_repeats: 'עליות', fartlek: 'פרטלק', recovery: 'התאוששות', strength: 'חיזוק',
+  hill_repeats: 'עליות', fartlek: 'פרטלק', recovery: 'התאוששות', strength: 'חיזוק', stretch: 'מתיחות',
   cross_training: 'אימון משולב', swim: 'שחייה', bike: 'אופניים', rest: 'מנוחה',
   race: 'תחרות', time_trial: 'מבחן זמן', threshold: 'אימון סף',
 }

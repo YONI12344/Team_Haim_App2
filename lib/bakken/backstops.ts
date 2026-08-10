@@ -517,12 +517,12 @@ export const enforceSameDaySessionTags = (workouts: BlockWorkoutOut[]): BlockWor
 // demote one of any two adjacent "big" days to easy, preferring to keep
 // whichever one lands on the athlete's actual long-run day.
 export const BIG_WORKOUT_TYPES = new Set(['long_run', 'tempo', 'threshold', 'intervals', 'hill_repeats', 'fartlek'])
-const demoteToEasyRun = (w: BlockWorkoutOut, language: 'en' | 'he') => {
+const demoteToEasyRun = (w: BlockWorkoutOut, language: 'en' | 'he', description?: string) => {
   w.type = 'easy'
   w.title = language === 'he' ? 'ריצה קלה' : 'Easy Run'
-  w.description = language === 'he'
+  w.description = description ?? (language === 'he'
     ? 'ריצה קלה ורגועה — יום התאוששות בין שני אימונים מאתגרים.'
-    : 'Easy, relaxed running — a recovery day between two demanding sessions.'
+    : 'Easy, relaxed running — a recovery day between two demanding sessions.')
   w.sets = []
   w.bakkenLactateMin = 1.0
   w.bakkenLactateMax = 1.2
@@ -608,6 +608,29 @@ export const enforceLongRunDay = (workouts: BlockWorkoutOut[], longRunDay: DayKe
     const lrDate = lr.date
     lr.date = targetItem.date
     targetItem.date = lrDate
+  }
+  return workouts
+}
+
+// One-off calendar events (AthleteProfile.specialEvents — a flight, a
+// wedding, an exam) are a hard rule in the prompt (rule 2d: no hard/big
+// session on the event date), same reliability caveat as every other rule
+// here. Deterministic backstop: any BIG_WORKOUT_TYPES session that landed
+// exactly on a flagged date gets demoted to easy, same mechanism as
+// enforceNoBackToBackBigDays.
+export const enforceSpecialEvents = (
+  workouts: BlockWorkoutOut[],
+  specialEvents: Array<{ date: string; label: string; notes?: string }> | undefined,
+  language: 'en' | 'he',
+): BlockWorkoutOut[] => {
+  if (!specialEvents || specialEvents.length === 0) return workouts
+  const eventDates = new Map(specialEvents.map((e) => [e.date, e]))
+  for (const w of workouts) {
+    const event = eventDates.get(w.date)
+    if (!event || !BIG_WORKOUT_TYPES.has(w.type)) continue
+    demoteToEasyRun(w, language, language === 'he'
+      ? `ריצה קלה — שומרים על זה קליל היום בגלל ${event.label}.`
+      : `Easy run — keeping it light today because of ${event.label}.`)
   }
   return workouts
 }

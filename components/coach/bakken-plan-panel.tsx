@@ -32,6 +32,7 @@ import {
   enforceAmPmOrder,
   enforceSameDaySessionTags,
   enforceRecurringActivities,
+  enforceSpecialEvents,
   enforceDayTypeTemplate,
   enforceNoBackToBackBigDays,
   enforceLongRunDay,
@@ -55,13 +56,15 @@ interface WeekAgg {
 }
 
 const BLOCK_DAYS = 14
-const MAX_BLOCKS = 10 // safety cap: 20 weeks of upfront generation per click
+const MAX_BLOCKS = 10 // safety cap: 20 weeks of upfront generation per click, regardless of target
 
-// Coach-selectable cap on how many blocks to generate per click — quick
-// presets, plus a free number input for exact control (see
-// GENERATION_BLOCK_PRESETS usage below). Always clamped to MAX_BLOCKS,
-// which stays the hard safety ceiling no matter what the coach types.
-const GENERATION_BLOCK_PRESETS = [1, 4, MAX_BLOCKS]
+// What a single "Generate" click targets — instead of a raw block count,
+// the coach picks a stage of the journey (or "continue"/"whole season"),
+// and the block loop below stops at that stage's end date (still capped
+// by MAX_BLOCKS per click for cost/quality reasons).
+type StageTargetType = 'base' | 'build' | 'peak' | 'taper' | 'race_week'
+type GenerationTarget = 'current_stage' | 'whole_season' | StageTargetType
+const GENERATION_TARGET_STAGES: StageTargetType[] = ['base', 'build', 'peak', 'taper', 'race_week']
 
 type DayType = 'workout' | 'rest' | 'off'
 const DAY_ORDER: DayKey[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
@@ -82,7 +85,7 @@ const STAGE_TYPE_LABELS: Record<'en' | 'he', Record<'base' | 'build' | 'peak' | 
 // weekday in a coach-defined skeleton — excludes race/time_trial/rest
 // (those are decided by other mechanisms, not a recurring weekly slot).
 const DAY_TEMPLATE_TYPE_OPTIONS: string[] = [
-  'easy', 'long_run', 'tempo', 'threshold', 'intervals', 'hill_repeats', 'fartlek', 'recovery',
+  'easy', 'long_run', 'tempo', 'threshold', 'intervals', 'hill_repeats', 'fartlek', 'recovery', 'strength', 'stretch',
 ]
 const DEFAULT_WEEK_SCHEDULE: Record<DayKey, DayType> = {
   sunday: 'workout', monday: 'workout', tuesday: 'workout', wednesday: 'workout',
@@ -143,6 +146,11 @@ const UI = {
     recurringTitle: 'Recurring weekly activities',
     recurringHint: 'A gym day, yoga, standing cross-training — set once, always included regardless of phase.',
     recurringAdd: 'Add recurring activity',
+    specialEventsTitle: 'One-off events (flight, wedding, exam...)',
+    specialEventsHint: "A single date the AI should keep light instead of a hard session — not recurring, and not the goal/prep race.",
+    specialEventsLabelPlaceholder: 'What is it? (e.g. Flight to Kenya)',
+    specialEventsNotesPlaceholder: 'Notes (optional)',
+    specialEventsAdd: 'Add event',
     recurringTitlePlaceholder: 'Title (e.g. "Gym")',
     recurringNotesPlaceholder: 'Notes (optional)',
     everyWeek: 'Every week',
@@ -169,9 +177,11 @@ const UI = {
     availabilityLoaded: 'Loaded from athlete onboarding — adjust here if it changed.',
     loading: 'Loading...',
     generateBtn: 'Generate',
-    generationScopeLabel: 'How many blocks to generate this click (1 block ≈ 2 weeks)',
-    generationBlocksCustomPlaceholder: 'Or type exact number of blocks',
-    fullSeasonBtn: (n: number) => `Full season (${n})`,
+    generationScopeLabel: 'What to generate',
+    continueCurrentStageBtn: 'Continue current stage',
+    wholeSeasonBtn: 'Whole season',
+    stageAlreadyPassedError: 'That stage is already fully in the past — pick a later stage or "Whole season".',
+    generationCapNote: 'Each click generates up to ~20 weeks; click Generate again if the target is further out.',
     testRaceTitle: 'Test race / time trial (optional)',
     testRaceHint: "A tune-up race mid-season — I'll add a short light taper before it and get straight back to the normal plan after, no full peak taper.",
     testRaceEventLabel: 'Event name',
@@ -227,6 +237,11 @@ const UI = {
     recurringTitle: 'אימונים קבועים שבועיים',
     recurringHint: 'יום כושר, יוגה, אימון חיזוק קבוע — מגדירים פעם אחת, תמיד ייכלל ללא קשר לשלב העונה.',
     recurringAdd: 'הוסף אימון קבוע',
+    specialEventsTitle: 'אירועים חד-פעמיים (טיסה, חתונה, מבחן...)',
+    specialEventsHint: 'תאריך בודד שה-AI ישמור עליו קליל במקום אימון קשה — לא חוזר, ולא מירוץ היעד/הכנה.',
+    specialEventsLabelPlaceholder: 'מה זה? (למשל טיסה לקניה)',
+    specialEventsNotesPlaceholder: 'הערות (לא חובה)',
+    specialEventsAdd: 'הוסף אירוע',
     recurringTitlePlaceholder: 'כותרת (למשל "חדר כושר")',
     recurringNotesPlaceholder: 'הערות (לא חובה)',
     everyWeek: 'כל שבוע',
@@ -253,9 +268,11 @@ const UI = {
     availabilityLoaded: 'נטען מהאונבורדינג של הספורטאי — התאם כאן אם השתנה.',
     loading: 'טוען...',
     generateBtn: 'צור',
-    generationScopeLabel: 'כמה בלוקים ליצור בלחיצה הזו (בלוק אחד ≈ שבועיים)',
-    generationBlocksCustomPlaceholder: 'או הקלד/י מספר בלוקים מדויק',
-    fullSeasonBtn: (n: number) => `עונה מלאה (${n})`,
+    generationScopeLabel: 'מה ליצור',
+    continueCurrentStageBtn: 'המשך מהשלב הנוכחי',
+    wholeSeasonBtn: 'כל העונה',
+    stageAlreadyPassedError: 'השלב הזה כבר עבר לגמרי — בחרו שלב מאוחר יותר או "כל העונה".',
+    generationCapNote: 'כל לחיצה יוצרת עד כ-20 שבועות; אם היעד רחוק יותר, לחצו על "צור" שוב.',
     testRaceTitle: 'מירוץ הכנה / מבחן זמן (לא חובה)',
     testRaceHint: 'מירוץ הכנה באמצע העונה — אוסיף טייפר קל וקצר לפניו ואחזור מיד לתוכנית הרגילה אחריו, בלי טייפר מלא כמו לפני מירוץ היעד.',
     testRaceEventLabel: 'שם האירוע',
@@ -402,7 +419,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
   const [progress, setProgress] = useState<string | null>(null)
   const [lastSummary, setLastSummary] = useState<string | null>(null)
   const [weekSchedule, setWeekSchedule] = useState<Record<DayKey, DayType>>(DEFAULT_WEEK_SCHEDULE)
-  const [generationBlocks, setGenerationBlocks] = useState<number>(MAX_BLOCKS)
+  const [generationTarget, setGenerationTarget] = useState<GenerationTarget>('current_stage')
   const [forceRestart, setForceRestart] = useState(false)
   const [scheduleLoaded, setScheduleLoaded] = useState(false)
   const [summary, setSummary] = useState<AthleteSummary | null>(null)
@@ -423,6 +440,15 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
   // peak/etc.) — the AI generator uses the exact type on that weekday for
   // any week that stage is active instead of deciding itself. See rule 2c.
   const [stageDayTypeTemplates, setStageDayTypeTemplates] = useState<Record<string, Partial<Record<DayKey, string>>>>({})
+  // One-off calendar events (flight, wedding, exam...) — the AI generator
+  // keeps the event date itself light instead of a hard/big session, see
+  // rule 2d in plan-prompt.ts.
+  const [specialEvents, setSpecialEvents] = useState<Array<{
+    id: string
+    date: string
+    label: string
+    notes?: string
+  }>>([])
   const [journeyPreview, setJourneyPreview] = useState<JourneyDoc | null>(null)
   const [prDistance, setPrDistance] = useState<RaceDistance | ''>('')
   const [prHours, setPrHours] = useState(0)
@@ -464,7 +490,9 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         ) as Record<DayKey, DayType>
         setWeekSchedule(collapsed)
       }
-      if (typeof d.bakkenGenerationBlocks === 'number') setGenerationBlocks(Math.min(Math.max(1, d.bakkenGenerationBlocks), MAX_BLOCKS))
+      if (typeof d.bakkenGenerationTarget === 'string' && ['current_stage', 'whole_season', ...GENERATION_TARGET_STAGES].includes(d.bakkenGenerationTarget)) {
+        setGenerationTarget(d.bakkenGenerationTarget)
+      }
       setSummary({
         name: d.name || 'Athlete',
         language: d.preferredLanguage === 'en' ? 'en' : 'he',
@@ -489,6 +517,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
       setCoachNotes(d.coachPrivateNotes || '')
       setRecurringActivities(Array.isArray(d.recurringActivities) ? d.recurringActivities : [])
       setStageDayTypeTemplates(d.stageDayTypeTemplates && typeof d.stageDayTypeTemplates === 'object' ? d.stageDayTypeTemplates : {})
+      setSpecialEvents(Array.isArray(d.specialEvents) ? d.specialEvents : [])
       setScheduleLoaded(true)
     }
     load()
@@ -649,7 +678,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
       await updateDoc(doc(db, 'users', athleteId), {
         weekSchedule,
         daysPerWeek: derivedDaysPerWeek,
-        bakkenGenerationBlocks: generationBlocks,
+        bakkenGenerationTarget: generationTarget,
         coachPrivateNotes: coachNotes,
         preferredLanguage: summary.language,
         experienceLevel: summary.experienceLevel || null,
@@ -668,6 +697,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         personalRecords: summary.personalRecords,
         recurringActivities,
         stageDayTypeTemplates,
+        specialEvents,
       })
 
       const profileSnap = await getDoc(doc(db, 'users', athleteId))
@@ -766,6 +796,9 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
           ? profile.recurringActivities.map((r: any) => ({
               dayOfWeek: r.dayOfWeek, frequency: r.frequency, type: r.type, title: r.title, notes: r.notes,
             }))
+          : undefined,
+        specialEvents: Array.isArray(profile.specialEvents) && profile.specialEvents.length > 0
+          ? profile.specialEvents.map((e: any) => ({ date: e.date, label: e.label, notes: e.notes }))
           : undefined,
         language: (profile.preferredLanguage as 'en' | 'he') || 'he',
       }
@@ -921,29 +954,59 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         resumeCursor = journeyDoc.startDate
       }
 
-      // 2. Split the season into ~14-day blocks, capped for cost/time.
+      // 2. Resolve how far this click should generate, per the coach's
+      // chosen generationTarget: a specific named stage type ("only Base"),
+      // "current_stage" (finish whatever stage resumeCursor falls in), or
+      // "whole_season" (all the way to the goal race). "current_stage" on a
+      // brand-new journey naturally resolves to the season's first stage,
+      // since resumeCursor === journeyDoc.startDate at that point.
+      let targetEndDate: string
+      if (generationTarget === 'whole_season') {
+        targetEndDate = journeyDoc.goalRaceDate
+      } else if (generationTarget === 'current_stage') {
+        const stage = journeyDoc.stages.find((s) => resumeCursor >= s.startDate && resumeCursor <= s.endDate)
+        targetEndDate = stage ? stage.endDate : journeyDoc.goalRaceDate
+      } else {
+        const matching = journeyDoc.stages.filter((s) => s.type === generationTarget && s.endDate >= resumeCursor)
+        if (matching.length === 0) {
+          toast.error(t.stageAlreadyPassedError)
+          setLoading(false)
+          return
+        }
+        targetEndDate = matching[matching.length - 1].endDate
+      }
+      const seasonEndBound = dateMin(targetEndDate, journeyDoc.goalRaceDate)
+
+      // 3. Split the target range into ~14-day blocks, capped for cost/time.
       // Block boundaries are aligned to Sunday (matching the calendar-week
       // convention used everywhere else in the app) so no Sun-Sat week ever
       // gets split across two separate block-generation calls, which would
       // make normalizeWeeklyVolume see only part of that week's days at a
       // time. If the season doesn't start on a Sunday, the first block is a
-      // short "stub" running only to that week's Saturday.
-      const effectiveMaxBlocks = Math.min(Math.max(1, generationBlocks), MAX_BLOCKS)
+      // short "stub" running only to that week's Saturday. Every block is
+      // also clamped to the end of whichever stage its start date falls in,
+      // so a block never straddles two different named stages even when the
+      // overall target ("whole_season" or a later stage) spans several.
+      const effectiveMaxBlocks = MAX_BLOCKS
+      const stageEndDateFor = (dateStr: string): string => {
+        const stage = journeyDoc.stages.find((s) => dateStr >= s.startDate && dateStr <= s.endDate)
+        return stage ? stage.endDate : seasonEndBound
+      }
       const blocks: { startDate: string; endDate: string }[] = []
       let cursor = resumeCursor
       const firstDow = parseISO(cursor).getDay() // 0=Sun..6=Sat
-      if (firstDow !== 0 && cursor <= journeyDoc.goalRaceDate) {
-        const stubEnd = dateMin(addDaysStr(cursor, 6 - firstDow), journeyDoc.goalRaceDate)
+      if (firstDow !== 0 && cursor <= seasonEndBound) {
+        const stubEnd = dateMin(addDaysStr(cursor, 6 - firstDow), dateMin(stageEndDateFor(cursor), seasonEndBound))
         blocks.push({ startDate: cursor, endDate: stubEnd })
         cursor = addDaysStr(stubEnd, 1)
       }
-      while (cursor <= journeyDoc.goalRaceDate && blocks.length < effectiveMaxBlocks) {
-        const end = dateMin(addDaysStr(cursor, BLOCK_DAYS - 1), journeyDoc.goalRaceDate)
+      while (cursor <= seasonEndBound && blocks.length < effectiveMaxBlocks) {
+        const end = dateMin(addDaysStr(cursor, BLOCK_DAYS - 1), dateMin(stageEndDateFor(cursor), seasonEndBound))
         blocks.push({ startDate: cursor, endDate: end })
         cursor = addDaysStr(end, 1)
       }
 
-      // 3. Fill in each block from the Bakken brain, writing as we go.
+      // 4. Fill in each block from the Bakken brain, writing as we go.
       // previousBlockTail is already seeded above when continuing an
       // existing season (from the real last-generated workouts), so rule 9
       // (no repeat hard day across the boundary) still holds even when the
@@ -1000,6 +1063,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         enforceLongRunDay(plan.workouts, athleteContext.longRunDay, athleteContext.language)
         enforceNoBackToBackBigDays(plan.workouts, previousBlockTail, athleteContext.longRunDay, athleteContext.language)
         enforceRecurringActivities(plan.workouts, athleteContext.recurringActivities, journeyDoc.startDate, athleteContext.language)
+        enforceSpecialEvents(plan.workouts, athleteContext.specialEvents, athleteContext.language)
         // Runs LAST among the date/session-touching backstops — enforceLongRunDay
         // swaps dates (not sessions) when relocating a long run, which can land
         // it on a date that already has a tagged am/pm entry; verified in
@@ -1020,7 +1084,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
           .map((w) => ({ date: w.date, type: w.type, title: w.title }))
       }
 
-      // 4. The app's existing rolling-visibility window (default 2 weeks,
+      // 5. The app's existing rolling-visibility window (default 2 weeks,
       // rolls every Saturday — components/athlete/athlete-dashboard.tsx)
       // is what actually hides the rest of the season from the athlete.
       await updateDoc(doc(db, 'users', athleteId), {
@@ -1196,37 +1260,75 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
             </div>
 
             <div className="rounded-md border border-dashed border-input p-2 space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">{t.dayTemplateTitle}</p>
-              <p className="text-[11px] text-muted-foreground">{t.dayTemplateHint}</p>
-              {(['base', 'build', 'peak', 'taper', 'race_week'] as const).map((stageType) => (
-                <div key={stageType} className="rounded-md bg-muted/40 p-1.5">
-                  <p className="text-[11px] font-semibold text-muted-foreground mb-1">{STAGE_TYPE_LABELS[uiLang][stageType]}</p>
-                  <div className="flex flex-wrap gap-1">
-                    {DAY_ORDER.map((day) => (
-                      <div key={day} className="flex flex-col items-center gap-0.5">
-                        <span className="text-[9px] text-muted-foreground">{DAY_LABELS[uiLang][day]}</span>
-                        <select
-                          value={stageDayTypeTemplates[stageType]?.[day] || ''}
-                          onChange={(e) => {
-                            const value = e.target.value
-                            setStageDayTypeTemplates((prev) => {
-                              const next = { ...prev, [stageType]: { ...prev[stageType] } }
-                              if (value) next[stageType]![day] = value
-                              else delete next[stageType]![day]
-                              return next
-                            })
-                          }}
-                          className="rounded-md border border-input bg-background px-1 py-0.5 text-[10px]">
-                          <option value="">{t.dayTemplateAiDecides}</option>
-                          {DAY_TEMPLATE_TYPE_OPTIONS.map((wt) => (
-                            <option key={wt} value={wt}>{(workoutTypeLabels as Record<string, string>)[wt] || wt}</option>
-                          ))}
-                        </select>
-                      </div>
-                    ))}
-                  </div>
+              <p className="text-xs font-medium text-muted-foreground">{t.specialEventsTitle}</p>
+              <p className="text-[11px] text-muted-foreground">{t.specialEventsHint}</p>
+              {specialEvents.map((event, idx) => (
+                <div key={event.id} className="flex flex-wrap items-center gap-1.5 rounded-md bg-muted/40 p-1.5">
+                  <input type="date" value={event.date}
+                    onChange={(e) => setSpecialEvents(specialEvents.map((ev, i) => i === idx ? { ...ev, date: e.target.value } : ev))}
+                    className="rounded-md border border-input bg-background px-1.5 py-1 text-[11px]" />
+                  <input type="text" value={event.label} placeholder={t.specialEventsLabelPlaceholder}
+                    onChange={(e) => setSpecialEvents(specialEvents.map((ev, i) => i === idx ? { ...ev, label: e.target.value } : ev))}
+                    className="min-w-[100px] flex-1 rounded-md border border-input bg-background px-1.5 py-1 text-[11px]" />
+                  <input type="text" value={event.notes || ''} placeholder={t.specialEventsNotesPlaceholder}
+                    onChange={(e) => setSpecialEvents(specialEvents.map((ev, i) => i === idx ? { ...ev, notes: e.target.value } : ev))}
+                    className="min-w-[100px] flex-1 rounded-md border border-input bg-background px-1.5 py-1 text-[11px]" />
+                  <button type="button" onClick={() => setSpecialEvents(specialEvents.filter((_, i) => i !== idx))}
+                    className="rounded-md p-1 text-muted-foreground hover:text-destructive">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
                 </div>
               ))}
+              <Button type="button" variant="outline" size="sm" className="h-7 text-[11px]"
+                onClick={() => setSpecialEvents([...specialEvents, {
+                  id: localId('event'), date: new Date().toISOString().slice(0, 10), label: '', notes: '',
+                }])}>
+                {t.specialEventsAdd}
+              </Button>
+            </div>
+
+            <div className="rounded-md border border-dashed border-input p-2 space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">{t.dayTemplateTitle}</p>
+              <p className="text-[11px] text-muted-foreground">{t.dayTemplateHint}</p>
+              {(['base', 'build', 'peak', 'taper', 'race_week'] as const).map((stageType) => {
+                const overrideCount = Object.values(stageDayTypeTemplates[stageType] || {}).filter(Boolean).length
+                return (
+                  <details key={stageType} className="rounded-md bg-muted/40 p-1.5">
+                    <summary className="text-[11px] font-semibold text-muted-foreground cursor-pointer select-none flex items-center gap-1.5">
+                      {STAGE_TYPE_LABELS[uiLang][stageType]}
+                      {overrideCount > 0 && (
+                        <span className="rounded-full bg-primary/15 text-primary px-1.5 py-0.5 text-[9px] font-medium">
+                          {overrideCount}
+                        </span>
+                      )}
+                    </summary>
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {DAY_ORDER.map((day) => (
+                        <div key={day} className="flex flex-col items-center gap-0.5">
+                          <span className="text-[9px] text-muted-foreground">{DAY_LABELS[uiLang][day]}</span>
+                          <select
+                            value={stageDayTypeTemplates[stageType]?.[day] || ''}
+                            onChange={(e) => {
+                              const value = e.target.value
+                              setStageDayTypeTemplates((prev) => {
+                                const next = { ...prev, [stageType]: { ...prev[stageType] } }
+                                if (value) next[stageType]![day] = value
+                                else delete next[stageType]![day]
+                                return next
+                              })
+                            }}
+                            className="rounded-md border border-input bg-background px-1 py-0.5 text-[10px]">
+                            <option value="">{t.dayTemplateAiDecides}</option>
+                            {DAY_TEMPLATE_TYPE_OPTIONS.map((wt) => (
+                              <option key={wt} value={wt}>{(workoutTypeLabels as Record<string, string>)[wt] || wt}</option>
+                            ))}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )
+              })}
             </div>
 
             <div>
@@ -1418,18 +1520,23 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         </div>
         <div>
           <p className="text-xs font-medium text-muted-foreground mb-1">{t.generationScopeLabel}</p>
-          <div className="flex flex-wrap gap-1.5 mb-1.5">
-            {GENERATION_BLOCK_PRESETS.map((n) => (
-              <button key={n} type="button" onClick={() => setGenerationBlocks(n)}
-                className={`px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${generationBlocks === n ? 'bg-primary text-primary-foreground border-primary' : 'border-input text-muted-foreground hover:border-primary'}`}>
-                {n === MAX_BLOCKS ? t.fullSeasonBtn(n) : n}
+          <div className="flex flex-wrap gap-1.5">
+            <button type="button" onClick={() => setGenerationTarget('current_stage')}
+              className={`px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${generationTarget === 'current_stage' ? 'bg-primary text-primary-foreground border-primary' : 'border-input text-muted-foreground hover:border-primary'}`}>
+              {t.continueCurrentStageBtn}
+            </button>
+            {GENERATION_TARGET_STAGES.map((stageType) => (
+              <button key={stageType} type="button" onClick={() => setGenerationTarget(stageType)}
+                className={`px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${generationTarget === stageType ? 'bg-primary text-primary-foreground border-primary' : 'border-input text-muted-foreground hover:border-primary'}`}>
+                {STAGE_TYPE_LABELS[uiLang][stageType]}
               </button>
             ))}
+            <button type="button" onClick={() => setGenerationTarget('whole_season')}
+              className={`px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${generationTarget === 'whole_season' ? 'bg-primary text-primary-foreground border-primary' : 'border-input text-muted-foreground hover:border-primary'}`}>
+              {t.wholeSeasonBtn}
+            </button>
           </div>
-          <input type="number" min={1} max={MAX_BLOCKS} value={generationBlocks}
-            onChange={(e) => setGenerationBlocks(e.target.value === '' ? 1 : Math.min(Math.max(1, Number(e.target.value)), MAX_BLOCKS))}
-            placeholder={t.generationBlocksCustomPlaceholder}
-            className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs" />
+          <p className="text-[11px] text-muted-foreground mt-1">{t.generationCapNote}</p>
         </div>
         <label className="flex items-start gap-2 text-xs text-muted-foreground">
           <input type="checkbox" checked={forceRestart} onChange={(e) => setForceRestart(e.target.checked)}

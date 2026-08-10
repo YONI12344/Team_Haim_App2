@@ -152,6 +152,17 @@ export interface AthleteProfile {
     'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday',
     string
   >>>>
+  // One-off calendar events (a flight, a wedding, an exam) that aren't
+  // recurring and aren't the goal/prep race — the Bakken AI generator
+  // treats the event date like a mini-taper context: no hard/big session
+  // that day, downgraded to easy instead, similar in spirit to the prep
+  // race taper but for a single non-race day.
+  specialEvents?: Array<{
+    id: string
+    date: string // YYYY-MM-DD
+    label: string
+    notes?: string
+  }>
   createdAt: Date
   updatedAt: Date
 }
@@ -241,6 +252,7 @@ export type WorkoutType =
   | 'fartlek'
   | 'recovery'
   | 'strength'
+  | 'stretch'
   | 'cross_training'
   | 'swim'
   | 'bike'
