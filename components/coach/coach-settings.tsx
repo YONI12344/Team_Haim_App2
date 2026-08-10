@@ -27,6 +27,7 @@ import { workoutTypeColors, useWorkoutTypeLabels } from '@/lib/workout-labels'
 import { cn } from '@/lib/utils'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import { useAuth } from '@/contexts/auth-context'
+import { BakkenAiSettings } from '@/components/coach/bakken-ai-settings'
 
 const SETTINGS_DOC_PATH = 'settings/googleSheets'
 const SERVICE_ACCOUNT_EMAIL = 'team-haim-sheets@teamhaim.iam.gserviceaccount.com'
@@ -163,6 +164,7 @@ export function CoachSettings() {
   const [saving, setSaving] = useState(false)
   const [copied, setCopied] = useState(false)
   const [showSheets, setShowSheets] = useState(false)
+  const [showBakken, setShowBakken] = useState(false)
 
   useEffect(() => {
     const loadAthletes = async () => {
@@ -652,6 +654,23 @@ Generate a 14-day training plan starting from ${startDate} following Team Haim m
           </div>
         </div>
       )}
+
+      {/* Bakken AI full-plan generator (secondary — day-to-day assignment
+          happens from the Workout Bank now, this is for occasional use) */}
+      <div>
+        <button
+          onClick={() => setShowBakken(v => !v)}
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ChevronDown className={cn('h-4 w-4 transition-transform', showBakken && 'rotate-180')} />
+          Bakken AI (full-plan generator)
+        </button>
+        {showBakken && (
+          <div className="mt-3">
+            <BakkenAiSettings />
+          </div>
+        )}
+      </div>
 
       {/* Google Sheets (secondary) */}
       <div>
