@@ -58,6 +58,40 @@ const BANK_LEVEL_LABELS: Record<ExperienceLevel, string> = {
   beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced', professional: 'Professional',
 }
 
+type ThresholdLevel = 'T1' | 'T2' | 'T3' | 'below_T1'
+const THRESHOLD_LEVELS: ThresholdLevel[] = ['below_T1', 'T1', 'T2', 'T3']
+const THRESHOLD_LEVEL_LABELS: Record<ThresholdLevel, string> = {
+  below_T1: 'Below T1 (recovery)', T1: 'T1', T2: 'T2', T3: 'T3',
+}
+
+/** Personalizes this set/interval's pace from the athlete's OWN lab
+ *  thresholds instead of a fixed typed-in pace — e.g. "T1 + 12 sec/km
+ *  slower" resolves to a different real number per athlete. Purely a
+ *  library-authoring control; the free-text pace field above still shows
+ *  as a fallback label for an athlete with no lab data yet. */
+function ThresholdPacePicker({
+  level, offsetSec, onChange,
+}: {
+  level?: ThresholdLevel
+  offsetSec?: number
+  onChange: (level: ThresholdLevel | undefined, offsetSec: number | undefined) => void
+}) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <select value={level || ''} onChange={(e) => onChange(e.target.value ? (e.target.value as ThresholdLevel) : undefined, offsetSec)}
+        className="rounded-md border border-input bg-background px-1.5 py-1 text-[11px]">
+        <option value="">קצב קבוע</option>
+        {THRESHOLD_LEVELS.map((lvl) => <option key={lvl} value={lvl}>{THRESHOLD_LEVEL_LABELS[lvl]}</option>)}
+      </select>
+      {level && (
+        <Input type="number" placeholder="0" value={offsetSec ?? ''}
+          onChange={(e) => onChange(level, e.target.value === '' ? undefined : Number(e.target.value))}
+          className="h-7 w-16 text-[11px]" title="שניות/ק״מ, חיובי=אטי יותר, שלילי=מהיר יותר" />
+      )}
+    </div>
+  )
+}
+
 interface WorkoutBuilderProps {
   workoutId?: string
   onDone?: (workout?: any) => void
@@ -446,6 +480,8 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
           pace: s.pace || '',
           restBetweenReps: s.restBetweenReps || '',
           restAfterSet: s.restAfterSet || '',
+          targetThresholdLevel: s.targetThresholdLevel || null,
+          targetOffsetSec: s.targetOffsetSec ?? null,
           intervals: (s.intervals || []).map((iv: any, j: number) => ({
             id: iv.id || `int-${i}-${j}`,
             distance: iv.distance || '',
@@ -454,6 +490,8 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
             durationSec: iv.durationSec ?? null,
             pace: iv.pace || '',
             rest: iv.rest || '',
+            targetThresholdLevel: iv.targetThresholdLevel || null,
+            targetOffsetSec: iv.targetOffsetSec ?? null,
           })),
         })),
         strengthBlocks: type === 'strength' && strengthBlocks.length > 0 ? strengthBlocks : null,
@@ -812,6 +850,14 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
                                 value={set.pace || ''}
                                 onChange={(e) => updateSet(index, 'pace', e.target.value)}
                               />
+                              <ThresholdPacePicker
+                                level={(set as any).targetThresholdLevel}
+                                offsetSec={(set as any).targetOffsetSec}
+                                onChange={(level, offsetSec) => {
+                                  updateSet(index, 'targetThresholdLevel', level)
+                                  updateSet(index, 'targetOffsetSec', offsetSec)
+                                }}
+                              />
                             </div>
                           </div>
                         )}
@@ -853,6 +899,14 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
                                       placeholder="3:45/km"
                                       value={interval.pace || ''}
                                       onChange={(e) => updateInterval(index, intIndex, 'pace', e.target.value)}
+                                    />
+                                    <ThresholdPacePicker
+                                      level={(interval as any).targetThresholdLevel}
+                                      offsetSec={(interval as any).targetOffsetSec}
+                                      onChange={(level, offsetSec) => {
+                                        updateInterval(index, intIndex, 'targetThresholdLevel', level)
+                                        updateInterval(index, intIndex, 'targetOffsetSec', offsetSec)
+                                      }}
                                     />
                                   </div>
                                   <div className="space-y-1">

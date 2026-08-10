@@ -423,6 +423,17 @@ export interface WorkoutInterval {
   durationSec?: number
   pace?: string
   rest?: string
+  // Personalize this segment's pace from the athlete's OWN lab thresholds
+  // instead of (or alongside) the free-text `pace` above — e.g. a Kenyan
+  // Fartlek's "medium" segment at 'below_T1' (recovery jog) and "fast"
+  // segment at 'T3', each resolved live per athlete via
+  // lib/physiology.ts personalPaceForLevel. `pace` still displays as a
+  // fallback/label when this athlete has no lab data yet.
+  targetThresholdLevel?: 'T1' | 'T2' | 'T3' | 'below_T1'
+  // Seconds/km offset from that level's resolved pace — positive = slower
+  // (e.g. +12 for "T1 pace, 12 sec/km slower"), negative = faster, 0/unset
+  // = exactly that level's pace.
+  targetOffsetSec?: number
 }
 
 export interface WorkoutSet {
@@ -448,6 +459,10 @@ export interface WorkoutSet {
   restAfterSet?: string
   notes?: string
   intervals?: WorkoutInterval[]
+  // Same personalization mechanism as WorkoutInterval above, for a plain
+  // set with no intervals (e.g. a whole easy run at "T1 + 12 sec/km").
+  targetThresholdLevel?: 'T1' | 'T2' | 'T3' | 'below_T1'
+  targetOffsetSec?: number
 }
 
 /** Resolve a set's "rest after this set" value, falling back to the legacy

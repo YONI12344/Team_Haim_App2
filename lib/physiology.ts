@@ -367,6 +367,53 @@ export function formatTargetRange(
   return parts.join(' · ')
 }
 
+/**
+ * Resolves ONE pace point (not a range) for a set/interval tagged with
+ * WorkoutSet.targetThresholdLevel + targetOffsetSec — e.g. "T1 pace, 12
+ * sec/km slower" for an easy run, or "T3 pace" for a fartlek's fast
+ * segment. Same underlying lab-curve interpolation as
+ * personalTargetRangeForLevel, just anchored at the level's exact lab
+ * marker (LT1_TARGET/LT2_TARGET/LT3_TARGET) instead of a workout-target
+ * window, since this is meant to be one concrete number per athlete, not
+ * a zone to hold. 'below_T1' anchors off the test's own easiest real
+ * step (a genuine "rest/recovery" pace) when a real curve exists, or T1
+ * pace + a conservative default offset otherwise. Returns null when this
+ * athlete has no usable lab data yet — callers should fall back to the
+ * set's own free-text `pace` in that case.
+ */
+export function personalPaceForLevel(
+  steps: LactateStep[] | null | undefined,
+  level: 'T1' | 'T2' | 'T3' | 'below_T1',
+  offsetSec = 0,
+): number | null {
+  if (!steps || steps.length === 0) return null
+  if (level === 'below_T1') {
+    if (steps.length >= 2) {
+      const pts = steps
+        .map(s => ({ pace: paceToSec(s.pace), lac: Number(s.lactate) }))
+        .filter((p): p is { pace: number; lac: number } => p.pace != null && isFinite(p.lac) && p.lac > 0)
+        .sort((a, b) => a.lac - b.lac)
+      if (pts.length > 0) return pts[0].pace + offsetSec
+    }
+    const t1 = interpolateAtLactate(steps, LT1_TARGET)
+    return t1 ? t1.paceSecPerKm + 45 + offsetSec : null // no curve to find a real "rest" step from — fall back to a conservative easy offset below T1
+  }
+  if (steps.length < 2) return null
+  const targetMmol = level === 'T1' ? LT1_TARGET : level === 'T2' ? LT2_TARGET : LT3_TARGET
+  const point = interpolateAtLactate(steps, targetMmol)
+  return point ? point.paceSecPerKm + offsetSec : null
+}
+
+/** "4:05" or "4:05/km + 12s slower" style label for a resolved personal
+ *  pace — showSign=true appends the offset direction for clarity when
+ *  editing (workout-builder.tsx); athlete-facing display just wants the
+ *  final pace (showSign=false, the default). */
+export function formatPersonalPace(paceSec: number, offsetSec = 0, showSign = false): string {
+  const base = secToPace(paceSec - offsetSec)
+  if (!showSign || !offsetSec) return secToPace(paceSec)
+  return `${base} ${offsetSec > 0 ? '+' : ''}${offsetSec}s`
+}
+
 /** "4:30" → 270 (sec/km). Returns null when unparseable. */
 export function paceToSec(p: string | null | undefined): number | null {
   if (!p) return null

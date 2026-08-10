@@ -23,7 +23,7 @@ import { useLanguage } from '@/contexts/language-context'
 import { useWorkoutTypeLabels } from '@/lib/workout-labels'
 import { toast } from 'sonner'
 import { WorkoutLogForm } from '@/components/athlete/workout-log-form'
-import { personalTargetRangeForLevel, personalTargetRangeWithBaseline, formatTargetRange, paceToSec, secToPace, stepsFromPhysiologySummary } from '@/lib/physiology'
+import { personalTargetRangeForLevel, personalTargetRangeWithBaseline, formatTargetRange, paceToSec, secToPace, stepsFromPhysiologySummary, personalPaceForLevel } from '@/lib/physiology'
 import { useLatestStepTest } from '@/hooks/useLatestStepTest'
 import { useWorkoutLactateGroups, latestSessionSteps, groupKeyFor } from '@/hooks/useWorkoutLactateGroups'
 import { useStravaSync } from '@/hooks/useStravaSync'
@@ -711,6 +711,15 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
         const restBetweenReps = setRestBetweenReps(set)
         const restAfterSet = setRestAfter(set)
         const isLastSet = si === (w.workout.sets as any[]).length - 1
+        // Per-set personalized pace (WorkoutSet.targetThresholdLevel) — a
+        // bank workout authored once can show a different real number per
+        // athlete, resolved from THIS athlete's own lab data. Takes
+        // priority over the whole-workout inlinePaceText below, which only
+        // ever reflects one level for the entire session.
+        const setPersonalPaceSec = set.targetThresholdLevel
+          ? personalPaceForLevel(effectiveSteps, set.targetThresholdLevel, set.targetOffsetSec || 0)
+          : null
+        const setPaceDisplay = setPersonalPaceSec != null ? secToPace(setPersonalPaceSec) : null
         return (
           <div key={set.id||si}>
             {/* Set header — structure (reps × distance/duration) and the
@@ -731,29 +740,39 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               {/* The set's own pace field is often just the T-level name
                   ("@ T1") rather than an actual pace — prefer the athlete's
                   concrete personalized number when available. */}
-              {(inlinePaceText || set.pace) && (
+              {(setPaceDisplay || inlinePaceText || set.pace) && (
                 <p className="text-xs text-muted-foreground text-right mt-1" dir="ltr">
-                  {inlinePaceText || `@ ${set.pace}`}
+                  {setPaceDisplay ? `@ ${setPaceDisplay}` : (inlinePaceText || `@ ${set.pace}`)}
                 </p>
               )}
             </div>
             {/* Intervals */}
-            {hasIntervals && set.intervals.map((iv: any, ii: number) => (
-              <div key={iv.id||ii}>
-                <div className="px-4 py-3 border-t border-border flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-navy text-white font-bold flex items-center justify-center text-xs flex-shrink-0">{ii+1}</span>
-                    <span className="text-base font-bold text-navy">{iv.distance || iv.duration}</span>
+            {hasIntervals && set.intervals.map((iv: any, ii: number) => {
+              // Same per-segment personalization as the set-level pace
+              // above — lets a single fartlek template (e.g. Kenyan
+              // Fartlek's "fast" segment @ T3, "medium" @ below-T1) show
+              // each athlete their own real pace per segment.
+              const ivPersonalPaceSec = iv.targetThresholdLevel
+                ? personalPaceForLevel(effectiveSteps, iv.targetThresholdLevel, iv.targetOffsetSec || 0)
+                : null
+              const ivPaceDisplay = ivPersonalPaceSec != null ? secToPace(ivPersonalPaceSec) : null
+              return (
+                <div key={iv.id||ii}>
+                  <div className="px-4 py-3 border-t border-border flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-full bg-navy text-white font-bold flex items-center justify-center text-xs flex-shrink-0">{ii+1}</span>
+                      <span className="text-base font-bold text-navy">{iv.distance || iv.duration}</span>
+                    </div>
+                    {(ivPaceDisplay || iv.pace) && <span className="text-sm text-muted-foreground">@ {ivPaceDisplay || iv.pace}</span>}
                   </div>
-                  {iv.pace && <span className="text-sm text-muted-foreground">@ {iv.pace}</span>}
+                  {iv.rest && (
+                    <div className="px-4 py-1.5 border-t border-border/30">
+                      <p className="text-xs text-muted-foreground text-right">{t.restPrefix} {iv.rest}</p>
+                    </div>
+                  )}
                 </div>
-                {iv.rest && (
-                  <div className="px-4 py-1.5 border-t border-border/30">
-                    <p className="text-xs text-muted-foreground text-right">{t.restPrefix} {iv.rest}</p>
-                  </div>
-                )}
-              </div>
-            ))}
+              )
+            })}
             {/* Rest between the reps of THIS set — e.g. "3× 2 ק"מ" always has
                 a place to show its rest now, lone set or not. */}
             {(set.reps || 1) > 1 && restBetweenReps && (
