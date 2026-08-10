@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Plus, Dumbbell, Pencil, X, Loader2 } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Plus, Dumbbell, Pencil, X, Loader2, FolderInput } from 'lucide-react'
 import Link from 'next/link'
 import { collection, doc, getDocs, orderBy, query, updateDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
@@ -17,27 +18,87 @@ const BANK_LEVEL_LABELS_HE: Record<ExperienceLevel, string> = {
   beginner: 'מתחילים', intermediate: 'בינוני', advanced: 'מתקדם', professional: 'עילית',
 }
 
-function BankItemGrid({ items, onRemove, removing }: { items: Workout[]; onRemove: (w: Workout) => void; removing: string | null }) {
+function QuickMoveForm({ workout, onSaved, onCancel }: { workout: Workout; onSaved: () => void; onCancel: () => void }) {
+  const [level, setLevel] = useState<ExperienceLevel | ''>(workout.bankLevel || '')
+  const [stage, setStage] = useState(workout.bankStage || '')
+  const [order, setOrder] = useState<number | ''>(workout.bankOrder ?? '')
+  const [saving, setSaving] = useState(false)
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      await updateDoc(doc(db, 'workouts', workout.id), {
+        bankLevel: level || null,
+        bankStage: level ? (stage.trim() || null) : null,
+        bankOrder: level && order !== '' ? Number(order) : null,
+      })
+      toast.success('עודכן')
+      onSaved()
+    } catch (err) {
+      console.error('Error moving bank workout:', err)
+      toast.error('העדכון נכשל')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="p-2.5 pt-0 space-y-1.5 border-t border-border/50 mt-2">
+      <div className="grid grid-cols-2 gap-1.5">
+        <select value={level} onChange={(e) => setLevel(e.target.value as ExperienceLevel | '')}
+          className="rounded-md border border-input bg-background px-1.5 py-1 text-[11px]">
+          <option value="">לא בבנק</option>
+          {BANK_LEVELS.map((lvl) => <option key={lvl} value={lvl}>{BANK_LEVEL_LABELS_HE[lvl]}</option>)}
+        </select>
+        <Input type="number" placeholder="סדר" value={order}
+          onChange={(e) => setOrder(e.target.value === '' ? '' : Number(e.target.value))}
+          className="h-7 text-[11px]" disabled={!level} />
+      </div>
+      <Input placeholder="שלב (לא חובה, למשל ריצה-הליכה שלב 1)" value={stage}
+        onChange={(e) => setStage(e.target.value)} className="h-7 text-[11px]" disabled={!level} dir="auto" />
+      <div className="flex gap-1.5">
+        <Button size="sm" className="h-7 text-[11px] flex-1" onClick={save} disabled={saving}>
+          {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : 'שמור'}
+        </Button>
+        <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={onCancel} disabled={saving}>ביטול</Button>
+      </div>
+    </div>
+  )
+}
+
+function BankItemGrid({ items, onRemove, removing, onMoved }: {
+  items: Workout[]; onRemove: (w: Workout) => void; removing: string | null; onMoved: () => void
+}) {
+  const [movingId, setMovingId] = useState<string | null>(null)
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
       {items.map((w) => (
         <Card key={w.id}>
-          <CardContent className="p-2.5 flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-sm font-medium truncate">{w.title}</p>
-              <p className="text-xs text-muted-foreground">
-                {w.duration ? `${w.duration} דק'` : ''}{w.duration && w.distance ? ' · ' : ''}{w.distance ? `${w.distance} ק"מ` : ''}
-              </p>
+          <CardContent className="p-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-sm font-medium truncate">{w.title}</p>
+                <p className="text-xs text-muted-foreground">
+                  {w.duration ? `${w.duration} דק'` : ''}{w.duration && w.distance ? ' · ' : ''}{w.distance ? `${w.distance} ק"מ` : ''}
+                </p>
+              </div>
+              <div className="flex gap-1 shrink-0">
+                <Button variant="ghost" size="icon" className="h-7 w-7" title="העברה מהירה"
+                  onClick={() => setMovingId(movingId === w.id ? null : w.id)}>
+                  <FolderInput className="h-3.5 w-3.5" />
+                </Button>
+                <Link href={`/coach/workouts/${w.id}/edit`}>
+                  <Button variant="ghost" size="icon" className="h-7 w-7"><Pencil className="h-3.5 w-3.5" /></Button>
+                </Link>
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
+                  onClick={() => onRemove(w)} disabled={removing === w.id}>
+                  {removing === w.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+                </Button>
+              </div>
             </div>
-            <div className="flex gap-1 shrink-0">
-              <Link href={`/coach/workouts/${w.id}/edit`}>
-                <Button variant="ghost" size="icon" className="h-7 w-7"><Pencil className="h-3.5 w-3.5" /></Button>
-              </Link>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
-                onClick={() => onRemove(w)} disabled={removing === w.id}>
-                {removing === w.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
-              </Button>
-            </div>
+            {movingId === w.id && (
+              <QuickMoveForm workout={w} onCancel={() => setMovingId(null)} onSaved={() => { setMovingId(null); onMoved() }} />
+            )}
           </CardContent>
         </Card>
       ))}
@@ -52,6 +113,8 @@ function BankItemGrid({ items, onRemove, removing }: { items: Workout[]; onRemov
 // needs very different content than a beginner in week 8 (near
 // continuous), so a flat pile of "beginner easy" workouts isn't enough on
 // its own; bankStage/bankOrder let a coach build an explicit ladder.
+// Quick-move (FolderInput icon on each card) reassigns level/stage/order
+// in place without opening the full workout builder.
 export function WorkoutBankManager() {
   const workoutTypeLabels = useWorkoutTypeLabels()
   const [workouts, setWorkouts] = useState<Workout[]>([])
@@ -96,7 +159,7 @@ export function WorkoutBankManager() {
         <div>
           <h2 className="text-lg font-semibold">בנק אימונים</h2>
           <p className="text-sm text-muted-foreground">
-            אימונים אמיתיים שכתבתם, מאורגנים לפי רמת ספורטאי ושלב התקדמות. מאמן ה-AI בקן בוחר ומתאים משך/מרחק מתוכם במקום להמציא תוכן — ככל שיש יותר גרסאות לכל סוג, כך פחות חזרתיות.
+            אימונים אמיתיים שכתבתם, מאורגנים לפי רמת ספורטאי ושלב התקדמות. מאמן ה-AI בקן בוחר ומתאים משך/מרחק מתוכם במקום להמציא תוכן — ככל שיש יותר גרסאות לכל סוג, כך פחות חזרתיות. השתמשו בסמל התיקייה על כל אימון כדי להעביר אותו במהירות בין רמות/שלבים.
           </p>
         </div>
         <Link href="/coach/workouts/new">
@@ -144,12 +207,12 @@ export function WorkoutBankManager() {
                           {Array.from(byStage.entries()).map(([stage, stageItems]) => (
                             <div key={stage || '_none'}>
                               {stage && <p className="text-[11px] text-muted-foreground mb-1">↳ {stage}</p>}
-                              <BankItemGrid items={stageItems} onRemove={removeFromBank} removing={removing} />
+                              <BankItemGrid items={stageItems} onRemove={removeFromBank} removing={removing} onMoved={load} />
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <BankItemGrid items={items} onRemove={removeFromBank} removing={removing} />
+                        <BankItemGrid items={items} onRemove={removeFromBank} removing={removing} onMoved={load} />
                       )}
                     </div>
                   )
