@@ -15,6 +15,7 @@ import {
   ArrowLeft, ChevronLeft, ChevronRight, Plus, X,
   Loader2, Clock, Check, Calendar, Copy, Pencil, Trash2, ClipboardPaste,
   BarChart2, Sparkles, Send, FlaskConical, Target, NotebookPen, User, Eye, AlertTriangle,
+  ClipboardList,
 } from 'lucide-react'
 import Link from 'next/link'
 import {
@@ -29,7 +30,7 @@ import {
   collection, doc, getDoc, getDocs, query,
   where, addDoc, serverTimestamp, deleteDoc, updateDoc,
 } from 'firebase/firestore'
-import type { AthleteProfile, Workout, AssignedWorkout, TrainingDayType, WorkoutLog, WorkoutType, JourneyDoc, JourneyStage } from '@/lib/types'
+import type { AthleteProfile, Workout, AssignedWorkout, TrainingDayType, WorkoutLog, WorkoutType, JourneyDoc, JourneyStage, Lead } from '@/lib/types'
 import { sortBySession } from '@/lib/types'
 import { legacyEffortToNumber } from '@/lib/types'
 import { listJourneys, computeJourneyProgress, saveJourney, stageDisplayName, isRestWeek } from '@/lib/journey'
@@ -111,6 +112,35 @@ export function AthletePlanner({ athleteId }: Props) {
   const [aiReport, setAiReport] = useState<any>(null)
   const [aiReportLoading, setAiReportLoading] = useState(false)
   const [showAiSection, setShowAiSection] = useState(false)
+
+  // Original application ("apply" form) data — only lives in the `leads`
+  // collection; auth-context.tsx only copies a handful of structured
+  // fields onto the athlete's own profile on conversion; everything else
+  // (goals, lifestyle, facilities, devices...) only exists here. Fetched
+  // by email once the athlete profile itself has loaded, collapsed by
+  // default same as the AI report above.
+  const [leadData, setLeadData] = useState<Lead | null>(null)
+  const [leadLoading, setLeadLoading] = useState(false)
+  const [showLeadSection, setShowLeadSection] = useState(false)
+  useEffect(() => {
+    if (!athlete?.email) return
+    let cancelled = false
+    setLeadLoading(true)
+    // Plain equality filter only (no orderBy) — combining it with a sort
+    // on a different field would need a composite index; sorting the
+    // handful of matches client-side avoids that entirely.
+    getDocs(query(collection(db, 'leads'), where('email', '==', athlete.email)))
+      .then((snap) => {
+        if (cancelled) return
+        if (snap.empty) { setLeadData(null); return }
+        const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Lead))
+        docs.sort((a, b) => (b.createdAt as any)?.toMillis?.() - (a.createdAt as any)?.toMillis?.() || 0)
+        setLeadData(docs[0])
+      })
+      .catch((err) => console.error('Error loading application data:', err))
+      .finally(() => { if (!cancelled) setLeadLoading(false) })
+    return () => { cancelled = true }
+  }, [athlete?.email])
 
   // Quick-assign sheet — opens when the coach taps a day on the calendar
   const [quickAssignDate, setQuickAssignDate] = useState<Date | null>(null)
@@ -1407,6 +1437,50 @@ export function AthletePlanner({ athleteId }: Props) {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Original application data — collapsed by default. Only the
+            leads/ collection has the FULL original form; the athlete's own
+            profile only got a handful of structured fields copied over on
+            conversion (see auth-context.tsx), everything else (goals,
+            lifestyle, facilities, devices...) only lives here. */}
+        {(leadData || leadLoading) && (
+        <Card>
+          <CardHeader className="pb-2 pt-4 px-4 cursor-pointer" onClick={() => setShowLeadSection(p => !p)}>
+            <CardTitle className="text-sm flex items-center justify-between gap-2">
+              <span className="flex items-center gap-2 text-muted-foreground">
+                <ClipboardList className="h-4 w-4 text-gold/60"/>
+                נתוני בקשת ההצטרפות
+              </span>
+              <ChevronLeft className={cn('h-4 w-4 text-muted-foreground transition-transform', showLeadSection && '-rotate-90')}/>
+            </CardTitle>
+          </CardHeader>
+          {showLeadSection && (
+            <CardContent className="px-4 pb-4 space-y-2 text-xs" dir="rtl">
+              {leadLoading ? (
+                <div className="flex justify-center py-4"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground"/></div>
+              ) : leadData && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+                  {leadData.primaryGoal && <div><span className="font-semibold">מטרה עיקרית: </span>{leadData.primaryGoal}</div>}
+                  {leadData.longTermGoal && <div><span className="font-semibold">מטרה ארוכת טווח: </span>{leadData.longTermGoal}</div>}
+                  {leadData.runningExperienceDuration && <div><span className="font-semibold">שנות ניסיון: </span>{leadData.runningExperienceDuration}</div>}
+                  {leadData.city && <div><span className="font-semibold">עיר: </span>{leadData.city}</div>}
+                  {leadData.daysPerWeek != null && <div><span className="font-semibold">ימי אימון בשבוע: </span>{leadData.daysPerWeek}</div>}
+                  {leadData.preferredDays && leadData.preferredDays.length > 0 && <div><span className="font-semibold">ימים מועדפים: </span>{leadData.preferredDays.join(', ')}</div>}
+                  {leadData.facilitiesAccess && leadData.facilitiesAccess.length > 0 && <div><span className="font-semibold">מתקנים זמינים: </span>{leadData.facilitiesAccess.join(', ')}</div>}
+                  {leadData.devicesUsed && leadData.devicesUsed.length > 0 && <div><span className="font-semibold">מכשירים: </span>{leadData.devicesUsed.join(', ')}</div>}
+                  {leadData.shoesInfo && <div><span className="font-semibold">נעליים: </span>{leadData.shoesInfo}</div>}
+                  {leadData.stravaOrGarminLink && <div><span className="font-semibold">Strava/Garmin: </span>{leadData.stravaOrGarminLink}</div>}
+                  {leadData.recentRaceEvent && <div><span className="font-semibold">מירוץ אחרון: </span>{leadData.recentRaceEvent} {leadData.recentRaceTime} ({leadData.recentRaceDate})</div>}
+                  {leadData.lifestyleNotes && <div className="sm:col-span-2"><span className="font-semibold">שינה/עומס חיים: </span>{leadData.lifestyleNotes}</div>}
+                  {leadData.currentInjuries && <div className="sm:col-span-2"><span className="font-semibold">פציעה נוכחית: </span>{leadData.currentInjuries}</div>}
+                  {leadData.medicalNotes && <div className="sm:col-span-2"><span className="font-semibold">הערות רפואיות: </span>{leadData.medicalNotes}</div>}
+                  {leadData.additionalNotes && <div className="sm:col-span-2"><span className="font-semibold">הערות נוספות: </span>{leadData.additionalNotes}</div>}
+                </div>
+              )}
+            </CardContent>
+          )}
+        </Card>
         )}
 
         {/* AI Coaching Report — collapsed by default, opens on demand */}
