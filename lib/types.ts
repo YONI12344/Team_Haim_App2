@@ -70,11 +70,17 @@ export interface AthleteProfile {
   // page and the /athlete/lab route itself until then.
   labVisibleToAthlete?: boolean
   // Coach turns this on per athlete to unlock the strength/stretch
-  // platform (Exercise Library workouts, Lift Mode, /athlete/progress,
-  // /athlete/injury) — still being tested, off by default. Checked
-  // directly on each of those athlete-facing surfaces, not just used to
-  // hide entry points, same defense-in-depth spirit as labVisibleToAthlete.
+  // platform (Exercise Library workouts, Lift Mode, /athlete/progress) —
+  // still being tested, off by default. Checked directly on each of those
+  // athlete-facing surfaces, not just used to hide entry points, same
+  // defense-in-depth spirit as labVisibleToAthlete. Deliberately separate
+  // from injuryToolsVisibleToAthlete below — the coach wants to be able to
+  // turn strength/stretch on for an athlete without also exposing the
+  // (separately unfinished) injury tool, and vice versa.
   strengthToolsVisibleToAthlete?: boolean
+  // Same gating mechanism as strengthToolsVisibleToAthlete, but just for
+  // /athlete/injury — independent switch, on purpose (see above).
+  injuryToolsVisibleToAthlete?: boolean
   onboardingComplete?: boolean
   // Private free-text notes — visible only to the coach, never sent to the
   // athlete (e.g. shoe model, injury history, quirks to remember)

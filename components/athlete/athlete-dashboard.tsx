@@ -224,6 +224,7 @@ export function AthleteDashboard() {
             visibleWeeksAhead: typeof data.visibleWeeksAhead === 'number' ? data.visibleWeeksAhead : 2,
             labVisibleToAthlete: data.labVisibleToAthlete === true,
             strengthToolsVisibleToAthlete: data.strengthToolsVisibleToAthlete === true,
+            injuryToolsVisibleToAthlete: data.injuryToolsVisibleToAthlete === true,
           })
         } else {
           setProfile({ name: user.name, events: [], personalRecords: [], goals: [] })
@@ -696,8 +697,9 @@ export function AthleteDashboard() {
       </Link>
 
       {/* Strength/stretch platform — Exercise Library workouts, Lift Mode,
-          progress, injury prevention. Coach-gated per athlete while the
-          feature is still being tested (users.strengthToolsVisibleToAthlete). */}
+          progress. Coach-gated per athlete while the feature is still being
+          tested (users.strengthToolsVisibleToAthlete) — separate switch
+          from injury prevention below, on purpose. */}
       {profile?.strengthToolsVisibleToAthlete && (
       <Link href="/athlete/progress" className="block">
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex items-center justify-between active:scale-[0.98] transition-transform">
@@ -715,7 +717,9 @@ export function AthleteDashboard() {
       </Link>
       )}
 
-      {profile?.strengthToolsVisibleToAthlete && (
+      {/* Injury prevention — its own gate (users.injuryToolsVisibleToAthlete),
+          independent from strength/stretch above. */}
+      {profile?.injuryToolsVisibleToAthlete && (
       <Link href="/athlete/injury" className="block">
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex items-center justify-between active:scale-[0.98] transition-transform">
           <div className="flex items-center gap-4">

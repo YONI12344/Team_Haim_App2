@@ -24,14 +24,16 @@ export function AthleteInjuryView() {
   const [injuries, setInjuries] = useState<AthleteInjury[]>([])
 
   // Feature still in testing — coach turns it on per athlete
-  // (users.strengthToolsVisibleToAthlete). Checked directly here, not just
-  // used to hide the dashboard entry card, so a direct URL visit before the
-  // coach enables it shows nothing real.
+  // (users.injuryToolsVisibleToAthlete) — a separate switch from
+  // strengthToolsVisibleToAthlete on purpose, so enabling strength/stretch
+  // for an athlete doesn't also expose this (separately unfinished) tool.
+  // Checked directly here, not just used to hide the dashboard entry card,
+  // so a direct URL visit before the coach enables it shows nothing real.
   useEffect(() => {
     if (!user?.id) return
     if (isCoachEmail(user.email)) { setVisible(true); return }
     getDoc(doc(db, 'users', user.id))
-      .then((snap) => setVisible(snap.exists() && snap.data().strengthToolsVisibleToAthlete === true))
+      .then((snap) => setVisible(snap.exists() && snap.data().injuryToolsVisibleToAthlete === true))
       .catch(() => setVisible(false))
   }, [user?.id, user?.email])
 
