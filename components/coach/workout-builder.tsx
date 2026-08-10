@@ -395,6 +395,28 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
       return
     }
 
+    // Soft duplicate check, bank entries only — the bank is meant to be
+    // one canonical workout per real session, not several near-identical
+    // entries under slightly different names (which just fragments the
+    // variety the generator actually sees for that type/level).
+    if (bankLevel) {
+      try {
+        const snap = await getDocs(collection(db, 'workouts'))
+        const normalizedTitle = finalTitle.trim().toLowerCase()
+        const dupe = snap.docs.find((d) => {
+          if (d.id === workoutId) return false
+          const data = d.data() as Workout
+          return data.bankLevel === bankLevel && data.type === type
+            && (data.title || '').trim().toLowerCase() === normalizedTitle
+        })
+        if (dupe && !confirm(`"${finalTitle}" כבר קיים בבנק (${BANK_LEVEL_LABELS[bankLevel]} / ${workoutTypeLabels[type]}). לשמור בכל זאת?`)) {
+          return
+        }
+      } catch (err) {
+        console.error('Error checking for duplicate bank workout:', err)
+      }
+    }
+
     setIsSubmitting(true)
     try {
       const payload = {

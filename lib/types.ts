@@ -182,6 +182,17 @@ export interface AthleteProfile {
   cutbackIntervalWeeks?: number // e.g. 3 = a down week every 3rd week, overriding the automatic default
   cutbackFewerDays?: boolean // on a cutback week, also drop one easy day entirely to full rest
   cutbackDowngradeQuality?: boolean // on a cutback week, also downgrade that week's quality sessions to easy
+  // Coach override of where THIS athlete actually starts within the
+  // Workout Bank's progression (Workout.bankStage/bankOrder) — a generic
+  // "beginner" level default (stage 1, the easiest entry) is wrong for,
+  // say, a talented former half-marathoner who's been out for a few
+  // years but isn't truly starting from zero. Points at a specific
+  // workouts/{id} bank entry; generation resumes forward from that
+  // entry's own bankOrder instead of always starting at the bottom of
+  // the ladder. Same override pattern as weeklyMileage above — set once,
+  // wins over any generic default, and this session's actual starting
+  // point isn't guessed from the level label alone.
+  startingWorkoutId?: string
   createdAt: Date
   updatedAt: Date
 }

@@ -134,6 +134,9 @@ const UI = {
     knowsAbout: (name: string) => `Everything Bakken AI knows about ${name} — edit here before generating if it changed`,
     planLanguage: 'Plan language (workout text, warmup/cooldown, notes)',
     experienceLevel: 'Experience level',
+    startingWorkoutLabel: 'Starting point in the bank',
+    startingWorkoutHint: "Override where THIS athlete actually starts (e.g. a talented ex-runner who took years off doesn't need the same starting point as someone starting from zero) — generation resumes forward from here instead of the level's easiest default.",
+    startingWorkoutAuto: 'Auto (start at the easiest bank entry for this level)',
     weeklyMileage: 'Starting weekly mileage (km) — what the season ramps up FROM',
     weeklyMileageHint: "Your number here always wins as the season's starting point, even if recent logged runs were lower (e.g. the athlete was injured/traveling and you know their real base). Leave it blank to let real logged history from the last 3 weeks set it automatically instead.",
     injuryHistory: 'Injury history',
@@ -239,6 +242,9 @@ const UI = {
     knowsAbout: (name: string) => `כל מה שמאמן ה-AI של בקן יודע על ${name} — ניתן לערוך כאן לפני היצירה אם משהו השתנה`,
     planLanguage: 'שפת התוכנית (טקסט האימון, חימום/שחרור, הערות)',
     experienceLevel: 'רמת ניסיון',
+    startingWorkoutLabel: 'נקודת התחלה בבנק',
+    startingWorkoutHint: 'שינוי ידני של איפה הספורטאי הזה באמת מתחיל (למשל רץ מוכשר לשעבר שהפסיק לכמה שנים לא צריך את אותה נקודת התחלה כמו מישהו שמתחיל מאפס) — היצירה תמשיך משם והלאה במקום מברירת המחדל הקלה ביותר של הרמה.',
+    startingWorkoutAuto: 'אוטומטי (התחלה מהאימון הקל ביותר בבנק לרמה זו)',
     weeklyMileage: 'ק"מ שבועי התחלתי — ממנו התוכנית בונה עלייה',
     weeklyMileageHint: 'המספר שתזינו כאן תמיד יקבע את נקודת ההתחלה של העונה, גם אם הריצות האחרונות שנרשמו היו נמוכות יותר (למשל אם הספורטאי היה פצוע/בנסיעה ואתם יודעים מה הבסיס האמיתי שלו). השאירו ריק כדי לתת להיסטוריית הריצות האמיתית מ-3 השבועות האחרונים לקבוע זאת אוטומטית.',
     injuryHistory: 'היסטוריית פציעות',
@@ -429,6 +435,7 @@ interface AthleteSummary {
     testDate?: string
   }
   personalRecords: Array<{ event: string; time: string; date: string }>
+  startingWorkoutId?: string
 }
 
 const formatPace = (sec?: number | null) => {
@@ -559,6 +566,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         personalRecords: Array.isArray(d.personalRecords)
           ? d.personalRecords.slice(0, 5).map((p: any) => ({ event: p.event, time: p.time, date: p.date }))
           : [],
+        startingWorkoutId: d.startingWorkoutId || undefined,
       })
       setCoachNotes(d.coachPrivateNotes || '')
       setRecurringActivities(Array.isArray(d.recurringActivities) ? d.recurringActivities : [])
@@ -732,6 +740,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         coachPrivateNotes: coachNotes,
         preferredLanguage: summary.language,
         experienceLevel: summary.experienceLevel || null,
+        startingWorkoutId: summary.startingWorkoutId || null,
         weeklyMileage: summary.weeklyMileage ?? null,
         injuryHistory: summary.injuryHistory || null,
         currentShape: summary.currentShape || null,
@@ -1227,6 +1236,26 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
                 ))}
               </div>
             </div>
+
+            {summary.experienceLevel && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1">{t.startingWorkoutLabel}</p>
+                <p className="text-[11px] text-muted-foreground mb-1">{t.startingWorkoutHint}</p>
+                <select value={summary.startingWorkoutId || ''}
+                  onChange={(e) => setAthleteField('startingWorkoutId', e.target.value || undefined)}
+                  className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-xs">
+                  <option value="">{t.startingWorkoutAuto}</option>
+                  {libraryWorkouts
+                    .filter((w) => w.bankLevel === summary.experienceLevel)
+                    .sort((a, b) => (a.bankOrder ?? 999) - (b.bankOrder ?? 999))
+                    .map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.bankStage ? `${w.bankStage} — ${w.title}` : w.title}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            )}
 
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-1">{t.weeklyMileage}</p>
