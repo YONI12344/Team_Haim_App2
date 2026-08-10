@@ -12,6 +12,7 @@
 
 import { format, addDays, parseISO, startOfWeek } from 'date-fns'
 import type { BlockStageInfo } from './plan-prompt'
+import type { StrengthBlock } from '../types'
 import safetyRules from './safety-rules.json'
 
 export interface BlockWorkoutOut {
@@ -43,6 +44,10 @@ export interface BlockWorkoutOut {
       notes?: string | null
     }>
   }>
+  // Only set when this day came from a recurring activity referencing an
+  // existing structured strength workout (AthleteProfile.recurringActivities
+  // [i].workoutId) — see enforceRecurringActivities.
+  strengthBlocks?: StrengthBlock[] | null
 }
 
 export type DayKey = 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday'
@@ -75,15 +80,45 @@ const weekKeyOf = (dateStr: string) => format(startOfWeek(parseISO(dateStr), { w
 // since forcing a 3rd same-date entry isn't a case the rest of the app's
 // same-day rendering is built to handle.
 const RECURRING_ACTIVITY_DEFAULT_MINUTES = 45
+export interface RecurringActivityInput {
+  dayOfWeek: DayKey
+  frequency: 'every_week' | 'every_other_week'
+  type: string
+  title: string
+  notes?: string
+  // Set when this activity references an existing library workout
+  // (AthleteProfile.recurringActivities[i].workoutId) instead of a plain
+  // generic stub — its real content (description/sets/strengthBlocks/etc.)
+  // gets placed verbatim rather than the 45min placeholder below. Resolved
+  // by the caller (bakken-plan-panel.tsx) since this file has no Firestore
+  // access of its own.
+  content?: {
+    description?: string
+    warmup?: string | null
+    cooldown?: string | null
+    notes?: string | null
+    duration?: number | null
+    distance?: number | null
+    sets?: BlockWorkoutOut['sets']
+    strengthBlocks?: StrengthBlock[] | null
+  }
+}
+const applyRecurringContent = (target: BlockWorkoutOut, activity: RecurringActivityInput, language: 'en' | 'he') => {
+  target.type = activity.type
+  target.title = activity.title
+  const c = activity.content
+  target.description = c?.description || activity.notes || (language === 'he' ? 'אימון קבוע שבועי.' : 'Standing weekly session.')
+  target.duration = c?.duration ?? RECURRING_ACTIVITY_DEFAULT_MINUTES
+  target.distance = c?.distance ?? null
+  target.sets = c?.sets ?? []
+  target.warmup = c?.warmup ?? null
+  target.cooldown = c?.cooldown ?? null
+  target.notes = c?.notes ?? null
+  target.strengthBlocks = c?.strengthBlocks ?? null
+}
 export const enforceRecurringActivities = (
   workouts: BlockWorkoutOut[],
-  recurringActivities: Array<{
-    dayOfWeek: DayKey
-    frequency: 'every_week' | 'every_other_week'
-    type: string
-    title: string
-    notes?: string
-  }> | undefined,
+  recurringActivities: RecurringActivityInput[] | undefined,
   seasonStartDate: string,
   language: 'en' | 'he',
 ): BlockWorkoutOut[] => {
@@ -107,12 +142,7 @@ export const enforceRecurringActivities = (
         // second, ambiguous same-date entry next to a day that's really
         // just "nothing happening here."
         const target = restEntries[0]
-        target.type = activity.type
-        target.title = activity.title
-        target.description = activity.notes || (language === 'he' ? 'אימון קבוע שבועי.' : 'Standing weekly session.')
-        target.duration = RECURRING_ACTIVITY_DEFAULT_MINUTES
-        target.distance = null
-        target.sets = []
+        applyRecurringContent(target, activity, language)
         for (const extra of restEntries.slice(1)) {
           const idx = workouts.indexOf(extra)
           if (idx >= 0) workouts.splice(idx, 1)
@@ -121,18 +151,18 @@ export const enforceRecurringActivities = (
       }
 
       if (dayEntries.length >= 2) continue
-      workouts.push({
+      const placed: BlockWorkoutOut = {
         date: targetDate,
         session: dayEntries.length === 1
           ? (dayEntries[0].session === 'am' ? 'pm' : dayEntries[0].session === 'pm' ? 'am' : 'other')
           : 'other',
         type: activity.type,
         title: activity.title,
-        description: activity.notes || (language === 'he' ? 'אימון קבוע שבועי.' : 'Standing weekly session.'),
-        duration: RECURRING_ACTIVITY_DEFAULT_MINUTES,
-        distance: null,
+        description: '',
         sets: [],
-      })
+      }
+      applyRecurringContent(placed, activity, language)
+      workouts.push(placed)
     }
   }
   return workouts

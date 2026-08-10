@@ -23,9 +23,9 @@ import { useLanguage } from '@/contexts/language-context'
 import { useLatestStepTest } from '@/hooks/useLatestStepTest'
 import { saveJourney, getJourney, stageDisplayName } from '@/lib/journey'
 import { interpolateAtLactate, stepsFromPhysiologySummary } from '@/lib/physiology'
-import type { WorkoutType, JourneyDoc, JourneyStage } from '@/lib/types'
+import type { WorkoutType, JourneyDoc, JourneyStage, Workout } from '@/lib/types'
 import type { PlanAthleteContext, BlockStageInfo, SkeletonRequest, SkeletonOut } from '@/lib/bakken/plan-prompt'
-import type { BlockWorkoutOut, DayKey } from '@/lib/bakken/backstops'
+import type { BlockWorkoutOut, DayKey, RecurringActivityInput } from '@/lib/bakken/backstops'
 import {
   normalizeInvalidTypes,
   enforceWeekSchedule,
@@ -160,6 +160,8 @@ const UI = {
     cutbackDowngradeLabel: 'Also downgrade that week\'s quality sessions to easy',
     recurringTitlePlaceholder: 'Title (e.g. "Gym")',
     recurringNotesPlaceholder: 'Notes (optional)',
+    recurringPickWorkout: 'or pick existing workout...',
+    recurringPickWorkoutHint: 'Reuse an existing workout from the library (e.g. a real lift workout or stretching routine) instead of typing type/title manually.',
     everyWeek: 'Every week',
     everyOtherWeek: 'Every other week',
     dayTemplateTitle: 'Day-type template per season phase',
@@ -263,6 +265,8 @@ const UI = {
     cutbackDowngradeLabel: 'גם להפוך את אימוני האיכות של השבוע הזה לריצה קלה',
     recurringTitlePlaceholder: 'כותרת (למשל "חדר כושר")',
     recurringNotesPlaceholder: 'הערות (לא חובה)',
+    recurringPickWorkout: 'או בחר אימון קיים...',
+    recurringPickWorkoutHint: 'להשתמש באימון קיים מהספרייה (למשל אימון כוח אמיתי או תרגילי מתיחות) במקום להקליד סוג/שם ידנית.',
     everyWeek: 'כל שבוע',
     everyOtherWeek: 'כל שבוע שני',
     dayTemplateTitle: 'תבנית ימים לפי שלב עונה',
@@ -460,7 +464,17 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
     type: string
     title: string
     notes?: string
+    workoutId?: string
   }>>([])
+  // Existing library workouts a recurring activity can reference (e.g. a
+  // real structured lift workout, or a stretching routine) instead of a
+  // generic type+title stub — loaded once, same list as the workout library.
+  const [libraryWorkouts, setLibraryWorkouts] = useState<Workout[]>([])
+  useEffect(() => {
+    getDocs(collection(db, 'workouts')).then((snap) => {
+      setLibraryWorkouts(snap.docs.filter((d) => !d.data().libraryHidden).map((d) => ({ ...(d.data() as Workout), id: d.id })))
+    }).catch(console.error)
+  }, [])
   // Coach-defined weekday->type skeleton per season-stage TYPE (base/build/
   // peak/etc.) — the AI generator uses the exact type on that weekday for
   // any week that stage is active instead of deciding itself. See rule 2c.
@@ -832,9 +846,13 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         last3WeeksSummary,
         recentWorkouts,
         recurringActivities: Array.isArray(profile.recurringActivities) && profile.recurringActivities.length > 0
-          ? profile.recurringActivities.map((r: any) => ({
-              dayOfWeek: r.dayOfWeek, frequency: r.frequency, type: r.type, title: r.title, notes: r.notes,
-            }))
+          ? profile.recurringActivities.map((r: any) => {
+              const linked = r.workoutId ? libraryWorkouts.find((w) => w.id === r.workoutId) : undefined
+              return {
+                dayOfWeek: r.dayOfWeek, frequency: r.frequency,
+                type: linked?.type || r.type, title: linked?.title || r.title, notes: r.notes,
+              }
+            })
           : undefined,
         specialEvents: Array.isArray(profile.specialEvents) && profile.specialEvents.length > 0
           ? profile.specialEvents.map((e: any) => ({ date: e.date, label: e.label, notes: e.notes }))
@@ -1045,6 +1063,23 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         cursor = addDaysStr(end, 1)
       }
 
+      // Resolved once for the whole generate() call — recurring activities
+      // that reference an existing library workout (workoutId) get that
+      // workout's real content attached, so enforceRecurringActivities
+      // places the actual lift/stretch workout instead of a generic stub.
+      const recurringActivitiesResolved: RecurringActivityInput[] | undefined = athleteContext.recurringActivities?.map((r, idx) => {
+        const raw = profile.recurringActivities?.[idx]
+        const linked = raw?.workoutId ? libraryWorkouts.find((w) => w.id === raw.workoutId) : undefined
+        return {
+          ...r,
+          content: linked ? {
+            description: linked.description, warmup: linked.warmup, cooldown: linked.cooldown,
+            notes: linked.notes, duration: linked.duration, distance: linked.distance,
+            sets: linked.sets as any, strengthBlocks: linked.strengthBlocks,
+          } : undefined,
+        }
+      })
+
       // 4. Fill in each block from the Bakken brain, writing as we go.
       // previousBlockTail is already seeded above when continuing an
       // existing season (from the real last-generated workouts), so rule 9
@@ -1101,7 +1136,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         enforceAmPmOrder(plan.workouts)
         enforceLongRunDay(plan.workouts, athleteContext.longRunDay, athleteContext.language)
         enforceNoBackToBackBigDays(plan.workouts, previousBlockTail, athleteContext.longRunDay, athleteContext.language)
-        enforceRecurringActivities(plan.workouts, athleteContext.recurringActivities, journeyDoc.startDate, athleteContext.language)
+        enforceRecurringActivities(plan.workouts, recurringActivitiesResolved, journeyDoc.startDate, athleteContext.language)
         enforceSpecialEvents(plan.workouts, athleteContext.specialEvents, athleteContext.language)
         // Runs LAST among the date/session-touching backstops — enforceLongRunDay
         // swaps dates (not sessions) when relocating a long run, which can land
@@ -1280,18 +1315,34 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
                     <option value="every_week">{t.everyWeek}</option>
                     <option value="every_other_week">{t.everyOtherWeek}</option>
                   </select>
-                  <select value={activity.type}
-                    onChange={(e) => setRecurringActivities(recurringActivities.map((a, i) => i === idx ? { ...a, type: e.target.value } : a))}
-                    className="rounded-md border border-input bg-background px-1.5 py-1 text-[11px]">
-                    <option value="strength">{workoutTypeLabels.strength}</option>
-                    <option value="cross_training">{workoutTypeLabels.cross_training}</option>
+                  {activity.workoutId ? (
+                    <span className="min-w-[100px] flex-1 rounded-md border border-primary/30 bg-primary/5 px-1.5 py-1 text-[11px] text-primary truncate">
+                      🔗 {libraryWorkouts.find((w) => w.id === activity.workoutId)?.title || activity.workoutId}
+                    </span>
+                  ) : (
+                    <>
+                      <select value={activity.type}
+                        onChange={(e) => setRecurringActivities(recurringActivities.map((a, i) => i === idx ? { ...a, type: e.target.value } : a))}
+                        className="rounded-md border border-input bg-background px-1.5 py-1 text-[11px]">
+                        <option value="strength">{workoutTypeLabels.strength}</option>
+                        <option value="stretch">{workoutTypeLabels.stretch}</option>
+                        <option value="cross_training">{workoutTypeLabels.cross_training}</option>
+                      </select>
+                      <input type="text" value={activity.title} placeholder={t.recurringTitlePlaceholder}
+                        onChange={(e) => setRecurringActivities(recurringActivities.map((a, i) => i === idx ? { ...a, title: e.target.value } : a))}
+                        className="min-w-[100px] flex-1 rounded-md border border-input bg-background px-1.5 py-1 text-[11px]" />
+                    </>
+                  )}
+                  <select value={activity.workoutId || ''}
+                    onChange={(e) => setRecurringActivities(recurringActivities.map((a, i) => i === idx ? { ...a, workoutId: e.target.value || undefined } : a))}
+                    title={t.recurringPickWorkoutHint}
+                    className="rounded-md border border-input bg-background px-1.5 py-1 text-[11px] max-w-[130px]">
+                    <option value="">{t.recurringPickWorkout}</option>
+                    {libraryWorkouts.map((w) => <option key={w.id} value={w.id}>{w.title}</option>)}
                   </select>
-                  <input type="text" value={activity.title} placeholder={t.recurringTitlePlaceholder}
-                    onChange={(e) => setRecurringActivities(recurringActivities.map((a, i) => i === idx ? { ...a, title: e.target.value } : a))}
-                    className="min-w-[100px] flex-1 rounded-md border border-input bg-background px-1.5 py-1 text-[11px]" />
                   <input type="text" value={activity.notes || ''} placeholder={t.recurringNotesPlaceholder}
                     onChange={(e) => setRecurringActivities(recurringActivities.map((a, i) => i === idx ? { ...a, notes: e.target.value } : a))}
-                    className="min-w-[100px] flex-1 rounded-md border border-input bg-background px-1.5 py-1 text-[11px]" />
+                    className="min-w-[80px] flex-1 rounded-md border border-input bg-background px-1.5 py-1 text-[11px]" />
                   <button type="button" onClick={() => setRecurringActivities(recurringActivities.filter((_, i) => i !== idx))}
                     className="rounded-md p-1 text-muted-foreground hover:text-destructive">
                     <X className="h-3.5 w-3.5" />
