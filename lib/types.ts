@@ -69,6 +69,12 @@ export interface AthleteProfile {
   // lactate-tested — hidden from the athlete's dashboard/training-plan
   // page and the /athlete/lab route itself until then.
   labVisibleToAthlete?: boolean
+  // Coach turns this on per athlete to unlock the strength/stretch
+  // platform (Exercise Library workouts, Lift Mode, /athlete/progress,
+  // /athlete/injury) — still being tested, off by default. Checked
+  // directly on each of those athlete-facing surfaces, not just used to
+  // hide entry points, same defense-in-depth spirit as labVisibleToAthlete.
+  strengthToolsVisibleToAthlete?: boolean
   onboardingComplete?: boolean
   // Private free-text notes — visible only to the coach, never sent to the
   // athlete (e.g. shoe model, injury history, quirks to remember)

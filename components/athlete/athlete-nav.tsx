@@ -25,8 +25,6 @@ import {
   ChevronDown,
   Compass,
   FileText,
-  TrendingUp,
-  HeartPulse,
 } from 'lucide-react'
 
 export function AthleteNav() {
@@ -41,8 +39,6 @@ export function AthleteNav() {
     { href: '/athlete/journey', label: t.journey, icon: Compass },
     { href: '/athlete/profile', label: t.profile, icon: User },
     { href: '/athlete/stats', label: t.statistics, icon: BarChart3 },
-    { href: '/athlete/progress', label: 'התקדמות בכוח', icon: TrendingUp },
-    { href: '/athlete/injury', label: 'מניעת פציעות', icon: HeartPulse },
     { href: '/athlete/chat', label: t.chat, icon: MessageCircle },
     { href: '/athlete/documents', label: 'מסמכים', icon: FileText },
   ]

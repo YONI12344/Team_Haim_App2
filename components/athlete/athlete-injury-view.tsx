@@ -1,13 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { collection, getDocs, query, where } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import Link from 'next/link'
-import { Loader2, MessageCircle, ChevronRight, AlertTriangle, Video, Dumbbell } from 'lucide-react'
+import { Loader2, MessageCircle, ChevronRight, AlertTriangle, Video, Dumbbell, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useLanguage } from '@/contexts/language-context'
 import { useAuth } from '@/contexts/auth-context'
+import { isCoachEmail } from '@/lib/constants'
 import { BODY_ZONES, ZONE_IDS } from '@/lib/injury-data'
 import { listExercises } from '@/lib/exercise-library'
 import type { AthleteInjury, ExerciseLibraryItem } from '@/lib/types'
@@ -18,11 +19,24 @@ export function AthleteInjuryView() {
   const he = language === 'he'
   const [selected, setSelected] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [visible, setVisible] = useState<boolean | null>(null)
   const [exercises, setExercises] = useState<ExerciseLibraryItem[]>([])
   const [injuries, setInjuries] = useState<AthleteInjury[]>([])
 
+  // Feature still in testing — coach turns it on per athlete
+  // (users.strengthToolsVisibleToAthlete). Checked directly here, not just
+  // used to hide the dashboard entry card, so a direct URL visit before the
+  // coach enables it shows nothing real.
   useEffect(() => {
     if (!user?.id) return
+    if (isCoachEmail(user.email)) { setVisible(true); return }
+    getDoc(doc(db, 'users', user.id))
+      .then((snap) => setVisible(snap.exists() && snap.data().strengthToolsVisibleToAthlete === true))
+      .catch(() => setVisible(false))
+  }, [user?.id, user?.email])
+
+  useEffect(() => {
+    if (!user?.id || !visible) return
     const load = async () => {
       try {
         const [exList, injSnap] = await Promise.all([
@@ -57,11 +71,34 @@ export function AthleteInjuryView() {
       }
     }
     load()
-  }, [user?.id])
+  }, [user?.id, visible])
 
   const zone = selected ? BODY_ZONES[selected] : null
   const zoneExercises = selected ? exercises.filter((ex) => ex.injuryZones?.includes(selected)) : []
   const zoneInjury = selected ? injuries.find((inj) => inj.zoneId === selected && inj.status === 'active') : undefined
+
+  if (visible === null) {
+    return (
+      <div className="flex items-center justify-center min-h-[300px]">
+        <Loader2 className="h-8 w-8 animate-spin text-[#c9a84c]" />
+      </div>
+    )
+  }
+
+  if (!visible) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[300px] text-center gap-3">
+        <div className="w-14 h-14 rounded-2xl bg-[#0a1628]/5 flex items-center justify-center">
+          <Sparkles className="h-7 w-7 text-[#0a1628]/40" />
+        </div>
+        <p className="text-sm text-muted-foreground max-w-xs">
+          {he
+            ? 'התכונה הזו עוד לא הופעלה עבורך — דבר עם המאמן שלך'
+            : "This feature hasn't been turned on for you yet — talk to your coach"}
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-5 pb-24 md:pb-8" dir={isRTL ? 'rtl' : 'ltr'}>

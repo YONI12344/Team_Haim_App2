@@ -206,6 +206,7 @@ export function AthletePlanner({ athleteId }: Props) {
             targetPaceKm: d.targetPaceKm,
             physiology: d.physiology,
             labVisibleToAthlete: d.labVisibleToAthlete === true,
+            strengthToolsVisibleToAthlete: d.strengthToolsVisibleToAthlete === true,
             coachPrivateNotes: d.coachPrivateNotes || '',
             visibleWeeksAhead: typeof d.visibleWeeksAhead === 'number' ? d.visibleWeeksAhead : 2,
             weekStartDay: d.weekStartDay === 1 ? 1 : 0,
@@ -1721,6 +1722,33 @@ export function AthletePlanner({ athleteId }: Props) {
                   setAthlete(prev => prev ? { ...prev, labVisibleToAthlete: checked } : prev)
                   const { updateDoc: ud, doc: dc } = await import('firebase/firestore')
                   await ud(dc(db, 'users', athleteId), { labVisibleToAthlete: checked })
+                }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Strength/stretch platform (Exercise Library, Lift Mode, progress,
+            injury prevention) — still being tested, off by default. Coach
+            turns it on per athlete, same gating mechanism as the Lab above:
+            checked directly on the athlete-facing pages too, not just used
+            to hide buttons, so a direct URL visit stays blocked either way. */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm">כלי כוח ומתיחות</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground mb-3">
+              ספריית תרגילים, מצב אימון עם וידאו/טיימר, מעקב התקדמות ומניעת פציעות — פיצ&apos;ר בבדיקה, כבוי כברירת מחדל.
+            </p>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-muted-foreground">גלוי לספורטאי</span>
+              <Switch
+                checked={!!athlete?.strengthToolsVisibleToAthlete}
+                onCheckedChange={async (checked) => {
+                  setAthlete(prev => prev ? { ...prev, strengthToolsVisibleToAthlete: checked } : prev)
+                  const { updateDoc: ud, doc: dc } = await import('firebase/firestore')
+                  await ud(dc(db, 'users', athleteId), { strengthToolsVisibleToAthlete: checked })
                 }}
               />
             </div>

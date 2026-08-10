@@ -223,6 +223,7 @@ export function AthleteDashboard() {
             kmWeekStartDay: data.kmWeekStartDay === 0 ? 0 : 1,
             visibleWeeksAhead: typeof data.visibleWeeksAhead === 'number' ? data.visibleWeeksAhead : 2,
             labVisibleToAthlete: data.labVisibleToAthlete === true,
+            strengthToolsVisibleToAthlete: data.strengthToolsVisibleToAthlete === true,
           })
         } else {
           setProfile({ name: user.name, events: [], personalRecords: [], goals: [] })
@@ -694,7 +695,10 @@ export function AthleteDashboard() {
         </div>
       </Link>
 
-      {/* Strength progress — weight history/charts per exercise from Lift Mode */}
+      {/* Strength/stretch platform — Exercise Library workouts, Lift Mode,
+          progress, injury prevention. Coach-gated per athlete while the
+          feature is still being tested (users.strengthToolsVisibleToAthlete). */}
+      {profile?.strengthToolsVisibleToAthlete && (
       <Link href="/athlete/progress" className="block">
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex items-center justify-between active:scale-[0.98] transition-transform">
           <div className="flex items-center gap-4">
@@ -709,8 +713,9 @@ export function AthleteDashboard() {
           <ChevronRight className={cn('h-5 w-5 text-gray-300 flex-shrink-0', isRTL && 'rotate-180')} />
         </div>
       </Link>
+      )}
 
-      {/* Injury prevention — body zones, coach-tagged exercises, personalized rehab plan */}
+      {profile?.strengthToolsVisibleToAthlete && (
       <Link href="/athlete/injury" className="block">
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex items-center justify-between active:scale-[0.98] transition-transform">
           <div className="flex items-center gap-4">
@@ -725,6 +730,7 @@ export function AthleteDashboard() {
           <ChevronRight className={cn('h-5 w-5 text-gray-300 flex-shrink-0', isRTL && 'rotate-180')} />
         </div>
       </Link>
+      )}
 
       {/* Lab — lactate tests, thresholds, derived paces; coach-gated per athlete */}
       {profile?.labVisibleToAthlete && (

@@ -336,6 +336,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             weekStartDay: d.weekStartDay === 1 ? 1 : 0,
             kmWeekStartDay: d.kmWeekStartDay === 0 ? 0 : 1,
             labVisibleToAthlete: d.labVisibleToAthlete === true,
+            strengthToolsVisibleToAthlete: d.strengthToolsVisibleToAthlete === true,
             physiology: d.physiology || undefined,
             createdAt: d.createdAt?.toDate?.() || new Date(),
             updatedAt: d.updatedAt?.toDate?.() || new Date(),
@@ -811,8 +812,9 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
         </div>
       )}
       {/* Structured strength/stretch workout — step through exercises with
-          video + weight/timer logging instead of the generic log form below. */}
-      {(w.workout.type === 'strength' || w.workout.type === 'stretch') && !!w.workout.strengthBlocks?.length && (
+          video + weight/timer logging instead of the generic log form below.
+          Coach-gated: strengthToolsVisibleToAthlete (feature still in testing). */}
+      {(w.workout.type === 'strength' || w.workout.type === 'stretch') && !!w.workout.strengthBlocks?.length && !!athlete?.strengthToolsVisibleToAthlete && (
         <div className="px-4 py-3 border-t border-border">
           <Link href={`/athlete/lift/${w.id}`}>
             <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold">

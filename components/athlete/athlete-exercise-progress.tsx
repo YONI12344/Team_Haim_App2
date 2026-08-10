@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { collection, getDocs, query, where } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/auth-context'
-import { Loader2, ChevronLeft, Dumbbell, Trophy } from 'lucide-react'
+import { isCoachEmail } from '@/lib/constants'
+import { Loader2, ChevronLeft, Dumbbell, Trophy, Sparkles } from 'lucide-react'
 import {
   LineChart,
   Line,
@@ -50,10 +51,23 @@ export function AthleteExerciseProgress() {
   const { user } = useAuth()
   const [logs, setLogs] = useState<ExerciseLogEntry[]>([])
   const [loading, setLoading] = useState(true)
+  const [visible, setVisible] = useState<boolean | null>(null)
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null)
 
+  // Feature still in testing — coach turns it on per athlete
+  // (users.strengthToolsVisibleToAthlete). Checked directly here, not just
+  // used to hide the dashboard entry card, so a direct URL visit before the
+  // coach enables it shows nothing real.
   useEffect(() => {
     if (!user?.id) return
+    if (isCoachEmail(user.email)) { setVisible(true); return }
+    getDoc(doc(db, 'users', user.id))
+      .then((snap) => setVisible(snap.exists() && snap.data().strengthToolsVisibleToAthlete === true))
+      .catch(() => setVisible(false))
+  }, [user?.id, user?.email])
+
+  useEffect(() => {
+    if (!user?.id || !visible) return
     loadLogs(user.id)
       .then(setLogs)
       .catch((err) => {
@@ -61,7 +75,7 @@ export function AthleteExerciseProgress() {
         setLogs([])
       })
       .finally(() => setLoading(false))
-  }, [user?.id])
+  }, [user?.id, visible])
 
   const groups = useMemo<ExerciseGroup[]>(() => {
     const map = new Map<string, ExerciseGroup>()
@@ -94,6 +108,27 @@ export function AthleteExerciseProgress() {
   }, [logs])
 
   const selectedGroup = groups.find((g) => g.exerciseId === selectedExerciseId) || null
+
+  if (visible === null) {
+    return (
+      <div className="flex items-center justify-center min-h-[300px]">
+        <Loader2 className="h-8 w-8 animate-spin text-[#c9a84c]" />
+      </div>
+    )
+  }
+
+  if (!visible) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[300px] text-center gap-3">
+        <div className="w-14 h-14 rounded-2xl bg-[#0a1628]/5 flex items-center justify-center">
+          <Sparkles className="h-7 w-7 text-[#0a1628]/40" />
+        </div>
+        <p className="text-sm text-muted-foreground max-w-xs">
+          התכונה הזו עוד לא הופעלה עבורך — דבר עם המאמן שלך כדי להתחיל במעקב התקדמות
+        </p>
+      </div>
+    )
+  }
 
   if (loading) {
     return (

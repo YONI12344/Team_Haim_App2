@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Loader2, ChevronLeft, ChevronRight, Check, X, TrendingUp, Play, Square } from 'lucide-react'
 import { toast } from 'sonner'
+import { useAuth } from '@/contexts/auth-context'
+import { isCoachEmail } from '@/lib/constants'
 import type { AssignedWorkout, StrengthBlockExercise } from '@/lib/types'
 
 type SetProgress = { completed: boolean; weightKg?: number | null; durationSec?: number | null }
@@ -70,6 +72,7 @@ function SetTimer({ targetSec, savedSec, completed, onDone }: {
 
 export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
   const router = useRouter()
+  const { user } = useAuth()
   const [assigned, setAssigned] = useState<AssignedWorkout | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -86,6 +89,18 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
         if (!LIFT_MODE_TYPES.includes(data.workout?.type as typeof LIFT_MODE_TYPES[number]) || !data.workout.strengthBlocks?.length) {
           setError('לאימון הזה אין תרגילים מובנים למצב אימון')
           return
+        }
+        // Feature still in testing — coach turns it on per athlete
+        // (users.strengthToolsVisibleToAthlete). Checked here directly, not
+        // just used to hide the entry button, so a direct URL visit before
+        // the coach enables it stays blocked too. The coach account itself
+        // always passes, so testing/building this doesn't get locked out.
+        if (!isCoachEmail(user?.email)) {
+          const athleteSnap = await getDoc(doc(db, 'users', data.athleteId))
+          if (!athleteSnap.exists() || athleteSnap.data().strengthToolsVisibleToAthlete !== true) {
+            setError('התכונה הזו עדיין לא זמינה עבורך — דבר עם המאמן שלך')
+            return
+          }
         }
         setAssigned(data)
         const initial: Progress = {}
