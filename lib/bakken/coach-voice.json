@@ -94,6 +94,18 @@
   },
   "example_workouts_by_type": {
     "note": "Real past sessions, kept as structural/voice reference — don't copy verbatim, but match the shape: how much detail, how effort is expressed, how notes read.",
+    "easy": [
+      {
+        "title": "ריצה קלה",
+        "notes": "הרגשה נוחה, מתחת לסף T1",
+        "rule": "The plain default easy-day title — most easy days, no special notation needed."
+      },
+      {
+        "title": "קלה 7/1",
+        "structure": "run/walk notation, same idea as beginner_run_walk_progression's stage titles but for a more advanced run/walk ratio (7min run / 1min walk) — used when an easy day still carries a walk-break ratio worth naming explicitly rather than a plain continuous run",
+        "rule": "Use this X/Y notation style (run-minutes/walk-minutes) whenever an easy day has a real run/walk structure worth naming, at whatever ratio actually fits this session — not just the specific progression stages already listed under beginner_run_walk_progression."
+      }
+    ],
     "long_run": [
       {
         "title": "ריצה ארוכה",

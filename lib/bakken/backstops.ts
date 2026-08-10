@@ -164,11 +164,17 @@ export const isCutbackWeek = (
   weekStart: string,
   stage: BlockStageInfo,
   experienceLevel: string | undefined,
+  // Coach override (AthleteProfile.cutbackIntervalWeeks) of the automatic
+  // 3-week(beginner)/4-week(everyone else) default — "I want a down week
+  // every N weeks in this stage" instead of the built-in interval.
+  intervalOverride?: number,
 ): boolean => {
   if (!CUTBACK_STAGE_TYPES.has(stage.type)) return false
-  const interval = experienceLevel === 'beginner'
-    ? safetyRules.cutbackWeek.intervalWeeksBeginner
-    : safetyRules.cutbackWeek.intervalWeeksDefault
+  const interval = intervalOverride && intervalOverride > 0
+    ? intervalOverride
+    : experienceLevel === 'beginner'
+      ? safetyRules.cutbackWeek.intervalWeeksBeginner
+      : safetyRules.cutbackWeek.intervalWeeksDefault
   const weeksSinceStageStart = Math.floor(
     (parseISO(weekStart).getTime() - parseISO(stage.startDate).getTime()) / (7 * 86400000),
   )
@@ -198,6 +204,7 @@ export const normalizeWeeklyVolume = (
   goalRaceDate: string,
   longRunMinutesCap?: number,
   experienceLevel?: string,
+  cutbackIntervalOverride?: number,
 ): BlockWorkoutOut[] => {
   // Weeks are standard Sunday-Saturday calendar weeks — matching the km-per-
   // week widgets and week view everywhere else in the app (they all default
@@ -250,7 +257,7 @@ export const normalizeWeeklyVolume = (
     const rangeEnd = dateMin(weekEnd, goalRaceDate)
     const daysInSeason = Math.max(0, Math.min(7,
       Math.floor((parseISO(rangeEnd).getTime() - parseISO(rangeStart).getTime()) / 86400000) + 1))
-    const cutback = isCutbackWeek(weekStart, stage, experienceLevel)
+    const cutback = isCutbackWeek(weekStart, stage, experienceLevel, cutbackIntervalOverride)
     const target = stage.weeklyVolumeKm * (daysInSeason / 7) * (cutback ? safetyRules.cutbackWeek.volumeMultiplier : 1)
     if (target <= 0) continue
 
@@ -353,20 +360,7 @@ export const enforceWeekSchedule = (workouts: BlockWorkoutOut[], weekSchedule: R
   const dayTypeOf = (dateStr: string): DayType => weekSchedule[DAY_ORDER[parseISO(dateStr).getDay()]]
   const isRestDay = (dateStr: string) => dayTypeOf(dateStr) !== 'workout'
 
-  const misplacedTraining = workouts.filter((w) => w.type !== 'rest' && isRestDay(w.date))
-  const emptyWorkoutDays = workouts.filter((w) => w.type === 'rest' && !isRestDay(w.date))
-
-  const swapCount = Math.min(misplacedTraining.length, emptyWorkoutDays.length)
-  for (let i = 0; i < swapCount; i++) {
-    const a = misplacedTraining[i]
-    const b = emptyWorkoutDays[i]
-    const aDate = a.date
-    a.date = b.date
-    b.date = aDate
-  }
-
-  for (let i = swapCount; i < misplacedTraining.length; i++) {
-    const w = misplacedTraining[i]
+  const demoteToRest = (w: BlockWorkoutOut) => {
     w.type = 'rest'
     w.title = language === 'he' ? 'יום מנוחה' : 'Rest Day'
     w.description = ''
@@ -378,6 +372,37 @@ export const enforceWeekSchedule = (workouts: BlockWorkoutOut[], weekSchedule: R
     w.targetThresholdLevel = null
     w.comparisonGroup = null
     w.thresholdDistance = null
+  }
+
+  // Scoped per Sun-Sat week, same as every other backstop in this file —
+  // pairing misplaced/empty days across the WHOLE block by array order
+  // (the original approach) could swap a session into a completely
+  // different week than the one it was generated for, scrambling that
+  // other week's own intended structure instead of just fixing the one
+  // week that actually violated weekSchedule.
+  const weeks = new Map<string, BlockWorkoutOut[]>()
+  for (const w of workouts) {
+    const key = weekKeyOf(w.date)
+    if (!weeks.has(key)) weeks.set(key, [])
+    weeks.get(key)!.push(w)
+  }
+
+  for (const items of weeks.values()) {
+    const misplacedTraining = items.filter((w) => w.type !== 'rest' && isRestDay(w.date))
+    const emptyWorkoutDays = items.filter((w) => w.type === 'rest' && !isRestDay(w.date))
+
+    const swapCount = Math.min(misplacedTraining.length, emptyWorkoutDays.length)
+    for (let i = 0; i < swapCount; i++) {
+      const a = misplacedTraining[i]
+      const b = emptyWorkoutDays[i]
+      const aDate = a.date
+      a.date = b.date
+      b.date = aDate
+    }
+
+    for (let i = swapCount; i < misplacedTraining.length; i++) {
+      demoteToRest(misplacedTraining[i])
+    }
   }
 
   return workouts
@@ -412,8 +437,25 @@ export const enforceDayTypeTemplate = (
     const midweek = addDaysStr(weekStart, 3)
     const stage = stagesForBlock.find((s) => midweek >= s.startDate && midweek <= s.endDate)
     if (!stage?.dayTypeTemplate) continue
-    for (const [dayKey, requiredRaw] of Object.entries(stage.dayTypeTemplate)) {
-      if (!requiredRaw) continue
+    for (const [dayKey, requiredInput] of Object.entries(stage.dayTypeTemplate)) {
+      if (!requiredInput) continue
+      // {rotateWeekly: [...]} resolves to a plain type before anything
+      // else runs — week 1 of THIS stage instance = list[0], week 2 =
+      // list[1], wrapping around (a 2-item list is exactly "every other
+      // week X, every other week Y"). Anchored to the stage's own
+      // week-aligned start so a fresh instance of this stage type always
+      // restarts the rotation at the top of the list, same as rule 2c.
+      let requiredRaw: string | string[] = Array.isArray(requiredInput) || typeof requiredInput === 'string'
+        ? requiredInput
+        : ''
+      if (typeof requiredInput === 'object' && !Array.isArray(requiredInput) && 'rotateWeekly' in requiredInput) {
+        const list = (requiredInput.rotateWeekly || []).filter(Boolean)
+        if (list.length === 0) continue
+        const stageWeekStart = weekKeyOf(stage.startDate)
+        const weekIndex = Math.floor((parseISO(weekStart).getTime() - parseISO(stageWeekStart).getTime()) / (7 * 86400000))
+        requiredRaw = list[((weekIndex % list.length) + list.length) % list.length]
+      }
+      if (!requiredRaw || (Array.isArray(requiredRaw) && requiredRaw.length === 0)) continue
       // A day can require ONE type (the original behavior) or TWO (e.g.
       // "lift + easy run" or double threshold) — same two-sessions-in-a-day
       // mechanism already used for double threshold (rule 11), capped at 2
@@ -553,7 +595,7 @@ export const enforceSameDaySessionTags = (workouts: BlockWorkoutOut[]): BlockWor
 // demote one of any two adjacent "big" days to easy, preferring to keep
 // whichever one lands on the athlete's actual long-run day.
 export const BIG_WORKOUT_TYPES = new Set(['long_run', 'tempo', 'threshold', 'intervals', 'hill_repeats', 'fartlek'])
-const demoteToEasyRun = (w: BlockWorkoutOut, language: 'en' | 'he', description?: string) => {
+export const demoteToEasyRun = (w: BlockWorkoutOut, language: 'en' | 'he', description?: string) => {
   w.type = 'easy'
   w.title = language === 'he' ? 'ריצה קלה' : 'Easy Run'
   w.description = description ?? (language === 'he'
@@ -667,6 +709,70 @@ export const enforceSpecialEvents = (
     demoteToEasyRun(w, language, language === 'he'
       ? `ריצה קלה — שומרים על זה קליל היום בגלל ${event.label}.`
       : `Easy run — keeping it light today because of ${event.label}.`)
+  }
+  return workouts
+}
+
+// A cutback/down week (isCutbackWeek) only ever scaled weekly DISTANCE by
+// 75% (normalizeWeeklyVolume) — coach-requested extras: also drop a
+// training day entirely and/or downgrade that week's quality sessions to
+// easy, each independently opt-in (AthleteProfile.cutbackFewerDays /
+// cutbackDowngradeQuality). Runs BEFORE normalizeWeeklyVolume so the
+// distance scaling that follows sees the already-reduced day/session set,
+// not the original one.
+const CUTBACK_QUALITY_TYPES = new Set(['tempo', 'threshold', 'intervals', 'hill_repeats', 'fartlek'])
+export const applyCutbackWeekAdjustments = (
+  workouts: BlockWorkoutOut[],
+  stagesForBlock: BlockStageInfo[],
+  experienceLevel: string | undefined,
+  options: { intervalOverride?: number; fewerDays?: boolean; downgradeQuality?: boolean },
+  language: 'en' | 'he',
+): BlockWorkoutOut[] => {
+  if (!options.fewerDays && !options.downgradeQuality) return workouts
+  const weeks = new Map<string, BlockWorkoutOut[]>()
+  for (const w of workouts) {
+    const key = weekKeyOf(w.date)
+    if (!weeks.has(key)) weeks.set(key, [])
+    weeks.get(key)!.push(w)
+  }
+  for (const [weekStart, items] of weeks) {
+    const midweek = addDaysStr(weekStart, 3)
+    const stage = stagesForBlock.find((s) => midweek >= s.startDate && midweek <= s.endDate)
+    if (!stage || !isCutbackWeek(weekStart, stage, experienceLevel, options.intervalOverride)) continue
+
+    if (options.downgradeQuality) {
+      for (const w of items) {
+        if (CUTBACK_QUALITY_TYPES.has(w.type)) {
+          demoteToEasyRun(w, language, language === 'he'
+            ? 'ריצה קלה — שבוע הפחתת עומסים, שומרים את זה רגוע.'
+            : 'Easy run — cutback week, keeping this one relaxed.')
+        }
+      }
+    }
+    if (options.fewerDays) {
+      // long_run is never a candidate (protected by its own hard rule),
+      // only a plain flexible "easy" day — the least disruptive day to
+      // drop entirely for a real down week.
+      const candidates = items
+        .filter((w) => w.type === 'easy' && (w.sets || []).length === 0)
+        .sort((a, b) => a.date.localeCompare(b.date))
+      const target = candidates[0]
+      if (target) {
+        target.type = 'rest'
+        target.title = language === 'he' ? 'יום מנוחה' : 'Rest Day'
+        target.description = language === 'he'
+          ? 'שבוע הפחתת עומסים — יום מנוחה נוסף.'
+          : 'Cutback week — an extra rest day.'
+        target.duration = null
+        target.distance = null
+        target.sets = []
+        target.bakkenLactateMin = null
+        target.bakkenLactateMax = null
+        target.targetThresholdLevel = null
+        target.comparisonGroup = null
+        target.thresholdDistance = null
+      }
+    }
   }
   return workouts
 }

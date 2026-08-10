@@ -15,6 +15,8 @@ import {
   Trash2,
   Loader2,
   Copy,
+  Sparkles,
+  Download,
 } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
@@ -28,6 +30,8 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  where,
+  writeBatch,
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/auth-context'
@@ -54,45 +58,104 @@ export function WorkoutLibrary() {
 
   const [searchQuery, setSearchQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<WorkoutType | 'all'>('all')
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'bakken' | 'coach'>('all')
   const [workouts, setWorkouts] = useState<Workout[]>([])
+  // Every workouts/{id} doc referenced by an assignedWorkouts doc with
+  // source:'bakken' — Bakken generates its own standalone library entry
+  // for every day it creates (bakken-plan-panel.tsx), alongside the
+  // assignedWorkouts copy, so those library entries need their own
+  // classification since there's no explicit source field on older docs.
+  const [bakkenWorkoutIds, setBakkenWorkoutIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [duplicating, setDuplicating] = useState<string | null>(null)
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true)
-      try {
-        const snap = await getDocs(
-          query(collection(db, 'workouts'), orderBy('createdAt', 'desc')),
-        )
-        setWorkouts(
-          snap.docs
-            // Hide per-week clones created by copy-week / paste
-            .filter((d) => !d.data().libraryHidden)
-            .map((d) => ({
-              ...(d.data() as Workout),
-              id: d.id,
-            })),
-        )
-      } catch (err) {
-        console.error('Error loading workouts:', err)
-        setWorkouts([])
-      } finally {
-        setLoading(false)
-      }
+  const load = async () => {
+    setLoading(true)
+    try {
+      const [workoutsSnap, bakkenAssignedSnap] = await Promise.all([
+        getDocs(query(collection(db, 'workouts'), orderBy('createdAt', 'desc'))),
+        getDocs(query(collection(db, 'assignedWorkouts'), where('source', '==', 'bakken'))),
+      ])
+      setBakkenWorkoutIds(new Set(bakkenAssignedSnap.docs.map((d) => d.data().workoutId).filter(Boolean)))
+      setWorkouts(
+        workoutsSnap.docs
+          // Hide per-week clones created by copy-week / paste
+          .filter((d) => !d.data().libraryHidden)
+          .map((d) => ({
+            ...(d.data() as Workout),
+            id: d.id,
+          })),
+      )
+    } catch (err) {
+      console.error('Error loading workouts:', err)
+      setWorkouts([])
+    } finally {
+      setLoading(false)
     }
-    load()
-  }, [])
+  }
+
+  useEffect(() => { load() }, [])
+
+  const isBakken = (workout: Workout) => workout.source === 'bakken' || (!workout.source && bakkenWorkoutIds.has(workout.id))
+  const bakkenCount = workouts.filter(isBakken).length
+  const coachCount = workouts.length - bakkenCount
 
   const filteredWorkouts = workouts.filter((workout) => {
     const matchesSearch =
       (workout.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (workout.description || '').toLowerCase().includes(searchQuery.toLowerCase())
     const matchesType = typeFilter === 'all' || workout.type === typeFilter
-    return matchesSearch && matchesType
+    const matchesSource = sourceFilter === 'all' || (sourceFilter === 'bakken' ? isBakken(workout) : !isBakken(workout))
+    return matchesSearch && matchesType && matchesSource
   })
+
+  const handleBulkDeleteBakken = async () => {
+    setBulkDeleting(true)
+    try {
+      const idsToDelete = workouts.filter(isBakken).map((w) => w.id)
+      // Firestore batches cap at 500 writes — chunk if the library ever
+      // grows past that (unlikely, but cheap to guard against).
+      for (let i = 0; i < idsToDelete.length; i += 450) {
+        const batch = writeBatch(db)
+        for (const id of idsToDelete.slice(i, i + 450)) batch.delete(doc(db, 'workouts', id))
+        await batch.commit()
+      }
+      toast.success(`נמחקו ${idsToDelete.length} אימוני Bakken AI מהספרייה`)
+      setBulkDeleteOpen(false)
+      await load()
+    } catch (err) {
+      console.error('Error bulk deleting Bakken workouts:', err)
+      toast.error('מחיקה נכשלה')
+    } finally {
+      setBulkDeleting(false)
+    }
+  }
+
+  const handleExportCoachWorkouts = () => {
+    const coachWorkouts = workouts.filter((w) => !isBakken(w))
+    const exportData = coachWorkouts.map((w) => ({
+      title: w.title,
+      type: w.type,
+      description: w.description,
+      duration: w.duration,
+      distance: w.distance,
+      sets: w.sets,
+      warmup: w.warmup,
+      cooldown: w.cooldown,
+      notes: w.notes,
+    }))
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `coach-workouts-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   const workoutTypes: (WorkoutType | 'all')[] = [
     'all',
@@ -189,6 +252,40 @@ export function WorkoutLibrary() {
         </div>
       </div>
 
+      {/* Source filter + bulk actions — separates Bakken AI-generated
+          library clutter from the coach's own real workouts, per explicit
+          request to be able to clean up/organize the two separately. */}
+      {isCoach && (
+        <div className="flex flex-wrap items-center gap-2">
+          {([
+            { key: 'all' as const, label: `הכל (${workouts.length})` },
+            { key: 'coach' as const, label: `שלי (${coachCount})` },
+            { key: 'bakken' as const, label: `Bakken AI (${bakkenCount})` },
+          ]).map((opt) => (
+            <Button
+              key={opt.key}
+              variant="outline"
+              size="sm"
+              onClick={() => setSourceFilter(opt.key)}
+              className={cn(opt.key === sourceFilter && 'bg-gold/10 border-gold text-gold')}
+            >
+              {opt.label}
+            </Button>
+          ))}
+          <div className="flex-1" />
+          <Button variant="outline" size="sm" onClick={handleExportCoachWorkouts} disabled={coachCount === 0}>
+            <Download className="h-3.5 w-3.5 mr-1.5" />
+            ייצוא JSON (שלי)
+          </Button>
+          {bakkenCount > 0 && (
+            <Button variant="outline" size="sm" onClick={() => setBulkDeleteOpen(true)} className="text-destructive hover:text-destructive border-destructive/30">
+              <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+              מחק את כל אימוני Bakken AI ({bakkenCount})
+            </Button>
+          )}
+        </div>
+      )}
+
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-gold" />
@@ -201,9 +298,16 @@ export function WorkoutLibrary() {
               <Card key={workout.id} className="hover:shadow-md transition-luxury">
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between">
-                    <Badge className={cn('border', workoutTypeColors[workout.type])}>
-                      {workoutTypeLabels[workout.type]}
-                    </Badge>
+                    <div className="flex items-center gap-1.5">
+                      <Badge className={cn('border', workoutTypeColors[workout.type])}>
+                        {workoutTypeLabels[workout.type]}
+                      </Badge>
+                      {isBakken(workout) && (
+                        <Badge variant="outline" className="border-primary/30 text-primary text-[10px]">
+                          <Sparkles className="h-2.5 w-2.5 mr-1" />Bakken AI
+                        </Badge>
+                      )}
+                    </div>
                     {isCoach && (
                       <div className="flex items-center gap-1">
                         <Button
@@ -321,6 +425,29 @@ export function WorkoutLibrary() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleting ? t.deletingDots : t.deleteBtn}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk delete Bakken AI confirmation */}
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={(open) => !open && setBulkDeleteOpen(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>מחיקת כל אימוני Bakken AI</AlertDialogTitle>
+            <AlertDialogDescription>
+              פעולה זו תמחק {bakkenCount} אימונים שה-Bakken AI יצר בספרייה. האימונים שאתם יצרתם באופן ידני לא ייפגעו.
+              לוח הזמנים שכבר נוצר לספורטאים (assignedWorkouts) לא נמחק — זו מחיקה של תבניות הספרייה בלבד. לא ניתן לבטל פעולה זו.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>ביטול</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDeleteBakken}
+              disabled={bulkDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {bulkDeleting ? 'מוחק...' : `מחק ${bakkenCount} אימונים`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

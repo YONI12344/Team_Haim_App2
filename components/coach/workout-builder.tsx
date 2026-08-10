@@ -426,6 +426,7 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
         // Editing a copied (hidden) workout makes it a real library workout —
         // "minor edits are saved as an additional workout in the library"
         libraryHidden: false,
+        source: 'coach' as const,
       }
 
       let savedId = workoutId

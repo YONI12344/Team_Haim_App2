@@ -37,6 +37,7 @@ import {
   enforceNoBackToBackBigDays,
   enforceLongRunDay,
   normalizeWeeklyVolume,
+  applyCutbackWeekAdjustments,
   DAY_INDEX,
 } from '@/lib/bakken/backstops'
 import { Button } from '@/components/ui/button'
@@ -151,6 +152,12 @@ const UI = {
     specialEventsLabelPlaceholder: 'What is it? (e.g. Flight to Kenya)',
     specialEventsNotesPlaceholder: 'Notes (optional)',
     specialEventsAdd: 'Add event',
+    cutbackTitle: 'Down/cutback week',
+    cutbackHint: 'Default: an automatic down week every 3rd week (beginner) or 4th week (everyone else) at 75% volume. Override any of that below.',
+    cutbackIntervalLabel: 'Down week every N weeks:',
+    cutbackIntervalPlaceholder: 'auto',
+    cutbackFewerDaysLabel: 'Also drop one easy day entirely that week (full rest instead)',
+    cutbackDowngradeLabel: 'Also downgrade that week\'s quality sessions to easy',
     recurringTitlePlaceholder: 'Title (e.g. "Gym")',
     recurringNotesPlaceholder: 'Notes (optional)',
     everyWeek: 'Every week',
@@ -160,6 +167,10 @@ const UI = {
     dayTemplateAiDecides: 'AI decides',
     dayTemplateSecondHint: 'Optional second session the same day (e.g. lift + easy run, or double threshold)',
     dayTemplateNoSecond: '(single session)',
+    dayModeFixed: 'Fixed',
+    dayModePair: 'Same day',
+    dayModeRotate: 'Rotate weekly',
+    dayModeRotateHint: 'Alternates week to week (e.g. fartlek one week, hills the next). Leave the second slot on "AI decides" for a plain fixed day.',
     goalDistance: 'Goal race distance',
     raceName: 'Race name (optional)',
     raceNamePlaceholder: 'e.g. Tel Aviv Marathon',
@@ -244,6 +255,12 @@ const UI = {
     specialEventsLabelPlaceholder: 'מה זה? (למשל טיסה לקניה)',
     specialEventsNotesPlaceholder: 'הערות (לא חובה)',
     specialEventsAdd: 'הוסף אירוע',
+    cutbackTitle: 'שבוע הפחתת עומסים',
+    cutbackHint: 'ברירת מחדל: שבוע הפחתה אוטומטי כל 3 שבועות (מתחילים) או כל 4 שבועות (כולם) ב-75% נפח. אפשר לשנות למטה.',
+    cutbackIntervalLabel: 'שבוע הפחתה כל N שבועות:',
+    cutbackIntervalPlaceholder: 'אוטומטי',
+    cutbackFewerDaysLabel: 'גם להוריד יום ריצה קלה אחד לגמרי (למנוחה מלאה) באותו שבוע',
+    cutbackDowngradeLabel: 'גם להפוך את אימוני האיכות של השבוע הזה לריצה קלה',
     recurringTitlePlaceholder: 'כותרת (למשל "חדר כושר")',
     recurringNotesPlaceholder: 'הערות (לא חובה)',
     everyWeek: 'כל שבוע',
@@ -253,6 +270,10 @@ const UI = {
     dayTemplateAiDecides: 'ה-AI מחליט',
     dayTemplateSecondHint: 'אימון שני אופציונלי באותו יום (למשל חדר כושר + ריצה קלה, או סף כפול)',
     dayTemplateNoSecond: '(אימון בודד)',
+    dayModeFixed: 'קבוע',
+    dayModePair: 'אותו יום',
+    dayModeRotate: 'סבב שבועי',
+    dayModeRotateHint: 'מתחלף משבוע לשבוע (למשל פרטלק שבוע אחד, עליות בשבוע הבא). השאירו את הבחירה השנייה על "ה-AI מחליט" ליום קבוע רגיל.',
     goalDistance: 'מרחק היעד',
     raceName: 'שם המירוץ (לא חובה)',
     raceNamePlaceholder: 'לדוגמה: מרתון תל אביב',
@@ -443,7 +464,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
   // Coach-defined weekday->type skeleton per season-stage TYPE (base/build/
   // peak/etc.) — the AI generator uses the exact type on that weekday for
   // any week that stage is active instead of deciding itself. See rule 2c.
-  const [stageDayTypeTemplates, setStageDayTypeTemplates] = useState<Record<string, Partial<Record<DayKey, string | string[]>>>>({})
+  const [stageDayTypeTemplates, setStageDayTypeTemplates] = useState<Record<string, Partial<Record<DayKey, string | string[] | { rotateWeekly: string[] }>>>>({})
   // One-off calendar events (flight, wedding, exam...) — the AI generator
   // keeps the event date itself light instead of a hard/big session, see
   // rule 2d in plan-prompt.ts.
@@ -453,6 +474,13 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
     label: string
     notes?: string
   }>>([])
+  // Cutback/down-week overrides — see AthleteProfile.cutbackIntervalWeeks
+  // etc. in lib/types.ts. Purely a post-generation backstop concern (not
+  // sent to the AI), applied in applyCutbackWeekAdjustments/
+  // normalizeWeeklyVolume.
+  const [cutbackIntervalWeeks, setCutbackIntervalWeeks] = useState<number | ''>('')
+  const [cutbackFewerDays, setCutbackFewerDays] = useState(false)
+  const [cutbackDowngradeQuality, setCutbackDowngradeQuality] = useState(false)
   const [journeyPreview, setJourneyPreview] = useState<JourneyDoc | null>(null)
   const [prDistance, setPrDistance] = useState<RaceDistance | ''>('')
   const [prHours, setPrHours] = useState(0)
@@ -522,6 +550,9 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
       setRecurringActivities(Array.isArray(d.recurringActivities) ? d.recurringActivities : [])
       setStageDayTypeTemplates(d.stageDayTypeTemplates && typeof d.stageDayTypeTemplates === 'object' ? d.stageDayTypeTemplates : {})
       setSpecialEvents(Array.isArray(d.specialEvents) ? d.specialEvents : [])
+      setCutbackIntervalWeeks(typeof d.cutbackIntervalWeeks === 'number' ? d.cutbackIntervalWeeks : '')
+      setCutbackFewerDays(!!d.cutbackFewerDays)
+      setCutbackDowngradeQuality(!!d.cutbackDowngradeQuality)
       setScheduleLoaded(true)
     }
     load()
@@ -644,6 +675,7 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         })),
       })),
       createdBy: user!.id,
+      source: 'bakken' as const,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     }
@@ -702,6 +734,9 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         recurringActivities,
         stageDayTypeTemplates,
         specialEvents,
+        cutbackIntervalWeeks: cutbackIntervalWeeks === '' ? null : cutbackIntervalWeeks,
+        cutbackFewerDays,
+        cutbackDowngradeQuality,
       })
 
       const profileSnap = await getDoc(doc(db, 'users', athleteId))
@@ -1074,7 +1109,15 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         // practice that running this before enforceLongRunDay left exactly
         // that kind of freshly-created pairing untagged.
         enforceSameDaySessionTags(plan.workouts)
-        normalizeWeeklyVolume(plan.workouts, stagesForBlock, journeyDoc.startDate, journeyDoc.goalRaceDate, athleteContext.longRunMinutes, athleteContext.experienceLevel)
+        // Must run BEFORE normalizeWeeklyVolume — dropping/downgrading a
+        // day on a cutback week changes the flexible-distance pool that
+        // the volume scaling right after this reads.
+        applyCutbackWeekAdjustments(
+          plan.workouts, stagesForBlock, athleteContext.experienceLevel,
+          { intervalOverride: cutbackIntervalWeeks === '' ? undefined : cutbackIntervalWeeks, fewerDays: cutbackFewerDays, downgradeQuality: cutbackDowngradeQuality },
+          athleteContext.language,
+        )
+        normalizeWeeklyVolume(plan.workouts, stagesForBlock, journeyDoc.startDate, journeyDoc.goalRaceDate, athleteContext.longRunMinutes, athleteContext.experienceLevel, cutbackIntervalWeeks === '' ? undefined : cutbackIntervalWeeks)
 
         for (const w of plan.workouts) {
           if (w.type === 'rest') continue
@@ -1292,24 +1335,54 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
             </div>
 
             <div className="rounded-md border border-dashed border-input p-2 space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">{t.cutbackTitle}</p>
+              <p className="text-[11px] text-muted-foreground">{t.cutbackHint}</p>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] shrink-0 text-muted-foreground">{t.cutbackIntervalLabel}</span>
+                <input type="number" min={2} max={8} placeholder={t.cutbackIntervalPlaceholder}
+                  value={cutbackIntervalWeeks}
+                  onChange={(e) => setCutbackIntervalWeeks(e.target.value === '' ? '' : Number(e.target.value))}
+                  className="rounded-md border border-input bg-background px-1.5 py-1 text-[11px] max-w-[80px]" />
+              </div>
+              <label className="flex items-start gap-2 text-[11px] text-muted-foreground">
+                <input type="checkbox" checked={cutbackFewerDays} onChange={(e) => setCutbackFewerDays(e.target.checked)} className="mt-0.5" />
+                {t.cutbackFewerDaysLabel}
+              </label>
+              <label className="flex items-start gap-2 text-[11px] text-muted-foreground">
+                <input type="checkbox" checked={cutbackDowngradeQuality} onChange={(e) => setCutbackDowngradeQuality(e.target.checked)} className="mt-0.5" />
+                {t.cutbackDowngradeLabel}
+              </label>
+            </div>
+
+            <div className="rounded-md border border-dashed border-input p-2 space-y-2">
               <p className="text-xs font-medium text-muted-foreground">{t.dayTemplateTitle}</p>
               <p className="text-[11px] text-muted-foreground">{t.dayTemplateHint}</p>
               {(['base', 'build', 'peak', 'taper', 'race_week'] as const).map((stageType) => {
                 const overrideCount = Object.values(stageDayTypeTemplates[stageType] || {})
                   .filter((v) => (Array.isArray(v) ? v.length > 0 : !!v)).length
+                type DayMode = 'fixed' | 'pair' | 'rotate'
+                const modeOf = (day: DayKey): DayMode => {
+                  const v = stageDayTypeTemplates[stageType]?.[day]
+                  if (v && typeof v === 'object' && !Array.isArray(v) && 'rotateWeekly' in v) return 'rotate'
+                  if (Array.isArray(v)) return 'pair'
+                  return 'fixed'
+                }
                 const primaryOf = (day: DayKey) => {
                   const v = stageDayTypeTemplates[stageType]?.[day]
+                  if (v && typeof v === 'object' && !Array.isArray(v) && 'rotateWeekly' in v) return v.rotateWeekly[0] || ''
                   return (Array.isArray(v) ? v[0] : v) || ''
                 }
                 const secondaryOf = (day: DayKey) => {
                   const v = stageDayTypeTemplates[stageType]?.[day]
+                  if (v && typeof v === 'object' && !Array.isArray(v) && 'rotateWeekly' in v) return v.rotateWeekly[1] || ''
                   return (Array.isArray(v) ? v[1] : '') || ''
                 }
-                const setDayTemplate = (day: DayKey, primary: string, secondary: string) => {
+                const setDayTemplate = (day: DayKey, primary: string, secondary: string, mode: DayMode) => {
                   setStageDayTypeTemplates((prev) => {
                     const next = { ...prev, [stageType]: { ...prev[stageType] } }
                     if (!primary) delete next[stageType]![day]
-                    else if (secondary) next[stageType]![day] = [primary, secondary]
+                    else if (mode === 'rotate') next[stageType]![day] = { rotateWeekly: [primary, secondary] }
+                    else if (mode === 'pair' && secondary) next[stageType]![day] = [primary, secondary]
                     else next[stageType]![day] = primary
                     return next
                   })
@@ -1328,29 +1401,43 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
                       {DAY_ORDER.map((day) => {
                         const primary = primaryOf(day)
                         const secondary = secondaryOf(day)
+                        const mode = modeOf(day)
                         return (
                           <div key={day} className="flex flex-col items-center gap-0.5">
                             <span className="text-[9px] text-muted-foreground">{DAY_LABELS[uiLang][day]}</span>
                             <select
                               value={primary}
-                              onChange={(e) => setDayTemplate(day, e.target.value, e.target.value ? secondary : '')}
+                              onChange={(e) => setDayTemplate(day, e.target.value, e.target.value ? secondary : '', mode)}
                               className="rounded-md border border-input bg-background px-1 py-0.5 text-[10px]">
                               <option value="">{t.dayTemplateAiDecides}</option>
                               {DAY_TEMPLATE_TYPE_OPTIONS.map((wt) => (
                                 <option key={wt} value={wt}>{(workoutTypeLabels as Record<string, string>)[wt] || wt}</option>
                               ))}
                             </select>
-                            <select
-                              value={secondary}
-                              disabled={!primary}
-                              onChange={(e) => setDayTemplate(day, primary, e.target.value)}
-                              title={t.dayTemplateSecondHint}
-                              className="rounded-md border border-input bg-background px-1 py-0.5 text-[10px] disabled:opacity-40">
-                              <option value="">{t.dayTemplateNoSecond}</option>
-                              {DAY_TEMPLATE_TYPE_OPTIONS.map((wt) => (
-                                <option key={wt} value={wt}>+{(workoutTypeLabels as Record<string, string>)[wt] || wt}</option>
-                              ))}
-                            </select>
+                            {primary && (
+                              <div className="flex gap-0.5">
+                                {([['fixed', t.dayModeFixed], ['pair', t.dayModePair], ['rotate', t.dayModeRotate]] as const).map(([m, label]) => (
+                                  <button key={m} type="button"
+                                    title={m === 'pair' ? t.dayTemplateSecondHint : m === 'rotate' ? t.dayModeRotateHint : undefined}
+                                    onClick={() => setDayTemplate(day, primary, m === mode ? secondary : '', m)}
+                                    className={`px-1 py-0.5 rounded text-[8px] border ${mode === m ? 'bg-primary text-primary-foreground border-primary' : 'border-input text-muted-foreground'}`}>
+                                    {label}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                            {primary && mode !== 'fixed' && (
+                              <select
+                                value={secondary}
+                                onChange={(e) => setDayTemplate(day, primary, e.target.value, mode)}
+                                title={mode === 'rotate' ? t.dayModeRotateHint : t.dayTemplateSecondHint}
+                                className="rounded-md border border-input bg-background px-1 py-0.5 text-[10px]">
+                                <option value="">{mode === 'rotate' ? t.dayTemplateAiDecides : t.dayTemplateNoSecond}</option>
+                                {DAY_TEMPLATE_TYPE_OPTIONS.map((wt) => (
+                                  <option key={wt} value={wt}>{mode === 'rotate' ? '' : '+'}{(workoutTypeLabels as Record<string, string>)[wt] || wt}</option>
+                                ))}
+                              </select>
+                            )}
                           </div>
                         )
                       })}
