@@ -91,7 +91,7 @@ const D: SeedDrill[] = [
 ]
 
 const PRE_RUN_BLOCKS: SeedBlock[] = [
-  { label: 'חבל / ניידות', exercises: [{ key: 'straight-leg-hamstring' }, { key: 'quadriceps-pull' }, { key: 'tspine-rotations' }, { key: 'hands-knees-rotations' }] },
+  { label: 'מתיחות חבל', exercises: [{ key: 'straight-leg-hamstring' }, { key: 'quadriceps-pull' }, { key: 'tspine-rotations' }, { key: 'hands-knees-rotations' }] },
   { label: 'גומיות התנגדות (Bands)', exercises: [{ key: 'hip-flexor-raise-band' }, { key: 'glute-bridges' }, { key: 'clamshells' }, { key: 'fire-hydrants' }, { key: 'donkey-kicks' }, { key: 'lateral-leg-raise' }, { key: 'monster-walk-band' }] },
   { label: 'תרגילי הליכה', exercises: [{ key: 'knee-pull' }, { key: 'quad-pull' }, { key: 'monster-walk' }, { key: 'walking-rdls' }, { key: 'heel-to-toe-walks' }] },
   { label: 'ניתורים', exercises: [{ key: 'hops-double-leg' }] },

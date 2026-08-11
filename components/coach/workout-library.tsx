@@ -307,7 +307,7 @@ export function WorkoutLibrary() {
               onClick={() => setTypeFilter(type)}
               className={cn(type === typeFilter && 'bg-gold/10 border-gold text-gold')}
             >
-              {type === 'all' ? t.all : type === 'warmup' ? '🔥 חימום' : workoutTypeLabels[type]}
+              {type === 'all' ? t.all : type === 'warmup' ? 'חימום' : workoutTypeLabels[type]}
             </Button>
           ))}
         </div>
@@ -413,7 +413,7 @@ export function WorkoutLibrary() {
                       </Badge>
                       {workout.isWarmup && (
                         <Badge variant="outline" className="border-amber-300 text-amber-700 text-[10px]">
-                          🔥 חימום
+                          חימום
                         </Badge>
                       )}
                       {isBakken(workout) && (

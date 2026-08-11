@@ -290,6 +290,7 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
   const [sets, setSets] = useState<Partial<WorkoutSet>[]>([])
   const [strengthBlocks, setStrengthBlocks] = useState<StrengthBlock[]>([])
   const [warmupWorkoutId, setWarmupWorkoutId] = useState('')
+  const [cooldownWorkoutId, setCooldownWorkoutId] = useState('')
   const [warmupOptions, setWarmupOptions] = useState<Workout[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [loading, setLoading] = useState(!!workoutId)
@@ -362,6 +363,7 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
           })) : [])
           setStrengthBlocks(Array.isArray(data.strengthBlocks) ? data.strengthBlocks : [])
           setWarmupWorkoutId(data.warmupWorkoutId || '')
+          setCooldownWorkoutId(data.cooldownWorkoutId || '')
         } else {
           toast.error('Workout not found')
           if (onDone) onDone(); else router.push('/coach/workouts')
@@ -515,6 +517,7 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
         })),
         strengthBlocks: (type === 'strength' || type === 'stretch') && strengthBlocks.length > 0 ? strengthBlocks : null,
         warmupWorkoutId: warmupWorkoutId || null,
+        cooldownWorkoutId: cooldownWorkoutId || null,
         updatedAt: serverTimestamp(),
         updatedBy: user?.id || null,
         // Editing a copied (hidden) workout makes it a real library workout —
@@ -794,16 +797,31 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
               />
             </div>
             <div className="space-y-2 pt-2 border-t">
-              <Label>🔥 חימום מקושר (אופציונלי)</Label>
+              <Label>חימום מקושר — לפני האימון (אופציונלי)</Label>
               <p className="text-xs text-muted-foreground">
-                שגרת חימום/מתיחות מהספרייה שהספורטאי יוכל לפתוח מתוך פרטי האימון הזה — לצפייה בלבד, לא חובה לסמן כבוצע.
+                שגרת חימום מהספרייה שהספורטאי יוכל לפתוח מתוך פרטי האימון הזה — לצפייה בלבד, לא חובה לסמן כבוצע.
               </p>
               <Select value={warmupWorkoutId || '__none__'} onValueChange={(v) => setWarmupWorkoutId(v === '__none__' ? '' : v)}>
                 <SelectTrigger><SelectValue placeholder="ללא" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">ללא</SelectItem>
                   {warmupOptions.map((w) => (
-                    <SelectItem key={w.id} value={w.id}>{w.isWarmup ? '🔥 ' : ''}{w.title}</SelectItem>
+                    <SelectItem key={w.id} value={w.id}>{w.title}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2 pt-2 border-t">
+              <Label>מתיחות מקושרות — אחרי האימון (אופציונלי)</Label>
+              <p className="text-xs text-muted-foreground">
+                שגרת מתיחות מהספרייה (למשל מתיחות סטטיות) לספורטאי לפתוח אחרי האימון — לצפייה בלבד, לא חובה לסמן כבוצע.
+              </p>
+              <Select value={cooldownWorkoutId || '__none__'} onValueChange={(v) => setCooldownWorkoutId(v === '__none__' ? '' : v)}>
+                <SelectTrigger><SelectValue placeholder="ללא" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">ללא</SelectItem>
+                  {warmupOptions.map((w) => (
+                    <SelectItem key={w.id} value={w.id}>{w.title}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

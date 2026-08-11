@@ -3,28 +3,32 @@
 import { useEffect, useState } from 'react'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Check } from 'lucide-react'
 import { instructionLines } from '@/lib/utils'
 import type { Workout } from '@/lib/types'
 
 /**
- * Read-only viewer for a linked warm-up/pre-workout routine
- * (Workout.warmupWorkoutId) — shown inline on a workout's detail card in
- * components/athlete/athlete-planner-view.tsx. Purely informational: no
- * set checkboxes, no weight/timer logging, no "finish" button. An athlete
- * who already knows the warm-up can skip opening this; it's just here for
- * whoever wants a reminder of what's in it, and it has no effect on
- * completing the actual (running/lift) workout it's attached to.
+ * Popup content for a linked warm-up/cooldown routine (Workout.
+ * warmupWorkoutId / cooldownWorkoutId) — opened from a button next to the
+ * workout's warmup/cooldown text in components/athlete/athlete-planner-
+ * view.tsx. Shows each exercise with video + instructions, and a "done"
+ * toggle per exercise so an athlete can follow along and check things off
+ * — but this is local component state only, not saved anywhere. It resets
+ * every time the popup reopens and has no effect on completing the actual
+ * workout; it's just a following-along aid for someone who forgot the
+ * routine, not something an athlete who already knows it needs to touch.
  */
 export function WarmupViewer({ workoutId }: { workoutId: string }) {
   const [workout, setWorkout] = useState<Workout | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const [done, setDone] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     setError(false)
+    setDone({})
     getDoc(doc(db, 'workouts', workoutId))
       .then((snap) => {
         if (cancelled) return
@@ -32,7 +36,7 @@ export function WarmupViewer({ workoutId }: { workoutId: string }) {
         setWorkout({ ...(snap.data() as Workout), id: snap.id })
       })
       .catch((err) => {
-        console.error('Error loading warm-up:', err)
+        console.error('Error loading routine:', err)
         if (!cancelled) setError(true)
       })
       .finally(() => { if (!cancelled) setLoading(false) })
@@ -48,7 +52,7 @@ export function WarmupViewer({ workoutId }: { workoutId: string }) {
   }
 
   if (error || !workout || !workout.strengthBlocks?.length) {
-    return <p className="text-sm text-muted-foreground text-center py-6">שגרת החימום לא נמצאה</p>
+    return <p className="text-sm text-muted-foreground text-center py-6">השגרה לא נמצאה</p>
   }
 
   return (
@@ -65,16 +69,28 @@ export function WarmupViewer({ workoutId }: { workoutId: string }) {
               const target = ex.targetDurationSec != null
                 ? `${ex.targetSets} סטים × ${ex.targetDurationSec} שניות`
                 : `${ex.targetSets} סטים × ${ex.targetReps}`
+              const isDone = !!done[ex.id]
               return (
-                <div key={ex.id} className="rounded-md border border-border/60 overflow-hidden">
-                  {ex.videoUrl && (
-                    <details>
-                      <summary className="text-xs text-muted-foreground p-2 cursor-pointer">הצג סרטון הדגמה</summary>
-                      <video src={ex.videoUrl} muted={ex.videoMuted} className="w-full aspect-video bg-black" controls playsInline preload="metadata" />
-                    </details>
+                <div key={ex.id} className={`rounded-md border overflow-hidden ${isDone ? 'border-emerald-300' : 'border-border/60'}`}>
+                  {ex.videoUrl ? (
+                    <video src={ex.videoUrl} muted={ex.videoMuted} className="w-full aspect-video bg-black" controls playsInline preload="metadata" />
+                  ) : (
+                    <div className="w-full aspect-video bg-muted flex items-center justify-center text-muted-foreground text-xs">אין סרטון הדגמה</div>
                   )}
-                  <div className="p-2.5 space-y-1">
-                    <p className="text-sm font-semibold">{ex.name}</p>
+                  <div className="p-2.5 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold">{ex.name}</p>
+                      <button
+                        type="button"
+                        onClick={() => setDone((prev) => ({ ...prev, [ex.id]: !prev[ex.id] }))}
+                        className={`flex h-7 shrink-0 items-center gap-1 rounded-md border px-2 text-[11px] font-semibold transition-colors ${
+                          isDone ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-input text-muted-foreground'
+                        }`}
+                      >
+                        {isDone ? <Check className="h-3.5 w-3.5" /> : <span className="h-3.5 w-3.5 rounded-full border-2 border-current" />}
+                        בוצע
+                      </button>
+                    </div>
                     <p className="text-xs text-muted-foreground">{target}</p>
                     {!!lines.length && (
                       <ul className="text-xs text-muted-foreground space-y-0.5">

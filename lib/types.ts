@@ -366,16 +366,20 @@ export interface Workout {
   // Library filter to just warm-ups instead of lumping every stretch
   // workout together (components/coach/workout-library.tsx).
   isWarmup?: boolean
-  // Optional pre-workout routine attached to ANY workout (a running
-  // session, a lift day, anything) — points at a 'stretch'-type
-  // workouts/{id} doc (usually one of the isWarmup ones, but any stretch
-  // workout is allowed). Shown to the athlete as a "🔥 הצג חימום" button on
-  // the workout detail card (components/athlete/athlete-planner-view.tsx),
-  // opening a read-only viewer (components/athlete/warmup-viewer.tsx) —
-  // purely informational, not tracked/logged and not required to complete
-  // the actual workout. Copied onto AssignedWorkout.workout automatically
-  // since that's a full snapshot of this Workout at assignment time.
+  // Optional pre-workout / post-workout routines attached to ANY workout
+  // (a running session, a lift day, anything) — each points at a
+  // 'stretch'-type workouts/{id} doc (warmupWorkoutId usually one of the
+  // isWarmup ones, cooldownWorkoutId usually a static-stretch routine, but
+  // any stretch workout is allowed for either). Shown to the athlete as a
+  // button next to the workout's warmup/cooldown text
+  // (components/athlete/athlete-planner-view.tsx) that opens a popup
+  // (components/athlete/warmup-viewer.tsx) with video + instructions per
+  // exercise and a simple, local-only "mark done" toggle — not persisted,
+  // not required to complete the actual workout, just a following-along
+  // aid. Copied onto AssignedWorkout.workout automatically since that's a
+  // full snapshot of this Workout at assignment time.
   warmupWorkoutId?: string
+  cooldownWorkoutId?: string
   // Marks this workout as a Workout Bank entry for the given athlete
   // level — a real, coach-authored session the Bakken AI generator can
   // pick from and scale (duration/distance only, never restructure)

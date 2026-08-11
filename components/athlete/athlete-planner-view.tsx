@@ -252,11 +252,12 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
   const [addActivityOpen, setAddActivityOpen] = useState(false)
   const [addActivityDate, setAddActivityDate] = useState<string>(() => format(new Date(), 'yyyy-MM-dd'))
   const [moveWorkoutTarget, setMoveWorkoutTarget] = useState<AssignedWorkout | null>(null)
-  // Which assigned workout (by id) currently has its linked warm-up
-  // expanded, if any — a single shared toggle rather than per-card local
-  // state, since renderWorkoutDetail below is a plain closure (not its own
-  // component) called once per workout and can't call hooks itself.
-  const [expandedWarmupId, setExpandedWarmupId] = useState<string | null>(null)
+  // The linked warm-up/cooldown routine currently open in the popup, if
+  // any — a single shared piece of state (not per-card local state) since
+  // renderWorkoutDetail below is a plain closure (not its own component)
+  // called once per workout and can't call hooks itself; one dialog
+  // rendered once at the bottom of this component's JSX covers every card.
+  const [routineDialog, setRoutineDialog] = useState<{ workoutId: string; title: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [currentDate, setCurrentDate] = useState(() => {
     if (initialDate) { const d = new Date(initialDate); if (!isNaN(d.getTime())) return d }
@@ -700,10 +701,24 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
           <p className="text-sm text-navy text-right">{w.workout.description}</p>
         </div>
       )}
-      {/* Warmup */}
-      {w.workout.warmup && (
-        <div className="px-4 py-3 border-b border-border">
-          <p className="text-sm text-muted-foreground text-right">{t.warmupLabel}: {w.workout.warmup}</p>
+      {/* Warmup — free text and/or a linked routine (button opens a popup
+          with video/instructions and a local "done" toggle; not required,
+          not tracked — see components/athlete/warmup-viewer.tsx). */}
+      {(w.workout.warmup || w.workout.warmupWorkoutId) && (
+        <div className="px-4 py-3 border-b border-border space-y-2">
+          {w.workout.warmup && (
+            <p className="text-sm text-muted-foreground text-right">{t.warmupLabel}: {w.workout.warmup}</p>
+          )}
+          {w.workout.warmupWorkoutId && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => setRoutineDialog({ workoutId: w.workout.warmupWorkoutId!, title: 'חימום' })}
+            >
+              הצג חימום
+            </Button>
+          )}
         </div>
       )}
       {/* Sets — three distinct, never-ambiguous rest concepts:
@@ -805,38 +820,29 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
           </div>
         )
       })}
-      {/* Cooldown */}
-      {w.workout.cooldown && (
-        <div className="px-4 py-3 border-t border-border">
-          <p className="text-sm text-muted-foreground text-right">{t.cooldownLabel}: {w.workout.cooldown}</p>
+      {/* Cooldown — free text and/or a linked stretch routine, same pattern
+          as warmup above. */}
+      {(w.workout.cooldown || w.workout.cooldownWorkoutId) && (
+        <div className="px-4 py-3 border-t border-border space-y-2">
+          {w.workout.cooldown && (
+            <p className="text-sm text-muted-foreground text-right">{t.cooldownLabel}: {w.workout.cooldown}</p>
+          )}
+          {w.workout.cooldownWorkoutId && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => setRoutineDialog({ workoutId: w.workout.cooldownWorkoutId!, title: 'מתיחות' })}
+            >
+              הצג מתיחות
+            </Button>
+          )}
         </div>
       )}
       {/* Coach notes */}
       {w.workout.notes && (
         <div className="px-4 py-3 border-t border-border">
           <p className="text-sm text-navy text-right">{t.coachNotesLabel}: {w.workout.notes}</p>
-        </div>
-      )}
-      {/* Linked pre-workout warm-up — purely informational (see
-          components/athlete/warmup-viewer.tsx): no set tracking, not
-          required to complete the actual workout. Available regardless of
-          workout type (running or lift) and not gated behind
-          strengthToolsVisibleToAthlete, since it's just a viewer, not the
-          strength platform itself. */}
-      {!!w.workout.warmupWorkoutId && (
-        <div className="px-4 py-3 border-t border-border">
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={() => setExpandedWarmupId((prev) => (prev === w.id ? null : w.id))}
-          >
-            🔥 {expandedWarmupId === w.id ? 'הסתר חימום' : 'הצג חימום'}
-          </Button>
-          {expandedWarmupId === w.id && (
-            <div className="mt-3">
-              <WarmupViewer workoutId={w.workout.warmupWorkoutId} />
-            </div>
-          )}
         </div>
       )}
       {/* Structured strength/stretch workout — step through exercises with
@@ -2480,6 +2486,15 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
       </div>
 
       {/* ── Dialogs ───────────────────────────────────────────────────────── */}
+      <Dialog open={!!routineDialog} onOpenChange={(o) => { if (!o) setRoutineDialog(null) }}>
+        <DialogContent className="max-w-lg w-full max-h-[85vh] overflow-y-auto" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-right">{routineDialog?.title}</DialogTitle>
+            <DialogDescription className="sr-only">שגרת {routineDialog?.title}</DialogDescription>
+          </DialogHeader>
+          {routineDialog && <WarmupViewer workoutId={routineDialog.workoutId} />}
+        </DialogContent>
+      </Dialog>
       <AddActivityDialog
         open={addActivityOpen}
         onOpenChange={setAddActivityOpen}
