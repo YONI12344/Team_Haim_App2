@@ -27,6 +27,7 @@ import { listExercises, saveExercise, deleteExercise, uploadExerciseVideo } from
 import { BODY_ZONES, ZONE_IDS } from '@/lib/injury-data'
 import { seedRunningStrengthProgram } from '@/lib/seed-running-strength-program'
 import { seedRunnerStretchProgram } from '@/lib/seed-runner-stretch-program'
+import { seedStrapStretchProgram } from '@/lib/seed-strap-stretch-program'
 import { cn } from '@/lib/utils'
 
 const emptyForm = {
@@ -55,7 +56,7 @@ export function ExerciseLibraryManager() {
   const [deleteTarget, setDeleteTarget] = useState<ExerciseLibraryItem | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [filterCategory, setFilterCategory] = useState<'strength' | 'stretch'>('strength')
-  const [importingKey, setImportingKey] = useState<'strength' | 'stretch' | null>(null)
+  const [importingKey, setImportingKey] = useState<'strength' | 'stretch' | 'strap' | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const load = async () => {
@@ -196,6 +197,25 @@ export function ExerciseLibraryManager() {
     }
   }
 
+  const handleImportStrapProgram = async () => {
+    if (!user) return
+    setImportingKey('strap')
+    try {
+      const result = await seedStrapStretchProgram(user.id || '')
+      if (result.alreadyExisted) {
+        toast.info('שגרת הרצועה כבר יובאה בעבר')
+      } else {
+        toast.success(`יובאו ${result.exerciseCount} מתיחות ואימון "מתיחות מתקדמות: רצועה וניידות" — זמין בספריית האימונים`)
+        await load()
+      }
+    } catch (err) {
+      console.error('Error importing strap stretch program:', err)
+      toast.error('הייבוא נכשל')
+    } finally {
+      setImportingKey(null)
+    }
+  }
+
   if (!isCoach) return null
 
   return (
@@ -215,6 +235,10 @@ export function ExerciseLibraryManager() {
           <Button onClick={handleImportStretchProgram} disabled={importingKey !== null} size="sm" variant="outline">
             {importingKey === 'stretch' ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Download className="h-4 w-4 mr-1" />}
             ייבוא: מתיחות סטטיות
+          </Button>
+          <Button onClick={handleImportStrapProgram} disabled={importingKey !== null} size="sm" variant="outline">
+            {importingKey === 'strap' ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Download className="h-4 w-4 mr-1" />}
+            ייבוא: מתיחות עם רצועה
           </Button>
           <Button onClick={openAdd} size="sm"><Plus className="h-4 w-4 mr-1" />הוסף תרגיל</Button>
         </div>
