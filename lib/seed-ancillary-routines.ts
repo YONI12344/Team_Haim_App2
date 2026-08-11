@@ -139,6 +139,7 @@ async function createWorkoutIfMissing(
   description: string,
   blocks: StrengthBlock[],
   createdBy: string,
+  isWarmup: boolean,
 ): Promise<{ workoutId: string; created: boolean }> {
   const existing = await getDocs(query(collection(db, 'workouts'), where('title', '==', title)))
   if (!existing.empty) return { workoutId: existing.docs[0].id, created: false }
@@ -147,6 +148,7 @@ async function createWorkoutIfMissing(
     type: 'stretch',
     description,
     strengthBlocks: blocks,
+    isWarmup,
     libraryHidden: false,
     source: 'coach' as const,
     createdBy,
@@ -172,7 +174,7 @@ export async function seedAncillaryRoutines(createdBy: string): Promise<{
   for (const drill of D) {
     const id = await saveExercise({
       name: drill.name,
-      category: 'stretch',
+      category: 'warmup',
       defaultSets: drill.defaultSets,
       defaultReps: drill.defaultReps,
       createdBy,
@@ -187,6 +189,7 @@ export async function seedAncillaryRoutines(createdBy: string): Promise<{
     'חימום סטנדרטי לפני כל ריצה — ניידות, הפעלת עכוז/ירך עם גומיות, תרגילי הליכה וניתורים.',
     buildBlocks(PRE_RUN_BLOCKS, idByKey),
     createdBy,
+    true,
   )
   if (easy.created) workoutsCreated.push(EASY_WARMUP_TITLE)
 
@@ -195,6 +198,7 @@ export async function seedAncillaryRoutines(createdBy: string): Promise<{
     'חימום מלא לפני אימון איכות או מרוץ — כל תרגילי החימום הקל, בתוספת תרגילי הכנה ספציפיים (רצפה + תרגילי ריצה בעמידה כמו A/B/C-skips). כמות החזרות בבלוקים "על הרצפה" ו"בעמידה" היא הערכה — לא צוינה במקור, מומלץ לאמת.',
     [...buildBlocks(PRE_RUN_BLOCKS, idByKey), ...buildBlocks(PRE_WORKOUT_BLOCKS, idByKey)],
     createdBy,
+    true,
   )
   if (full.created) workoutsCreated.push(FULL_WARMUP_TITLE)
 
@@ -203,6 +207,7 @@ export async function seedAncillaryRoutines(createdBy: string): Promise<{
     'שגרת מתיחות עם חבל מתיחות — עצמאית, לא חלק מהחימום הקל/מלא.',
     buildBlocks(ROPE_STRETCH_BLOCKS, idByKey),
     createdBy,
+    false,
   )
   if (rope.created) workoutsCreated.push(ROPE_STRETCH_TITLE)
 
@@ -211,6 +216,7 @@ export async function seedAncillaryRoutines(createdBy: string): Promise<{
     'שגרת הפעלה עם משקולות קרסול, 2 סבבים — עצמאית, לא חלק מהחימום הקל/מלא. כמות החזרות היא הערכה (המקור ציין רק "2 סבבים").',
     buildBlocks(ANKLE_WEIGHTS_BLOCKS, idByKey),
     createdBy,
+    false,
   )
   if (ankle.created) workoutsCreated.push(ANKLE_WEIGHTS_TITLE)
 

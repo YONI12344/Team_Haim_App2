@@ -11,6 +11,7 @@ import { Loader2, ChevronLeft, ChevronRight, Check, X, TrendingUp, Play, Square 
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/auth-context'
 import { isCoachEmail } from '@/lib/constants'
+import { instructionLines } from '@/lib/utils'
 import type { AssignedWorkout, StrengthBlockExercise } from '@/lib/types'
 
 type SetProgress = { completed: boolean; weightKg?: number | null; durationSec?: number | null }
@@ -115,6 +116,24 @@ function SetControl({ ex, setIdx, set, onToggle, onWeight, onDuration }: {
         className="h-9 text-sm max-w-[110px]"
       />
     </div>
+  )
+}
+
+// Renders an exercise's instructions as bullet points instead of one dense
+// paragraph — splits on real newlines if the coach entered one cue per
+// line, else falls back to sentence-splitting (see lib/utils.ts).
+function InstructionList({ text, className }: { text?: string | null; className?: string }) {
+  const lines = instructionLines(text)
+  if (!lines.length) return null
+  return (
+    <ul className={className}>
+      {lines.map((line, i) => (
+        <li key={i} className="flex items-start gap-1.5">
+          <span className="text-[#c9a84c] shrink-0">•</span>
+          <span>{line}</span>
+        </li>
+      ))}
+    </ul>
   )
 }
 
@@ -306,19 +325,19 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
                       <div className="rounded-lg border border-border overflow-hidden">
                         {roundIdx === 0 ? (
                           ex.videoUrl ? (
-                            <video src={ex.videoUrl} className="w-full aspect-video bg-black" controls playsInline preload="metadata" />
+                            <video src={ex.videoUrl} muted={ex.videoMuted} className="w-full aspect-video bg-black" controls playsInline preload="metadata" />
                           ) : (
                             <div className="w-full aspect-video bg-muted flex items-center justify-center text-muted-foreground text-sm">אין סרטון הדגמה</div>
                           )
                         ) : ex.videoUrl && (
                           <details>
                             <summary className="text-xs text-muted-foreground p-2 cursor-pointer">הצג סרטון הדגמה</summary>
-                            <video src={ex.videoUrl} className="w-full aspect-video bg-black" controls playsInline preload="metadata" />
+                            <video src={ex.videoUrl} muted={ex.videoMuted} className="w-full aspect-video bg-black" controls playsInline preload="metadata" />
                           </details>
                         )}
                         <div className="p-2.5 space-y-1.5">
                           <p className="text-sm font-semibold">{ex.name}</p>
-                          {roundIdx === 0 && ex.instructions && <p className="text-xs text-muted-foreground">{ex.instructions}</p>}
+                          {roundIdx === 0 && <InstructionList text={ex.instructions} className="text-xs text-muted-foreground space-y-0.5" />}
                           {ex.notes && <p className="text-xs text-primary">{ex.notes}</p>}
                           <SetControl
                             ex={ex}
@@ -350,13 +369,13 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
           {block.exercises.map((ex) => (
             <div key={ex.id} className="rounded-xl border border-border overflow-hidden">
               {ex.videoUrl ? (
-                <video src={ex.videoUrl} className="w-full aspect-video bg-black" controls playsInline preload="metadata" />
+                <video src={ex.videoUrl} muted={ex.videoMuted} className="w-full aspect-video bg-black" controls playsInline preload="metadata" />
               ) : (
                 <div className="w-full aspect-video bg-muted flex items-center justify-center text-muted-foreground text-sm">אין סרטון הדגמה</div>
               )}
               <div className="p-3 space-y-2">
                 <h2 className="font-semibold">{ex.name}</h2>
-                {ex.instructions && <p className="text-xs text-muted-foreground">{ex.instructions}</p>}
+                <InstructionList text={ex.instructions} className="text-xs text-muted-foreground space-y-0.5" />
                 {ex.notes && <p className="text-xs text-primary">{ex.notes}</p>}
                 <p className="text-xs text-muted-foreground">
                   {ex.targetDurationSec != null

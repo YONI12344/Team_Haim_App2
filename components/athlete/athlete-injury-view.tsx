@@ -5,7 +5,7 @@ import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firesto
 import { db } from '@/lib/firebase'
 import Link from 'next/link'
 import { Loader2, MessageCircle, ChevronRight, AlertTriangle, Video, Dumbbell, Sparkles } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, instructionLines } from '@/lib/utils'
 import { useLanguage } from '@/contexts/language-context'
 import { useAuth } from '@/contexts/auth-context'
 import { isCoachEmail } from '@/lib/constants'
@@ -217,9 +217,18 @@ export function AthleteInjuryView() {
                       </div>
                     </summary>
                     {ex.videoUrl && (
-                      <video src={ex.videoUrl} className="w-full aspect-video bg-black" controls playsInline preload="metadata" />
+                      <video src={ex.videoUrl} muted={ex.videoMuted} className="w-full aspect-video bg-black" controls playsInline preload="metadata" />
                     )}
-                    {ex.instructions && <p className="text-xs text-gray-500 p-3.5 pt-2">{ex.instructions}</p>}
+                    {!!instructionLines(ex.instructions).length && (
+                      <ul className="text-xs text-gray-500 p-3.5 pt-2 space-y-0.5">
+                        {instructionLines(ex.instructions).map((line, i) => (
+                          <li key={i} className="flex items-start gap-1.5">
+                            <span className="text-[#c9a84c] shrink-0">•</span>
+                            <span>{line}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </details>
                 ))}
               </div>

@@ -57,7 +57,7 @@ export function WorkoutLibrary() {
   const isCoach = isCoachEmail(user?.email)
 
   const [searchQuery, setSearchQuery] = useState('')
-  const [typeFilter, setTypeFilter] = useState<WorkoutType | 'all'>('all')
+  const [typeFilter, setTypeFilter] = useState<WorkoutType | 'all' | 'warmup'>('all')
   const [sourceFilter, setSourceFilter] = useState<'all' | 'bakken' | 'coach'>('all')
   const [workouts, setWorkouts] = useState<Workout[]>([])
   // Every workouts/{id} doc referenced by an assignedWorkouts doc with
@@ -158,7 +158,15 @@ export function WorkoutLibrary() {
     const matchesSearch =
       (workout.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (workout.description || '').toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesType = typeFilter === 'all' || workout.type === typeFilter
+    // 'warmup' is a pseudo-type, not a real WorkoutType — it filters
+    // Workout.isWarmup instead of .type, so it narrows the 'stretch'
+    // bucket down to just the pre-run/pre-workout warm-up routines
+    // instead of every stretch workout.
+    const matchesType = typeFilter === 'all'
+      ? true
+      : typeFilter === 'warmup'
+        ? workout.isWarmup === true
+        : workout.type === typeFilter
     const matchesSource = sourceFilter === 'all' || (sourceFilter === 'bakken' ? isBakken(workout) : !isBakken(workout))
     return matchesSearch && matchesType && matchesSource
   })
@@ -207,8 +215,11 @@ export function WorkoutLibrary() {
     URL.revokeObjectURL(url)
   }
 
-  const workoutTypes: (WorkoutType | 'all')[] = [
+  const workoutTypes: (WorkoutType | 'all' | 'warmup')[] = [
     'all',
+    'strength',
+    'stretch',
+    'warmup',
     'easy',
     'long_run',
     'tempo',
@@ -296,7 +307,7 @@ export function WorkoutLibrary() {
               onClick={() => setTypeFilter(type)}
               className={cn(type === typeFilter && 'bg-gold/10 border-gold text-gold')}
             >
-              {type === 'all' ? t.all : workoutTypeLabels[type]}
+              {type === 'all' ? t.all : type === 'warmup' ? '🔥 חימום' : workoutTypeLabels[type]}
             </Button>
           ))}
         </div>
@@ -389,7 +400,10 @@ export function WorkoutLibrary() {
         <>
           {/* Workouts Grid */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {filteredWorkouts.map((workout) => (
+            {filteredWorkouts.map((workout) => {
+              const created = toDate((workout as any).createdAt)
+              const isRecent = !!created && Date.now() - created.getTime() < 48 * 3600 * 1000
+              return (
               <Card key={workout.id} className="hover:shadow-md transition-luxury">
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between">
@@ -397,9 +411,19 @@ export function WorkoutLibrary() {
                       <Badge className={cn('border', workoutTypeColors[workout.type])}>
                         {workoutTypeLabels[workout.type]}
                       </Badge>
+                      {workout.isWarmup && (
+                        <Badge variant="outline" className="border-amber-300 text-amber-700 text-[10px]">
+                          🔥 חימום
+                        </Badge>
+                      )}
                       {isBakken(workout) && (
                         <Badge variant="outline" className="border-primary/30 text-primary text-[10px]">
                           <Sparkles className="h-2.5 w-2.5 mr-1" />Bakken AI
+                        </Badge>
+                      )}
+                      {isRecent && (
+                        <Badge variant="outline" className="border-emerald-300 text-emerald-700 text-[10px]">
+                          🆕 חדש
                         </Badge>
                       )}
                     </div>
@@ -483,7 +507,8 @@ export function WorkoutLibrary() {
                   </Link>
                 </CardContent>
               </Card>
-            ))}
+              )
+            })}
           </div>
 
           {filteredWorkouts.length === 0 && (

@@ -355,6 +355,11 @@ export interface Workout {
   // showing the exact exercise it was built with even if the library entry
   // is edited/deleted later.
   strengthBlocks?: StrengthBlock[]
+  // A 'stretch'-type workout that's specifically a pre-run/pre-workout
+  // warm-up (vs. a general stretch/cooldown routine) — lets the Workout
+  // Library filter to just warm-ups instead of lumping every stretch
+  // workout together (components/coach/workout-library.tsx).
+  isWarmup?: boolean
   // Marks this workout as a Workout Bank entry for the given athlete
   // level — a real, coach-authored session the Bakken AI generator can
   // pick from and scale (duration/distance only, never restructure)
@@ -386,14 +391,22 @@ export interface ExerciseLibraryItem {
   name: string
   videoUrl?: string
   videoPath?: string // Storage path, needed to delete the file on removal
+  // Coach-set: play this exercise's demo video muted by default wherever
+  // it's shown (Lift Mode, injury view, library preview). Doesn't strip
+  // audio from the file itself — browsers/Firestore give no way to do that
+  // client-side — it only controls playback, same as any <video muted>.
+  videoMuted?: boolean
   instructions?: string
   defaultSets?: number
   defaultReps?: string // free text, e.g. "8-12" or "10 each side"
   // Which workout builder this exercise is offered in — missing means
-  // 'strength' (every exercise created before this field existed). Lets
-  // the library and the block-exercise picker split strength lifts from
-  // stretches instead of one long mixed list.
-  category?: 'strength' | 'stretch'
+  // 'strength' (every exercise created before this field existed). 'warmup'
+  // is its own bucket, separate from 'stretch', for pre-run activation/
+  // mobility drills (see lib/seed-ancillary-routines.ts) — a 'stretch'-type
+  // workout can pick from both 'stretch' and 'warmup' exercises (see
+  // components/coach/strength-block-builder.tsx), but the library and its
+  // filter tabs keep them visually apart.
+  category?: 'strength' | 'stretch' | 'warmup'
   // Timed exercise (a stretch hold, a plank) instead of a reps-based one —
   // Lift Mode (components/athlete/lift-mode.tsx) shows a start/stop timer
   // in place of a weight input when set, for this exercise and any
@@ -422,6 +435,7 @@ export interface StrengthBlockExercise {
   exerciseId: string // ExerciseLibraryItem.id — for future library lookups
   name: string // denormalized from the library at build time
   videoUrl?: string // denormalized
+  videoMuted?: boolean // denormalized
   instructions?: string // denormalized
   targetSets: number
   targetReps: string // free text, e.g. "8-12" or "10 each side"

@@ -24,9 +24,12 @@ interface Props {
   blocks: StrengthBlock[]
   onChange: (blocks: StrengthBlock[]) => void
   // Which half of the exercise library to offer — a strength workout only
-  // picks from category 'strength' exercises, a stretch workout only from
-  // 'stretch'. Defaults to 'strength' for any caller that predates this.
-  category?: 'strength' | 'stretch'
+  // picks from category 'strength' exercises. A stretch workout picks from
+  // both 'stretch' and 'warmup' — there's no separate WorkoutType for
+  // warm-ups, a warm-up routine is just a 'stretch' workout built entirely
+  // from 'warmup'-category exercises, so both need to be selectable here.
+  // Defaults to 'strength' for any caller that predates this.
+  category?: 'strength' | 'stretch' | 'warmup'
 }
 
 // Builds the structured strength/stretch-workout content that powers Lift
@@ -42,7 +45,10 @@ export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }
     listExercises().then(setAllExercises).catch(console.error).finally(() => setLoadingLibrary(false))
   }, [])
 
-  const library = allExercises.filter((ex) => (ex.category || 'strength') === category)
+  const library = allExercises.filter((ex) => {
+    const exCategory = ex.category || 'strength'
+    return category === 'strength' ? exCategory === 'strength' : exCategory !== 'strength'
+  })
   const blockLabelPrefix = category === 'stretch' ? 'מתיחה' : 'סט'
 
   const addBlock = () => {
@@ -65,6 +71,11 @@ export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }
       exerciseId: ex.id,
       name: ex.name,
       videoUrl: ex.videoUrl,
+      // Coerced to a real boolean (not left as ex.videoMuted directly) —
+      // exercises saved before this field existed have it as `undefined`
+      // in Firestore, and undefined is illegal on write, same reasoning as
+      // the targetDurationSec fix above.
+      videoMuted: ex.videoMuted ?? false,
       instructions: ex.instructions,
       targetSets: ex.defaultSets || 3,
       targetReps: ex.defaultReps || '10',
@@ -172,7 +183,9 @@ export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }
                     </SelectTrigger>
                     <SelectContent>
                       {library.map((ex) => (
-                        <SelectItem key={ex.id} value={ex.id}>{ex.name}</SelectItem>
+                        <SelectItem key={ex.id} value={ex.id}>
+                          {ex.name}{category !== 'strength' && ex.category === 'warmup' ? ' (חימום)' : ''}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

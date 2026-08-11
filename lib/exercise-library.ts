@@ -29,10 +29,11 @@ interface RawExerciseDoc {
   name?: string
   videoUrl?: string
   videoPath?: string
+  videoMuted?: boolean
   instructions?: string
   defaultSets?: number
   defaultReps?: string
-  category?: 'strength' | 'stretch'
+  category?: 'strength' | 'stretch' | 'warmup'
   isTimed?: boolean
   defaultDurationSec?: number
   injuryZones?: string[]
@@ -47,6 +48,7 @@ function mapExercise(id: string, data: RawExerciseDoc): ExerciseLibraryItem {
     name: data.name || 'Exercise',
     videoUrl: data.videoUrl,
     videoPath: data.videoPath,
+    videoMuted: data.videoMuted,
     instructions: data.instructions,
     defaultSets: data.defaultSets,
     defaultReps: data.defaultReps,
@@ -84,6 +86,7 @@ export async function saveExercise(
       name: exercise.name,
       videoUrl: exercise.videoUrl ?? null,
       videoPath: exercise.videoPath ?? null,
+      videoMuted: exercise.videoMuted ?? false,
       instructions: exercise.instructions ?? null,
       defaultSets: exercise.defaultSets ?? null,
       defaultReps: exercise.defaultReps ?? null,

@@ -17,7 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Plus, Pencil, Trash2, Loader2, Dumbbell, Video, Timer, Download } from 'lucide-react'
+import { Plus, Pencil, Trash2, Loader2, Dumbbell, Video, Timer, Download, VolumeX } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/auth-context'
@@ -34,13 +34,20 @@ import { cn } from '@/lib/utils'
 const emptyForm = {
   name: '',
   instructions: '',
-  category: 'strength' as 'strength' | 'stretch',
+  category: 'strength' as 'strength' | 'stretch' | 'warmup',
   isTimed: false,
   defaultDurationSec: '',
   defaultSets: '',
   defaultReps: '',
   injuryZones: [] as string[],
+  videoMuted: false,
 }
+
+const CATEGORY_OPTIONS: { value: 'strength' | 'stretch' | 'warmup'; label: string }[] = [
+  { value: 'strength', label: 'כוח' },
+  { value: 'stretch', label: 'מתיחות' },
+  { value: 'warmup', label: 'חימום / הפעלה' },
+]
 
 export function ExerciseLibraryManager() {
   const { user } = useAuth()
@@ -56,7 +63,7 @@ export function ExerciseLibraryManager() {
   const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<ExerciseLibraryItem | null>(null)
   const [deleting, setDeleting] = useState(false)
-  const [filterCategory, setFilterCategory] = useState<'strength' | 'stretch'>('strength')
+  const [filterCategory, setFilterCategory] = useState<'strength' | 'stretch' | 'warmup'>('strength')
   const [importingKey, setImportingKey] = useState<'strength' | 'stretch' | 'strap' | 'ancillary' | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -91,6 +98,7 @@ export function ExerciseLibraryManager() {
       defaultSets: exercise.defaultSets != null ? String(exercise.defaultSets) : '',
       defaultReps: exercise.defaultReps || '',
       injuryZones: exercise.injuryZones || [],
+      videoMuted: !!exercise.videoMuted,
     })
     setVideoFile(null)
     setDialogOpen(true)
@@ -112,6 +120,7 @@ export function ExerciseLibraryManager() {
         injuryZones: form.injuryZones,
         videoUrl: editing?.videoUrl,
         videoPath: editing?.videoPath,
+        videoMuted: form.videoMuted,
         createdBy: editing?.createdBy || user.id || '',
       })
       if (videoFile) {
@@ -129,6 +138,7 @@ export function ExerciseLibraryManager() {
           injuryZones: form.injuryZones,
           videoUrl,
           videoPath,
+          videoMuted: form.videoMuted,
           createdBy: editing?.createdBy || user.id || '',
         })
       }
@@ -269,26 +279,19 @@ export function ExerciseLibraryManager() {
       </div>
 
       <div className="flex gap-1.5">
-        <button
-          type="button"
-          onClick={() => setFilterCategory('strength')}
-          className={cn(
-            'px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors',
-            filterCategory === 'strength' ? 'bg-[#0a1628] text-white border-[#0a1628]' : 'bg-white text-gray-500 border-gray-200',
-          )}
-        >
-          כוח
-        </button>
-        <button
-          type="button"
-          onClick={() => setFilterCategory('stretch')}
-          className={cn(
-            'px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors',
-            filterCategory === 'stretch' ? 'bg-[#0a1628] text-white border-[#0a1628]' : 'bg-white text-gray-500 border-gray-200',
-          )}
-        >
-          מתיחות
-        </button>
+        {CATEGORY_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => setFilterCategory(opt.value)}
+            className={cn(
+              'px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors',
+              filterCategory === opt.value ? 'bg-[#0a1628] text-white border-[#0a1628]' : 'bg-white text-gray-500 border-gray-200',
+            )}
+          >
+            {opt.label}
+          </button>
+        ))}
       </div>
 
       {(() => {
@@ -320,6 +323,7 @@ export function ExerciseLibraryManager() {
                   <div className="flex items-center gap-1.5">
                     <p className="text-sm font-semibold">{ex.name}</p>
                     {ex.isTimed && <Timer className="h-3 w-3 text-[#c9a84c] shrink-0" />}
+                    {ex.videoMuted && <VolumeX className="h-3 w-3 text-muted-foreground shrink-0" />}
                   </div>
                   {ex.isTimed ? (
                     ex.defaultDurationSec != null && (
@@ -367,26 +371,19 @@ export function ExerciseLibraryManager() {
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold">קטגוריה</Label>
               <div className="flex gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setForm({ ...form, category: 'strength' })}
-                  className={cn(
-                    'flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors',
-                    form.category === 'strength' ? 'bg-[#0a1628] text-white border-[#0a1628]' : 'bg-white text-gray-500 border-gray-200',
-                  )}
-                >
-                  כוח
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setForm({ ...form, category: 'stretch' })}
-                  className={cn(
-                    'flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors',
-                    form.category === 'stretch' ? 'bg-[#0a1628] text-white border-[#0a1628]' : 'bg-white text-gray-500 border-gray-200',
-                  )}
-                >
-                  מתיחות
-                </button>
+                {CATEGORY_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setForm({ ...form, category: opt.value })}
+                    className={cn(
+                      'flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors',
+                      form.category === opt.value ? 'bg-[#0a1628] text-white border-[#0a1628]' : 'bg-white text-gray-500 border-gray-200',
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
               </div>
             </div>
             <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
@@ -467,6 +464,16 @@ export function ExerciseLibraryManager() {
                   <p className="text-[11px] text-muted-foreground mt-0.5">מעלה סרטון... {uploadProgress}%</p>
                 </div>
               )}
+              <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5 mt-1.5">
+                <div className="flex items-center gap-1.5">
+                  <VolumeX className="h-3.5 w-3.5 text-muted-foreground" />
+                  <Label className="text-xs font-semibold">השתקת קול לספורטאי</Label>
+                </div>
+                <Switch checked={form.videoMuted} onCheckedChange={(v) => setForm({ ...form, videoMuted: v })} />
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                משתיק את הניגון אצל הספורטאי (וידאו, טיימר וכו&apos;) — לא מוחק את הקול מהקובץ עצמו.
+              </p>
             </div>
             <Button onClick={handleSave} disabled={saving || !form.name.trim()} className="w-full">
               {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
