@@ -91,6 +91,8 @@ function SetControl({ ex, setIdx, set, onToggle, onWeight, onDuration }: {
       </div>
     )
   }
+  // Stretch/warmup reps-based sets don't track weight — just mark done.
+  const tracksWeight = (ex.category || 'strength') === 'strength'
   return (
     <div className="flex items-center gap-2">
       <button
@@ -107,14 +109,16 @@ function SetControl({ ex, setIdx, set, onToggle, onWeight, onDuration }: {
         סט {setIdx + 1}
         {set.completed && ' · בוצע'}
       </button>
-      <Input
-        type="number"
-        inputMode="decimal"
-        placeholder='משקל ק"ג'
-        value={set.weightKg ?? ''}
-        onChange={(e) => onWeight(e.target.value)}
-        className="h-9 text-sm max-w-[110px]"
-      />
+      {tracksWeight && (
+        <Input
+          type="number"
+          inputMode="decimal"
+          placeholder='משקל ק"ג'
+          value={set.weightKg ?? ''}
+          onChange={(e) => onWeight(e.target.value)}
+          className="h-9 text-sm max-w-[110px]"
+        />
+      )}
     </div>
   )
 }

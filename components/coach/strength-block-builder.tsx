@@ -77,6 +77,7 @@ export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }
       // the targetDurationSec fix above.
       videoMuted: ex.videoMuted ?? false,
       instructions: ex.instructions,
+      category: ex.category ?? 'strength',
       targetSets: ex.defaultSets || 3,
       targetReps: ex.defaultReps || '10',
       notes: '',

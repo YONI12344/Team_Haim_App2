@@ -34,6 +34,7 @@ import { ManualLogCard } from '@/components/shared/manual-log-card'
 import { useDaysOff } from '@/hooks/useDaysOff'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { AddActivityDialog } from '@/components/athlete/add-activity-dialog'
+import { WarmupViewer } from '@/components/athlete/warmup-viewer'
 import { MoveWorkoutDialog } from '@/components/athlete/move-workout-dialog'
 import {
   getActivityInfo, getActivityKind, isRunningKind, isGymKind,
@@ -251,6 +252,11 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
   const [addActivityOpen, setAddActivityOpen] = useState(false)
   const [addActivityDate, setAddActivityDate] = useState<string>(() => format(new Date(), 'yyyy-MM-dd'))
   const [moveWorkoutTarget, setMoveWorkoutTarget] = useState<AssignedWorkout | null>(null)
+  // Which assigned workout (by id) currently has its linked warm-up
+  // expanded, if any — a single shared toggle rather than per-card local
+  // state, since renderWorkoutDetail below is a plain closure (not its own
+  // component) called once per workout and can't call hooks itself.
+  const [expandedWarmupId, setExpandedWarmupId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [currentDate, setCurrentDate] = useState(() => {
     if (initialDate) { const d = new Date(initialDate); if (!isNaN(d.getTime())) return d }
@@ -809,6 +815,28 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
       {w.workout.notes && (
         <div className="px-4 py-3 border-t border-border">
           <p className="text-sm text-navy text-right">{t.coachNotesLabel}: {w.workout.notes}</p>
+        </div>
+      )}
+      {/* Linked pre-workout warm-up — purely informational (see
+          components/athlete/warmup-viewer.tsx): no set tracking, not
+          required to complete the actual workout. Available regardless of
+          workout type (running or lift) and not gated behind
+          strengthToolsVisibleToAthlete, since it's just a viewer, not the
+          strength platform itself. */}
+      {!!w.workout.warmupWorkoutId && (
+        <div className="px-4 py-3 border-t border-border">
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => setExpandedWarmupId((prev) => (prev === w.id ? null : w.id))}
+          >
+            🔥 {expandedWarmupId === w.id ? 'הסתר חימום' : 'הצג חימום'}
+          </Button>
+          {expandedWarmupId === w.id && (
+            <div className="mt-3">
+              <WarmupViewer workoutId={w.workout.warmupWorkoutId} />
+            </div>
+          )}
         </div>
       )}
       {/* Structured strength/stretch workout — step through exercises with

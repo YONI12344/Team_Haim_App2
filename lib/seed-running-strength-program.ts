@@ -224,6 +224,7 @@ export async function seedRunningStrengthProgram(createdBy: string): Promise<{ w
         id: genId('ex'),
         exerciseId: id,
         name: ex.name,
+        category: 'strength',
         targetSets: ex.defaultSets,
         targetReps: ex.defaultReps || '',
         ...(ex.instructions ? { instructions: ex.instructions } : {}),

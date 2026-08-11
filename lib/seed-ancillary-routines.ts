@@ -127,6 +127,7 @@ function buildBlocks(seedBlocks: SeedBlock[], idByKey: Map<string, string>): Str
         id: genId('ex'),
         exerciseId: id,
         name: drill.name,
+        category: 'warmup',
         targetSets: drill.defaultSets,
         targetReps: drill.defaultReps,
       }

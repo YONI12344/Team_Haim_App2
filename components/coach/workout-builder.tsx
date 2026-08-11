@@ -289,8 +289,26 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
   const [existingGroups, setExistingGroups] = useState<string[]>([])
   const [sets, setSets] = useState<Partial<WorkoutSet>[]>([])
   const [strengthBlocks, setStrengthBlocks] = useState<StrengthBlock[]>([])
+  const [warmupWorkoutId, setWarmupWorkoutId] = useState('')
+  const [warmupOptions, setWarmupOptions] = useState<Workout[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [loading, setLoading] = useState(!!workoutId)
+
+  // Every 'stretch'-type workout (warm-ups included) — offered as the
+  // optional pre-workout routine link for ANY workout type below.
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'workouts'))
+        const options = snap.docs
+          .map((d) => ({ ...(d.data() as Workout), id: d.id }))
+          .filter((w) => w.type === 'stretch' && !w.libraryHidden)
+          .sort((a, b) => (b.isWarmup ? 1 : 0) - (a.isWarmup ? 1 : 0) || a.title.localeCompare(b.title))
+        setWarmupOptions(options)
+      } catch (err) { console.error('Error loading warm-up options:', err) }
+    }
+    load()
+  }, [])
 
   // Existing comparisonGroup names across every workout template, so the
   // coach can reuse "Fartlek A" exactly (autocomplete) instead of retyping
@@ -343,6 +361,7 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
             intervals: s.intervals || [],
           })) : [])
           setStrengthBlocks(Array.isArray(data.strengthBlocks) ? data.strengthBlocks : [])
+          setWarmupWorkoutId(data.warmupWorkoutId || '')
         } else {
           toast.error('Workout not found')
           if (onDone) onDone(); else router.push('/coach/workouts')
@@ -495,6 +514,7 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
           })),
         })),
         strengthBlocks: (type === 'strength' || type === 'stretch') && strengthBlocks.length > 0 ? strengthBlocks : null,
+        warmupWorkoutId: warmupWorkoutId || null,
         updatedAt: serverTimestamp(),
         updatedBy: user?.id || null,
         // Editing a copied (hidden) workout makes it a real library workout —
@@ -772,6 +792,21 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
                 onChange={(e) => setCooldown(e.target.value)}
                 rows={2}
               />
+            </div>
+            <div className="space-y-2 pt-2 border-t">
+              <Label>🔥 חימום מקושר (אופציונלי)</Label>
+              <p className="text-xs text-muted-foreground">
+                שגרת חימום/מתיחות מהספרייה שהספורטאי יוכל לפתוח מתוך פרטי האימון הזה — לצפייה בלבד, לא חובה לסמן כבוצע.
+              </p>
+              <Select value={warmupWorkoutId || '__none__'} onValueChange={(v) => setWarmupWorkoutId(v === '__none__' ? '' : v)}>
+                <SelectTrigger><SelectValue placeholder="ללא" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">ללא</SelectItem>
+                  {warmupOptions.map((w) => (
+                    <SelectItem key={w.id} value={w.id}>{w.isWarmup ? '🔥 ' : ''}{w.title}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
         </Card>

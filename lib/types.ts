@@ -346,6 +346,12 @@ export interface Workout {
   // Older docs predating this field fall back to a live cross-reference
   // against assignedWorkouts (source:'bakken') instead.
   source?: 'bakken' | 'coach'
+  // Hides this workout from the Workout Library list (components/coach/
+  // workout-library.tsx) — set on per-week clones created by copy-week/
+  // paste, which are real workouts/{id} docs but shouldn't clutter the
+  // reusable-template list. Was already written/read all over the
+  // codebase without ever being declared on this type.
+  libraryHidden?: boolean
   // 'strength' workouts only: the structured exercise breakdown that
   // powers Lift Mode (components/athlete/lift-mode.tsx) — grouped into
   // blocks (a plain set, or a superset of 2+ exercises done back to back)
@@ -360,6 +366,16 @@ export interface Workout {
   // Library filter to just warm-ups instead of lumping every stretch
   // workout together (components/coach/workout-library.tsx).
   isWarmup?: boolean
+  // Optional pre-workout routine attached to ANY workout (a running
+  // session, a lift day, anything) — points at a 'stretch'-type
+  // workouts/{id} doc (usually one of the isWarmup ones, but any stretch
+  // workout is allowed). Shown to the athlete as a "🔥 הצג חימום" button on
+  // the workout detail card (components/athlete/athlete-planner-view.tsx),
+  // opening a read-only viewer (components/athlete/warmup-viewer.tsx) —
+  // purely informational, not tracked/logged and not required to complete
+  // the actual workout. Copied onto AssignedWorkout.workout automatically
+  // since that's a full snapshot of this Workout at assignment time.
+  warmupWorkoutId?: string
   // Marks this workout as a Workout Bank entry for the given athlete
   // level — a real, coach-authored session the Bakken AI generator can
   // pick from and scale (duration/distance only, never restructure)
@@ -437,6 +453,10 @@ export interface StrengthBlockExercise {
   videoUrl?: string // denormalized
   videoMuted?: boolean // denormalized
   instructions?: string // denormalized
+  // Denormalized from ExerciseLibraryItem.category — 'stretch'/'warmup'
+  // exercises skip the weight input in Lift Mode (components/athlete/
+  // lift-mode.tsx SetControl); only 'strength' logs weight.
+  category?: 'strength' | 'stretch' | 'warmup'
   targetSets: number
   targetReps: string // free text, e.g. "8-12" or "10 each side"
   // Denormalized from ExerciseLibraryItem.isTimed/defaultDurationSec at

@@ -169,6 +169,7 @@ export async function seedRunnerStretchProgram(createdBy: string): Promise<{ wor
         exerciseId: id,
         name: ex.name,
         instructions: ex.instructions,
+        category: 'stretch',
         targetSets: ex.defaultSets,
         targetReps: '',
         targetDurationSec: ex.defaultDurationSec,
