@@ -12,17 +12,18 @@
  * every routine that calls for them, instead of duplicating library
  * entries.
  *
- * Four workouts come out of this (all type 'stretch', category 'stretch'
- * per the coach's own "warm up and stretch place" framing — no new
- * taxonomy):
+ * Five workouts come out of this (all type 'stretch', category 'warmup'):
  *  - קל: the source's "Pre-Run Drills" section alone (4 blocks) — the
  *    every-run default.
  *  - מלא: the same 4 blocks PLUS "Pre-Workout/Race Drills" (2 more
- *    blocks) — for hard/quality/race days, per the coach's request for
- *    "more exercises on hard days, less on easy days."
+ *    blocks) — a combined one-button option for hard/quality/race days.
+ *  - הפעלה ספציפית: just the "Pre-Workout/Race Drills" half of "מלא",
+ *    as its own routine — lets the coach link "קל" and this one as two
+ *    separately-labeled buttons (e.g. "חימום" then "הפעלה ספציפית")
+ *    instead of only the bundled "מלא" option.
  *  - Rope Stretch Routine and Ankle Weights stand alone — the source
  *    doesn't group them into either warm-up, so they're separate
- *    assignable routines rather than folded into the two above.
+ *    assignable routines rather than folded into the others.
  *
  * Two spots had no rep/set count in the source (Floor and Upright, under
  * Pre-Workout/Race Drills) — filled in with a reasonable standard
@@ -37,6 +38,7 @@ import type { StrengthBlock, StrengthBlockExercise } from '@/lib/types'
 
 export const EASY_WARMUP_TITLE = 'חימום קל לפני ריצה'
 export const FULL_WARMUP_TITLE = 'חימום מלא - לפני אימון איכות/מרוץ'
+export const ACTIVATION_TITLE = 'הפעלה ספציפית (לפני אימון איכות/מרוץ)'
 export const ROPE_STRETCH_TITLE = 'שגרת מתיחות עם חבל (GW)'
 export const ANKLE_WEIGHTS_TITLE = 'משקולות קרסול (GW)'
 
@@ -202,6 +204,20 @@ export async function seedAncillaryRoutines(createdBy: string): Promise<{
     true,
   )
   if (full.created) workoutsCreated.push(FULL_WARMUP_TITLE)
+
+  // Same "Pre-Workout/Race Drills" content as the second half of "מלא"
+  // above, but as its own standalone routine — lets the coach link it as a
+  // separately-labeled button (e.g. "הפעלה ספציפית", shown after a
+  // "חימום" button) instead of only ever getting it bundled into one
+  // combined warm-up.
+  const activation = await createWorkoutIfMissing(
+    ACTIVATION_TITLE,
+    'תרגילי הכנה ספציפיים לפני אימון איכות או מרוץ — רצפה + תרגילי ריצה בעמידה כמו A/B/C-skips. מיועד לקישור בנפרד, אחרי שגרת חימום כללית. כמות החזרות היא הערכה — לא צוינה במקור, מומלץ לאמת.',
+    buildBlocks(PRE_WORKOUT_BLOCKS, idByKey),
+    createdBy,
+    false,
+  )
+  if (activation.created) workoutsCreated.push(ACTIVATION_TITLE)
 
   const rope = await createWorkoutIfMissing(
     ROPE_STRETCH_TITLE,

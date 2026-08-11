@@ -289,14 +289,13 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
   const [existingGroups, setExistingGroups] = useState<string[]>([])
   const [sets, setSets] = useState<Partial<WorkoutSet>[]>([])
   const [strengthBlocks, setStrengthBlocks] = useState<StrengthBlock[]>([])
-  const [warmupWorkoutId, setWarmupWorkoutId] = useState('')
-  const [cooldownWorkoutId, setCooldownWorkoutId] = useState('')
-  const [warmupOptions, setWarmupOptions] = useState<Workout[]>([])
+  const [linkedRoutines, setLinkedRoutines] = useState<{ id: string; workoutId: string; label: string }[]>([])
+  const [routineOptions, setRoutineOptions] = useState<Workout[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [loading, setLoading] = useState(!!workoutId)
 
   // Every 'stretch'-type workout (warm-ups included) — offered as the
-  // optional pre-workout routine link for ANY workout type below.
+  // routine-link options for ANY workout type below.
   useEffect(() => {
     const load = async () => {
       try {
@@ -305,8 +304,8 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
           .map((d) => ({ ...(d.data() as Workout), id: d.id }))
           .filter((w) => w.type === 'stretch' && !w.libraryHidden)
           .sort((a, b) => (b.isWarmup ? 1 : 0) - (a.isWarmup ? 1 : 0) || a.title.localeCompare(b.title))
-        setWarmupOptions(options)
-      } catch (err) { console.error('Error loading warm-up options:', err) }
+        setRoutineOptions(options)
+      } catch (err) { console.error('Error loading routine options:', err) }
     }
     load()
   }, [])
@@ -362,8 +361,7 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
             intervals: s.intervals || [],
           })) : [])
           setStrengthBlocks(Array.isArray(data.strengthBlocks) ? data.strengthBlocks : [])
-          setWarmupWorkoutId(data.warmupWorkoutId || '')
-          setCooldownWorkoutId(data.cooldownWorkoutId || '')
+          setLinkedRoutines(Array.isArray(data.linkedRoutines) ? data.linkedRoutines : [])
         } else {
           toast.error('Workout not found')
           if (onDone) onDone(); else router.push('/coach/workouts')
@@ -516,8 +514,10 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
           })),
         })),
         strengthBlocks: (type === 'strength' || type === 'stretch') && strengthBlocks.length > 0 ? strengthBlocks : null,
-        warmupWorkoutId: warmupWorkoutId || null,
-        cooldownWorkoutId: cooldownWorkoutId || null,
+        linkedRoutines: (() => {
+          const complete = linkedRoutines.filter((l) => l.workoutId && l.label.trim())
+          return complete.length > 0 ? complete : null
+        })(),
         updatedAt: serverTimestamp(),
         updatedBy: user?.id || null,
         // Editing a copied (hidden) workout makes it a real library workout —
@@ -797,34 +797,52 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
               />
             </div>
             <div className="space-y-2 pt-2 border-t">
-              <Label>חימום מקושר — לפני האימון (אופציונלי)</Label>
+              <Label>שגרות מקושרות (אופציונלי)</Label>
               <p className="text-xs text-muted-foreground">
-                שגרת חימום מהספרייה שהספורטאי יוכל לפתוח מתוך פרטי האימון הזה — לצפייה בלבד, לא חובה לסמן כבוצע.
+                כל שגרה שתקשרו כאן תופיע לספורטאי ככפתור נפרד, בסדר הזה ועם הכותרת שתבחרו (למשל &quot;חימום&quot;, &quot;הפעלה ספציפית&quot;, &quot;מתיחות&quot;) — לצפייה בלבד, לא חובה לסמן כבוצע.
               </p>
-              <Select value={warmupWorkoutId || '__none__'} onValueChange={(v) => setWarmupWorkoutId(v === '__none__' ? '' : v)}>
-                <SelectTrigger><SelectValue placeholder="ללא" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">ללא</SelectItem>
-                  {warmupOptions.map((w) => (
-                    <SelectItem key={w.id} value={w.id}>{w.title}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2 pt-2 border-t">
-              <Label>מתיחות מקושרות — אחרי האימון (אופציונלי)</Label>
-              <p className="text-xs text-muted-foreground">
-                שגרת מתיחות מהספרייה (למשל מתיחות סטטיות) לספורטאי לפתוח אחרי האימון — לצפייה בלבד, לא חובה לסמן כבוצע.
-              </p>
-              <Select value={cooldownWorkoutId || '__none__'} onValueChange={(v) => setCooldownWorkoutId(v === '__none__' ? '' : v)}>
-                <SelectTrigger><SelectValue placeholder="ללא" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">ללא</SelectItem>
-                  {warmupOptions.map((w) => (
-                    <SelectItem key={w.id} value={w.id}>{w.title}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="space-y-2">
+                {linkedRoutines.map((link, i) => (
+                  <div key={link.id} className="flex items-center gap-2">
+                    <Input
+                      value={link.label}
+                      onChange={(e) => setLinkedRoutines((prev) => prev.map((l, li) => (li === i ? { ...l, label: e.target.value } : l)))}
+                      placeholder="כותרת הכפתור"
+                      className="flex-1"
+                      dir="rtl"
+                    />
+                    <Select
+                      value={link.workoutId || '__none__'}
+                      onValueChange={(v) => setLinkedRoutines((prev) => prev.map((l, li) => (li === i ? { ...l, workoutId: v === '__none__' ? '' : v } : l)))}
+                    >
+                      <SelectTrigger className="flex-1"><SelectValue placeholder="בחרו שגרה" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">בחרו שגרה</SelectItem>
+                        {routineOptions.map((w) => (
+                          <SelectItem key={w.id} value={w.id}>{w.title}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setLinkedRoutines((prev) => prev.filter((_, li) => li !== i))}
+                      className="text-destructive hover:text-destructive h-9 w-9 shrink-0"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setLinkedRoutines((prev) => [...prev, { id: `link-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, workoutId: '', label: '' }])}
+              >
+                <Plus className="h-4 w-4 mr-1" />הוסף שגרה מקושרת
+              </Button>
             </div>
           </CardContent>
         </Card>

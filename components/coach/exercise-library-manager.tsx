@@ -235,7 +235,7 @@ export function ExerciseLibraryManager() {
       if (result.alreadyExisted) {
         toast.info('שגרות החימום כבר יובאו בעבר')
       } else {
-        toast.success(`יובאו ${result.exerciseCount} תרגילים ו-${result.workoutsCreated.length} שגרות (חימום קל, חימום מלא, מתיחות עם חבל, משקולות קרסול)`)
+        toast.success(`יובאו ${result.exerciseCount} תרגילים ו-${result.workoutsCreated.length} שגרות (חימום קל, חימום מלא, הפעלה ספציפית, מתיחות עם חבל, משקולות קרסול)`)
         await load()
       }
     } catch (err) {

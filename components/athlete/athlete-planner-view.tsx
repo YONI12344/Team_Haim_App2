@@ -701,24 +701,27 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
           <p className="text-sm text-navy text-right">{w.workout.description}</p>
         </div>
       )}
-      {/* Warmup — free text and/or a linked routine (button opens a popup
-          with video/instructions and a local "done" toggle; not required,
-          not tracked — see components/athlete/warmup-viewer.tsx). */}
-      {(w.workout.warmup || w.workout.warmupWorkoutId) && (
+      {/* Warmup — free text, plus any coach-linked routines (buttons open a
+          popup with video/instructions and a local "done" toggle; not
+          required, not tracked — see components/athlete/warmup-viewer.tsx).
+          Coach sets each button's title and order in the workout builder —
+          could be "חימום", "הפעלה ספציפית", "מתיחות", anything. */}
+      {(w.workout.warmup || !!w.workout.linkedRoutines?.length) && (
         <div className="px-4 py-3 border-b border-border space-y-2">
           {w.workout.warmup && (
             <p className="text-sm text-muted-foreground text-right">{t.warmupLabel}: {w.workout.warmup}</p>
           )}
-          {w.workout.warmupWorkoutId && (
+          {w.workout.linkedRoutines?.map((link) => (
             <Button
+              key={link.id}
               variant="outline"
               size="sm"
               className="w-full"
-              onClick={() => setRoutineDialog({ workoutId: w.workout.warmupWorkoutId!, title: 'חימום' })}
+              onClick={() => setRoutineDialog({ workoutId: link.workoutId, title: link.label })}
             >
-              הצג חימום
+              {link.label}
             </Button>
-          )}
+          ))}
         </div>
       )}
       {/* Sets — three distinct, never-ambiguous rest concepts:
@@ -820,23 +823,11 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
           </div>
         )
       })}
-      {/* Cooldown — free text and/or a linked stretch routine, same pattern
-          as warmup above. */}
-      {(w.workout.cooldown || w.workout.cooldownWorkoutId) && (
+      {/* Cooldown — free text only; linked routines (any label, any count)
+          all show together above, near the warmup text. */}
+      {w.workout.cooldown && (
         <div className="px-4 py-3 border-t border-border space-y-2">
-          {w.workout.cooldown && (
-            <p className="text-sm text-muted-foreground text-right">{t.cooldownLabel}: {w.workout.cooldown}</p>
-          )}
-          {w.workout.cooldownWorkoutId && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full"
-              onClick={() => setRoutineDialog({ workoutId: w.workout.cooldownWorkoutId!, title: 'מתיחות' })}
-            >
-              הצג מתיחות
-            </Button>
-          )}
+          <p className="text-sm text-muted-foreground text-right">{t.cooldownLabel}: {w.workout.cooldown}</p>
         </div>
       )}
       {/* Coach notes */}
