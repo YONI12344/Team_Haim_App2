@@ -70,6 +70,54 @@ function SetTimer({ targetSec, savedSec, completed, onDone }: {
   )
 }
 
+// One set's control row — a checkbox+weight for reps-based exercises, or a
+// SetTimer for timed ones. Shared between the single-exercise block layout
+// and the superset round layout below, since both just need "control for
+// exercise X's set N."
+function SetControl({ ex, setIdx, set, onToggle, onWeight, onDuration }: {
+  ex: StrengthBlockExercise
+  setIdx: number
+  set: SetProgress
+  onToggle: () => void
+  onWeight: (weight: string) => void
+  onDuration: (sec: number) => void
+}) {
+  if (ex.targetDurationSec != null) {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground w-10 shrink-0">סט {setIdx + 1}</span>
+        <SetTimer targetSec={ex.targetDurationSec} savedSec={set.durationSec} completed={set.completed} onDone={onDuration} />
+      </div>
+    )
+  }
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-pressed={set.completed}
+        className={`flex h-9 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition-colors ${
+          set.completed
+            ? 'bg-emerald-600 border-emerald-600 text-white'
+            : 'border-input text-muted-foreground bg-muted/40'
+        }`}
+      >
+        {set.completed ? <Check className="h-4 w-4" /> : <span className="h-4 w-4 rounded-full border-2 border-current" />}
+        סט {setIdx + 1}
+        {set.completed && ' · בוצע'}
+      </button>
+      <Input
+        type="number"
+        inputMode="decimal"
+        placeholder='משקל ק"ג'
+        value={set.weightKg ?? ''}
+        onChange={(e) => onWeight(e.target.value)}
+        className="h-9 text-sm max-w-[110px]"
+      />
+    </div>
+  )
+}
+
 export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
   const router = useRouter()
   const { user } = useAuth()
@@ -123,6 +171,8 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
   const blocks = assigned?.workout.strengthBlocks || []
   const block = blocks[blockIndex]
   const isLastBlock = blockIndex === blocks.length - 1
+  const isSuperset = (block?.exercises.length || 0) > 1
+  const maxSetsInBlock = block ? Math.max(1, ...block.exercises.map((ex) => ex.targetSets)) : 1
   const totalSets = useMemo(() => Object.values(progress).reduce((s, sets) => s + sets.length, 0), [progress])
   const doneSets = useMemo(() => Object.values(progress).reduce((s, sets) => s + sets.filter((x) => x.completed).length, 0), [progress])
 
@@ -235,72 +285,105 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
         <p className="text-xs text-muted-foreground">בלוק {blockIndex + 1} מתוך {blocks.length}</p>
       </div>
 
-      <div className="space-y-4">
-        {block.exercises.map((ex) => (
-          <div key={ex.id} className="rounded-xl border border-border overflow-hidden">
-            {ex.videoUrl ? (
-              <video src={ex.videoUrl} className="w-full aspect-video bg-black" controls playsInline preload="metadata" />
-            ) : (
-              <div className="w-full aspect-video bg-muted flex items-center justify-center text-muted-foreground text-sm">אין סרטון הדגמה</div>
-            )}
-            <div className="p-3 space-y-2">
-              <h2 className="font-semibold">{ex.name}</h2>
-              {ex.instructions && <p className="text-xs text-muted-foreground">{ex.instructions}</p>}
-              {ex.notes && <p className="text-xs text-primary">{ex.notes}</p>}
-              <p className="text-xs text-muted-foreground">
-                {ex.targetDurationSec != null
-                  ? `יעד: ${ex.targetSets} סטים × ${ex.targetDurationSec} שניות`
-                  : `יעד: ${ex.targetSets} סטים × ${ex.targetReps} חזרות`}
-              </p>
-              <div className="space-y-1.5 pt-1">
-                {(progress[ex.id] || []).map((set, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    {ex.targetDurationSec != null ? (
-                      <>
-                        <span className="text-xs text-muted-foreground w-10 shrink-0">סט {i + 1}</span>
-                        <SetTimer
-                          targetSec={ex.targetDurationSec}
-                          savedSec={set.durationSec}
-                          completed={set.completed}
-                          onDone={(sec) => setDuration(ex.id, i, sec)}
-                        />
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => toggleSet(ex.id, i)}
-                          aria-pressed={set.completed}
-                          className={`flex h-9 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition-colors ${
-                            set.completed
-                              ? 'bg-emerald-600 border-emerald-600 text-white'
-                              : 'border-input text-muted-foreground bg-muted/40'
-                          }`}
-                        >
-                          {set.completed ? <Check className="h-4 w-4" /> : <span className="h-4 w-4 rounded-full border-2 border-current" />}
-                          סט {i + 1}
-                          {set.completed && ' · בוצע'}
-                        </button>
-                        <Input
-                          type="number"
-                          inputMode="decimal"
-                          placeholder='משקל ק"ג'
-                          value={set.weightKg ?? ''}
-                          onChange={(e) => setWeight(ex.id, i, e.target.value)}
-                          className="h-9 text-sm max-w-[110px]"
-                        />
-                      </>
-                    )}
-                  </div>
-                ))}
+      {isSuperset ? (
+        // Superset block: grouped by ROUND, not by exercise — each round is
+        // exercise A's set N, then B's, then C's, back to back with no rest,
+        // then rest before the next round. This is the order it's actually
+        // meant to be performed in; listing "all of A's sets, then all of
+        // B's" (the old layout) didn't communicate that at all.
+        <div className="space-y-4">
+          {Array.from({ length: maxSetsInBlock }).map((_, roundIdx) => (
+            <div key={roundIdx} className="rounded-xl border-2 border-[#0a1628]/15 overflow-hidden">
+              <div className="bg-[#0a1628]/5 px-3 py-2">
+                <p className="text-sm font-bold text-[#0a1628]">סבב {roundIdx + 1} מתוך {maxSetsInBlock}</p>
               </div>
-              <p className="text-[11px] text-muted-foreground pt-0.5">
-                {ex.targetDurationSec != null ? 'לחצו התחל להפעלת הטיימר לכל סט' : 'לחצו על "סט X" לסימון שהסט בוצע'}
-              </p>
+              <div className="p-3 space-y-3">
+                {block.exercises.map((ex, exIdx) => {
+                  const set = progress[ex.id]?.[roundIdx]
+                  if (!set) return null
+                  return (
+                    <div key={ex.id}>
+                      <div className="rounded-lg border border-border overflow-hidden">
+                        {roundIdx === 0 ? (
+                          ex.videoUrl ? (
+                            <video src={ex.videoUrl} className="w-full aspect-video bg-black" controls playsInline preload="metadata" />
+                          ) : (
+                            <div className="w-full aspect-video bg-muted flex items-center justify-center text-muted-foreground text-sm">אין סרטון הדגמה</div>
+                          )
+                        ) : ex.videoUrl && (
+                          <details>
+                            <summary className="text-xs text-muted-foreground p-2 cursor-pointer">הצג סרטון הדגמה</summary>
+                            <video src={ex.videoUrl} className="w-full aspect-video bg-black" controls playsInline preload="metadata" />
+                          </details>
+                        )}
+                        <div className="p-2.5 space-y-1.5">
+                          <p className="text-sm font-semibold">{ex.name}</p>
+                          {roundIdx === 0 && ex.instructions && <p className="text-xs text-muted-foreground">{ex.instructions}</p>}
+                          {ex.notes && <p className="text-xs text-primary">{ex.notes}</p>}
+                          <SetControl
+                            ex={ex}
+                            setIdx={roundIdx}
+                            set={set}
+                            onToggle={() => toggleSet(ex.id, roundIdx)}
+                            onWeight={(w) => setWeight(ex.id, roundIdx, w)}
+                            onDuration={(sec) => setDuration(ex.id, roundIdx, sec)}
+                          />
+                        </div>
+                      </div>
+                      {exIdx < block.exercises.length - 1 && (
+                        <p className="text-[11px] text-center text-muted-foreground py-1.5">↓ ישר לתרגיל הבא, ללא מנוחה</p>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+              {roundIdx < maxSetsInBlock - 1 && (
+                <div className="bg-amber-50 px-3 py-2 text-center border-t border-amber-100">
+                  <p className="text-xs font-semibold text-amber-700">מנוחה, ואז הסבב הבא</p>
+                </div>
+              )}
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {block.exercises.map((ex) => (
+            <div key={ex.id} className="rounded-xl border border-border overflow-hidden">
+              {ex.videoUrl ? (
+                <video src={ex.videoUrl} className="w-full aspect-video bg-black" controls playsInline preload="metadata" />
+              ) : (
+                <div className="w-full aspect-video bg-muted flex items-center justify-center text-muted-foreground text-sm">אין סרטון הדגמה</div>
+              )}
+              <div className="p-3 space-y-2">
+                <h2 className="font-semibold">{ex.name}</h2>
+                {ex.instructions && <p className="text-xs text-muted-foreground">{ex.instructions}</p>}
+                {ex.notes && <p className="text-xs text-primary">{ex.notes}</p>}
+                <p className="text-xs text-muted-foreground">
+                  {ex.targetDurationSec != null
+                    ? `יעד: ${ex.targetSets} סטים × ${ex.targetDurationSec} שניות`
+                    : `יעד: ${ex.targetSets} סטים × ${ex.targetReps} חזרות`}
+                </p>
+                <div className="space-y-1.5 pt-1">
+                  {(progress[ex.id] || []).map((set, i) => (
+                    <SetControl
+                      key={i}
+                      ex={ex}
+                      setIdx={i}
+                      set={set}
+                      onToggle={() => toggleSet(ex.id, i)}
+                      onWeight={(w) => setWeight(ex.id, i, w)}
+                      onDuration={(sec) => setDuration(ex.id, i, sec)}
+                    />
+                  ))}
+                </div>
+                <p className="text-[11px] text-muted-foreground pt-0.5">
+                  {ex.targetDurationSec != null ? 'לחצו התחל להפעלת הטיימר לכל סט' : 'לחצו על "סט X" לסימון שהסט בוצע'}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="flex gap-2 pt-2">
         <Button variant="outline" disabled={blockIndex === 0} onClick={() => setBlockIndex((i) => Math.max(0, i - 1))} className="flex-1">
