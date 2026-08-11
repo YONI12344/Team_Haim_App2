@@ -103,14 +103,21 @@ export async function saveExercise(
   return id
 }
 
+/** Deletes a single video file from Storage — used both when removing an
+ *  exercise's video (keeping the exercise) and when replacing it with a
+ *  new upload (cleans up the old file instead of leaking it in Storage). */
+export async function deleteExerciseVideoFile(videoPath: string): Promise<void> {
+  try {
+    await deleteObject(ref(storage, videoPath))
+  } catch {
+    // Already gone (e.g. re-uploaded under a new path before) — don't
+    // block the caller over a missing file.
+  }
+}
+
 export async function deleteExercise(exercise: ExerciseLibraryItem): Promise<void> {
   if (exercise.videoPath) {
-    try {
-      await deleteObject(ref(storage, exercise.videoPath))
-    } catch {
-      // Video may already be gone (e.g. re-uploaded under a new path) —
-      // don't block deleting the library entry over a missing file.
-    }
+    await deleteExerciseVideoFile(exercise.videoPath)
   }
   await deleteDoc(doc(db, 'exerciseLibrary', exercise.id))
 }

@@ -23,7 +23,7 @@ import { toast } from 'sonner'
 import { useAuth } from '@/contexts/auth-context'
 import { isCoachEmail } from '@/lib/constants'
 import type { ExerciseLibraryItem } from '@/lib/types'
-import { listExercises, saveExercise, deleteExercise, uploadExerciseVideo } from '@/lib/exercise-library'
+import { listExercises, saveExercise, deleteExercise, uploadExerciseVideo, deleteExerciseVideoFile } from '@/lib/exercise-library'
 import { BODY_ZONES, ZONE_IDS } from '@/lib/injury-data'
 import { seedRunningStrengthProgram } from '@/lib/seed-running-strength-program'
 import { seedRunnerStretchProgram } from '@/lib/seed-runner-stretch-program'
@@ -59,6 +59,7 @@ export function ExerciseLibraryManager() {
   const [editing, setEditing] = useState<ExerciseLibraryItem | null>(null)
   const [form, setForm] = useState(emptyForm)
   const [videoFile, setVideoFile] = useState<File | null>(null)
+  const [removeVideo, setRemoveVideo] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<ExerciseLibraryItem | null>(null)
@@ -84,6 +85,7 @@ export function ExerciseLibraryManager() {
     setEditing(null)
     setForm({ ...emptyForm, category: filterCategory })
     setVideoFile(null)
+    setRemoveVideo(false)
     setDialogOpen(true)
   }
 
@@ -101,6 +103,7 @@ export function ExerciseLibraryManager() {
       videoMuted: !!exercise.videoMuted,
     })
     setVideoFile(null)
+    setRemoveVideo(false)
     setDialogOpen(true)
   }
 
@@ -108,8 +111,7 @@ export function ExerciseLibraryManager() {
     if (!user || !form.name.trim()) return
     setSaving(true)
     try {
-      const id = await saveExercise({
-        id: editing?.id,
+      const baseFields = {
         name: form.name.trim(),
         instructions: form.instructions.trim() || undefined,
         category: form.category,
@@ -118,32 +120,34 @@ export function ExerciseLibraryManager() {
         defaultSets: form.defaultSets ? Number(form.defaultSets) : undefined,
         defaultReps: form.defaultReps.trim() || undefined,
         injuryZones: form.injuryZones,
-        videoUrl: editing?.videoUrl,
-        videoPath: editing?.videoPath,
         videoMuted: form.videoMuted,
         createdBy: editing?.createdBy || user.id || '',
+      }
+      const id = await saveExercise({
+        id: editing?.id,
+        ...baseFields,
+        videoUrl: removeVideo ? undefined : editing?.videoUrl,
+        videoPath: removeVideo ? undefined : editing?.videoPath,
       })
+      // Track whether the old file (if any) needs cleaning up from
+      // Storage — either it's being replaced by a new upload below, or
+      // it's being removed outright. Deleted only after the new state is
+      // safely saved, so a failed upload never leaves the exercise with
+      // no video at all.
+      const oldVideoPath = editing?.videoPath
+      let videoChanged = removeVideo
       if (videoFile) {
         setUploadProgress(0)
         const { videoUrl, videoPath } = await uploadExerciseVideo(id, videoFile, setUploadProgress)
-        await saveExercise({
-          id,
-          name: form.name.trim(),
-          instructions: form.instructions.trim() || undefined,
-          category: form.category,
-          isTimed: form.isTimed,
-          defaultDurationSec: form.isTimed && form.defaultDurationSec ? Number(form.defaultDurationSec) : undefined,
-          defaultSets: form.defaultSets ? Number(form.defaultSets) : undefined,
-          defaultReps: form.defaultReps.trim() || undefined,
-          injuryZones: form.injuryZones,
-          videoUrl,
-          videoPath,
-          videoMuted: form.videoMuted,
-          createdBy: editing?.createdBy || user.id || '',
-        })
+        await saveExercise({ id, ...baseFields, videoUrl, videoPath })
+        videoChanged = true
+      }
+      if (videoChanged && oldVideoPath) {
+        deleteExerciseVideoFile(oldVideoPath).catch(() => {})
       }
       toast.success(editing ? 'התרגיל עודכן' : 'התרגיל נוסף')
       setDialogOpen(false)
+      setRemoveVideo(false)
       await load()
     } catch (err) {
       console.error('Error saving exercise:', err)
@@ -445,14 +449,25 @@ export function ExerciseLibraryManager() {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold">סרטון הדגמה</Label>
-              {editing?.videoUrl && !videoFile && (
-                <video src={editing.videoUrl} className="w-full rounded-md aspect-video object-cover bg-muted mb-1.5" controls preload="metadata" />
+              {editing?.videoUrl && !videoFile && !removeVideo && (
+                <div className="space-y-1.5 mb-1.5">
+                  <video src={editing.videoUrl} className="w-full rounded-md aspect-video object-cover bg-muted" controls preload="metadata" />
+                  <Button type="button" variant="outline" size="sm" className="h-7 text-xs text-destructive hover:text-destructive" onClick={() => setRemoveVideo(true)}>
+                    <Trash2 className="h-3 w-3 mr-1" />הסר סרטון
+                  </Button>
+                </div>
+              )}
+              {removeVideo && !videoFile && (
+                <div className="flex items-center justify-between rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 mb-1.5">
+                  <p className="text-xs text-destructive">הסרטון יימחק בעת השמירה</p>
+                  <Button type="button" variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setRemoveVideo(false)}>בטל</Button>
+                </div>
               )}
               <input
                 ref={fileRef}
                 type="file"
                 accept="video/*"
-                onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
+                onChange={(e) => { setVideoFile(e.target.files?.[0] || null); setRemoveVideo(false) }}
                 className="text-xs text-muted-foreground"
               />
               <p className="text-[11px] text-muted-foreground">וידאו בלבד · מקסימום 200MB{editing?.videoUrl ? ' · השארה ריק שומרת על הסרטון הקיים' : ''}</p>
