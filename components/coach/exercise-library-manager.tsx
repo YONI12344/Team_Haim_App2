@@ -28,6 +28,7 @@ import { BODY_ZONES, ZONE_IDS } from '@/lib/injury-data'
 import { seedRunningStrengthProgram } from '@/lib/seed-running-strength-program'
 import { seedRunnerStretchProgram } from '@/lib/seed-runner-stretch-program'
 import { seedStrapStretchProgram } from '@/lib/seed-strap-stretch-program'
+import { seedAncillaryRoutines } from '@/lib/seed-ancillary-routines'
 import { cn } from '@/lib/utils'
 
 const emptyForm = {
@@ -56,7 +57,7 @@ export function ExerciseLibraryManager() {
   const [deleteTarget, setDeleteTarget] = useState<ExerciseLibraryItem | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [filterCategory, setFilterCategory] = useState<'strength' | 'stretch'>('strength')
-  const [importingKey, setImportingKey] = useState<'strength' | 'stretch' | 'strap' | null>(null)
+  const [importingKey, setImportingKey] = useState<'strength' | 'stretch' | 'strap' | 'ancillary' | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const load = async () => {
@@ -216,6 +217,25 @@ export function ExerciseLibraryManager() {
     }
   }
 
+  const handleImportAncillaryRoutines = async () => {
+    if (!user) return
+    setImportingKey('ancillary')
+    try {
+      const result = await seedAncillaryRoutines(user.id || '')
+      if (result.alreadyExisted) {
+        toast.info('שגרות החימום כבר יובאו בעבר')
+      } else {
+        toast.success(`יובאו ${result.exerciseCount} תרגילים ו-${result.workoutsCreated.length} שגרות (חימום קל, חימום מלא, מתיחות עם חבל, משקולות קרסול)`)
+        await load()
+      }
+    } catch (err) {
+      console.error('Error importing ancillary routines:', err)
+      toast.error('הייבוא נכשל')
+    } finally {
+      setImportingKey(null)
+    }
+  }
+
   if (!isCoach) return null
 
   return (
@@ -239,6 +259,10 @@ export function ExerciseLibraryManager() {
           <Button onClick={handleImportStrapProgram} disabled={importingKey !== null} size="sm" variant="outline">
             {importingKey === 'strap' ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Download className="h-4 w-4 mr-1" />}
             ייבוא: מתיחות עם רצועה
+          </Button>
+          <Button onClick={handleImportAncillaryRoutines} disabled={importingKey !== null} size="sm" variant="outline">
+            {importingKey === 'ancillary' ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Download className="h-4 w-4 mr-1" />}
+            ייבוא: שגרות חימום (GW)
           </Button>
           <Button onClick={openAdd} size="sm"><Plus className="h-4 w-4 mr-1" />הוסף תרגיל</Button>
         </div>
