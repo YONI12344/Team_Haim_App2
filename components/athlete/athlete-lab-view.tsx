@@ -9,8 +9,10 @@ import { AthletePhysiology } from '@/components/coach/athlete-physiology'
 
 /**
  * Athlete's own view of their lab data (lactate tests, thresholds, derived
- * paces, HR zones) — the same component and full edit capability the coach
- * has, just scoped to the logged-in athlete's own id. Gated on
+ * paces, HR zones) — the same component the coach uses, scoped to the
+ * logged-in athlete's own id and rendered `readOnly` (T1/T2/T3 editing —
+ * manual override, lactate tests, push-paces — is coach-only; enforced here
+ * in the UI and independently in firestore.rules). Gated on
  * labVisibleToAthlete, which the coach turns on per athlete — this checks
  * it directly (not just hiding the nav buttons) so visiting the URL
  * without the coach having enabled it yet doesn't show anything.
@@ -53,7 +55,7 @@ export function AthleteLabView() {
         <h1 className="text-2xl md:text-3xl font-serif font-bold text-[#0a1628]">מעבדה</h1>
         <p className="text-muted-foreground">ספי לקטט, קצבי אימון וטווחי דופק</p>
       </div>
-      <AthletePhysiology athleteId={user.id} />
+      <AthletePhysiology athleteId={user.id} readOnly />
     </div>
   )
 }

@@ -14,12 +14,15 @@
  *
  * IMPORTANT: `sourceType: 'workout'` curves are estimates built from a
  * workout's own rep/session history (not a graduated step test) — always
- * labeled as such here. Nothing in this file writes anywhere; it's a pure
- * display component. The athlete's real physiology thresholds only ever
- * come from an actual step test (lib/physiology.ts / athlete-physiology.tsx).
+ * labeled as such here. This file writes nothing to Firestore itself — it's
+ * a pure display component — but it does surface a per-session delete
+ * *request* via `onDeleteSession` (confirmed here, actually deleted by the
+ * caller) so a coach can remove a bad session right where its curve is
+ * shown. The athlete's real physiology thresholds only ever come from an
+ * actual step test (lib/physiology.ts / athlete-physiology.tsx).
  */
 
-import { Fragment, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceDot, ReferenceLine,
 } from 'recharts'
@@ -29,7 +32,7 @@ import {
   interpolateAtLactate, projectWorkoutTrend,
   LT1_TARGET, LT2_TARGET, LT3_TARGET,
 } from '@/lib/physiology'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Loader2, Trash2 } from 'lucide-react'
 import { useLanguage } from '@/contexts/language-context'
 
 export interface CurvePoint {
@@ -191,8 +194,24 @@ const T_LEVELS = [
   { key: 'lt3' as const, target: LT3_TARGET, name: 'T3' },
 ]
 
-export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable, size = 'full' }: {
+export function LactateMultiCurveChart({
+  curves, axisMode, hideChart, hideTable, size = 'full',
+  readOnly, onDeleteSession, deletingId, focusCurveId,
+}: {
   curves: CurveInput[]; axisMode: AxisMode; hideChart?: boolean; hideTable?: boolean; size?: 'full' | 'compact'
+  /** UI-only gate (not a Firestore-rules substitute) — hides the per-session
+   *  delete action entirely on the athlete's own read-only Lab view. */
+  readOnly?: boolean
+  /** Called with a 'workout' curve's id (== the source `logs` doc id) once
+   *  the coach confirms deletion. The actual deleteDoc + refetch happens in
+   *  the caller (lactate-workout-gallery.tsx) — this component still writes
+   *  nothing to Firestore itself. */
+  onDeleteSession?: (curveId: string) => void
+  /** curveId currently being deleted — only that row shows a spinner. */
+  deletingId?: string | null
+  /** Auto-expands this curve's row once, e.g. right after the gallery
+   *  card's "from session X" provenance line is shown. */
+  focusCurveId?: string | null
 }) {
   const { t, isRTL } = useLanguage()
   const AXIS_CAPTION: Record<AxisMode, string> = {
@@ -201,7 +220,8 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
     dual: t.labCaptionDual,
   }
   const [metricDisplay, setMetricDisplay] = useState<MetricDisplay>('both')
-  const [expandedCurve, setExpandedCurve] = useState<string | null>(null)
+  const [expandedCurve, setExpandedCurve] = useState<string | null>(focusCurveId ?? null)
+  useEffect(() => { if (focusCurveId) setExpandedCurve(focusCurveId) }, [focusCurveId])
   const usable = curves.filter(c => c.points.length > 0)
   if (usable.length === 0) {
     return <p className="text-xs text-muted-foreground text-center py-4">{t.labNotEnoughData}</p>
@@ -526,15 +546,28 @@ export function LactateMultiCurveChart({ curves, axisMode, hideChart, hideTable,
       <div className="space-y-1.5">
         {usable.map(c => (
           <div key={c.id} className="rounded-xl border border-border overflow-hidden">
-            <button onClick={() => setExpandedCurve(p => p === c.id ? null : c.id)}
-              className="w-full px-3 py-2 flex items-center justify-between hover:bg-muted/20">
-              <span className="text-xs font-bold flex items-center gap-1.5" style={{ color: c.color }}>
-                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />
-                {c.label}
-                <span className="text-[10px] text-muted-foreground font-normal">({c.points.length} {t.labPointsCount})</span>
-              </span>
-              <ChevronDown className={cn('h-3.5 w-3.5 text-muted-foreground transition-transform', expandedCurve === c.id && 'rotate-180')} />
-            </button>
+            <div className="w-full flex items-center justify-between hover:bg-muted/20">
+              <button onClick={() => setExpandedCurve(p => p === c.id ? null : c.id)}
+                className="flex-1 min-w-0 text-right px-3 py-2 flex items-center gap-1.5">
+                <span className="text-xs font-bold flex items-center gap-1.5" style={{ color: c.color }}>
+                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />
+                  {c.label}
+                  <span className="text-[10px] text-muted-foreground font-normal">({c.points.length} {t.labPointsCount})</span>
+                </span>
+              </button>
+              <div className="flex items-center gap-1 pl-2 pr-3">
+                {!readOnly && onDeleteSession && c.sourceType === 'workout' && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); if (confirm(t.labConfirmDeleteSession)) onDeleteSession(c.id) }}
+                    disabled={deletingId === c.id}
+                    aria-label={t.labDeleteSessionBtn}
+                    className="p-1 text-muted-foreground hover:text-red-500 disabled:opacity-40">
+                    {deletingId === c.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                  </button>
+                )}
+                <ChevronDown className={cn('h-3.5 w-3.5 text-muted-foreground transition-transform', expandedCurve === c.id && 'rotate-180')} />
+              </div>
+            </div>
             {expandedCurve === c.id && (() => {
               const s = summarizeCurve(c.points)
               return (

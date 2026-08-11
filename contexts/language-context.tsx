@@ -864,6 +864,10 @@ export interface Translations {
   labToastPacesUpdated: string
   labToastUpdateFailed: string
   labConfirmDeleteTest: string
+  labFromSessionPrefix: string
+  labConfirmDeleteSession: string
+  labToastSessionDeleted: string
+  labDeleteSessionBtn: string
   labComparisonGroupLabel: string
   labComparisonGroupPh: string
   labComparisonGroupHint: string
@@ -1740,6 +1744,10 @@ const translations: Record<Language, Translations> = {
     labToastPacesUpdated: "Athlete's paces updated ✓",
     labToastUpdateFailed: 'Update failed',
     labConfirmDeleteTest: 'Delete this test?',
+    labFromSessionPrefix: 'From session',
+    labConfirmDeleteSession: 'Delete this session? This removes the whole workout log.',
+    labToastSessionDeleted: 'Session deleted',
+    labDeleteSessionBtn: 'Delete session',
     labComparisonGroupLabel: 'Comparison group (optional)',
     labComparisonGroupPh: 'e.g. Fartlek A',
     labComparisonGroupHint: 'Give repeatable workouts (any type) the same name and every session you log will be compared together in the Lab — pace & HR over time.',
@@ -2608,6 +2616,10 @@ const translations: Record<Language, Translations> = {
     labToastPacesUpdated: 'הטמפואים עודכנו אצל הספורטאי ✓',
     labToastUpdateFailed: 'עדכון נכשל',
     labConfirmDeleteTest: 'למחוק את הבדיקה?',
+    labFromSessionPrefix: 'מתוך אימון',
+    labConfirmDeleteSession: 'למחוק את האימון הזה? הפעולה מוחקת את כל רישום האימון.',
+    labToastSessionDeleted: 'האימון נמחק',
+    labDeleteSessionBtn: 'מחיקת אימון',
     labComparisonGroupLabel: 'קבוצת השוואה (אופציונלי)',
     labComparisonGroupPh: 'לדוגמה: פרטלק א׳',
     labComparisonGroupHint: 'תן לאימונים חוזרים (מכל סוג) אותו שם, וכל אימון שתירשם יושווה יחד במעבדה — קצב ודופק לאורך זמן.',

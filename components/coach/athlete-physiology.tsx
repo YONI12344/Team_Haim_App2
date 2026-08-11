@@ -51,7 +51,7 @@ const darkInput = 'bg-white/10 border-white/15 text-white placeholder:text-white
  * lactate tests (T1/T2), threshold paces (measured or manual estimate),
  * VO2max estimate, derived training paces, and smart HR zones.
  */
-export function AthletePhysiology({ athleteId }: { athleteId: string }) {
+export function AthletePhysiology({ athleteId, readOnly }: { athleteId: string; readOnly?: boolean }) {
   const { t, isRTL } = useLanguage()
   const [loading, setLoading] = useState(true)
   const [phys, setPhys] = useState<PhysiologySummary | null>(null)
@@ -319,6 +319,7 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
           </p>
         )}
       </div>
+      {!readOnly && (
       <div className={cn(darkCard, 'p-4 space-y-3')}>
 
         {/* Manual override */}
@@ -361,10 +362,11 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
           </div>
         )}
       </div>
+      )}
 
       {/* ── Workout gallery: every workout type + the real baseline test,
           each as its own graph, so they can all be scanned/compared at once ── */}
-      <LactateWorkoutGallery athleteId={athleteId} />
+      <LactateWorkoutGallery athleteId={athleteId} readOnly={readOnly} />
 
       {/* ── Workout trends: coach-tagged comparison groups (any workout
           type, no lactate needed) — pace/HR over calendar time ── */}
@@ -387,10 +389,12 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
               </div>
             ))}
           </div>
-          <Button onClick={handlePushPaces} disabled={updatingPaces}
-            className="w-full h-10 bg-gold hover:bg-gold/90 text-navy font-bold">
-            {updatingPaces ? <Loader2 className="h-4 w-4 animate-spin"/> : t.labPushPacesBtn}
-          </Button>
+          {!readOnly && (
+            <Button onClick={handlePushPaces} disabled={updatingPaces}
+              className="w-full h-10 bg-gold hover:bg-gold/90 text-navy font-bold">
+              {updatingPaces ? <Loader2 className="h-4 w-4 animate-spin"/> : t.labPushPacesBtn}
+            </Button>
+          )}
         </div>
       )}
 
@@ -438,6 +442,7 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
       </div>
 
       {/* ── New lactate test ── */}
+      {!readOnly && (
       <div className={cn(darkCard, 'p-4', showNewTest && 'ring-1 ring-[#c9a84c]/40')}>
         <div className="flex items-center justify-between">
           <p className="text-sm font-bold text-white/90 flex items-center gap-2">
@@ -521,6 +526,7 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
           </div>
         )}
       </div>
+      )}
 
       {/* ── Test history ── */}
       {fullTests.length > 0 && (
@@ -564,6 +570,7 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
                       <span>{s.lactate}</span>
                     </div>
                   ))}
+                  {!readOnly && (
                   <div className="flex gap-2 pt-1">
                     <Button size="sm" variant="outline" className="h-7 text-[11px] flex-1 bg-transparent border-white/20 text-white hover:bg-white/10 hover:text-white" onClick={() => applyTest(test)}>
                       {t.labUseThisTestBtn}
@@ -572,6 +579,7 @@ export function AthletePhysiology({ athleteId }: { athleteId: string }) {
                       <Trash2 className="h-3 w-3"/>
                     </Button>
                   </div>
+                  )}
                 </div>
               )}
             </div>

@@ -13,11 +13,13 @@
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { ChevronDown, Loader2 } from 'lucide-react'
-import { collection, getDocs, query, where } from 'firebase/firestore'
+import { collection, deleteDoc, doc, getDocs, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
+import { format } from 'date-fns'
 import { type LactateStep } from '@/lib/physiology'
-import { useWorkoutLactateGroups, buildSessionCurves, currentWorkoutThresholds, averageRepMetrics, latestSessionRest, type WorkoutLactateGroup } from '@/hooks/useWorkoutLactateGroups'
+import { useWorkoutLactateGroups, buildSessionCurves, currentWorkoutThresholds, averageRepMetrics, latestSessionRest, latestSessionLogMeta, type WorkoutLactateGroup } from '@/hooks/useWorkoutLactateGroups'
 import { LactateMultiCurveChart, curveThresholds, paceDelta, type CurveInput, type AxisMode } from '@/components/coach/lactate-multi-curve-chart'
 import { WorkoutComparisonChart } from '@/components/coach/workout-comparison-chart'
 import { type ComparisonPoint } from '@/hooks/useWorkoutComparisonGroups'
@@ -72,20 +74,31 @@ function sessionTrend(curves: CurveInput[]) {
   return null
 }
 
-export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
+export function LactateWorkoutGallery({ athleteId, readOnly }: { athleteId: string; readOnly?: boolean }) {
   const { t, isRTL } = useLanguage()
   const AXIS_OPTIONS = [
     ['paceVsLactate', t.labAxisPaceLactate],
     ['hrVsLactate', t.labAxisHrLactate],
     ['dual', t.labAxisTime],
   ] as const
-  const { loading, grouped, workoutOptions } = useWorkoutLactateGroups(athleteId)
+  const { loading, grouped, workoutOptions, refetch } = useWorkoutLactateGroups(athleteId)
   const [axisModeById, setAxisModeById] = useState<Record<string, AxisMode>>({})
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [showBaselineById, setShowBaselineById] = useState<Record<string, boolean | undefined>>({})
   const [openFolder, setOpenFolder] = useState<string | null>(null)
   const [baselineSteps, setBaselineSteps] = useState<LactateStep[] | null>(null)
   const [baselineLoading, setBaselineLoading] = useState(true)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  const handleDeleteSession = async (logId: string) => {
+    setDeletingId(logId)
+    try {
+      await deleteDoc(doc(db, 'logs', logId))
+      await refetch()
+      toast.success(t.labToastSessionDeleted)
+    } catch (e) { console.error(e); toast.error(t.labToastDeleteFailed) }
+    finally { setDeletingId(null) }
+  }
 
   useEffect(() => {
     const load = async () => {
@@ -114,7 +127,7 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
     points: baselineSteps.map(s => ({ pace: s.pace, hr: s.hr, lactate: s.lactate })),
   } : null
 
-  type Card = { id: string; title: string; type?: string; color: string; curves: CurveInput[]; thresholds?: ReturnType<typeof currentWorkoutThresholds>; rest?: ReturnType<typeof latestSessionRest>; trend?: ReturnType<typeof paceDelta>; sessionCount?: number; trendPoints?: ComparisonPoint[] }
+  type Card = { id: string; title: string; type?: string; color: string; curves: CurveInput[]; thresholds?: ReturnType<typeof currentWorkoutThresholds>; rest?: ReturnType<typeof latestSessionRest>; trend?: ReturnType<typeof paceDelta>; sessionCount?: number; trendPoints?: ComparisonPoint[]; sourceMeta?: ReturnType<typeof latestSessionLogMeta> }
   const workoutCards: Card[] = workoutOptions.map((o, i) => {
     const group = grouped.get(o.id)!
     // baselineSteps lets an untested session's reps still land on this
@@ -136,6 +149,7 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
       color: WORKOUT_COLORS[i % WORKOUT_COLORS.length],
       curves,
       thresholds: currentWorkoutThresholds(group, baselineSteps),
+      sourceMeta: latestSessionLogMeta(group, baselineSteps),
       rest: latestSessionRest(group),
       trend: sessionTrend(curves),
       // Every logged session of this workout, tested or not — a group
@@ -263,6 +277,11 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
               )}
             </div>
           )}
+          {card.id !== 'baseline' && card.sourceMeta && (
+            <p className="text-[9px] text-muted-foreground mt-1">
+              {t.labFromSessionPrefix} {format(new Date(card.sourceMeta.date), 'd/M/yy')}
+            </p>
+          )}
           {card.id !== 'baseline' && card.curves.length === 0 && (
             <p className="text-[10px] text-muted-foreground mt-1.5">{t.labNoLactateYetTrend}</p>
           )}
@@ -309,7 +328,13 @@ export function LactateWorkoutGallery({ athleteId }: { athleteId: string }) {
                 </div>
               </CardHeader>
               <CardContent className="px-3 pb-3">
-                <LactateMultiCurveChart curves={chartCurves} axisMode={axisMode} size="compact" />
+                <LactateMultiCurveChart
+                  curves={chartCurves} axisMode={axisMode} size="compact"
+                  readOnly={readOnly}
+                  onDeleteSession={handleDeleteSession}
+                  deletingId={deletingId}
+                  focusCurveId={card.sourceMeta?.id}
+                />
               </CardContent>
             </>
           )

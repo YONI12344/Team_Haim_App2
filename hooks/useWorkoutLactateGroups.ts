@@ -11,7 +11,7 @@
  * duplicated between them.
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { format } from 'date-fns'
@@ -203,6 +203,19 @@ export function latestSessionRest(group: WorkoutLactateGroup | undefined): { tim
   }
 }
 
+/** Which log/date currentWorkoutThresholds' T1/T2/T3 numbers for this group
+ *  came from — surfaced so the gallery can show "from DD/MM session" instead
+ *  of leaving it unstated which of possibly many sessions produced them.
+ *  excludeLogId is always undefined here, matching currentWorkoutThresholds'
+ *  own call to latestSessionSteps. */
+export function latestSessionLogMeta(
+  group: WorkoutLactateGroup | undefined,
+  baselineSteps?: LactateStep[] | null,
+): { id: string; date: string } | null {
+  const last = pickLatestSessionLog(group, undefined, baselineSteps)
+  return last ? { id: last.id, date: last.date } : null
+}
+
 type DistanceSource = { type?: string; thresholdDistance?: number; sets?: { distance?: string }[] }
 
 /** A threshold workout's rep distance — the coach's explicit tag if set,
@@ -299,6 +312,25 @@ export function buildSessionCurves(group: WorkoutLactateGroup, baselineSteps?: L
     .filter(c => c.points.length > 0)
 }
 
+/** Internal: which log latestSessionSteps/currentWorkoutThresholds treat as
+ *  "the current reference session" — see latestSessionSteps for the
+ *  preference order (real lactate reading > HR against a baseline > plain
+ *  latest). Factored out so latestSessionLogMeta can expose which log/date
+ *  produced a group's current numbers without duplicating (and risking
+ *  drifting from) this selection logic. */
+function pickLatestSessionLog(
+  group: WorkoutLactateGroup | undefined,
+  excludeLogId: string | undefined,
+  baselineSteps: LactateStep[] | null | undefined,
+): WorkoutLactateLog | undefined {
+  if (!group) return undefined
+  const candidates = group.logs.filter(l => l.id !== excludeLogId)
+  const canEstimate = !!baselineSteps && baselineSteps.length >= 2
+  const withLactate = candidates.filter(l => (l.splitLogs || []).some(r => r.lactate))
+  const withHr = canEstimate ? candidates.filter(l => (l.splitLogs || []).some(r => repHr(r) != null)) : []
+  return withLactate[withLactate.length - 1] ?? withHr[withHr.length - 1] ?? candidates[candidates.length - 1]
+}
+
 /**
  * The athlete's most recent *past* session of this same workout, as raw
  * {pace, hr, lactate} steps — so a workout's target can be recomputed from
@@ -312,20 +344,9 @@ export function latestSessionSteps(
   excludeLogId?: string,
   baselineSteps?: LactateStep[] | null,
 ): LactateStep[] {
-  if (!group) return []
-  const candidates = group.logs.filter(l => l.id !== excludeLogId)
-  const canEstimate = !!baselineSteps && baselineSteps.length >= 2
-  // Prefer the most recent session with a real lactate reading; next, one
-  // that at least has HR (so estimateLactateFromHr below has something to
-  // work with) if a baseline test is available to estimate against;
-  // otherwise the true latest session, whatever it has. Now that untested
-  // sessions of the same workout are also in this group (see hasLactate
-  // above), the truly latest log might have neither, which would silently
-  // lose a still-relevant prior tested/HR session as the reference.
-  const withLactate = candidates.filter(l => (l.splitLogs || []).some(r => r.lactate))
-  const withHr = canEstimate ? candidates.filter(l => (l.splitLogs || []).some(r => repHr(r) != null)) : []
-  const last = withLactate[withLactate.length - 1] ?? withHr[withHr.length - 1] ?? candidates[candidates.length - 1]
+  const last = pickLatestSessionLog(group, excludeLogId, baselineSteps)
   if (!last) return []
+  const canEstimate = !!baselineSteps && baselineSteps.length >= 2
   return (last.splitLogs || []).map(r => {
     const hr = repHr(r)
     if (r.lactate) return { pace: r.pace ?? '', hr, lactate: r.lactate }
@@ -376,8 +397,7 @@ export function useWorkoutLactateGroups(athleteId: string) {
   const [inferredDistance, setInferredDistance] = useState<Map<string, number>>(new Map())
   const [workoutTypeById, setWorkoutTypeById] = useState<Map<string, string>>(new Map())
 
-  useEffect(() => {
-    const load = async () => {
+  const load = useCallback(async () => {
       setLoading(true)
       try {
         // No hasLactate filter — a threshold workout logged WITHOUT testing
@@ -454,9 +474,9 @@ export function useWorkoutLactateGroups(athleteId: string) {
         setLogs(docs)
       } catch (e) { console.error(e) }
       finally { setLoading(false) }
-    }
-    load()
   }, [athleteId])
+
+  useEffect(() => { load() }, [load])
 
   // Threshold logs group by rep distance (tagged, or inferred from an old
   // log's workout template) so "20×400" and "12×400" pool into one
@@ -485,5 +505,5 @@ export function useWorkoutLactateGroups(athleteId: string) {
       .sort((a, b) => b.lastDate.localeCompare(a.lastDate)),
     [grouped])
 
-  return { loading, grouped, workoutOptions }
+  return { loading, grouped, workoutOptions, refetch: load }
 }

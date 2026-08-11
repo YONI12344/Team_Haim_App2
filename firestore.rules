@@ -19,8 +19,13 @@ service cloud.firestore {
       // the client-side check in auth-context.tsx is cosmetic only:
       // anyone signed in could call Firestore directly and grant
       // themselves the coach role.
+      // Athletes can no longer self-write `physiology` (T1/T2/T3 source of
+      // truth) either — Lab editing is coach-only; maxHR/restingHR and
+      // every other self-writable field are unaffected.
       allow write: if isCoach()
-        || (isSelf(userId) && request.resource.data.role != 'coach');
+        || (isSelf(userId) && request.resource.data.role != 'coach'
+            && (resource == null
+                || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['physiology'])));
       match /journey/{journeyId} {
         allow read, write: if isSelf(userId) || isCoach();
       }
@@ -121,12 +126,11 @@ service cloud.firestore {
     match /lactateTests/{docId} {
       allow read: if request.auth != null
         && (isCoach() || resource.data.athleteId == request.auth.uid);
-      // Athletes can log/edit their own tests (lab is now self-serve, not
-      // just coach-entered); coach can do the same for any athlete.
-      allow create: if isCoach()
-        || (request.auth != null && request.resource.data.athleteId == request.auth.uid);
-      allow update, delete: if isCoach()
-        || (request.auth != null && resource.data.athleteId == request.auth.uid);
+      // Lab editing (new test, apply, delete) is coach-only — reversed
+      // from the earlier self-serve design; athletes can still read their
+      // own tests once the coach makes the lab visible to them
+      // (labVisibleToAthlete).
+      allow create, update, delete: if isCoach();
     }
 
     match /coachMessages/{docId} {
