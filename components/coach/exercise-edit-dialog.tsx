@@ -22,6 +22,7 @@ const emptyForm = {
   nameEn: '',
   instructionsEn: '',
   category: 'strength' as 'strength' | 'stretch' | 'warmup',
+  subcategory: '',
   isTimed: false,
   defaultDurationSec: '',
   defaultSets: '',
@@ -35,6 +36,15 @@ const CATEGORY_OPTIONS: { value: 'strength' | 'stretch' | 'warmup'; label: strin
   { value: 'stretch', label: 'מתיחות' },
   { value: 'warmup', label: 'חימום / הפעלה' },
 ]
+
+// Suggested folders per category — coach can also just type a custom one.
+// Purely organizational (see lib/types.ts ExerciseLibraryItem.subcategory),
+// not a fixed enum, so this list is a starting point, not a constraint.
+const SUBCATEGORY_SUGGESTIONS: Record<'strength' | 'stretch' | 'warmup', string[]> = {
+  strength: ['משקל כבד', 'משקל קל', 'יציבות', 'שוק תחתונה'],
+  stretch: ['מתיחות חבל', 'מתיחות דינמיות', 'מתיחות סטטיות (אחרי ריצה)'],
+  warmup: ['הפעלה כללית', 'הפעלה ספציפית'],
+}
 
 /**
  * Shared add/edit form for an Exercise Library entry — factored out of
@@ -100,6 +110,7 @@ export function ExerciseEditDialog({
             nameEn: ex.nameEn || '',
             instructionsEn: ex.instructionsEn || '',
             category: ex.category || 'strength',
+            subcategory: ex.subcategory || '',
             isTimed: !!ex.isTimed,
             defaultDurationSec: ex.defaultDurationSec != null ? String(ex.defaultDurationSec) : '',
             defaultSets: ex.defaultSets != null ? String(ex.defaultSets) : '',
@@ -156,6 +167,7 @@ export function ExerciseEditDialog({
           instructionsEn: form.instructionsEn.trim() || undefined,
         } : {}),
         category: form.category,
+        subcategory: form.subcategory.trim() || undefined,
         isTimed: form.isTimed,
         defaultDurationSec: form.isTimed && form.defaultDurationSec ? Number(form.defaultDurationSec) : undefined,
         defaultSets: form.defaultSets ? Number(form.defaultSets) : undefined,
@@ -233,6 +245,25 @@ export function ExerciseEditDialog({
                   )}
                 >
                   {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold">תיקייה (אופציונלי — לארגון בבחירת תרגילים)</Label>
+            <Input value={form.subcategory} onChange={(e) => setForm({ ...form, subcategory: e.target.value })} placeholder="למשל: משקל כבד" dir="rtl" />
+            <div className="flex flex-wrap gap-1.5">
+              {SUBCATEGORY_SUGGESTIONS[form.category].map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setForm({ ...form, subcategory: s })}
+                  className={cn(
+                    'px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-colors',
+                    form.subcategory === s ? 'bg-[#0a1628] text-white border-[#0a1628]' : 'bg-white text-gray-500 border-gray-200',
+                  )}
+                >
+                  {s}
                 </button>
               ))}
             </div>

@@ -45,6 +45,14 @@ export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }
   // Coach clicked the pencil on an exercise already in a block — opens the
   // same edit form as the Exercise Library page, right from here.
   const [editTarget, setEditTarget] = useState<{ blockId: string; instanceId: string; exerciseId: string } | null>(null)
+  // Coach clicked "new exercise" from a specific block's picker because it
+  // wasn't in the library yet — opens the same dialog in create mode, and
+  // the new exercise gets added straight into that block once saved.
+  const [creatingForBlockId, setCreatingForBlockId] = useState<string | null>(null)
+  // Narrows the picker below to one folder at a time (see lib/types.ts
+  // ExerciseLibraryItem.subcategory) — purely a "help me find it" filter,
+  // doesn't affect what's actually in the library.
+  const [subcategoryFilter, setSubcategoryFilter] = useState<string | null>(null)
 
   useEffect(() => {
     listExercises().then(setAllExercises).catch(console.error).finally(() => setLoadingLibrary(false))
@@ -54,6 +62,8 @@ export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }
     const exCategory = ex.category || 'strength'
     return category === 'strength' ? exCategory === 'strength' : exCategory !== 'strength'
   })
+  const subcategories = Array.from(new Set(library.map((ex) => ex.subcategory).filter((s): s is string => !!s))).sort()
+  const pickableLibrary = subcategoryFilter ? library.filter((ex) => ex.subcategory === subcategoryFilter) : library
   const libraryById = new Map(allExercises.map((e) => [e.id, e]))
   const blockLabelPrefix = category === 'stretch' ? 'מתיחה' : 'סט'
 
@@ -69,8 +79,12 @@ export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }
     onChange(blocks.map((b) => (b.id === blockId ? { ...b, label } : b)))
   }
 
-  const addExercise = (blockId: string, exerciseId: string) => {
-    const ex = library.find((e) => e.id === exerciseId)
+  const addExercise = (blockId: string, exerciseIdOrItem: string | ExerciseLibraryItem) => {
+    // Accepts either an id (normal picker selection, looked up in the
+    // already-loaded library) or a full item (just-created via the quick-
+    // add dialog, whose setAllExercises update hasn't landed in this
+    // closure yet — looking it up by id would silently find nothing).
+    const ex = typeof exerciseIdOrItem === 'string' ? library.find((e) => e.id === exerciseIdOrItem) : exerciseIdOrItem
     if (!ex) return
     const newExercise: StrengthBlockExercise = {
       id: genId('ex'),
@@ -121,7 +135,7 @@ export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }
   // show up the next time this exercise gets freshly added to a block,
   // not in the one the coach was just looking at.
   const handleExerciseSaved = (saved: ExerciseLibraryItem) => {
-    setAllExercises((prev) => prev.map((e) => (e.id === saved.id ? saved : e)))
+    setAllExercises((prev) => (prev.some((e) => e.id === saved.id) ? prev.map((e) => (e.id === saved.id ? saved : e)) : [...prev, saved]))
     if (editTarget) {
       updateExercise(editTarget.blockId, editTarget.instanceId, {
         name: saved.name,
@@ -130,6 +144,8 @@ export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }
         instructions: saved.instructions,
         category: saved.category ?? 'strength',
       })
+    } else if (creatingForBlockId) {
+      addExercise(creatingForBlockId, saved)
     }
   }
 
@@ -153,6 +169,31 @@ export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }
           <p className="text-muted-foreground text-center py-8">לא נוספו בלוקים עדיין</p>
         ) : (
           <div className="space-y-4">
+            {subcategories.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setSubcategoryFilter(null)}
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-colors ${
+                    !subcategoryFilter ? 'bg-[#0a1628] text-white border-[#0a1628]' : 'bg-white text-gray-500 border-gray-200'
+                  }`}
+                >
+                  הכל
+                </button>
+                {subcategories.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setSubcategoryFilter(s)}
+                    className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-colors ${
+                      subcategoryFilter === s ? 'bg-[#0a1628] text-white border-[#0a1628]' : 'bg-white text-gray-500 border-gray-200'
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
             {blocks.map((block, bIdx) => (
               <div key={block.id} className="rounded-lg border border-border overflow-hidden">
                 <div className="flex items-center justify-between gap-2 bg-muted/40 px-3 py-2">
@@ -217,18 +258,30 @@ export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }
                     </div>
                     )
                   })}
-                  <Select value="" onValueChange={(exerciseId) => addExercise(block.id, exerciseId)}>
-                    <SelectTrigger className="h-8 text-sm">
-                      <SelectValue placeholder={block.exercises.length === 0 ? 'הוסף תרגיל' : 'הוסף תרגיל נוסף לסופרסט'} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {library.map((ex) => (
-                        <SelectItem key={ex.id} value={ex.id}>
-                          {ex.name}{category !== 'strength' && ex.category === 'warmup' ? ' (חימום)' : ''}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-1.5">
+                    <Select value="" onValueChange={(exerciseId) => addExercise(block.id, exerciseId)}>
+                      <SelectTrigger className="h-8 text-sm flex-1">
+                        <SelectValue placeholder={block.exercises.length === 0 ? 'הוסף תרגיל' : 'הוסף תרגיל נוסף לסופרסט'} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {pickableLibrary.map((ex) => (
+                          <SelectItem key={ex.id} value={ex.id}>
+                            {ex.name}{category !== 'strength' && ex.category === 'warmup' ? ' (חימום)' : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCreatingForBlockId(block.id)}
+                      className="h-8 text-xs shrink-0"
+                      title="התרגיל לא ברשימה? צרו אותו כאן"
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-1" />תרגיל חדש
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -237,8 +290,9 @@ export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }
       </CardContent>
       <ExerciseEditDialog
         exerciseId={editTarget?.exerciseId ?? null}
-        open={!!editTarget}
-        onOpenChange={(open) => { if (!open) setEditTarget(null) }}
+        open={!!editTarget || !!creatingForBlockId}
+        defaultCategory={creatingForBlockId ? (category === 'strength' ? 'strength' : 'stretch') : undefined}
+        onOpenChange={(open) => { if (!open) { setEditTarget(null); setCreatingForBlockId(null) } }}
         onSaved={handleExerciseSaved}
       />
     </Card>

@@ -5,9 +5,9 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Plus, Dumbbell, Pencil, X, Trash2, Loader2, FolderInput } from 'lucide-react'
+import { Plus, Dumbbell, Pencil, X, Trash2, Loader2, FolderInput, PackagePlus } from 'lucide-react'
 import Link from 'next/link'
-import { collection, deleteDoc, doc, getDocs, orderBy, query, updateDoc } from 'firebase/firestore'
+import { collection, deleteDoc, doc, getDoc, getDocs, orderBy, query, updateDoc, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { toast } from 'sonner'
 import type { ExperienceLevel, Workout, WorkoutType } from '@/lib/types'
@@ -132,6 +132,7 @@ export function WorkoutBankManager() {
   // folders instead of navigating to /coach/workouts/[id]/edit — the old
   // Link-based flow "jumped" away from wherever the coach was browsing.
   const [editingWorkout, setEditingWorkout] = useState<Workout | null>(null)
+  const [backfilling, setBackfilling] = useState(false)
 
   // `silent` skips the full-page spinner — used after an in-place edit so
   // the refresh doesn't blow away scroll position and open <details>.
@@ -182,6 +183,65 @@ export function WorkoutBankManager() {
     }
   }
 
+  // One-time catch-up: workouts already assigned to athletes that never
+  // made it into the bank (built before this existed, or via a flow that
+  // doesn't auto-tag). Only looks at the last month — older assignments
+  // reflect a level the athlete may have since moved past, and going
+  // forward new assignments already auto-tag themselves (see
+  // components/coach/athlete-planner.tsx assignWorkoutToDate /
+  // handleCreateWorkout), so this never needs to run as an ongoing sync.
+  const handleBackfillFromAssigned = async () => {
+    setBackfilling(true)
+    try {
+      const cutoff = new Date()
+      cutoff.setMonth(cutoff.getMonth() - 1)
+      const cutoffStr = cutoff.toISOString().slice(0, 10)
+      const assignedSnap = await getDocs(query(collection(db, 'assignedWorkouts'), where('scheduledDate', '>=', cutoffStr)))
+
+      const athleteLevelCache = new Map<string, ExperienceLevel | null>()
+      const seenWorkoutIds = new Set<string>()
+      const plan: { workoutId: string; level: ExperienceLevel }[] = []
+
+      for (const d of assignedSnap.docs) {
+        const aw = d.data() as { workoutId?: string; athleteId?: string }
+        const workoutId = aw.workoutId
+        if (!workoutId || seenWorkoutIds.has(workoutId)) continue
+        seenWorkoutIds.add(workoutId)
+
+        const wSnap = await getDoc(doc(db, 'workouts', workoutId))
+        if (!wSnap.exists() || wSnap.data().bankLevel) continue
+
+        const athleteId = aw.athleteId
+        if (!athleteId) continue
+        if (!athleteLevelCache.has(athleteId)) {
+          const uSnap = await getDoc(doc(db, 'users', athleteId))
+          athleteLevelCache.set(athleteId, (uSnap.exists() ? uSnap.data().experienceLevel : null) || null)
+        }
+        const level = athleteLevelCache.get(athleteId)
+        if (!level) continue
+
+        plan.push({ workoutId, level })
+      }
+
+      if (plan.length === 0) {
+        toast.info('אין אימונים חסרים להוספה לבנק (בחודש האחרון)')
+        return
+      }
+      if (!confirm(`נמצאו ${plan.length} אימונים ששובצו בחודש האחרון ועדיין לא בבנק. להוסיף אותם עכשיו לרמה המתאימה לספורטאי?`)) return
+
+      for (const item of plan) {
+        await updateDoc(doc(db, 'workouts', item.workoutId), { bankLevel: item.level })
+      }
+      toast.success(`נוספו ${plan.length} אימונים לבנק`)
+      await load(true)
+    } catch (err) {
+      console.error('Error backfilling workout bank from assigned workouts:', err)
+      toast.error('הפעולה נכשלה')
+    } finally {
+      setBackfilling(false)
+    }
+  }
+
   if (loading) return (
     <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-gold" /></div>
   )
@@ -195,9 +255,15 @@ export function WorkoutBankManager() {
             אימונים אמיתיים שכתבתם, מאורגנים לפי רמת ספורטאי ושלב התקדמות. מאמן ה-AI בקן בוחר ומתאים משך/מרחק מתוכם במקום להמציא תוכן — ככל שיש יותר גרסאות לכל סוג, כך פחות חזרתיות. השתמשו בסמל התיקייה על כל אימון כדי להעביר אותו במהירות בין רמות/שלבים.
           </p>
         </div>
-        <Link href="/coach/workouts/new">
-          <Button className="bg-gold hover:bg-gold/90 text-navy"><Plus className="h-4 w-4 mr-2" />אימון חדש</Button>
-        </Link>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleBackfillFromAssigned} disabled={backfilling} title="מוסיף לבנק אימונים ששובצו לספורטאים בחודש האחרון ועדיין לא בבנק">
+            {backfilling ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <PackagePlus className="h-4 w-4 mr-2" />}
+            השלם מאימונים ששובצו
+          </Button>
+          <Link href="/coach/workouts/new">
+            <Button className="bg-gold hover:bg-gold/90 text-navy"><Plus className="h-4 w-4 mr-2" />אימון חדש</Button>
+          </Link>
+        </div>
       </div>
 
       {BANK_LEVELS.map((level) => {

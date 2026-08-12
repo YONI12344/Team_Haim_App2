@@ -37,6 +37,7 @@ interface RawExerciseDoc {
   defaultSets?: number
   defaultReps?: string
   category?: 'strength' | 'stretch' | 'warmup'
+  subcategory?: string
   isTimed?: boolean
   defaultDurationSec?: number
   injuryZones?: string[]
@@ -58,6 +59,7 @@ function mapExercise(id: string, data: RawExerciseDoc): ExerciseLibraryItem {
     defaultSets: data.defaultSets,
     defaultReps: data.defaultReps,
     category: data.category,
+    subcategory: data.subcategory,
     isTimed: data.isTimed,
     defaultDurationSec: data.defaultDurationSec,
     injuryZones: data.injuryZones,
@@ -99,6 +101,7 @@ export async function saveExercise(
       defaultSets: exercise.defaultSets ?? null,
       defaultReps: exercise.defaultReps ?? null,
       category: exercise.category ?? 'strength',
+      subcategory: exercise.subcategory?.trim() || null,
       isTimed: exercise.isTimed ?? false,
       defaultDurationSec: exercise.defaultDurationSec ?? null,
       injuryZones: exercise.injuryZones ?? [],

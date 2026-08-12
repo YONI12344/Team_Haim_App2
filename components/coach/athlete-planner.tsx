@@ -532,12 +532,19 @@ export function AthletePlanner({ athleteId }: Props) {
       autoWorkoutTitle(workoutTypeLabels, newWO.type, { distance: newWO.distance, duration: newWO.duration })
     setCreatingWorkout(true)
     try {
+      // A workout the coach hand-builds for a specific real athlete right
+      // here is exactly what the Workout Bank wants — "a real, coach-
+      // authored session" (see lib/types.ts Workout.bankLevel) — so it's
+      // auto-tagged at this athlete's level instead of staying invisible
+      // to the Bakken generator until someone remembers to add it by hand.
+      const autoBankLevel = athlete?.experienceLevel || null
       const ref = await addDoc(collection(db, 'workouts'), {
         title: finalTitle, type: newWO.type,
         description: newWO.description.trim(),
         distance: newWO.distance ? Number(newWO.distance) : null,
         duration: newWO.duration ? Number(newWO.duration) : null,
         notes: newWO.notes.trim() || null,
+        bankLevel: autoBankLevel,
         createdBy: user?.id || null,
         createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
       })
@@ -547,6 +554,7 @@ export function AthletePlanner({ athleteId }: Props) {
         distance: newWO.distance ? Number(newWO.distance) : undefined,
         duration: newWO.duration ? Number(newWO.duration) : undefined,
         notes: newWO.notes.trim() || undefined,
+        ...(autoBankLevel ? { bankLevel: autoBankLevel } : {}),
         createdBy: user?.id || '', createdAt: new Date(), updatedAt: new Date(),
       }
       setWorkoutLibrary(prev => [created, ...prev])
@@ -640,6 +648,15 @@ export function AthletePlanner({ athleteId }: Props) {
   const assignWorkoutToDate = async (workoutIn: Workout, dateStr: string, session?: 'am' | 'pm' | 'other') => {
     if (!user) return
     const workout = withAthleteDefaultRoutines(workoutIn)
+    // Same auto-bank-tagging as handleCreateWorkout below, for the other
+    // path a workout reaches an athlete: picking an existing library
+    // template that was never explicitly leveled. Only fills a gap —
+    // never overrides a level the coach already set on purpose.
+    if (!workout.bankLevel && athlete?.experienceLevel) {
+      updateDoc(doc(db, 'workouts', workout.id), { bankLevel: athlete.experienceLevel }).catch((err) =>
+        console.error('Error auto-tagging workout bank level:', err),
+      )
+    }
     // Session only matters once the day ends up with more than one workout —
     // a lone workout can happen any time, no need to tag it AM/PM
     const willBeMultiWorkoutDay = assignedWorkouts.some(w => w.scheduledDate === dateStr)

@@ -462,6 +462,13 @@ export interface ExerciseLibraryItem {
   // components/coach/strength-block-builder.tsx), but the library and its
   // filter tabs keep them visually apart.
   category?: 'strength' | 'stretch' | 'warmup'
+  // Free-text folder within a category — e.g. "Rope Stretching" / "Dynamic
+  // Stretching" / "Static (Post-Run)" for stretch, "Heavy Weight" / "Light
+  // Weight" / "Stability" / "Lower Leg" for strength. Purely a picker-
+  // organization aid (components/coach/strength-block-builder.tsx groups/
+  // filters by it) — coach can use the suggested folders or type a new
+  // one; unset exercises just show up ungrouped, nothing breaks.
+  subcategory?: string
   // Timed exercise (a stretch hold, a plank) instead of a reps-based one —
   // Lift Mode (components/athlete/lift-mode.tsx) shows a start/stop timer
   // in place of a weight input when set, for this exercise and any
