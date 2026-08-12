@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Switch } from '@/components/ui/switch'
 import {
   Select,
   SelectContent,
@@ -289,6 +290,12 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
   const [existingGroups, setExistingGroups] = useState<string[]>([])
   const [sets, setSets] = useState<Partial<WorkoutSet>[]>([])
   const [strengthBlocks, setStrengthBlocks] = useState<StrengthBlock[]>([])
+  // Only meaningful when type === 'stretch' — there's no separate
+  // WorkoutType for warm-ups, this is what makes a stretch workout show up
+  // as "חימום" in the Workout Library filter and sort first in the
+  // routine-link picker below. Was previously only ever set by the GW
+  // import scripts, with no way to turn it on for a workout built by hand.
+  const [isWarmup, setIsWarmup] = useState(false)
   const [linkedRoutines, setLinkedRoutines] = useState<{ id: string; workoutId: string; label: string }[]>([])
   const [routineOptions, setRoutineOptions] = useState<Workout[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -362,6 +369,7 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
           })) : [])
           setStrengthBlocks(Array.isArray(data.strengthBlocks) ? data.strengthBlocks : [])
           setLinkedRoutines(Array.isArray(data.linkedRoutines) ? data.linkedRoutines : [])
+          setIsWarmup(data.isWarmup === true)
         } else {
           toast.error('Workout not found')
           if (onDone) onDone(); else router.push('/coach/workouts')
@@ -514,6 +522,7 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
           })),
         })),
         strengthBlocks: (type === 'strength' || type === 'stretch') && strengthBlocks.length > 0 ? strengthBlocks : null,
+        isWarmup: type === 'stretch' && isWarmup,
         linkedRoutines: (() => {
           const complete = linkedRoutines.filter((l) => l.workoutId && l.label.trim())
           return complete.length > 0 ? complete : null
@@ -615,6 +624,18 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
                 </Select>
               </div>
             </div>
+
+            {type === 'stretch' && (
+              <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
+                <div>
+                  <Label className="text-sm font-semibold">זהו אימון חימום</Label>
+                  <p className="text-xs text-muted-foreground">
+                    מסמן את האימון כ&quot;חימום&quot; — יופיע עם סימון מיוחד וסינון נפרד בספריית האימונים, וייבחר ראשון ברשימת שגרות מקושרות.
+                  </p>
+                </div>
+                <Switch checked={isWarmup} onCheckedChange={setIsWarmup} />
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="description">{t.descriptionLabel}</Label>
