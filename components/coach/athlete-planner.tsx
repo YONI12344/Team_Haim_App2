@@ -366,6 +366,7 @@ export function AthletePlanner({ athleteId }: Props) {
             strengthToolsVisibleToAthlete: d.strengthToolsVisibleToAthlete === true,
             injuryToolsVisibleToAthlete: d.injuryToolsVisibleToAthlete === true,
             defaultLinkedRoutines: Array.isArray(d.defaultLinkedRoutines) ? d.defaultLinkedRoutines : [],
+            defaultLinkedRoutinesByType: Array.isArray(d.defaultLinkedRoutinesByType) ? d.defaultLinkedRoutinesByType : [],
             coachPrivateNotes: d.coachPrivateNotes || '',
             visibleWeeksAhead: typeof d.visibleWeeksAhead === 'number' ? d.visibleWeeksAhead : 2,
             weekStartDay: d.weekStartDay === 1 ? 1 : 0,
