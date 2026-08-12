@@ -139,6 +139,39 @@ async function translateAndCacheExerciseText(id: string, name: string, instructi
   }
 }
 
+/** One-time bulk pass so exercises created before AI translation existed
+ *  get an English cache too, not just ones saved from now on. Chunks the
+ *  batch so one Claude call never has to translate too many fields at
+ *  once. Returns how many exercises got a new translation. */
+export async function backfillExerciseTranslations(exercises: ExerciseLibraryItem[]): Promise<number> {
+  const targets = exercises.filter((ex) => !ex.nameEn || (ex.instructions && !ex.instructionsEn))
+  if (targets.length === 0) return 0
+
+  const chunkSize = 10
+  let translatedCount = 0
+  for (let i = 0; i < targets.length; i += chunkSize) {
+    const chunk = targets.slice(i, i + chunkSize)
+    const items = chunk.flatMap((ex) => {
+      const out = [{ id: `${ex.id}::name`, text: ex.name }]
+      if (ex.instructions?.trim()) out.push({ id: `${ex.id}::instructions`, text: ex.instructions })
+      return out
+    })
+    const translated = await translateTexts(items)
+    for (const ex of chunk) {
+      const nameEn = translated[`${ex.id}::name`]
+      const instructionsEn = translated[`${ex.id}::instructions`]
+      if (!nameEn && !instructionsEn) continue
+      await setDoc(
+        doc(db, 'exerciseLibrary', ex.id),
+        { ...(nameEn ? { nameEn } : {}), ...(instructionsEn ? { instructionsEn } : {}) },
+        { merge: true },
+      )
+      translatedCount++
+    }
+  }
+  return translatedCount
+}
+
 /** Deletes a single video file from Storage — used both when removing an
  *  exercise's video (keeping the exercise) and when replacing it with a
  *  new upload (cleans up the old file instead of leaking it in Storage). */

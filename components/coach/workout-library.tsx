@@ -17,6 +17,7 @@ import {
   Copy,
   Sparkles,
   Download,
+  Languages,
 } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
@@ -30,6 +31,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  setDoc,
   where,
   writeBatch,
 } from 'firebase/firestore'
@@ -37,6 +39,7 @@ import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
 import { isCoachEmail } from '@/lib/constants'
+import { translateTexts } from '@/lib/translate'
 import { workoutTypeColors, useWorkoutTypeLabels } from '@/lib/workout-labels'
 import {
   AlertDialog,
@@ -74,6 +77,7 @@ export function WorkoutLibrary() {
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [duplicating, setDuplicating] = useState<string | null>(null)
+  const [translatingAll, setTranslatingAll] = useState(false)
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [bulkDeleting, setBulkDeleting] = useState(false)
   // Cleanup tool: "delete everything created in this date range that was
@@ -265,6 +269,50 @@ export function WorkoutLibrary() {
     }
   }
 
+  // One-time bulk pass so EXISTING workouts (built before AI translation
+  // existed) get an English cache too, not just ones saved from now on —
+  // per the coach's explicit ask to cover everything immediately, not
+  // grow into it gradually. Chunks the batch so one Claude call never has
+  // to translate hundreds of fields at once.
+  const handleBackfillTranslations = async () => {
+    const targets = workouts.filter((w) => !w.titleEn || (w.description && !w.descriptionEn))
+    if (targets.length === 0) {
+      toast.info('כל האימונים כבר מתורגמים')
+      return
+    }
+    setTranslatingAll(true)
+    let done = 0
+    try {
+      const chunkSize = 10
+      for (let i = 0; i < targets.length; i += chunkSize) {
+        const chunk = targets.slice(i, i + chunkSize)
+        const items = chunk.flatMap((w) => {
+          const out = [{ id: `${w.id}::title`, text: w.title }]
+          if (w.description?.trim()) out.push({ id: `${w.id}::description`, text: w.description })
+          return out
+        })
+        const translated = await translateTexts(items)
+        for (const w of chunk) {
+          const titleEn = translated[`${w.id}::title`]
+          const descriptionEn = translated[`${w.id}::description`]
+          if (!titleEn && !descriptionEn) continue
+          await setDoc(doc(db, 'workouts', w.id), {
+            ...(titleEn ? { titleEn } : {}),
+            ...(descriptionEn ? { descriptionEn } : {}),
+          }, { merge: true })
+          done++
+        }
+      }
+      toast.success(`תורגמו ${done} אימונים לאנגלית`)
+      await load()
+    } catch (err) {
+      console.error('Error backfilling workout translations:', err)
+      toast.error('התרגום נכשל')
+    } finally {
+      setTranslatingAll(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -278,12 +326,18 @@ export function WorkoutLibrary() {
           </p>
         </div>
         {isCoach && (
-          <Link href="/coach/workouts/new">
-            <Button className="bg-gold hover:bg-gold/90 text-navy">
-              <Plus className="h-4 w-4 mr-2" />
-              {t.createWorkoutAction}
+          <div className="flex gap-2">
+            <Button onClick={handleBackfillTranslations} disabled={translatingAll} variant="outline" title="מתרגם אימונים ללא גרסה באנגלית">
+              {translatingAll ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Languages className="h-4 w-4 mr-2" />}
+              תרגם לאנגלית
             </Button>
-          </Link>
+            <Link href="/coach/workouts/new">
+              <Button className="bg-gold hover:bg-gold/90 text-navy">
+                <Plus className="h-4 w-4 mr-2" />
+                {t.createWorkoutAction}
+              </Button>
+            </Link>
+          </div>
         )}
       </div>
 

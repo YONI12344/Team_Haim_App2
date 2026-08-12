@@ -7,17 +7,20 @@ import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
-import { Loader2, Timer, Trash2, VolumeX } from 'lucide-react'
+import { Loader2, Timer, Trash2, VolumeX, Languages } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/auth-context'
 import type { ExerciseLibraryItem } from '@/lib/types'
 import { getExercise, saveExercise, uploadExerciseVideo, deleteExerciseVideoFile } from '@/lib/exercise-library'
+import { translateTexts } from '@/lib/translate'
 import { BODY_ZONES, ZONE_IDS } from '@/lib/injury-data'
 import { cn } from '@/lib/utils'
 
 const emptyForm = {
   name: '',
   instructions: '',
+  nameEn: '',
+  instructionsEn: '',
   category: 'strength' as 'strength' | 'stretch' | 'warmup',
   isTimed: false,
   defaultDurationSec: '',
@@ -74,6 +77,7 @@ export function ExerciseEditDialog({
   const [removeVideo, setRemoveVideo] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
+  const [translating, setTranslating] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -93,6 +97,8 @@ export function ExerciseEditDialog({
           setForm({
             name: ex.name,
             instructions: ex.instructions || '',
+            nameEn: ex.nameEn || '',
+            instructionsEn: ex.instructionsEn || '',
             category: ex.category || 'strength',
             isTimed: !!ex.isTimed,
             defaultDurationSec: ex.defaultDurationSec != null ? String(ex.defaultDurationSec) : '',
@@ -110,13 +116,45 @@ export function ExerciseEditDialog({
       .finally(() => setLoadingExercise(false))
   }, [open, exerciseId, defaultCategory])
 
+  const handleRegenerateTranslation = async () => {
+    if (!form.name.trim()) return
+    setTranslating(true)
+    try {
+      const items = [{ id: 'name', text: form.name.trim() }]
+      if (form.instructions.trim()) items.push({ id: 'instructions', text: form.instructions.trim() })
+      const translated = await translateTexts(items)
+      setForm((prev) => ({
+        ...prev,
+        nameEn: translated.name || prev.nameEn,
+        instructionsEn: translated.instructions || prev.instructionsEn,
+      }))
+      if (!translated.name) toast.error('התרגום נכשל')
+    } catch (err) {
+      console.error('Error regenerating translation:', err)
+      toast.error('התרגום נכשל')
+    } finally {
+      setTranslating(false)
+    }
+  }
+
   const handleSave = async () => {
     if (!user || !form.name.trim()) return
     setSaving(true)
     try {
+      // Only send nameEn/instructionsEn — and skip the automatic re-
+      // translation that would otherwise follow the save — when the coach
+      // actually edited the English text themselves here. Otherwise leave
+      // both out entirely so the normal auto-translate-on-save (lib/
+      // exercise-library.ts saveExercise) keeps doing its job untouched.
+      const enEdited = form.nameEn.trim() !== (editing?.nameEn || '').trim()
+        || form.instructionsEn.trim() !== (editing?.instructionsEn || '').trim()
       const baseFields = {
         name: form.name.trim(),
         instructions: form.instructions.trim() || undefined,
+        ...(enEdited ? {
+          nameEn: form.nameEn.trim() || undefined,
+          instructionsEn: form.instructionsEn.trim() || undefined,
+        } : {}),
         category: form.category,
         isTimed: form.isTimed,
         defaultDurationSec: form.isTimed && form.defaultDurationSec ? Number(form.defaultDurationSec) : undefined,
@@ -126,12 +164,13 @@ export function ExerciseEditDialog({
         videoMuted: form.videoMuted,
         createdBy: editing?.createdBy || user.id || '',
       }
+      const saveOptions = enEdited ? { skipAutoTranslate: true } : undefined
       const id = await saveExercise({
         id: editing?.id,
         ...baseFields,
         videoUrl: removeVideo ? undefined : editing?.videoUrl,
         videoPath: removeVideo ? undefined : editing?.videoPath,
-      })
+      }, saveOptions)
       const oldVideoPath = editing?.videoPath
       let videoChanged = removeVideo
       let finalVideoUrl = removeVideo ? undefined : editing?.videoUrl
@@ -139,7 +178,7 @@ export function ExerciseEditDialog({
       if (videoFile) {
         setUploadProgress(0)
         const { videoUrl, videoPath } = await uploadExerciseVideo(id, videoFile, setUploadProgress)
-        await saveExercise({ id, ...baseFields, videoUrl, videoPath })
+        await saveExercise({ id, ...baseFields, videoUrl, videoPath }, saveOptions)
         videoChanged = true
         finalVideoUrl = videoUrl
         finalVideoPath = videoPath
@@ -298,6 +337,26 @@ export function ExerciseEditDialog({
               משתיק את הניגון אצל הספורטאי (וידאו, טיימר וכו&apos;) — לא מוחק את הקול מהקובץ עצמו.
             </p>
           </div>
+          <details className="rounded-lg border border-border">
+            <summary className="px-3 py-2 text-xs font-semibold cursor-pointer flex items-center gap-1.5">
+              <Languages className="h-3.5 w-3.5 text-muted-foreground" />
+              גרסה באנגלית (מתורגם אוטומטית — ניתן לערוך)
+            </summary>
+            <div className="px-3 pb-3 space-y-2" dir="ltr">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Exercise name</Label>
+                <Input value={form.nameEn} onChange={(e) => setForm({ ...form, nameEn: e.target.value })} placeholder="e.g. Squat" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Instructions</Label>
+                <Textarea value={form.instructionsEn} onChange={(e) => setForm({ ...form, instructionsEn: e.target.value })} className="min-h-[70px] text-sm" placeholder="How to perform this exercise..." />
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={handleRegenerateTranslation} disabled={translating || !form.name.trim()}>
+                {translating ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Languages className="h-3.5 w-3.5 mr-1.5" />}
+                Regenerate with AI
+              </Button>
+            </div>
+          </details>
           <Button onClick={handleSave} disabled={saving || !form.name.trim()} className="w-full">
             {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
             שמור

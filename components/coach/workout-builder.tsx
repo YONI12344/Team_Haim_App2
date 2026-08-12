@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { ArrowLeft, Plus, Trash2, Loader2 } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Loader2, Languages } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -288,6 +288,12 @@ async function translateStrengthBlockNotes(workoutId: string, blocks: StrengthBl
   }
 }
 
+async function regenerateWorkoutTranslation(title: string, description: string): Promise<{ title?: string; description?: string }> {
+  const items = [{ id: 'title', text: title.trim() }]
+  if (description.trim()) items.push({ id: 'description', text: description.trim() })
+  return translateTexts(items)
+}
+
 export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBuilderProps) {
   const { t } = useLanguage()
   const router = useRouter()
@@ -302,6 +308,15 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
   const [title, setTitle] = useState('')
   const [type, setType] = useState<WorkoutType>('easy')
   const [description, setDescription] = useState('')
+  // English review copy — auto-filled by AI on save (see translateAndCacheFields
+  // below), editable here. existingTitleEn/existingDescriptionEn track what
+  // was loaded, so save only overrides the AI's regeneration when the coach
+  // actually touched these fields themselves.
+  const [titleEn, setTitleEn] = useState('')
+  const [descriptionEn, setDescriptionEn] = useState('')
+  const [existingTitleEn, setExistingTitleEn] = useState('')
+  const [existingDescriptionEn, setExistingDescriptionEn] = useState('')
+  const [translatingPreview, setTranslatingPreview] = useState(false)
   const [duration, setDuration] = useState('')
   const [distance, setDistance] = useState('')
   const [warmup, setWarmup] = useState('')
@@ -374,6 +389,10 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
           setTitle(data.title || '')
           setType((data.type as WorkoutType) || 'easy')
           setDescription(data.description || '')
+          setTitleEn(data.titleEn || '')
+          setDescriptionEn(data.descriptionEn || '')
+          setExistingTitleEn(data.titleEn || '')
+          setExistingDescriptionEn(data.descriptionEn || '')
           setDuration(data.duration ? String(data.duration) : '')
           setDistance(data.distance ? String(data.distance) : '')
           setWarmup(data.warmup || '')
@@ -472,6 +491,22 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
     setSets(newSets)
   }
 
+  const handleRegenerateTranslation = async () => {
+    if (!title.trim()) return
+    setTranslatingPreview(true)
+    try {
+      const translated = await regenerateWorkoutTranslation(title, description)
+      if (translated.title) setTitleEn(translated.title)
+      if (translated.description) setDescriptionEn(translated.description)
+      if (!translated.title) toast.error('התרגום נכשל')
+    } catch (err) {
+      console.error('Error regenerating workout translation:', err)
+      toast.error('התרגום נכשל')
+    } finally {
+      setTranslatingPreview(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -506,12 +541,22 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
       }
     }
 
+    // Only true when the coach actually edited the English review fields
+    // themselves — otherwise leave titleEn/descriptionEn out of the
+    // payload entirely and let the normal auto-translate-on-save
+    // regenerate them from the (possibly just-changed) Hebrew text.
+    const enEdited = titleEn.trim() !== existingTitleEn.trim() || descriptionEn.trim() !== existingDescriptionEn.trim()
+
     setIsSubmitting(true)
     try {
       const payload = {
         title: finalTitle,
         type,
         description: description.trim(),
+        ...(enEdited ? {
+          titleEn: titleEn.trim() || null,
+          descriptionEn: descriptionEn.trim() || null,
+        } : {}),
         duration: duration ? Number(duration) : null,
         distance: distance ? Number(distance) : null,
         warmup: warmup.trim() || null,
@@ -577,8 +622,7 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
         toast.success('Workout created!')
       }
       void translateAndCacheFields('workouts', savedId as string, {
-        title: payload.title,
-        description: payload.description,
+        ...(enEdited ? {} : { title: payload.title, description: payload.description }),
         warmup: payload.warmup,
         cooldown: payload.cooldown,
         notes: payload.notes,
@@ -684,6 +728,27 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
                 rows={3}
               />
             </div>
+
+            <details className="rounded-lg border border-border">
+              <summary className="px-3 py-2 text-xs font-semibold cursor-pointer flex items-center gap-1.5">
+                <Languages className="h-3.5 w-3.5 text-muted-foreground" />
+                English version (auto-translated — editable)
+              </summary>
+              <div className="px-3 pb-3 space-y-2" dir="ltr">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">Title</Label>
+                  <Input value={titleEn} onChange={(e) => setTitleEn(e.target.value)} placeholder="e.g. Easy Run 10 km" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">Description</Label>
+                  <Textarea value={descriptionEn} onChange={(e) => setDescriptionEn(e.target.value)} rows={3} placeholder="Session description in English..." />
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={handleRegenerateTranslation} disabled={translatingPreview || !title.trim()}>
+                  {translatingPreview ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Languages className="h-3.5 w-3.5 mr-1.5" />}
+                  Regenerate with AI
+                </Button>
+              </div>
+            </details>
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">

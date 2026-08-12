@@ -13,12 +13,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Plus, Pencil, Trash2, Loader2, Dumbbell, Video, Timer, Download, VolumeX } from 'lucide-react'
+import { Plus, Pencil, Trash2, Loader2, Dumbbell, Video, Timer, Download, VolumeX, Languages } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/auth-context'
 import { isCoachEmail } from '@/lib/constants'
 import type { ExerciseLibraryItem } from '@/lib/types'
-import { listExercises, deleteExercise } from '@/lib/exercise-library'
+import { listExercises, deleteExercise, backfillExerciseTranslations } from '@/lib/exercise-library'
 import { BODY_ZONES } from '@/lib/injury-data'
 import { seedRunningStrengthProgram } from '@/lib/seed-running-strength-program'
 import { seedRunnerStretchProgram } from '@/lib/seed-runner-stretch-program'
@@ -45,6 +45,7 @@ export function ExerciseLibraryManager() {
   const [deleting, setDeleting] = useState(false)
   const [filterCategory, setFilterCategory] = useState<'strength' | 'stretch' | 'warmup'>('strength')
   const [importingKey, setImportingKey] = useState<'strength' | 'stretch' | 'strap' | 'ancillary' | null>(null)
+  const [translatingAll, setTranslatingAll] = useState(false)
 
   const load = async () => {
     setLoading(true)
@@ -161,6 +162,24 @@ export function ExerciseLibraryManager() {
     }
   }
 
+  const handleBackfillTranslations = async () => {
+    setTranslatingAll(true)
+    try {
+      const count = await backfillExerciseTranslations(exercises)
+      if (count === 0) {
+        toast.info('כל התרגילים כבר מתורגמים')
+      } else {
+        toast.success(`תורגמו ${count} תרגילים לאנגלית`)
+        await load()
+      }
+    } catch (err) {
+      console.error('Error backfilling exercise translations:', err)
+      toast.error('התרגום נכשל')
+    } finally {
+      setTranslatingAll(false)
+    }
+  }
+
   if (!isCoach) return null
 
   return (
@@ -188,6 +207,10 @@ export function ExerciseLibraryManager() {
           <Button onClick={handleImportAncillaryRoutines} disabled={importingKey !== null} size="sm" variant="outline">
             {importingKey === 'ancillary' ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Download className="h-4 w-4 mr-1" />}
             ייבוא: שגרות חימום (GW)
+          </Button>
+          <Button onClick={handleBackfillTranslations} disabled={translatingAll} size="sm" variant="outline" title="מתרגם תרגילים ללא גרסה באנגלית">
+            {translatingAll ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Languages className="h-4 w-4 mr-1" />}
+            תרגם לאנגלית
           </Button>
           <Button onClick={openAdd} size="sm"><Plus className="h-4 w-4 mr-1" />הוסף תרגיל</Button>
         </div>
