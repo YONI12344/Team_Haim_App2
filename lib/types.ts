@@ -515,6 +515,15 @@ export interface StrengthBlockExercise {
   // already prefers the live ExerciseLibraryItem (which carries nameEn/
   // instructionsEn) over this denormalized snapshot whenever it still exists.
   notesEn?: string
+  // An "either/or" second exercise for this exact slot — e.g. box jump OR
+  // step up, burpee with vest OR without — points at another
+  // ExerciseLibraryItem.id. When set, Lift Mode (components/athlete/
+  // lift-mode.tsx) shows a small picker letting the athlete choose which
+  // one they're actually doing THIS session before logging sets, instead
+  // of the coach having to build two near-identical blocks. The choice
+  // isn't stored on the workout template itself — it's picked fresh each
+  // time and recorded on the set log (see ExerciseLogEntry).
+  alternateExerciseId?: string
 }
 
 // Workout Set

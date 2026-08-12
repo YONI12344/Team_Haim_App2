@@ -125,7 +125,15 @@ export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }
 
   const updateExercise = (blockId: string, exerciseInstanceId: string, patch: Partial<StrengthBlockExercise>) => {
     onChange(blocks.map((b) => (b.id === blockId
-      ? { ...b, exercises: b.exercises.map((e) => (e.id === exerciseInstanceId ? { ...e, ...patch } : e)) }
+      ? { ...b, exercises: b.exercises.map((e) => {
+          if (e.id !== exerciseInstanceId) return e
+          const merged: any = { ...e, ...patch }
+          // Firestore rejects `undefined` field values on write — a patch
+          // clearing an optional field (e.g. removing an alternate
+          // exercise) must drop the key entirely, not leave it undefined.
+          Object.keys(merged).forEach((k) => { if (merged[k] === undefined) delete merged[k] })
+          return merged
+        }) }
       : b)))
   }
 
@@ -255,6 +263,21 @@ export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }
                       <Input value={ex.notes || ''}
                         onChange={(e) => updateExercise(block.id, ex.id, { notes: e.target.value })}
                         placeholder="הערה לתרגיל הזה (לא חובה)" className="h-8 text-sm" dir="rtl" />
+                      <div className="space-y-1">
+                        <Label className="text-[11px]">חלופה (אופציונלי — הספורטאי יבחר מה עשה באותו יום)</Label>
+                        <Select
+                          value={ex.alternateExerciseId || '__none__'}
+                          onValueChange={(v) => updateExercise(block.id, ex.id, { alternateExerciseId: v === '__none__' ? undefined : v })}
+                        >
+                          <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="ללא חלופה" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">ללא חלופה</SelectItem>
+                            {library.filter((e) => e.id !== ex.exerciseId).map((e) => (
+                              <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                     )
                   })}

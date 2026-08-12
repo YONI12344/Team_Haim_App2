@@ -55,6 +55,7 @@ interface LmText {
   setLabel: (i: number) => string
   doneSuffix: string
   weightPlaceholder: string
+  whatToday: string
 }
 
 const LM: Record<'he' | 'en', LmText> = {
@@ -87,6 +88,7 @@ const LM: Record<'he' | 'en', LmText> = {
     setLabel: (i: number) => `סט ${i}`,
     doneSuffix: ' · בוצע',
     weightPlaceholder: 'משקל ק"ג',
+    whatToday: 'מה עושים היום?',
   },
   en: {
     notFound: 'Workout not found',
@@ -117,6 +119,7 @@ const LM: Record<'he' | 'en', LmText> = {
     setLabel: (i: number) => `Set ${i}`,
     doneSuffix: ' · done',
     weightPlaceholder: 'Weight kg',
+    whatToday: 'What are you doing today?',
   },
 }
 
@@ -229,6 +232,43 @@ function SetControl({ ex, setIdx, set, onToggle, onWeight, onDuration, ui }: {
 // Renders an exercise's instructions as bullet points instead of one dense
 // paragraph — splits on real newlines if the coach entered one cue per
 // line, else falls back to sentence-splitting (see lib/utils.ts).
+// Either/or picker for a slot with an alternateExerciseId (e.g. box jump
+// OR step up) — lets the athlete choose which one they're doing THIS
+// session, before the video/instructions/logging below switch to match.
+function AlternatePicker({ primaryName, alternateName, isAlt, onChoose, ui }: {
+  primaryName: string
+  alternateName: string
+  isAlt: boolean
+  onChoose: (isAlt: boolean) => void
+  ui: LmText
+}) {
+  return (
+    <div className="space-y-1">
+      <p className="text-[11px] font-semibold text-muted-foreground">{ui.whatToday}</p>
+      <div className="flex gap-1.5">
+        <button
+          type="button"
+          onClick={() => onChoose(false)}
+          className={`flex-1 px-2 py-1.5 rounded-md text-xs font-semibold border transition-colors ${
+            !isAlt ? 'bg-[#0a1628] text-white border-[#0a1628]' : 'bg-white text-gray-500 border-gray-200'
+          }`}
+        >
+          {primaryName}
+        </button>
+        <button
+          type="button"
+          onClick={() => onChoose(true)}
+          className={`flex-1 px-2 py-1.5 rounded-md text-xs font-semibold border transition-colors ${
+            isAlt ? 'bg-[#0a1628] text-white border-[#0a1628]' : 'bg-white text-gray-500 border-gray-200'
+          }`}
+        >
+          {alternateName}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function InstructionList({ text, className }: { text?: string | null; className?: string }) {
   const lines = instructionLines(text)
   if (!lines.length) return null
@@ -253,6 +293,12 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [progress, setProgress] = useState<Progress>({})
+  // Which either/or slots (StrengthBlockExercise.alternateExerciseId) the
+  // athlete picked the ALTERNATE for this session — keyed by block-
+  // exercise instance id, true = alternate. Not persisted on the workout
+  // itself (it's a per-session choice, not a template change) — only
+  // affects what's displayed/logged for this run-through.
+  const [altChosen, setAltChosen] = useState<Record<string, boolean>>({})
   const [blockIndex, setBlockIndex] = useState(0)
   const [finishing, setFinishing] = useState(false)
   // Coach previewing this workout can fix an exercise's video/instructions
@@ -367,17 +413,23 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
       // strengthProgress above, which gets overwritten if this workout is
       // ever reopened. See ExerciseLogEntry in lib/types.ts.
       for (const block of blocks) {
-        for (const ex of block.exercises) {
-          const sets = progress[ex.id] || []
+        for (const rawEx of block.exercises) {
+          const sets = progress[rawEx.id] || []
           if (!sets.length) continue
+          // Log under whichever exercise the athlete actually picked this
+          // session (see AlternatePicker) — not always the primary one —
+          // so /athlete/progress history lands under the right exercise.
+          const isAlt = !!altChosen[rawEx.id] && !!rawEx.alternateExerciseId
+          const loggedExerciseId = isAlt ? rawEx.alternateExerciseId! : rawEx.exerciseId
+          const loggedName = isAlt ? (libraryById.get(rawEx.alternateExerciseId!)?.name || rawEx.name) : rawEx.name
           const weights = sets.map((s) => s.weightKg).filter((w): w is number => typeof w === 'number')
           const durations = sets.map((s) => s.durationSec).filter((d): d is number => typeof d === 'number')
-          const logId = `${assignedWorkoutId}_${ex.exerciseId}`
+          const logId = `${assignedWorkoutId}_${loggedExerciseId}`
           batch.set(doc(db, 'exerciseLogs', logId), {
             id: logId,
             athleteId: assigned?.athleteId,
-            exerciseId: ex.exerciseId,
-            exerciseName: ex.name,
+            exerciseId: loggedExerciseId,
+            exerciseName: loggedName,
             assignedWorkoutId,
             workoutDate: assigned?.scheduledDate,
             sets: sets.map((s) => ({ weightKg: s.weightKg ?? null, durationSec: s.durationSec ?? null, completed: s.completed })),
@@ -446,9 +498,14 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
                 {block.exercises.map((rawEx, exIdx) => {
                   const set = progress[rawEx.id]?.[roundIdx]
                   if (!set) return null
-                  const ex = resolveExerciseDisplay(rawEx, libraryById, language)
+                  const primaryDisplay = resolveExerciseDisplay(rawEx, libraryById, language)
+                  const isAlt = !!altChosen[rawEx.id] && !!rawEx.alternateExerciseId
+                  const ex = isAlt
+                    ? resolveExerciseDisplay({ ...rawEx, exerciseId: rawEx.alternateExerciseId! }, libraryById, language)
+                    : primaryDisplay
+                  const altLive = rawEx.alternateExerciseId ? libraryById.get(rawEx.alternateExerciseId) : undefined
                   return (
-                    <div key={ex.id}>
+                    <div key={rawEx.id}>
                       <div className="rounded-lg border border-border overflow-hidden">
                         {roundIdx === 0 ? (
                           ex.videoUrl ? (
@@ -471,6 +528,15 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
                               </button>
                             )}
                           </div>
+                          {roundIdx === 0 && altLive && (
+                            <AlternatePicker
+                              primaryName={primaryDisplay.name}
+                              alternateName={resolveText(language, altLive.name, altLive.nameEn)}
+                              isAlt={isAlt}
+                              onChoose={(v) => setAltChosen((prev) => ({ ...prev, [rawEx.id]: v }))}
+                              ui={ui}
+                            />
+                          )}
                           {roundIdx === 0 && <InstructionList text={ex.instructions} className="text-xs text-muted-foreground space-y-0.5" />}
                           {ex.notes && <p className="text-xs text-primary">{ex.notes}</p>}
                           <p className="text-xs font-semibold text-[#0a1628]/70">
@@ -505,9 +571,14 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
       ) : (
         <div className="space-y-4">
           {block.exercises.map((rawEx) => {
-            const ex = resolveExerciseDisplay(rawEx, libraryById, language)
+            const primaryDisplay = resolveExerciseDisplay(rawEx, libraryById, language)
+            const isAlt = !!altChosen[rawEx.id] && !!rawEx.alternateExerciseId
+            const ex = isAlt
+              ? resolveExerciseDisplay({ ...rawEx, exerciseId: rawEx.alternateExerciseId! }, libraryById, language)
+              : primaryDisplay
+            const altLive = rawEx.alternateExerciseId ? libraryById.get(rawEx.alternateExerciseId) : undefined
             return (
-            <div key={ex.id} className="rounded-xl border border-border overflow-hidden">
+            <div key={rawEx.id} className="rounded-xl border border-border overflow-hidden">
               {ex.videoUrl ? (
                 <video src={ex.videoUrl} muted={ex.videoMuted} className="w-full aspect-video bg-black" controls playsInline preload="metadata" />
               ) : (
@@ -522,6 +593,15 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
                     </button>
                   )}
                 </div>
+                {altLive && (
+                  <AlternatePicker
+                    primaryName={primaryDisplay.name}
+                    alternateName={resolveText(language, altLive.name, altLive.nameEn)}
+                    isAlt={isAlt}
+                    onChoose={(v) => setAltChosen((prev) => ({ ...prev, [rawEx.id]: v }))}
+                    ui={ui}
+                  />
+                )}
                 <InstructionList text={ex.instructions} className="text-xs text-muted-foreground space-y-0.5" />
                 {ex.notes && <p className="text-xs text-primary">{ex.notes}</p>}
                 <p className="text-xs text-muted-foreground">
