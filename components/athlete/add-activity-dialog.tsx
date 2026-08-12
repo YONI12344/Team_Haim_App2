@@ -117,7 +117,7 @@ export function AddActivityDialog({ open, onOpenChange, athleteId, athleteName, 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md w-full" dir={isRTL ? 'rtl' : 'ltr'}>
+      <DialogContent className="max-w-md" dir={isRTL ? 'rtl' : 'ltr'}>
         <div className="max-h-[80vh] overflow-y-auto pr-1 space-y-4">
           <DialogHeader>
             <DialogTitle className={isRTL ? 'text-right' : 'text-left'}>{t.addActivityTitle}</DialogTitle>

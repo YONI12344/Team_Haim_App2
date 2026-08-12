@@ -1050,7 +1050,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
 
     const DetailsModal = () => (
       <Dialog open={showDetails} onOpenChange={setShowDetails}>
-        <DialogContent className="max-w-md w-full" dir="rtl">
+        <DialogContent className="max-w-md" dir="rtl">
           <div className="max-h-[75vh] overflow-y-auto pr-1">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-right flex-wrap">
@@ -2484,7 +2484,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
 
       {/* ── Dialogs ───────────────────────────────────────────────────────── */}
       <Dialog open={!!routineDialog} onOpenChange={(o) => { if (!o) setRoutineDialog(null) }}>
-        <DialogContent className="max-w-lg w-full max-h-[85vh] overflow-y-auto" dir={language === 'en' ? 'ltr' : 'rtl'}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto" dir={language === 'en' ? 'ltr' : 'rtl'}>
           <DialogHeader>
             <DialogTitle className="text-right">{routineDialog?.title}</DialogTitle>
             <DialogDescription className="sr-only">{language === 'en' ? `Routine: ${routineDialog?.title}` : `שגרת ${routineDialog?.title}`}</DialogDescription>

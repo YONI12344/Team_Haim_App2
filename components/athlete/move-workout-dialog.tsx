@@ -83,7 +83,7 @@ export function MoveWorkoutDialog({ open, onOpenChange, workout, athleteId, athl
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md w-full" dir={isRTL ? 'rtl' : 'ltr'}>
+      <DialogContent className="max-w-md" dir={isRTL ? 'rtl' : 'ltr'}>
         <DialogHeader>
           <DialogTitle className={isRTL ? 'text-right' : 'text-left'}>{t.moveWorkoutTitle}</DialogTitle>
           <DialogDescription className={isRTL ? 'text-right' : 'text-left'}>

@@ -219,7 +219,7 @@ export function ExerciseEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md w-full max-h-[90vh] overflow-y-auto" dir="rtl">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto" dir="rtl">
         <DialogHeader>
           <DialogTitle className="text-right">{exerciseId ? 'עריכת תרגיל' : 'תרגיל חדש'}</DialogTitle>
         </DialogHeader>

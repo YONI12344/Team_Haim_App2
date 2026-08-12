@@ -2553,7 +2553,7 @@ export function AthletePlanner({ athleteId }: Props) {
 
       {/* Quick-assign sheet — tap a day, tap a type, enter numbers, done */}
       <Dialog open={!!quickAssignDate} onOpenChange={(open) => { if (!open) { setQuickAssignDate(null); resetQuickAssign() } }}>
-        <DialogContent className="max-w-md w-full max-h-[88vh] overflow-y-auto" dir="rtl">
+        <DialogContent className="max-w-md max-h-[88vh] overflow-y-auto" dir="rtl">
           <DialogHeader>
             <DialogTitle className="text-right">
               {quickAssignDate && format(quickAssignDate, 'EEEE, d MMMM')}

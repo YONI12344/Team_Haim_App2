@@ -60,7 +60,19 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          'bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 sm:max-w-lg',
+          // Width and max-width are deliberately kept as separate Tailwind
+          // utility groups here: w-[calc(100%-2rem)] is the actual mobile
+          // safety margin (rendered width = min(width, max-width) per CSS),
+          // max-w-lg is just the desktop cap. A consumer overriding max-w-*
+          // in their own className (e.g. max-w-2xl) only replaces the cap —
+          // it can never delete the margin, because tailwind-merge only
+          // dedupes classes within the SAME group. Previously both were
+          // expressed as max-w-* (mobile clamp + `sm:max-w-lg`), so any
+          // unprefixed max-w-* override from a consumer silently deleted
+          // the mobile clamp entirely, letting dialogs render wider than
+          // the viewport on phones — every dialog in the app that passed
+          // its own max-w-* (a lot of them) had this bug.
+          'bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-[calc(100%-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200',
           className,
         )}
         {...props}

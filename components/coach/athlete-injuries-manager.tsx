@@ -218,7 +218,7 @@ export function AthleteInjuriesManager({ athleteId }: { athleteId: string }) {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md w-full max-h-[90vh] overflow-y-auto" dir="rtl">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto" dir="rtl">
           <DialogHeader>
             <DialogTitle className="text-right">{editing ? 'עריכת פציעה' : 'פציעה חדשה'}</DialogTitle>
           </DialogHeader>

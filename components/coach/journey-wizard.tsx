@@ -174,7 +174,7 @@ export function JourneyWizard({ open, onOpenChange, athleteId, onCreated }: Prop
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg w-full max-h-[88vh] overflow-y-auto" dir="rtl">
+      <DialogContent className="max-w-lg max-h-[88vh] overflow-y-auto" dir="rtl">
         <div className="space-y-5">
           <DialogHeader>
             <DialogTitle className="text-right flex items-center gap-2">
