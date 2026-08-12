@@ -81,6 +81,14 @@ export interface AthleteProfile {
   // Same gating mechanism as strengthToolsVisibleToAthlete, but just for
   // /athlete/injury — independent switch, on purpose (see above).
   injuryToolsVisibleToAthlete?: boolean
+  // Coach-set default routine links (same shape as Workout.linkedRoutines)
+  // for THIS athlete — auto-applied to a workout when it's assigned to
+  // them and doesn't already carry its own linkedRoutines (e.g. a specific
+  // hard-day template the coach linked routines to directly). Set from
+  // the athlete's planner (components/coach/athlete-planner.tsx) so the
+  // coach doesn't have to re-add the same warm-up/cooldown rows to every
+  // single workout by hand.
+  defaultLinkedRoutines?: { id: string; workoutId: string; label: string }[]
   onboardingComplete?: boolean
   // Private free-text notes — visible only to the coach, never sent to the
   // athlete (e.g. shoe model, injury history, quirks to remember)

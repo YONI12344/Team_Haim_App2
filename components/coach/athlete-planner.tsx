@@ -39,6 +39,7 @@ import { useAuth } from '@/contexts/auth-context'
 import { useWorkoutTypeLabels, autoWorkoutTitle } from '@/lib/workout-labels'
 import { secToPace } from '@/lib/physiology'
 import { WorkoutBuilder } from '@/components/coach/workout-builder'
+import { LinkedRoutinesEditor, type LinkedRoutine } from '@/components/coach/linked-routines-editor'
 import { AthletePlannerView } from '@/components/athlete/athlete-planner-view'
 import { useLanguage } from '@/contexts/language-context'
 import { toast } from 'sonner'
@@ -80,6 +81,43 @@ export function AthletePlanner({ athleteId }: Props) {
   const [allJourneys, setAllJourneys] = useState<JourneyDoc[]>([])
   // All athletes — for the quick switcher in the header
   const [allAthletes, setAllAthletes] = useState<{ id: string; name: string }[]>([])
+  // This athlete's default routine links (warm-up/activation/cooldown) —
+  // auto-applied to any workout assigned to them that doesn't already
+  // carry its own linkedRoutines. Edited as a local draft with its own
+  // Save button since it's a list of text fields, not a single toggle.
+  const [defaultRoutinesDraft, setDefaultRoutinesDraft] = useState<LinkedRoutine[]>([])
+  const [savingDefaultRoutines, setSavingDefaultRoutines] = useState(false)
+  const [routineOptions, setRoutineOptions] = useState<Workout[]>([])
+
+  useEffect(() => {
+    getDocs(collection(db, 'workouts')).then((snap) => {
+      const options = snap.docs
+        .map((d) => ({ ...(d.data() as Workout), id: d.id }))
+        .filter((w) => w.type === 'stretch' && !w.libraryHidden)
+        .sort((a, b) => (b.isWarmup ? 1 : 0) - (a.isWarmup ? 1 : 0) || a.title.localeCompare(b.title))
+      setRoutineOptions(options)
+    }).catch((err) => console.error('Error loading routine options:', err))
+  }, [])
+
+  useEffect(() => {
+    setDefaultRoutinesDraft(athlete?.defaultLinkedRoutines || [])
+  }, [athlete?.defaultLinkedRoutines])
+
+  const saveDefaultRoutines = async () => {
+    setSavingDefaultRoutines(true)
+    try {
+      const complete = defaultRoutinesDraft.filter((l) => l.workoutId && l.label.trim())
+      const { updateDoc: ud, doc: dc } = await import('firebase/firestore')
+      await ud(dc(db, 'users', athleteId), { defaultLinkedRoutines: complete })
+      setAthlete((prev) => (prev ? { ...prev, defaultLinkedRoutines: complete } : prev))
+      toast.success('שגרות ברירת המחדל נשמרו')
+    } catch (err) {
+      console.error('Error saving default routines:', err)
+      toast.error('שמירה נכשלה')
+    } finally {
+      setSavingDefaultRoutines(false)
+    }
+  }
 
   useEffect(() => {
     getDocs(query(collection(db, 'users'), where('role', '==', 'athlete')))
@@ -268,6 +306,7 @@ export function AthletePlanner({ athleteId }: Props) {
             labVisibleToAthlete: d.labVisibleToAthlete === true,
             strengthToolsVisibleToAthlete: d.strengthToolsVisibleToAthlete === true,
             injuryToolsVisibleToAthlete: d.injuryToolsVisibleToAthlete === true,
+            defaultLinkedRoutines: Array.isArray(d.defaultLinkedRoutines) ? d.defaultLinkedRoutines : [],
             coachPrivateNotes: d.coachPrivateNotes || '',
             visibleWeeksAhead: typeof d.visibleWeeksAhead === 'number' ? d.visibleWeeksAhead : 2,
             weekStartDay: d.weekStartDay === 1 ? 1 : 0,
@@ -497,9 +536,10 @@ export function AthletePlanner({ athleteId }: Props) {
       // Auto-assign to selected date if one is selected
       if (selectedDate && user) {
         const dateStr = format(selectedDate, 'yyyy-MM-dd')
+        const assignedWorkout = withAthleteDefaultRoutines(created)
         const assignRef = await addDoc(collection(db, 'assignedWorkouts'), {
           workoutId: ref.id,
-          workout: created,
+          workout: assignedWorkout,
           athleteId,
           assignedBy: user.id || null,
           scheduledDate: dateStr,
@@ -510,7 +550,7 @@ export function AthletePlanner({ athleteId }: Props) {
         setAssignedWorkouts(prev => [...prev, {
           id: assignRef.id,
           workoutId: ref.id,
-          workout: created,
+          workout: assignedWorkout,
           athleteId,
           assignedBy: user.id || '',
           scheduledDate: dateStr,
@@ -565,9 +605,22 @@ export function AthletePlanner({ athleteId }: Props) {
     }
   }
 
+  /** A workout template with no routine links of its own inherits this
+   *  athlete's default (set above) at the moment it's assigned — the
+   *  template itself is untouched, only the snapshot embedded on the new
+   *  assignedWorkouts doc gets the default filled in. A template that
+   *  already has its own linkedRoutines (e.g. a hard-day template linked
+   *  to specific activation drills) always wins over the athlete default. */
+  const withAthleteDefaultRoutines = (workout: Workout): Workout => {
+    if (workout.linkedRoutines?.length) return workout
+    if (!athlete?.defaultLinkedRoutines?.length) return workout
+    return { ...workout, linkedRoutines: athlete.defaultLinkedRoutines }
+  }
+
   /** Assign an existing library workout to a specific date (used by the quick-assign sheet) */
-  const assignWorkoutToDate = async (workout: Workout, dateStr: string, session?: 'am' | 'pm' | 'other') => {
+  const assignWorkoutToDate = async (workoutIn: Workout, dateStr: string, session?: 'am' | 'pm' | 'other') => {
     if (!user) return
+    const workout = withAthleteDefaultRoutines(workoutIn)
     // Session only matters once the day ends up with more than one workout —
     // a lone workout can happen any time, no need to tag it AM/PM
     const willBeMultiWorkoutDay = assignedWorkouts.some(w => w.scheduledDate === dateStr)
@@ -2056,6 +2109,26 @@ export function AthletePlanner({ athleteId }: Props) {
                 }}
               />
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Default routine links for this athlete — auto-applied to any
+            workout assigned to them that doesn't already have its own
+            linkedRoutines set on the workout template itself (a specific
+            hard-day template's own links always win). Same editor as the
+            workout builder's own "שגרות מקושרות" section. */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm">חימום ברירת מחדל לספורטאי</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground mb-3">
+              יתווסף אוטומטית לכל אימון שמשויך לספורטאי הזה, חוץ מאימונים שכבר קושרו לשגרות משלהם בבנאי האימון.
+            </p>
+            <LinkedRoutinesEditor value={defaultRoutinesDraft} onChange={setDefaultRoutinesDraft} routineOptions={routineOptions} />
+            <Button onClick={saveDefaultRoutines} disabled={savingDefaultRoutines} size="sm" className="w-full mt-3">
+              {savingDefaultRoutines ? 'שומר...' : 'שמור ברירת מחדל'}
+            </Button>
           </CardContent>
         </Card>
 

@@ -20,6 +20,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import type { Workout, WorkoutType, WorkoutSet, StrengthBlock, ExperienceLevel } from '@/lib/types'
 import { StrengthBlockBuilder } from '@/components/coach/strength-block-builder'
+import { LinkedRoutinesEditor } from '@/components/coach/linked-routines-editor'
 import {
   addDoc,
   collection,
@@ -820,50 +821,9 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
             <div className="space-y-2 pt-2 border-t">
               <Label>שגרות מקושרות (אופציונלי)</Label>
               <p className="text-xs text-muted-foreground">
-                כל שגרה שתקשרו כאן תופיע לספורטאי ככפתור נפרד, בסדר הזה ועם הכותרת שתבחרו (למשל &quot;חימום&quot;, &quot;הפעלה ספציפית&quot;, &quot;מתיחות&quot;) — לצפייה בלבד, לא חובה לסמן כבוצע.
+                כל שגרה שתקשרו כאן תופיע לספורטאי ככפתור נפרד, בסדר הזה ועם הכותרת שתבחרו (למשל &quot;חימום&quot;, &quot;הפעלה ספציפית&quot;, &quot;מתיחות&quot;) — לצפייה בלבד, לא חובה לסמן כבוצע. משאירים ריק כדי להשתמש בברירת המחדל של הספורטאי (אם הוגדרה).
               </p>
-              <div className="space-y-2">
-                {linkedRoutines.map((link, i) => (
-                  <div key={link.id} className="flex items-center gap-2">
-                    <Input
-                      value={link.label}
-                      onChange={(e) => setLinkedRoutines((prev) => prev.map((l, li) => (li === i ? { ...l, label: e.target.value } : l)))}
-                      placeholder="כותרת הכפתור"
-                      className="flex-1"
-                      dir="rtl"
-                    />
-                    <Select
-                      value={link.workoutId || '__none__'}
-                      onValueChange={(v) => setLinkedRoutines((prev) => prev.map((l, li) => (li === i ? { ...l, workoutId: v === '__none__' ? '' : v } : l)))}
-                    >
-                      <SelectTrigger className="flex-1"><SelectValue placeholder="בחרו שגרה" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">בחרו שגרה</SelectItem>
-                        {routineOptions.map((w) => (
-                          <SelectItem key={w.id} value={w.id}>{w.title}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setLinkedRoutines((prev) => prev.filter((_, li) => li !== i))}
-                      className="text-destructive hover:text-destructive h-9 w-9 shrink-0"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setLinkedRoutines((prev) => [...prev, { id: `link-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, workoutId: '', label: '' }])}
-              >
-                <Plus className="h-4 w-4 mr-1" />הוסף שגרה מקושרת
-              </Button>
+              <LinkedRoutinesEditor value={linkedRoutines} onChange={setLinkedRoutines} routineOptions={routineOptions} />
             </div>
           </CardContent>
         </Card>
