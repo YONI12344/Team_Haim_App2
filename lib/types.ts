@@ -89,7 +89,7 @@ export interface AthleteProfile {
   // coach doesn't have to re-add the same warm-up/cooldown rows to every
   // single workout by hand. Used as the fallback when no
   // defaultLinkedRoutinesByType rule below matches the workout's type.
-  defaultLinkedRoutines?: { id: string; workoutId: string; label: string }[]
+  defaultLinkedRoutines?: { id: string; workoutId: string; label: string; labelEn?: string }[]
   // Same idea, but keyed by workout type — e.g. easy/long_run/recovery get
   // one lighter warm-up, tempo/intervals/hill_repeats/fartlek/threshold get
   // another with more activation drills. The first rule whose `types`
@@ -98,7 +98,7 @@ export interface AthleteProfile {
   defaultLinkedRoutinesByType?: {
     id: string
     types: WorkoutType[]
-    routines: { id: string; workoutId: string; label: string }[]
+    routines: { id: string; workoutId: string; label: string; labelEn?: string }[]
   }[]
   onboardingComplete?: boolean
   // Private free-text notes — visible only to the coach, never sent to the
@@ -334,6 +334,17 @@ export interface Workout {
   warmup?: string
   cooldown?: string
   notes?: string
+  // AI-translated English cache of the Hebrew fields above, auto-generated
+  // on save (see lib/translate.ts) and shown instead of the Hebrew text to
+  // any athlete with preferredLanguage 'en'. Coach still only ever writes
+  // Hebrew — these are never hand-authored duplicates, just a cache the
+  // coach can review/edit afterward. Missing/stale until the next save
+  // regenerates it; display code always falls back to the Hebrew field.
+  titleEn?: string
+  descriptionEn?: string
+  warmupEn?: string
+  cooldownEn?: string
+  notesEn?: string
   // @deprecated — a fixed mmol/L number can't be personalized per athlete.
   // Kept for old data; the coach now picks targetThresholdLevel instead,
   // and the actual pace/HR/lactate target is computed live per athlete
@@ -398,7 +409,7 @@ export interface Workout {
   // not required to complete the actual workout, just a following-along
   // aid. Copied onto AssignedWorkout.workout automatically since that's a
   // full snapshot of this Workout at assignment time.
-  linkedRoutines?: { id: string; workoutId: string; label: string }[]
+  linkedRoutines?: { id: string; workoutId: string; label: string; labelEn?: string }[]
   // Marks this workout as a Workout Bank entry for the given athlete
   // level — a real, coach-authored session the Bakken AI generator can
   // pick from and scale (duration/distance only, never restructure)
@@ -428,6 +439,11 @@ export interface Workout {
 export interface ExerciseLibraryItem {
   id: string
   name: string
+  // AI-translated English cache, same pattern as Workout.titleEn — see
+  // that comment. Regenerated on save, athlete-facing display falls back
+  // to the Hebrew field when missing.
+  nameEn?: string
+  instructionsEn?: string
   videoUrl?: string
   videoPath?: string // Storage path, needed to delete the file on removal
   // Coach-set: play this exercise's demo video muted by default wherever
@@ -487,6 +503,11 @@ export interface StrengthBlockExercise {
   // exercise's sets instead of a weight input; targetReps is unused then.
   targetDurationSec?: number
   notes?: string
+  // AI-translated English cache of notes — see Workout.titleEn comment.
+  // name/instructions don't need their own En cache here: resolveExerciseDisplay
+  // already prefers the live ExerciseLibraryItem (which carries nameEn/
+  // instructionsEn) over this denormalized snapshot whenever it still exists.
+  notesEn?: string
 }
 
 // Workout Set

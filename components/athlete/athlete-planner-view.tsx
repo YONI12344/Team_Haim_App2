@@ -12,7 +12,7 @@ import {
   addMonths, subMonths, addWeeks, subWeeks, eachDayOfInterval, isSameMonth,
   isSameDay, isToday, parseISO, eachWeekOfInterval,
 } from 'date-fns'
-import { cn } from '@/lib/utils'
+import { cn, resolveText } from '@/lib/utils'
 import { db } from '@/lib/firebase'
 import { collection, doc, getDoc, getDocs, query, where, updateDoc } from 'firebase/firestore'
 import type { AthleteProfile, AssignedWorkout, TrainingDayType } from '@/lib/types'
@@ -230,7 +230,7 @@ interface AthletePlannerViewProps {
 
 export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePlannerViewProps = {}) {
   const { user } = useAuth()
-  const { t, isRTL } = useLanguage()
+  const { t, isRTL, language } = useLanguage()
   const typeLabels = useWorkoutTypeLabels()
   const dayShort = [t.sun, t.mon, t.tue, t.wed, t.thu, t.fri, t.sat]
   const dayLabels = [t.sun, t.mon, t.tue, t.wed, t.thu, t.fri, t.sat]
@@ -698,7 +698,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
           sets) showed nothing but a bare title. */}
       {w.workout.description && (
         <div className="px-4 py-3 border-b border-border">
-          <p className="text-sm text-navy text-right">{w.workout.description}</p>
+          <p className="text-sm text-navy text-right">{resolveText(language, w.workout.description, w.workout.descriptionEn)}</p>
         </div>
       )}
       {/* Warmup — free text, plus any coach-linked routines (buttons open a
@@ -709,7 +709,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
       {(w.workout.warmup || !!w.workout.linkedRoutines?.length) && (
         <div className="px-4 py-3 border-b border-border space-y-2">
           {w.workout.warmup && (
-            <p className="text-sm text-muted-foreground text-right">{t.warmupLabel}: {w.workout.warmup}</p>
+            <p className="text-sm text-muted-foreground text-right">{t.warmupLabel}: {resolveText(language, w.workout.warmup, w.workout.warmupEn)}</p>
           )}
           {w.workout.linkedRoutines?.map((link) => (
             <Button
@@ -717,9 +717,9 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               variant="outline"
               size="sm"
               className="w-full"
-              onClick={() => setRoutineDialog({ workoutId: link.workoutId, title: link.label })}
+              onClick={() => setRoutineDialog({ workoutId: link.workoutId, title: resolveText(language, link.label, link.labelEn) })}
             >
-              {link.label}
+              {resolveText(language, link.label, link.labelEn)}
             </Button>
           ))}
         </div>
@@ -1749,7 +1749,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                 </div>
                 <p className={cn('font-bold text-[15px] leading-snug',
                   effStatus === 'completed' ? 'text-gray-500' : 'text-[#0a1628]')}>
-                  {w.workout.title}
+                  {resolveText(language, w.workout.title, w.workout.titleEn)}
                 </p>
                 {(w.workout.distance || w.workout.duration) && (
                   <p className="text-xs text-gray-400 mt-0.5">
@@ -1896,7 +1896,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               </div>
             </div>
             <p className={cn('font-black text-white leading-tight mb-3', isMulti ? 'text-xl' : 'text-[26px]')}>
-              {w.workout.title}
+              {resolveText(language, w.workout.title, w.workout.titleEn)}
             </p>
             <div className="flex items-center gap-2 mb-4 flex-wrap" dir="rtl">
               {w.workout.distance && (
@@ -2478,10 +2478,10 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
 
       {/* ── Dialogs ───────────────────────────────────────────────────────── */}
       <Dialog open={!!routineDialog} onOpenChange={(o) => { if (!o) setRoutineDialog(null) }}>
-        <DialogContent className="max-w-lg w-full max-h-[85vh] overflow-y-auto" dir="rtl">
+        <DialogContent className="max-w-lg w-full max-h-[85vh] overflow-y-auto" dir={language === 'en' ? 'ltr' : 'rtl'}>
           <DialogHeader>
             <DialogTitle className="text-right">{routineDialog?.title}</DialogTitle>
-            <DialogDescription className="sr-only">שגרת {routineDialog?.title}</DialogDescription>
+            <DialogDescription className="sr-only">{language === 'en' ? `Routine: ${routineDialog?.title}` : `שגרת ${routineDialog?.title}`}</DialogDescription>
           </DialogHeader>
           {routineDialog && <WarmupViewer workoutId={routineDialog.workoutId} />}
         </DialogContent>

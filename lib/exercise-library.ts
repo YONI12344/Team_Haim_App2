@@ -20,6 +20,7 @@ import {
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage'
 import { db, storage } from '@/lib/firebase'
 import type { ExerciseLibraryItem } from '@/lib/types'
+import { translateTexts } from '@/lib/translate'
 
 function genId(prefix = 'id'): string {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
@@ -27,6 +28,8 @@ function genId(prefix = 'id'): string {
 
 interface RawExerciseDoc {
   name?: string
+  nameEn?: string
+  instructionsEn?: string
   videoUrl?: string
   videoPath?: string
   videoMuted?: boolean
@@ -46,6 +49,8 @@ function mapExercise(id: string, data: RawExerciseDoc): ExerciseLibraryItem {
   return {
     id,
     name: data.name || 'Exercise',
+    nameEn: data.nameEn,
+    instructionsEn: data.instructionsEn,
     videoUrl: data.videoUrl,
     videoPath: data.videoPath,
     videoMuted: data.videoMuted,
@@ -76,6 +81,7 @@ export async function getExercise(id: string): Promise<ExerciseLibraryItem | nul
 
 export async function saveExercise(
   exercise: Omit<ExerciseLibraryItem, 'id' | 'createdAt' | 'updatedAt'> & { id?: string },
+  options?: { skipAutoTranslate?: boolean },
 ): Promise<string> {
   const id = exercise.id || genId('exercise')
   const ref = doc(db, 'exerciseLibrary', id)
@@ -84,6 +90,8 @@ export async function saveExercise(
     ref,
     {
       name: exercise.name,
+      nameEn: exercise.nameEn ?? existing.data()?.nameEn ?? null,
+      instructionsEn: exercise.instructionsEn ?? existing.data()?.instructionsEn ?? null,
       videoUrl: exercise.videoUrl ?? null,
       videoPath: exercise.videoPath ?? null,
       videoMuted: exercise.videoMuted ?? false,
@@ -100,7 +108,35 @@ export async function saveExercise(
     },
     { merge: true },
   )
+
+  // Auto-translate name/instructions to English in the background — never
+  // blocks the save, never fails it. Skipped when the caller just hand-
+  // edited the En text itself (the review UI), so this doesn't immediately
+  // clobber that edit with a fresh AI pass.
+  if (!options?.skipAutoTranslate) {
+    void translateAndCacheExerciseText(id, exercise.name, exercise.instructions)
+  }
+
   return id
+}
+
+async function translateAndCacheExerciseText(id: string, name: string, instructions?: string): Promise<void> {
+  try {
+    const items = [{ id: 'name', text: name }]
+    if (instructions?.trim()) items.push({ id: 'instructions', text: instructions })
+    const translated = await translateTexts(items)
+    if (!translated.name && !translated.instructions) return
+    await setDoc(
+      doc(db, 'exerciseLibrary', id),
+      {
+        ...(translated.name ? { nameEn: translated.name } : {}),
+        ...(translated.instructions ? { instructionsEn: translated.instructions } : {}),
+      },
+      { merge: true },
+    )
+  } catch (err) {
+    console.error('Exercise translation failed:', err)
+  }
 }
 
 /** Deletes a single video file from Storage — used both when removing an

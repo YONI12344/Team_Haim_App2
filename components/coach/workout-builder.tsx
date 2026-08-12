@@ -28,6 +28,7 @@ import {
   getDoc,
   getDocs,
   serverTimestamp,
+  setDoc,
   updateDoc,
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
@@ -35,6 +36,7 @@ import { useAuth } from '@/contexts/auth-context'
 import { isCoachEmail } from '@/lib/constants'
 import { useWorkoutTypeLabels, autoWorkoutTitle } from '@/lib/workout-labels'
 import { useLanguage } from '@/contexts/language-context'
+import { translateAndCacheFields, translateTexts } from '@/lib/translate'
 
 const workoutTypeOrder: WorkoutType[] = [
   'easy',
@@ -259,6 +261,31 @@ function DistanceDurationPicker({
       </Select>
     </div>
   )
+}
+
+/** Fire-and-forget: translates each StrengthBlockExercise.notes in this
+ *  workout's strengthBlocks and writes the whole array back with notesEn
+ *  merged in. Separate from translateAndCacheFields since strengthBlocks
+ *  is a nested array, not a flat top-level field. */
+async function translateStrengthBlockNotes(workoutId: string, blocks: StrengthBlock[]): Promise<void> {
+  const items = blocks.flatMap((b) =>
+    b.exercises.filter((ex) => ex.notes?.trim()).map((ex) => ({ id: `${b.id}::${ex.id}`, text: ex.notes! })),
+  )
+  if (items.length === 0) return
+  try {
+    const translated = await translateTexts(items)
+    if (Object.keys(translated).length === 0) return
+    const updatedBlocks = blocks.map((b) => ({
+      ...b,
+      exercises: b.exercises.map((ex) => {
+        const key = `${b.id}::${ex.id}`
+        return translated[key] ? { ...ex, notesEn: translated[key] } : ex
+      }),
+    }))
+    await setDoc(doc(db, 'workouts', workoutId), { strengthBlocks: updatedBlocks }, { merge: true })
+  } catch (err) {
+    console.error('Strength block notes translation failed:', err)
+  }
 }
 
 export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBuilderProps) {
@@ -549,6 +576,14 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
         savedId = ref.id
         toast.success('Workout created!')
       }
+      void translateAndCacheFields('workouts', savedId as string, {
+        title: payload.title,
+        description: payload.description,
+        warmup: payload.warmup,
+        cooldown: payload.cooldown,
+        notes: payload.notes,
+      })
+      if (payload.strengthBlocks) void translateStrengthBlockNotes(savedId as string, payload.strengthBlocks)
       // Pass the saved workout back so callers can auto-assign it to a date
       if (onDone) onDone({ id: savedId, ...payload }); else router.push('/coach/workouts')
     } catch (err) {

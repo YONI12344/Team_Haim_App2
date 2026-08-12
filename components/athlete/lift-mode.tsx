@@ -10,8 +10,9 @@ import { Input } from '@/components/ui/input'
 import { Loader2, ChevronLeft, ChevronRight, Check, X, TrendingUp, Play, Square, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/auth-context'
+import { useLanguage } from '@/contexts/language-context'
 import { isCoachEmail } from '@/lib/constants'
-import { instructionLines, resolveExerciseDisplay } from '@/lib/utils'
+import { instructionLines, resolveExerciseDisplay, resolveText, formatSetTarget, translateBlockLabel } from '@/lib/utils'
 import { ExerciseEditDialog } from '@/components/coach/exercise-edit-dialog'
 import { listExercises } from '@/lib/exercise-library'
 import type { AssignedWorkout, StrengthBlockExercise, ExerciseLibraryItem } from '@/lib/types'
@@ -21,6 +22,104 @@ type Progress = Record<string, SetProgress[]>
 
 const LIFT_MODE_TYPES = ['strength', 'stretch'] as const
 
+// Static UI chrome for this screen — not coach-authored data (no AI
+// translation needed), just an English/Hebrew pair per string so an
+// athlete with the app set to English sees a fully English screen, not a
+// mix of translated workout data inside a Hebrew-labeled UI.
+interface LmText {
+  notFound: string
+  noBlocks: string
+  notEnabled: string
+  loadFailed: string
+  finishedToast: string
+  finishFailed: string
+  back: string
+  exit: string
+  setsDone: (done: number, total: number) => string
+  progress: string
+  blockOf: (i: number, n: number) => string
+  roundOf: (i: number, n: number) => string
+  noVideo: string
+  showVideo: string
+  straightNext: string
+  restThenNext: string
+  editInLibrary: string
+  tapStartTimer: string
+  tapSetToMark: string
+  prev: string
+  next: string
+  finish: string
+  stop: string
+  again: (sec: number) => string
+  start: (sec: number) => string
+  setLabel: (i: number) => string
+  doneSuffix: string
+  weightPlaceholder: string
+}
+
+const LM: Record<'he' | 'en', LmText> = {
+  he: {
+    notFound: 'האימון לא נמצא',
+    noBlocks: 'לאימון הזה אין תרגילים מובנים למצב אימון',
+    notEnabled: 'התכונה הזו עדיין לא זמינה עבורך — דבר עם המאמן שלך',
+    loadFailed: 'טעינת האימון נכשלה',
+    finishedToast: 'כל הכבוד! האימון הושלם 💪',
+    finishFailed: 'שמירת סיום האימון נכשלה',
+    back: 'חזרה',
+    exit: 'יציאה',
+    setsDone: (done: number, total: number) => `${done}/${total} סטים הושלמו`,
+    progress: 'התקדמות',
+    blockOf: (i: number, n: number) => `בלוק ${i} מתוך ${n}`,
+    roundOf: (i: number, n: number) => `סבב ${i} מתוך ${n}`,
+    noVideo: 'אין סרטון הדגמה',
+    showVideo: 'הצג סרטון הדגמה',
+    straightNext: '↓ ישר לתרגיל הבא, ללא מנוחה',
+    restThenNext: 'מנוחה, ואז הסבב הבא',
+    editInLibrary: 'ערוך בספריית התרגילים',
+    tapStartTimer: 'לחצו התחל להפעלת הטיימר לכל סט',
+    tapSetToMark: 'לחצו על "סט X" לסימון שהסט בוצע',
+    prev: 'הקודם',
+    next: 'הבא',
+    finish: 'סיים אימון',
+    stop: 'עצור',
+    again: (sec: number) => `שוב · בוצע ${sec} שניות`,
+    start: (sec: number) => `התחל · ${sec} שניות`,
+    setLabel: (i: number) => `סט ${i}`,
+    doneSuffix: ' · בוצע',
+    weightPlaceholder: 'משקל ק"ג',
+  },
+  en: {
+    notFound: 'Workout not found',
+    noBlocks: 'This workout has no structured exercises for Lift Mode',
+    notEnabled: "This feature isn't available for you yet — talk to your coach",
+    loadFailed: 'Failed to load the workout',
+    finishedToast: 'Nice work! Workout completed 💪',
+    finishFailed: 'Failed to save workout completion',
+    back: 'Back',
+    exit: 'Exit',
+    setsDone: (done: number, total: number) => `${done}/${total} sets done`,
+    progress: 'Progress',
+    blockOf: (i: number, n: number) => `Block ${i} of ${n}`,
+    roundOf: (i: number, n: number) => `Round ${i} of ${n}`,
+    noVideo: 'No demo video',
+    showVideo: 'Show demo video',
+    straightNext: '↓ straight into the next exercise, no rest',
+    restThenNext: 'Rest, then the next round',
+    editInLibrary: 'Edit in exercise library',
+    tapStartTimer: 'Tap start to run the timer for each set',
+    tapSetToMark: 'Tap "Set X" to mark it done',
+    prev: 'Previous',
+    next: 'Next',
+    finish: 'Finish workout',
+    stop: 'Stop',
+    again: (sec: number) => `Again · did ${sec} sec`,
+    start: (sec: number) => `Start · ${sec} sec`,
+    setLabel: (i: number) => `Set ${i}`,
+    doneSuffix: ' · done',
+    weightPlaceholder: 'Weight kg',
+  },
+}
+
 function emptyProgressFor(exercise: StrengthBlockExercise): SetProgress[] {
   return Array.from({ length: Math.max(1, exercise.targetSets) }, () => ({ completed: false, weightKg: null, durationSec: null }))
 }
@@ -29,11 +128,12 @@ function emptyProgressFor(exercise: StrengthBlockExercise): SetProgress[] {
 // plank) — used instead of the weight input when the exercise has a
 // targetDurationSec. Keeps its own running/remaining state locally since
 // only the current block's exercises are ever mounted at once.
-function SetTimer({ targetSec, savedSec, completed, onDone }: {
+function SetTimer({ targetSec, savedSec, completed, onDone, ui }: {
   targetSec: number
   savedSec?: number | null
   completed: boolean
   onDone: (sec: number) => void
+  ui: LmText
 }) {
   const [running, setRunning] = useState(false)
   const [remaining, setRemaining] = useState(targetSec)
@@ -59,7 +159,7 @@ function SetTimer({ targetSec, savedSec, completed, onDone }: {
       <div className="flex items-center gap-2">
         <span className="font-mono text-base font-semibold text-[#0a1628] w-10 text-center">{remaining}</span>
         <Button type="button" size="sm" variant="outline" onClick={stop} className="h-9 text-xs">
-          <Square className="h-3.5 w-3.5 mr-1" />עצור
+          <Square className="h-3.5 w-3.5 mr-1" />{ui.stop}
         </Button>
       </div>
     )
@@ -68,7 +168,7 @@ function SetTimer({ targetSec, savedSec, completed, onDone }: {
   return (
     <Button type="button" size="sm" variant={completed ? 'outline' : 'default'} onClick={start} className="h-9 text-xs">
       <Play className="h-3.5 w-3.5 mr-1" />
-      {completed ? `שוב · בוצע ${savedSec ?? targetSec} שניות` : `התחל · ${targetSec} שניות`}
+      {completed ? ui.again(savedSec ?? targetSec) : ui.start(targetSec)}
     </Button>
   )
 }
@@ -77,19 +177,20 @@ function SetTimer({ targetSec, savedSec, completed, onDone }: {
 // SetTimer for timed ones. Shared between the single-exercise block layout
 // and the superset round layout below, since both just need "control for
 // exercise X's set N."
-function SetControl({ ex, setIdx, set, onToggle, onWeight, onDuration }: {
+function SetControl({ ex, setIdx, set, onToggle, onWeight, onDuration, ui }: {
   ex: StrengthBlockExercise
   setIdx: number
   set: SetProgress
   onToggle: () => void
   onWeight: (weight: string) => void
   onDuration: (sec: number) => void
+  ui: LmText
 }) {
   if (ex.targetDurationSec != null) {
     return (
       <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground w-10 shrink-0">סט {setIdx + 1}</span>
-        <SetTimer targetSec={ex.targetDurationSec} savedSec={set.durationSec} completed={set.completed} onDone={onDuration} />
+        <span className="text-xs text-muted-foreground w-10 shrink-0">{ui.setLabel(setIdx + 1)}</span>
+        <SetTimer targetSec={ex.targetDurationSec} savedSec={set.durationSec} completed={set.completed} onDone={onDuration} ui={ui} />
       </div>
     )
   }
@@ -108,14 +209,14 @@ function SetControl({ ex, setIdx, set, onToggle, onWeight, onDuration }: {
         }`}
       >
         {set.completed ? <Check className="h-4 w-4" /> : <span className="h-4 w-4 rounded-full border-2 border-current" />}
-        סט {setIdx + 1}
-        {set.completed && ' · בוצע'}
+        {ui.setLabel(setIdx + 1)}
+        {set.completed && ui.doneSuffix}
       </button>
       {tracksWeight && (
         <Input
           type="number"
           inputMode="decimal"
-          placeholder='משקל ק"ג'
+          placeholder={ui.weightPlaceholder}
           value={set.weightKg ?? ''}
           onChange={(e) => onWeight(e.target.value)}
           className="h-9 text-sm max-w-[110px]"
@@ -146,6 +247,8 @@ function InstructionList({ text, className }: { text?: string | null; className?
 export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
   const router = useRouter()
   const { user } = useAuth()
+  const { language } = useLanguage()
+  const ui = LM[language]
   const [assigned, setAssigned] = useState<AssignedWorkout | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -174,10 +277,10 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
     const load = async () => {
       try {
         const snap = await getDoc(doc(db, 'assignedWorkouts', assignedWorkoutId))
-        if (!snap.exists()) { setError('האימון לא נמצא'); return }
+        if (!snap.exists()) { setError(ui.notFound); return }
         const data = { id: snap.id, ...snap.data() } as AssignedWorkout
         if (!LIFT_MODE_TYPES.includes(data.workout?.type as typeof LIFT_MODE_TYPES[number]) || !data.workout.strengthBlocks?.length) {
-          setError('לאימון הזה אין תרגילים מובנים למצב אימון')
+          setError(ui.noBlocks)
           return
         }
         // Feature still in testing — coach turns it on per athlete
@@ -188,7 +291,7 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
         if (!isCoachEmail(user?.email)) {
           const athleteSnap = await getDoc(doc(db, 'users', data.athleteId))
           if (!athleteSnap.exists() || athleteSnap.data().strengthToolsVisibleToAthlete !== true) {
-            setError('התכונה הזו עדיין לא זמינה עבורך — דבר עם המאמן שלך')
+            setError(ui.notEnabled)
             return
           }
         }
@@ -202,7 +305,7 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
         setProgress(initial)
       } catch (err) {
         console.error('Error loading lift workout:', err)
-        setError('טעינת האימון נכשלה')
+        setError(ui.loadFailed)
       } finally {
         setLoading(false)
       }
@@ -286,11 +389,11 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
         }
       }
       await batch.commit()
-      toast.success('כל הכבוד! האימון הושלם 💪')
+      toast.success(ui.finishedToast)
       router.push('/athlete/schedule')
     } catch (err) {
       console.error('Error finishing lift workout:', err)
-      toast.error('שמירת סיום האימון נכשלה')
+      toast.error(ui.finishFailed)
     } finally {
       setFinishing(false)
     }
@@ -305,26 +408,26 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
   if (error || !assigned || !block) return (
     <div className="flex flex-col items-center justify-center min-h-[400px] gap-3 text-center px-4">
       <p className="text-muted-foreground">{error}</p>
-      <Button variant="outline" onClick={() => router.back()}>חזרה</Button>
+      <Button variant="outline" onClick={() => router.back()}>{ui.back}</Button>
     </div>
   )
 
   return (
-    <div dir="rtl" className="max-w-lg mx-auto px-4 py-4 space-y-4 pb-24">
+    <div dir={language === 'en' ? 'ltr' : 'rtl'} className="max-w-lg mx-auto px-4 py-4 space-y-4 pb-24">
       <div className="flex items-center justify-between">
-        <Button variant="ghost" size="sm" onClick={() => router.back()}><X className="h-4 w-4 mr-1" />יציאה</Button>
-        <p className="text-xs text-muted-foreground">{doneSets}/{totalSets} סטים הושלמו</p>
+        <Button variant="ghost" size="sm" onClick={() => router.back()}><X className="h-4 w-4 mr-1" />{ui.exit}</Button>
+        <p className="text-xs text-muted-foreground">{ui.setsDone(doneSets, totalSets)}</p>
         <Button variant="ghost" size="sm" asChild>
-          <Link href="/athlete/progress"><TrendingUp className="h-4 w-4 mr-1" />התקדמות</Link>
+          <Link href="/athlete/progress"><TrendingUp className="h-4 w-4 mr-1" />{ui.progress}</Link>
         </Button>
       </div>
 
       <div>
         <p className="text-xs text-muted-foreground">
-          {assigned.workout.type === 'stretch' ? '🧘' : '💪'} {assigned.workout.title}
+          {assigned.workout.type === 'stretch' ? '🧘' : '💪'} {resolveText(language, assigned.workout.title, assigned.workout.titleEn)}
         </p>
-        <h1 className="text-lg font-semibold">{block.label}</h1>
-        <p className="text-xs text-muted-foreground">בלוק {blockIndex + 1} מתוך {blocks.length}</p>
+        <h1 className="text-lg font-semibold">{translateBlockLabel(block.label, language)}</h1>
+        <p className="text-xs text-muted-foreground">{ui.blockOf(blockIndex + 1, blocks.length)}</p>
       </div>
 
       {isSuperset ? (
@@ -337,13 +440,13 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
           {Array.from({ length: maxSetsInBlock }).map((_, roundIdx) => (
             <div key={roundIdx} className="rounded-xl border-2 border-[#0a1628]/15 overflow-hidden">
               <div className="bg-[#0a1628]/5 px-3 py-2">
-                <p className="text-sm font-bold text-[#0a1628]">סבב {roundIdx + 1} מתוך {maxSetsInBlock}</p>
+                <p className="text-sm font-bold text-[#0a1628]">{ui.roundOf(roundIdx + 1, maxSetsInBlock)}</p>
               </div>
               <div className="p-3 space-y-3">
                 {block.exercises.map((rawEx, exIdx) => {
                   const set = progress[rawEx.id]?.[roundIdx]
                   if (!set) return null
-                  const ex = resolveExerciseDisplay(rawEx, libraryById)
+                  const ex = resolveExerciseDisplay(rawEx, libraryById, language)
                   return (
                     <div key={ex.id}>
                       <div className="rounded-lg border border-border overflow-hidden">
@@ -351,11 +454,11 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
                           ex.videoUrl ? (
                             <video src={ex.videoUrl} muted={ex.videoMuted} className="w-full aspect-video bg-black" controls playsInline preload="metadata" />
                           ) : (
-                            <div className="w-full aspect-video bg-muted flex items-center justify-center text-muted-foreground text-sm">אין סרטון הדגמה</div>
+                            <div className="w-full aspect-video bg-muted flex items-center justify-center text-muted-foreground text-sm">{ui.noVideo}</div>
                           )
                         ) : ex.videoUrl && (
                           <details>
-                            <summary className="text-xs text-muted-foreground p-2 cursor-pointer">הצג סרטון הדגמה</summary>
+                            <summary className="text-xs text-muted-foreground p-2 cursor-pointer">{ui.showVideo}</summary>
                             <video src={ex.videoUrl} muted={ex.videoMuted} className="w-full aspect-video bg-black" controls playsInline preload="metadata" />
                           </details>
                         )}
@@ -363,7 +466,7 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
                           <div className="flex items-center justify-between gap-2">
                             <p className="text-sm font-semibold">{ex.name}</p>
                             {isCoachViewer && (
-                              <button type="button" onClick={() => setEditingExerciseId(ex.exerciseId)} className="text-muted-foreground hover:text-foreground shrink-0" title="ערוך בספריית התרגילים">
+                              <button type="button" onClick={() => setEditingExerciseId(ex.exerciseId)} className="text-muted-foreground hover:text-foreground shrink-0" title={ui.editInLibrary}>
                                 <Pencil className="h-3.5 w-3.5" />
                               </button>
                             )}
@@ -371,9 +474,7 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
                           {roundIdx === 0 && <InstructionList text={ex.instructions} className="text-xs text-muted-foreground space-y-0.5" />}
                           {ex.notes && <p className="text-xs text-primary">{ex.notes}</p>}
                           <p className="text-xs font-semibold text-[#0a1628]/70">
-                            {ex.targetDurationSec != null
-                              ? `יעד: ${ex.targetDurationSec} שניות`
-                              : `יעד: ${ex.targetReps} חזרות`}
+                            {formatSetTarget(language, ex.targetReps, ex.targetDurationSec)}
                           </p>
                           <SetControl
                             ex={ex}
@@ -382,11 +483,12 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
                             onToggle={() => toggleSet(ex.id, roundIdx)}
                             onWeight={(w) => setWeight(ex.id, roundIdx, w)}
                             onDuration={(sec) => setDuration(ex.id, roundIdx, sec)}
+                            ui={ui}
                           />
                         </div>
                       </div>
                       {exIdx < block.exercises.length - 1 && (
-                        <p className="text-[11px] text-center text-muted-foreground py-1.5">↓ ישר לתרגיל הבא, ללא מנוחה</p>
+                        <p className="text-[11px] text-center text-muted-foreground py-1.5">{ui.straightNext}</p>
                       )}
                     </div>
                   )
@@ -394,7 +496,7 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
               </div>
               {roundIdx < maxSetsInBlock - 1 && (
                 <div className="bg-amber-50 px-3 py-2 text-center border-t border-amber-100">
-                  <p className="text-xs font-semibold text-amber-700">מנוחה, ואז הסבב הבא</p>
+                  <p className="text-xs font-semibold text-amber-700">{ui.restThenNext}</p>
                 </div>
               )}
             </div>
@@ -403,19 +505,19 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
       ) : (
         <div className="space-y-4">
           {block.exercises.map((rawEx) => {
-            const ex = resolveExerciseDisplay(rawEx, libraryById)
+            const ex = resolveExerciseDisplay(rawEx, libraryById, language)
             return (
             <div key={ex.id} className="rounded-xl border border-border overflow-hidden">
               {ex.videoUrl ? (
                 <video src={ex.videoUrl} muted={ex.videoMuted} className="w-full aspect-video bg-black" controls playsInline preload="metadata" />
               ) : (
-                <div className="w-full aspect-video bg-muted flex items-center justify-center text-muted-foreground text-sm">אין סרטון הדגמה</div>
+                <div className="w-full aspect-video bg-muted flex items-center justify-center text-muted-foreground text-sm">{ui.noVideo}</div>
               )}
               <div className="p-3 space-y-2">
                 <div className="flex items-center justify-between gap-2">
                   <h2 className="font-semibold">{ex.name}</h2>
                   {isCoachViewer && (
-                    <button type="button" onClick={() => setEditingExerciseId(ex.exerciseId)} className="text-muted-foreground hover:text-foreground shrink-0" title="ערוך בספריית התרגילים">
+                    <button type="button" onClick={() => setEditingExerciseId(ex.exerciseId)} className="text-muted-foreground hover:text-foreground shrink-0" title={ui.editInLibrary}>
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
                   )}
@@ -423,9 +525,7 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
                 <InstructionList text={ex.instructions} className="text-xs text-muted-foreground space-y-0.5" />
                 {ex.notes && <p className="text-xs text-primary">{ex.notes}</p>}
                 <p className="text-xs text-muted-foreground">
-                  {ex.targetDurationSec != null
-                    ? `יעד: ${ex.targetSets} סטים × ${ex.targetDurationSec} שניות`
-                    : `יעד: ${ex.targetSets} סטים × ${ex.targetReps} חזרות`}
+                  {formatSetTarget(language, ex.targetReps, ex.targetDurationSec, ex.targetSets)}
                 </p>
                 <div className="space-y-1.5 pt-1">
                   {(progress[ex.id] || []).map((set, i) => (
@@ -437,11 +537,12 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
                       onToggle={() => toggleSet(ex.id, i)}
                       onWeight={(w) => setWeight(ex.id, i, w)}
                       onDuration={(sec) => setDuration(ex.id, i, sec)}
+                      ui={ui}
                     />
                   ))}
                 </div>
                 <p className="text-[11px] text-muted-foreground pt-0.5">
-                  {ex.targetDurationSec != null ? 'לחצו התחל להפעלת הטיימר לכל סט' : 'לחצו על "סט X" לסימון שהסט בוצע'}
+                  {ex.targetDurationSec != null ? ui.tapStartTimer : ui.tapSetToMark}
                 </p>
               </div>
             </div>
@@ -452,16 +553,16 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
 
       <div className="flex gap-2 pt-2">
         <Button variant="outline" disabled={blockIndex === 0} onClick={() => setBlockIndex((i) => Math.max(0, i - 1))} className="flex-1">
-          <ChevronRight className="h-4 w-4 mr-1" />הקודם
+          <ChevronRight className="h-4 w-4 mr-1" />{ui.prev}
         </Button>
         {isLastBlock ? (
           <Button onClick={finishWorkout} disabled={finishing} className="flex-1 bg-emerald-600 hover:bg-emerald-700">
             {finishing && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            סיים אימון
+            {ui.finish}
           </Button>
         ) : (
           <Button onClick={() => setBlockIndex((i) => Math.min(blocks.length - 1, i + 1))} className="flex-1">
-            הבא<ChevronLeft className="h-4 w-4 ml-1" />
+            {ui.next}<ChevronLeft className="h-4 w-4 ml-1" />
           </Button>
         )}
       </div>

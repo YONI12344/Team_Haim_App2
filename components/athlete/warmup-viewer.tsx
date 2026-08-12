@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { Loader2, Check, Pencil } from 'lucide-react'
-import { instructionLines, resolveExerciseDisplay } from '@/lib/utils'
+import { instructionLines, resolveExerciseDisplay, resolveText, formatSetTarget, translateBlockLabel } from '@/lib/utils'
 import { useAuth } from '@/contexts/auth-context'
+import { useLanguage } from '@/contexts/language-context'
 import { isCoachEmail } from '@/lib/constants'
 import { ExerciseEditDialog } from '@/components/coach/exercise-edit-dialog'
 import { listExercises } from '@/lib/exercise-library'
@@ -24,6 +25,7 @@ import type { Workout, ExerciseLibraryItem } from '@/lib/types'
  */
 export function WarmupViewer({ workoutId }: { workoutId: string }) {
   const { user } = useAuth()
+  const { language } = useLanguage()
   const isCoachViewer = isCoachEmail(user?.email)
   const [workout, setWorkout] = useState<Workout | null>(null)
   const [loading, setLoading] = useState(true)
@@ -71,38 +73,36 @@ export function WarmupViewer({ workoutId }: { workoutId: string }) {
   }
 
   if (error || !workout || !workout.strengthBlocks?.length) {
-    return <p className="text-sm text-muted-foreground text-center py-6">השגרה לא נמצאה</p>
+    return <p className="text-sm text-muted-foreground text-center py-6">{language === 'en' ? 'Routine not found' : 'השגרה לא נמצאה'}</p>
   }
 
   return (
-    <div className="space-y-3">
-      {workout.description && <p className="text-xs text-muted-foreground">{workout.description}</p>}
+    <div dir={language === 'en' ? 'ltr' : 'rtl'} className="space-y-3">
+      {workout.description && <p className="text-xs text-muted-foreground">{resolveText(language, workout.description, workout.descriptionEn)}</p>}
       {workout.strengthBlocks.map((block) => (
         <div key={block.id} className="rounded-lg border border-border overflow-hidden">
           <div className="bg-muted/40 px-3 py-1.5">
-            <p className="text-xs font-bold">{block.label}</p>
+            <p className="text-xs font-bold">{translateBlockLabel(block.label, language)}</p>
           </div>
           <div className="p-2.5 space-y-2.5">
             {block.exercises.map((rawEx) => {
-              const ex = resolveExerciseDisplay(rawEx, libraryById)
+              const ex = resolveExerciseDisplay(rawEx, libraryById, language)
               const lines = instructionLines(ex.instructions)
-              const target = ex.targetDurationSec != null
-                ? `${ex.targetSets} סטים × ${ex.targetDurationSec} שניות`
-                : `${ex.targetSets} סטים × ${ex.targetReps}`
+              const target = formatSetTarget(language, ex.targetReps, ex.targetDurationSec, ex.targetSets)
               const isDone = !!done[ex.id]
               return (
                 <div key={ex.id} className={`rounded-md border overflow-hidden ${isDone ? 'border-emerald-300' : 'border-border/60'}`}>
                   {ex.videoUrl ? (
                     <video src={ex.videoUrl} muted={ex.videoMuted} className="w-full aspect-video bg-black" controls playsInline preload="metadata" />
                   ) : (
-                    <div className="w-full aspect-video bg-muted flex items-center justify-center text-muted-foreground text-xs">אין סרטון הדגמה</div>
+                    <div className="w-full aspect-video bg-muted flex items-center justify-center text-muted-foreground text-xs">{language === 'en' ? 'No demo video' : 'אין סרטון הדגמה'}</div>
                   )}
                   <div className="p-2.5 space-y-1.5">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <p className="text-sm font-semibold truncate">{ex.name}</p>
                         {isCoachViewer && (
-                          <button type="button" onClick={() => setEditingExerciseId(ex.exerciseId)} className="text-muted-foreground hover:text-foreground shrink-0" title="ערוך בספריית התרגילים">
+                          <button type="button" onClick={() => setEditingExerciseId(ex.exerciseId)} className="text-muted-foreground hover:text-foreground shrink-0" title={language === 'en' ? 'Edit in exercise library' : 'ערוך בספריית התרגילים'}>
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
                         )}
@@ -115,7 +115,7 @@ export function WarmupViewer({ workoutId }: { workoutId: string }) {
                         }`}
                       >
                         {isDone ? <Check className="h-3.5 w-3.5" /> : <span className="h-3.5 w-3.5 rounded-full border-2 border-current" />}
-                        בוצע
+                        {language === 'en' ? 'Done' : 'בוצע'}
                       </button>
                     </div>
                     <p className="text-xs text-muted-foreground">{target}</p>
