@@ -127,7 +127,17 @@ export function AthletePlanner({ athleteId }: Props) {
       const { updateDoc: ud, doc: dc } = await import('firebase/firestore')
       await ud(dc(db, 'users', athleteId), { defaultLinkedRoutines: complete, defaultLinkedRoutinesByType: completeRules })
       setAthlete((prev) => (prev ? { ...prev, defaultLinkedRoutines: complete, defaultLinkedRoutinesByType: completeRules } : prev))
-      toast.success('שגרות ברירת המחדל נשמרו')
+      // A row missing a workout type, a chosen routine, or a title gets
+      // silently dropped by the filters above (Firestore has nowhere to
+      // put an incomplete rule) — surface that instead of a blanket
+      // "saved" toast, so an incomplete row doesn't just vanish unnoticed.
+      const droppedFlat = defaultRoutinesDraft.length - complete.length
+      const droppedRules = routineRulesDraft.length - completeRules.length
+      if (droppedFlat > 0 || droppedRules > 0) {
+        toast.warning(`נשמר, אבל ${droppedFlat + droppedRules} שורות לא נשמרו — חסר בהן סוג אימון, שגרה, או כותרת`)
+      } else {
+        toast.success('שגרות ברירת המחדל נשמרו')
+      }
     } catch (err) {
       console.error('Error saving default routines:', err)
       toast.error('שמירה נכשלה')

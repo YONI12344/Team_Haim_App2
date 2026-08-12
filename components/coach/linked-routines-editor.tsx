@@ -50,7 +50,20 @@ export function LinkedRoutinesEditor({
             />
             <Select
               value={link.workoutId || '__none__'}
-              onValueChange={(v) => onChange(value.map((l, li) => (li === i ? { ...l, workoutId: v === '__none__' ? '' : v } : l)))}
+              onValueChange={(v) => onChange(value.map((l, li) => {
+                if (li !== i) return l
+                const workoutId = v === '__none__' ? '' : v
+                // Picking a routine here felt like "done" to a coach, but
+                // saving silently drops any row missing a title (see
+                // saveDefaultRoutines/handleSubmit) — a title-less rule
+                // would vanish on reload with no error shown. Auto-fill
+                // from the routine's own title so that never happens
+                // unless the coach deliberately blanks it back out.
+                const label = !l.label.trim() && workoutId
+                  ? (routineOptions.find((w) => w.id === workoutId)?.title || l.label)
+                  : l.label
+                return { ...l, workoutId, label }
+              }))}
             >
               <SelectTrigger className="flex-1"><SelectValue placeholder="בחרו שגרה" /></SelectTrigger>
               <SelectContent>
