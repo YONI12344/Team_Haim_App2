@@ -260,11 +260,17 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
   const [routineDialog, setRoutineDialog] = useState<{ workoutId: string; title: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [currentDate, setCurrentDate] = useState(() => {
-    if (initialDate) { const d = new Date(initialDate); if (!isNaN(d.getTime())) return d }
+    // parseISO, not `new Date(dateOnlyString)` — a bare 'yyyy-MM-dd' string
+    // is parsed as UTC midnight by the Date constructor, which lands on
+    // the PREVIOUS local calendar day for any timezone ahead of UTC
+    // (Israel included) once converted back to local getters. parseISO
+    // reads the same string as local midnight instead, matching how
+    // scheduledDate is written/compared everywhere else in the app.
+    if (initialDate) { const d = parseISO(initialDate); if (!isNaN(d.getTime())) return d }
     // If ?date=YYYY-MM-DD is in the URL, jump straight to that date
     if (typeof window !== 'undefined') {
       const p = new URLSearchParams(window.location.search).get('date')
-      if (p) { const d = new Date(p); if (!isNaN(d.getTime())) return d }
+      if (p) { const d = parseISO(p); if (!isNaN(d.getTime())) return d }
     }
     return new Date()
   })
@@ -293,10 +299,10 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
   })
   const [coachMessages, setCoachMessages] = useState<any[]>([])
   const [selectedWeekDay, setSelectedWeekDay] = useState<Date>(() => {
-    if (initialDate) { const d = new Date(initialDate); if (!isNaN(d.getTime())) return d }
+    if (initialDate) { const d = parseISO(initialDate); if (!isNaN(d.getTime())) return d }
     if (typeof window !== 'undefined') {
       const p = new URLSearchParams(window.location.search).get('date')
-      if (p) { const d = new Date(p); if (!isNaN(d.getTime())) return d }
+      if (p) { const d = parseISO(p); if (!isNaN(d.getTime())) return d }
     }
     return new Date()
   })
@@ -306,7 +312,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
     if (typeof window === 'undefined') return
     const p = new URLSearchParams(window.location.search).get('date')
     if (!p) return
-    const d = new Date(p)
+    const d = parseISO(p)
     if (!isNaN(d.getTime())) {
       setCurrentDate(d)
       setSelectedWeekDay(d)
@@ -317,7 +323,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
   // initialDate prop whenever the coach taps a different date on the calendar
   useEffect(() => {
     if (!initialDate) return
-    const d = new Date(initialDate)
+    const d = parseISO(initialDate)
     if (isNaN(d.getTime())) return
     setCurrentDate(d)
     setSelectedWeekDay(d)
@@ -859,7 +865,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
           // otherwise get attributed to EVERY workout that day via this
           // same fallback, showing the same completed distance under all
           // of them even though only one was actually done.
-          const isSingleWorkoutDay = getWorkoutsForDay(new Date(w.scheduledDate)).length <= 1
+          const isSingleWorkoutDay = getWorkoutsForDay(parseISO(w.scheduledDate)).length <= 1
           const hasManualLog = weekLogs.find(l =>
             (l.assignedWorkoutId === w.id || (isSingleWorkoutDay && !l.assignedWorkoutId && l.date === w.scheduledDate))
             && !!l.actualDistance && !isActivityLog(l)

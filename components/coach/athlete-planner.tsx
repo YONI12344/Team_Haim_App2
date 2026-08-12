@@ -1431,7 +1431,7 @@ export function AthletePlanner({ athleteId }: Props) {
           <CardContent className="pt-4">
             {/* Nav + Toggle */}
             <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-              <Button variant="ghost" size="icon" onClick={() => setCurrentDate(d => viewMode==='week' ? subWeeks(d,1) : subMonths(d,1))}><ChevronRight className="h-4 w-4"/></Button>
+              <Button variant="ghost" size="icon" onClick={() => setCurrentDate(d => viewMode==='week' ? subWeeks(d,1) : subMonths(d,1))}><ChevronLeft className="h-4 w-4"/></Button>
               <div className="flex flex-col items-center gap-1">
                 <p className="font-semibold text-navy text-base">
                   {viewMode==='week' ? `${format(weekStart,'d MMM')} – ${format(weekEnd,'d MMM yyyy')}` : format(currentDate,'MMMM yyyy')}
@@ -1441,7 +1441,7 @@ export function AthletePlanner({ athleteId }: Props) {
                   <button onClick={() => setViewMode('month')} className={cn('text-[11px] px-3 py-0.5 rounded-full transition-all', viewMode==='month' ? 'bg-white text-navy font-semibold shadow-sm' : 'text-muted-foreground')}>חודש</button>
                 </div>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => setCurrentDate(d => viewMode==='week' ? addWeeks(d,1) : addMonths(d,1))}><ChevronLeft className="h-4 w-4"/></Button>
+              <Button variant="ghost" size="icon" onClick={() => setCurrentDate(d => viewMode==='week' ? addWeeks(d,1) : addMonths(d,1))}><ChevronRight className="h-4 w-4"/></Button>
               {viewMode === 'week' && !copiedWeekStart && (
                 <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setCopiedWeekStart(weekStart)}>
                   <Copy className="h-3 w-3 mr-1"/>העתק שבוע
