@@ -24,6 +24,7 @@ import { seedRunningStrengthProgram } from '@/lib/seed-running-strength-program'
 import { seedRunnerStretchProgram } from '@/lib/seed-runner-stretch-program'
 import { seedStrapStretchProgram } from '@/lib/seed-strap-stretch-program'
 import { seedAncillaryRoutines } from '@/lib/seed-ancillary-routines'
+import { seedPowerConditioningProgram } from '@/lib/seed-power-conditioning-program'
 import { ExerciseEditDialog } from '@/components/coach/exercise-edit-dialog'
 import { cn } from '@/lib/utils'
 
@@ -44,7 +45,7 @@ export function ExerciseLibraryManager() {
   const [deleteTarget, setDeleteTarget] = useState<ExerciseLibraryItem | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [filterCategory, setFilterCategory] = useState<'strength' | 'stretch' | 'warmup'>('strength')
-  const [importingKey, setImportingKey] = useState<'strength' | 'stretch' | 'strap' | 'ancillary' | null>(null)
+  const [importingKey, setImportingKey] = useState<'strength' | 'stretch' | 'strap' | 'ancillary' | 'power' | null>(null)
   const [translatingAll, setTranslatingAll] = useState(false)
 
   const load = async () => {
@@ -162,6 +163,25 @@ export function ExerciseLibraryManager() {
     }
   }
 
+  const handleImportPowerProgram = async () => {
+    if (!user) return
+    setImportingKey('power')
+    try {
+      const result = await seedPowerConditioningProgram(user.id || '')
+      if (result.alreadyExisted) {
+        toast.info('אימוני הכוח/קונדישן כבר יובאו בעבר')
+      } else {
+        toast.success(`יובאו ${result.exerciseCount} תרגילים ו-${result.workoutsCreated.length} אימונים (כוח + קונדישן)`)
+        await load()
+      }
+    } catch (err) {
+      console.error('Error importing power/conditioning program:', err)
+      toast.error('הייבוא נכשל')
+    } finally {
+      setImportingKey(null)
+    }
+  }
+
   const handleBackfillTranslations = async () => {
     setTranslatingAll(true)
     try {
@@ -207,6 +227,10 @@ export function ExerciseLibraryManager() {
           <Button onClick={handleImportAncillaryRoutines} disabled={importingKey !== null} size="sm" variant="outline">
             {importingKey === 'ancillary' ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Download className="h-4 w-4 mr-1" />}
             ייבוא: שגרות חימום (GW)
+          </Button>
+          <Button onClick={handleImportPowerProgram} disabled={importingKey !== null} size="sm" variant="outline">
+            {importingKey === 'power' ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Download className="h-4 w-4 mr-1" />}
+            ייבוא: כוח וקונדישן (קטלבל)
           </Button>
           <Button onClick={handleBackfillTranslations} disabled={translatingAll} size="sm" variant="outline" title="מתרגם תרגילים ללא גרסה באנגלית">
             {translatingAll ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Languages className="h-4 w-4 mr-1" />}
