@@ -11,9 +11,10 @@ import { Loader2, ChevronLeft, ChevronRight, Check, X, TrendingUp, Play, Square,
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/auth-context'
 import { isCoachEmail } from '@/lib/constants'
-import { instructionLines } from '@/lib/utils'
+import { instructionLines, resolveExerciseDisplay } from '@/lib/utils'
 import { ExerciseEditDialog } from '@/components/coach/exercise-edit-dialog'
-import type { AssignedWorkout, StrengthBlockExercise } from '@/lib/types'
+import { listExercises } from '@/lib/exercise-library'
+import type { AssignedWorkout, StrengthBlockExercise, ExerciseLibraryItem } from '@/lib/types'
 
 type SetProgress = { completed: boolean; weightKg?: number | null; durationSec?: number | null }
 type Progress = Record<string, SetProgress[]>
@@ -152,11 +153,22 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
   const [blockIndex, setBlockIndex] = useState(0)
   const [finishing, setFinishing] = useState(false)
   // Coach previewing this workout can fix an exercise's video/instructions
-  // right from here — updates the shared Exercise Library only, doesn't
-  // retroactively change what's already denormalized onto this specific
-  // assigned workout (see components/coach/exercise-edit-dialog.tsx).
+  // right from here (see components/coach/exercise-edit-dialog.tsx).
   const [editingExerciseId, setEditingExerciseId] = useState<string | null>(null)
   const isCoachViewer = isCoachEmail(user?.email)
+  // Current Exercise Library state, keyed by id — video/instructions/name/
+  // category shown below always come from here when the exercise still
+  // exists, not from the stored snapshot on the block, so an edited video
+  // shows up immediately everywhere it's used ("it's the same exercise").
+  // Only targetSets/targetReps/targetDurationSec/notes stay as stored,
+  // since those are workout-specific. See lib/utils.ts resolveExerciseDisplay.
+  const [libraryById, setLibraryById] = useState<Map<string, ExerciseLibraryItem>>(new Map())
+
+  useEffect(() => {
+    listExercises()
+      .then((list) => setLibraryById(new Map(list.map((e) => [e.id, e]))))
+      .catch((err) => console.error('Error loading exercise library for live resolution:', err))
+  }, [])
 
   useEffect(() => {
     const load = async () => {
@@ -328,9 +340,10 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
                 <p className="text-sm font-bold text-[#0a1628]">סבב {roundIdx + 1} מתוך {maxSetsInBlock}</p>
               </div>
               <div className="p-3 space-y-3">
-                {block.exercises.map((ex, exIdx) => {
-                  const set = progress[ex.id]?.[roundIdx]
+                {block.exercises.map((rawEx, exIdx) => {
+                  const set = progress[rawEx.id]?.[roundIdx]
                   if (!set) return null
+                  const ex = resolveExerciseDisplay(rawEx, libraryById)
                   return (
                     <div key={ex.id}>
                       <div className="rounded-lg border border-border overflow-hidden">
@@ -384,7 +397,9 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
         </div>
       ) : (
         <div className="space-y-4">
-          {block.exercises.map((ex) => (
+          {block.exercises.map((rawEx) => {
+            const ex = resolveExerciseDisplay(rawEx, libraryById)
+            return (
             <div key={ex.id} className="rounded-xl border border-border overflow-hidden">
               {ex.videoUrl ? (
                 <video src={ex.videoUrl} muted={ex.videoMuted} className="w-full aspect-video bg-black" controls playsInline preload="metadata" />
@@ -425,7 +440,8 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
                 </p>
               </div>
             </div>
-          ))}
+            )
+          })}
         </div>
       )}
 

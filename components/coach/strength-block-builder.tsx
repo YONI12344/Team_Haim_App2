@@ -16,6 +16,7 @@ import { Plus, Trash2, Loader2, Pencil } from 'lucide-react'
 import type { ExerciseLibraryItem, StrengthBlock, StrengthBlockExercise } from '@/lib/types'
 import { listExercises } from '@/lib/exercise-library'
 import { ExerciseEditDialog } from '@/components/coach/exercise-edit-dialog'
+import { resolveExerciseDisplay } from '@/lib/utils'
 
 function genId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
@@ -53,6 +54,7 @@ export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }
     const exCategory = ex.category || 'strength'
     return category === 'strength' ? exCategory === 'strength' : exCategory !== 'strength'
   })
+  const libraryById = new Map(allExercises.map((e) => [e.id, e]))
   const blockLabelPrefix = category === 'stretch' ? 'מתיחה' : 'סט'
 
   const addBlock = () => {
@@ -164,7 +166,9 @@ export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }
                   </Button>
                 </div>
                 <div className="p-3 space-y-3">
-                  {block.exercises.map((ex) => (
+                  {block.exercises.map((rawEx) => {
+                    const ex = resolveExerciseDisplay(rawEx, libraryById)
+                    return (
                     <div key={ex.id} className="rounded-md border border-border/60 p-2.5 space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium">{ex.name}</span>
@@ -211,7 +215,8 @@ export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }
                         onChange={(e) => updateExercise(block.id, ex.id, { notes: e.target.value })}
                         placeholder="הערה לתרגיל הזה (לא חובה)" className="h-8 text-sm" dir="rtl" />
                     </div>
-                  ))}
+                    )
+                  })}
                   <Select value="" onValueChange={(exerciseId) => addExercise(block.id, exerciseId)}>
                     <SelectTrigger className="h-8 text-sm">
                       <SelectValue placeholder={block.exercises.length === 0 ? 'הוסף תרגיל' : 'הוסף תרגיל נוסף לסופרסט'} />

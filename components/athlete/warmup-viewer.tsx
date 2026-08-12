@@ -4,11 +4,12 @@ import { useEffect, useState } from 'react'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { Loader2, Check, Pencil } from 'lucide-react'
-import { instructionLines } from '@/lib/utils'
+import { instructionLines, resolveExerciseDisplay } from '@/lib/utils'
 import { useAuth } from '@/contexts/auth-context'
 import { isCoachEmail } from '@/lib/constants'
 import { ExerciseEditDialog } from '@/components/coach/exercise-edit-dialog'
-import type { Workout } from '@/lib/types'
+import { listExercises } from '@/lib/exercise-library'
+import type { Workout, ExerciseLibraryItem } from '@/lib/types'
 
 /**
  * Popup content for a linked warm-up/cooldown routine (Workout.
@@ -32,6 +33,15 @@ export function WarmupViewer({ workoutId }: { workoutId: string }) {
   // shared Exercise Library only, doesn't rewrite this workout's own saved
   // strengthBlocks copy (see components/coach/exercise-edit-dialog.tsx).
   const [editingExerciseId, setEditingExerciseId] = useState<string | null>(null)
+  // Same live-resolution as Lift Mode (see lib/utils.ts resolveExerciseDisplay)
+  // — an edited video/instructions/name shows up here immediately too.
+  const [libraryById, setLibraryById] = useState<Map<string, ExerciseLibraryItem>>(new Map())
+
+  useEffect(() => {
+    listExercises()
+      .then((list) => setLibraryById(new Map(list.map((e) => [e.id, e]))))
+      .catch((err) => console.error('Error loading exercise library for live resolution:', err))
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -73,7 +83,8 @@ export function WarmupViewer({ workoutId }: { workoutId: string }) {
             <p className="text-xs font-bold">{block.label}</p>
           </div>
           <div className="p-2.5 space-y-2.5">
-            {block.exercises.map((ex) => {
+            {block.exercises.map((rawEx) => {
+              const ex = resolveExerciseDisplay(rawEx, libraryById)
               const lines = instructionLines(ex.instructions)
               const target = ex.targetDurationSec != null
                 ? `${ex.targetSets} סטים × ${ex.targetDurationSec} שניות`
