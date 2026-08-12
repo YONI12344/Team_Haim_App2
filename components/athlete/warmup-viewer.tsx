@@ -95,7 +95,7 @@ export function WarmupViewer({ workoutId }: { workoutId: string }) {
                   {ex.videoUrl ? (
                     <video src={ex.videoUrl} muted={ex.videoMuted} className="w-full aspect-video bg-black" controls playsInline preload="metadata" />
                   ) : (
-                    <div className="w-full aspect-video bg-muted flex items-center justify-center text-muted-foreground text-xs">{language === 'en' ? 'No demo video' : 'אין סרטון הדגמה'}</div>
+                    <div className="w-full h-16 bg-muted flex items-center justify-center text-muted-foreground text-xs">{language === 'en' ? 'No demo video' : 'אין סרטון הדגמה'}</div>
                   )}
                   <div className="p-2.5 space-y-1.5">
                     <div className="flex items-center justify-between gap-2">

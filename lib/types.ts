@@ -632,6 +632,13 @@ export interface AssignedWorkout {
   // stepping through components/athlete/lift-mode.tsx. durationSec is set
   // instead of weightKg for timed exercises (StrengthBlockExercise.targetDurationSec).
   strengthProgress?: Record<string, Array<{ completed: boolean; weightKg?: number | null; durationSec?: number | null }>>
+  // True when workout.linkedRoutines here came from the athlete's default
+  // routine rules (components/coach/athlete-planner.tsx withAthleteDefaultRoutines),
+  // not from the workout template's own linkedRoutines. Lets saving a
+  // changed/removed default rule safely resync only the routines it put
+  // here itself — a routine the coach deliberately attached on a specific
+  // workout template is never touched, since this stays unset/false for it.
+  linkedRoutinesFromDefault?: boolean
   completedAt?: Date
   actualDuration?: number
   actualDistance?: number

@@ -128,34 +128,48 @@ export function AthletePlanner({ athleteId }: Props) {
       await ud(dc(db, 'users', athleteId), { defaultLinkedRoutines: complete, defaultLinkedRoutinesByType: completeRules })
       setAthlete((prev) => (prev ? { ...prev, defaultLinkedRoutines: complete, defaultLinkedRoutinesByType: completeRules } : prev))
 
-      // Retroactively patch already-scheduled FUTURE workouts too — a
+      // Retroactively resync already-scheduled FUTURE workouts too — a
       // default only auto-applies at the moment a workout is assigned
       // (see withAthleteDefaultRoutines), so without this a coach saving
-      // a new rule would have to re-assign everything already on the
-      // schedule just to see it show up. Only touches workouts that
-      // don't already carry their own routines (those always win) and
-      // haven't happened yet.
+      // a changed rule would have to re-assign everything already on the
+      // schedule just to see it take effect. Covers three cases:
+      //  - empty slot -> a rule now matches: fill it in
+      //  - was filled FROM a default, rule changed: update to the new routines
+      //  - was filled FROM a default, rule removed/no longer matches: clear it
+      // Never touches a workout whose routines the coach set directly on
+      // the template itself (linkedRoutinesFromDefault stays unset/false
+      // for those) — only ones this same default system put there.
       const pickDefaultFor = (type: WorkoutType) => {
         const rule = completeRules.find((r) => r.types.includes(type))
         if (rule?.routines.length) return rule.routines
         return complete.length ? complete : null
       }
       const todayStr = format(new Date(), 'yyyy-MM-dd')
-      const toPatch = assignedWorkouts.filter((aw) =>
-        aw.status === 'scheduled' && aw.scheduledDate >= todayStr && !aw.workout.linkedRoutines?.length,
+      const toResync = assignedWorkouts.filter((aw) =>
+        aw.status === 'scheduled' && aw.scheduledDate >= todayStr
+        && (!aw.workout.linkedRoutines?.length || aw.linkedRoutinesFromDefault === true),
       )
       let patchedCount = 0
-      for (const aw of toPatch) {
+      let clearedCount = 0
+      const resolvedById = new Map<string, { routines: LinkedRoutine[] | null }>()
+      for (const aw of toResync) {
         const routines = pickDefaultFor(aw.workout.type)
-        if (!routines) continue
-        await ud(dc(db, 'assignedWorkouts', aw.id), { 'workout.linkedRoutines': routines })
-        patchedCount++
+        resolvedById.set(aw.id, { routines })
+        if (routines) {
+          await ud(dc(db, 'assignedWorkouts', aw.id), { 'workout.linkedRoutines': routines, linkedRoutinesFromDefault: true })
+          patchedCount++
+        } else if (aw.linkedRoutinesFromDefault) {
+          await ud(dc(db, 'assignedWorkouts', aw.id), { 'workout.linkedRoutines': [], linkedRoutinesFromDefault: false })
+          clearedCount++
+        }
       }
-      if (patchedCount > 0) {
+      if (patchedCount > 0 || clearedCount > 0) {
         setAssignedWorkouts((prev) => prev.map((aw) => {
-          const routines = pickDefaultFor(aw.workout.type)
-          const shouldPatch = toPatch.some((p) => p.id === aw.id) && routines
-          return shouldPatch ? { ...aw, workout: { ...aw.workout, linkedRoutines: routines! } } : aw
+          const resolved = resolvedById.get(aw.id)
+          if (!resolved) return aw
+          return resolved.routines
+            ? { ...aw, workout: { ...aw.workout, linkedRoutines: resolved.routines }, linkedRoutinesFromDefault: true }
+            : { ...aw, workout: { ...aw.workout, linkedRoutines: [] }, linkedRoutinesFromDefault: false }
         }))
       }
 
@@ -165,10 +179,14 @@ export function AthletePlanner({ athleteId }: Props) {
       // "saved" toast, so an incomplete row doesn't just vanish unnoticed.
       const droppedFlat = defaultRoutinesDraft.length - complete.length
       const droppedRules = routineRulesDraft.length - completeRules.length
+      const syncNote = [
+        patchedCount > 0 ? `עודכנו ${patchedCount}` : '',
+        clearedCount > 0 ? `הוסרו מ-${clearedCount}` : '',
+      ].filter(Boolean).join(' · ')
       if (droppedFlat > 0 || droppedRules > 0) {
         toast.warning(`נשמר, אבל ${droppedFlat + droppedRules} שורות לא נשמרו — חסר בהן סוג אימון, שגרה, או כותרת`)
       } else {
-        toast.success(`שגרות ברירת המחדל נשמרו${patchedCount > 0 ? ` · עודכנו ${patchedCount} אימונים שכבר משובצים` : ''}`)
+        toast.success(`שגרות ברירת המחדל נשמרו${syncNote ? ` · ${syncNote} אימונים שכבר משובצים` : ''}`)
       }
     } catch (err) {
       console.error('Error saving default routines:', err)
@@ -605,6 +623,7 @@ export function AthletePlanner({ athleteId }: Props) {
       if (selectedDate && user) {
         const dateStr = format(selectedDate, 'yyyy-MM-dd')
         const assignedWorkout = withAthleteDefaultRoutines(created)
+        const appliedDefault = !!assignedWorkout.linkedRoutines?.length
         const assignRef = await addDoc(collection(db, 'assignedWorkouts'), {
           workoutId: ref.id,
           workout: assignedWorkout,
@@ -612,6 +631,7 @@ export function AthletePlanner({ athleteId }: Props) {
           assignedBy: user.id || null,
           scheduledDate: dateStr,
           status: 'scheduled',
+          linkedRoutinesFromDefault: appliedDefault,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         })
@@ -623,6 +643,7 @@ export function AthletePlanner({ athleteId }: Props) {
           assignedBy: user.id || '',
           scheduledDate: dateStr,
           status: 'scheduled',
+          linkedRoutinesFromDefault: appliedDefault,
           createdAt: new Date(),
           updatedAt: new Date(),
         } as any])
@@ -691,6 +712,7 @@ export function AthletePlanner({ athleteId }: Props) {
   const assignWorkoutToDate = async (workoutIn: Workout, dateStr: string, session?: 'am' | 'pm' | 'other') => {
     if (!user) return
     const workout = withAthleteDefaultRoutines(workoutIn)
+    const appliedDefault = !workoutIn.linkedRoutines?.length && !!workout.linkedRoutines?.length
     // Same auto-bank-tagging as handleCreateWorkout below, for the other
     // path a workout reaches an athlete: picking an existing library
     // template that was never explicitly leveled. Only fills a gap —
@@ -712,12 +734,14 @@ export function AthletePlanner({ athleteId }: Props) {
       scheduledDate: dateStr,
       status: 'scheduled',
       session: finalSession || null,
+      linkedRoutinesFromDefault: appliedDefault,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     })
     setAssignedWorkouts(prev => [...prev, {
       id: ref.id, workoutId: workout.id, workout, athleteId,
       assignedBy: user.id || '', scheduledDate: dateStr, status: 'scheduled', session: finalSession,
+      linkedRoutinesFromDefault: appliedDefault,
       createdAt: new Date(), updatedAt: new Date(),
     } as AssignedWorkout])
   }

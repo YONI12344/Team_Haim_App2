@@ -511,7 +511,7 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
                           ex.videoUrl ? (
                             <video src={ex.videoUrl} muted={ex.videoMuted} className="w-full aspect-video bg-black" controls playsInline preload="metadata" />
                           ) : (
-                            <div className="w-full aspect-video bg-muted flex items-center justify-center text-muted-foreground text-sm">{ui.noVideo}</div>
+                            <div className="w-full h-16 bg-muted flex items-center justify-center text-muted-foreground text-sm">{ui.noVideo}</div>
                           )
                         ) : ex.videoUrl && (
                           <details>
@@ -582,7 +582,7 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
               {ex.videoUrl ? (
                 <video src={ex.videoUrl} muted={ex.videoMuted} className="w-full aspect-video bg-black" controls playsInline preload="metadata" />
               ) : (
-                <div className="w-full aspect-video bg-muted flex items-center justify-center text-muted-foreground text-sm">{ui.noVideo}</div>
+                <div className="w-full h-16 bg-muted flex items-center justify-center text-muted-foreground text-sm">{ui.noVideo}</div>
               )}
               <div className="p-3 space-y-2">
                 <div className="flex items-center justify-between gap-2">
