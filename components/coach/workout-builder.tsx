@@ -100,6 +100,13 @@ interface WorkoutBuilderProps {
   workoutId?: string
   onDone?: (workout?: any) => void
   hideBackButton?: boolean
+  // Pre-fill when opening straight into "create" mode from a specific
+  // Workout Bank folder (components/coach/workout-bank-manager.tsx) — so
+  // a workout built from that folder lands in it immediately instead of
+  // needing a separate manual bank-tagging step after. Ignored once
+  // workoutId is set (editing loads its own real values).
+  initialType?: WorkoutType
+  initialBankLevel?: ExperienceLevel
 }
 
 // ---------------------------------------------------------------------------
@@ -294,7 +301,7 @@ async function regenerateWorkoutTranslation(title: string, description: string):
   return translateTexts(items)
 }
 
-export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBuilderProps) {
+export function WorkoutBuilder({ workoutId, onDone, hideBackButton, initialType, initialBankLevel }: WorkoutBuilderProps) {
   const { t } = useLanguage()
   const router = useRouter()
   const { user } = useAuth()
@@ -306,7 +313,7 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
   const isCoach = isCoachEmail(user?.email)
 
   const [title, setTitle] = useState('')
-  const [type, setType] = useState<WorkoutType>('easy')
+  const [type, setType] = useState<WorkoutType>(initialType || 'easy')
   const [description, setDescription] = useState('')
   // English review copy — auto-filled by AI on save (see translateAndCacheFields
   // below), editable here. existingTitleEn/existingDescriptionEn track what
@@ -327,7 +334,7 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton }: WorkoutBui
   const [targetMetrics, setTargetMetrics] = useState<Set<'pace' | 'hr' | 'lactate'>>(new Set(['pace', 'hr', 'lactate']))
   const [thresholdDistance, setThresholdDistance] = useState<number | ''>('')
   const [comparisonGroup, setComparisonGroup] = useState('')
-  const [bankLevel, setBankLevel] = useState<ExperienceLevel | ''>('')
+  const [bankLevel, setBankLevel] = useState<ExperienceLevel | ''>(initialBankLevel || '')
   const [bankStage, setBankStage] = useState('')
   const [bankOrder, setBankOrder] = useState<number | ''>('')
   const [existingGroups, setExistingGroups] = useState<string[]>([])

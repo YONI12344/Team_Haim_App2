@@ -133,6 +133,11 @@ export function WorkoutBankManager() {
   // Link-based flow "jumped" away from wherever the coach was browsing.
   const [editingWorkout, setEditingWorkout] = useState<Workout | null>(null)
   const [backfilling, setBackfilling] = useState(false)
+  // Creating fresh, seeded straight into a specific bank folder — a "+" on
+  // a level or a level+type group, instead of building a generic workout
+  // via /coach/workouts/new and then having to tag it into the bank by
+  // hand afterward.
+  const [creatingFor, setCreatingFor] = useState<{ level: ExperienceLevel; type?: WorkoutType } | null>(null)
 
   // `silent` skips the full-page spinner — used after an in-place edit so
   // the refresh doesn't blow away scroll position and open <details>.
@@ -275,10 +280,21 @@ export function WorkoutBankManager() {
         }
         return (
           <details key={level} open={levelWorkouts.length > 0} className="rounded-lg border border-border">
-            <summary className="cursor-pointer select-none px-4 py-3 flex items-center gap-2 font-semibold">
-              <Dumbbell className="h-4 w-4 text-gold" />
-              {BANK_LEVEL_LABELS_HE[level]}
-              <span className="text-xs font-normal text-muted-foreground">({levelWorkouts.length} אימונים, {byType.size} סוגים)</span>
+            <summary className="cursor-pointer select-none px-4 py-3 flex items-center justify-between gap-2">
+              <span className="flex items-center gap-2 font-semibold">
+                <Dumbbell className="h-4 w-4 text-gold" />
+                {BANK_LEVEL_LABELS_HE[level]}
+                <span className="text-xs font-normal text-muted-foreground">({levelWorkouts.length} אימונים, {byType.size} סוגים)</span>
+              </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 shrink-0"
+                title={`הוסף אימון לרמת ${BANK_LEVEL_LABELS_HE[level]}`}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setCreatingFor({ level }) }}
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
             </summary>
             <div className="px-4 pb-4 space-y-4">
               {levelWorkouts.length === 0 ? (
@@ -300,6 +316,15 @@ export function WorkoutBankManager() {
                           {workoutTypeLabels[type]}
                         </span>
                         <span>{items.length} גרסאות</span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5"
+                          title={`הוסף אימון ${workoutTypeLabels[type]} לרמת ${BANK_LEVEL_LABELS_HE[level]}`}
+                          onClick={() => setCreatingFor({ level, type })}
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
                       </p>
                       {hasStages ? (
                         <div className="space-y-2">
@@ -334,6 +359,27 @@ export function WorkoutBankManager() {
               workoutId={editingWorkout.id}
               hideBackButton
               onDone={() => { setEditingWorkout(null); load(true) }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Create straight into a bank folder — same idea, but a fresh
+          workout seeded with that folder's level (and type, when the "+"
+          was clicked from a specific type row) instead of an existing id. */}
+      <Dialog open={!!creatingFor} onOpenChange={(open) => { if (!open) setCreatingFor(null) }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {creatingFor && `אימון חדש — ${BANK_LEVEL_LABELS_HE[creatingFor.level]}${creatingFor.type ? ` · ${workoutTypeLabels[creatingFor.type]}` : ''}`}
+            </DialogTitle>
+          </DialogHeader>
+          {creatingFor && (
+            <WorkoutBuilder
+              initialBankLevel={creatingFor.level}
+              initialType={creatingFor.type}
+              hideBackButton
+              onDone={() => { setCreatingFor(null); load(true) }}
             />
           )}
         </DialogContent>
