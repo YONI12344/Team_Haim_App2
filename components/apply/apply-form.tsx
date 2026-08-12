@@ -235,9 +235,9 @@ export function ApplyForm() {
                 <input type="tel" className={inputCls} value={form.phone} onChange={(e) => set('phone', e.target.value)} dir="ltr" /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Date of Birth', 'תאריך לידה')}</label>
+              <div className="min-w-0"><label className="block text-sm font-medium text-gray-700 mb-1">{t('Date of Birth', 'תאריך לידה')}</label>
                 <input type="date" className={inputCls} value={form.dateOfBirth} onChange={(e) => set('dateOfBirth', e.target.value)} /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('City', 'עיר')}</label>
+              <div className="min-w-0"><label className="block text-sm font-medium text-gray-700 mb-1">{t('City', 'עיר')}</label>
                 <input className={inputCls} value={form.city} onChange={(e) => set('city', e.target.value)} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -357,9 +357,9 @@ export function ApplyForm() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Race name', 'שם המירוץ')}</label>
+              <div className="min-w-0"><label className="block text-sm font-medium text-gray-700 mb-1">{t('Race name', 'שם המירוץ')}</label>
                 <input className={inputCls} value={form.goalRaceEvent} onChange={(e) => set('goalRaceEvent', e.target.value)} /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Race date', 'תאריך המירוץ')}</label>
+              <div className="min-w-0"><label className="block text-sm font-medium text-gray-700 mb-1">{t('Race date', 'תאריך המירוץ')}</label>
                 <input type="date" className={inputCls} value={form.goalRaceDate} onChange={(e) => set('goalRaceDate', e.target.value)} /></div>
             </div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Goal time', 'זמן יעד')}</label>
