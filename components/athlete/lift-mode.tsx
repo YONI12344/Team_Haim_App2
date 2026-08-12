@@ -7,11 +7,12 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Loader2, ChevronLeft, ChevronRight, Check, X, TrendingUp, Play, Square } from 'lucide-react'
+import { Loader2, ChevronLeft, ChevronRight, Check, X, TrendingUp, Play, Square, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/auth-context'
 import { isCoachEmail } from '@/lib/constants'
 import { instructionLines } from '@/lib/utils'
+import { ExerciseEditDialog } from '@/components/coach/exercise-edit-dialog'
 import type { AssignedWorkout, StrengthBlockExercise } from '@/lib/types'
 
 type SetProgress = { completed: boolean; weightKg?: number | null; durationSec?: number | null }
@@ -150,6 +151,12 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
   const [progress, setProgress] = useState<Progress>({})
   const [blockIndex, setBlockIndex] = useState(0)
   const [finishing, setFinishing] = useState(false)
+  // Coach previewing this workout can fix an exercise's video/instructions
+  // right from here — updates the shared Exercise Library only, doesn't
+  // retroactively change what's already denormalized onto this specific
+  // assigned workout (see components/coach/exercise-edit-dialog.tsx).
+  const [editingExerciseId, setEditingExerciseId] = useState<string | null>(null)
+  const isCoachViewer = isCoachEmail(user?.email)
 
   useEffect(() => {
     const load = async () => {
@@ -340,7 +347,14 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
                           </details>
                         )}
                         <div className="p-2.5 space-y-1.5">
-                          <p className="text-sm font-semibold">{ex.name}</p>
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-sm font-semibold">{ex.name}</p>
+                            {isCoachViewer && (
+                              <button type="button" onClick={() => setEditingExerciseId(ex.exerciseId)} className="text-muted-foreground hover:text-foreground shrink-0" title="ערוך בספריית התרגילים">
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
                           {roundIdx === 0 && <InstructionList text={ex.instructions} className="text-xs text-muted-foreground space-y-0.5" />}
                           {ex.notes && <p className="text-xs text-primary">{ex.notes}</p>}
                           <SetControl
@@ -378,7 +392,14 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
                 <div className="w-full aspect-video bg-muted flex items-center justify-center text-muted-foreground text-sm">אין סרטון הדגמה</div>
               )}
               <div className="p-3 space-y-2">
-                <h2 className="font-semibold">{ex.name}</h2>
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="font-semibold">{ex.name}</h2>
+                  {isCoachViewer && (
+                    <button type="button" onClick={() => setEditingExerciseId(ex.exerciseId)} className="text-muted-foreground hover:text-foreground shrink-0" title="ערוך בספריית התרגילים">
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
                 <InstructionList text={ex.instructions} className="text-xs text-muted-foreground space-y-0.5" />
                 {ex.notes && <p className="text-xs text-primary">{ex.notes}</p>}
                 <p className="text-xs text-muted-foreground">
@@ -423,6 +444,14 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
           </Button>
         )}
       </div>
+
+      {isCoachViewer && (
+        <ExerciseEditDialog
+          exerciseId={editingExerciseId}
+          open={!!editingExerciseId}
+          onOpenChange={(open) => { if (!open) setEditingExerciseId(null) }}
+        />
+      )}
     </div>
   )
 }

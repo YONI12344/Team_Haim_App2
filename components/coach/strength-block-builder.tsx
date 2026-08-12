@@ -12,9 +12,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, Trash2, Loader2 } from 'lucide-react'
+import { Plus, Trash2, Loader2, Pencil } from 'lucide-react'
 import type { ExerciseLibraryItem, StrengthBlock, StrengthBlockExercise } from '@/lib/types'
 import { listExercises } from '@/lib/exercise-library'
+import { ExerciseEditDialog } from '@/components/coach/exercise-edit-dialog'
 
 function genId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
@@ -40,6 +41,9 @@ interface Props {
 export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }: Props) {
   const [allExercises, setAllExercises] = useState<ExerciseLibraryItem[]>([])
   const [loadingLibrary, setLoadingLibrary] = useState(true)
+  // Coach clicked the pencil on an exercise already in a block — opens the
+  // same edit form as the Exercise Library page, right from here.
+  const [editTarget, setEditTarget] = useState<{ blockId: string; instanceId: string; exerciseId: string } | null>(null)
 
   useEffect(() => {
     listExercises().then(setAllExercises).catch(console.error).finally(() => setLoadingLibrary(false))
@@ -109,6 +113,24 @@ export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }
       : b)))
   }
 
+  // After editing an exercise from the pencil below: refresh the picker's
+  // library list, and sync THIS specific block-exercise's denormalized
+  // copy (name/video/instructions) to match — otherwise the fix would only
+  // show up the next time this exercise gets freshly added to a block,
+  // not in the one the coach was just looking at.
+  const handleExerciseSaved = (saved: ExerciseLibraryItem) => {
+    setAllExercises((prev) => prev.map((e) => (e.id === saved.id ? saved : e)))
+    if (editTarget) {
+      updateExercise(editTarget.blockId, editTarget.instanceId, {
+        name: saved.name,
+        videoUrl: saved.videoUrl,
+        videoMuted: saved.videoMuted ?? false,
+        instructions: saved.instructions,
+        category: saved.category ?? 'strength',
+      })
+    }
+  }
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -146,9 +168,21 @@ export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }
                     <div key={ex.id} className="rounded-md border border-border/60 p-2.5 space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium">{ex.name}</span>
-                        <Button type="button" variant="ghost" size="sm" onClick={() => removeExercise(block.id, ex.id)} className="text-destructive hover:text-destructive h-6 w-6 p-0">
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditTarget({ blockId: block.id, instanceId: ex.id, exerciseId: ex.exerciseId })}
+                            className="text-muted-foreground hover:text-foreground h-6 w-6 p-0"
+                            title="ערוך תרגיל בספרייה"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button type="button" variant="ghost" size="sm" onClick={() => removeExercise(block.id, ex.id)} className="text-destructive hover:text-destructive h-6 w-6 p-0">
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div className="space-y-1">
@@ -196,6 +230,12 @@ export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }
           </div>
         )}
       </CardContent>
+      <ExerciseEditDialog
+        exerciseId={editTarget?.exerciseId ?? null}
+        open={!!editTarget}
+        onOpenChange={(open) => { if (!open) setEditTarget(null) }}
+        onSaved={handleExerciseSaved}
+      />
     </Card>
   )
 }

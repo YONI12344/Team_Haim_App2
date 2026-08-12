@@ -3,8 +3,11 @@
 import { useEffect, useState } from 'react'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { Loader2, Check } from 'lucide-react'
+import { Loader2, Check, Pencil } from 'lucide-react'
 import { instructionLines } from '@/lib/utils'
+import { useAuth } from '@/contexts/auth-context'
+import { isCoachEmail } from '@/lib/constants'
+import { ExerciseEditDialog } from '@/components/coach/exercise-edit-dialog'
 import type { Workout } from '@/lib/types'
 
 /**
@@ -19,10 +22,16 @@ import type { Workout } from '@/lib/types'
  * routine, not something an athlete who already knows it needs to touch.
  */
 export function WarmupViewer({ workoutId }: { workoutId: string }) {
+  const { user } = useAuth()
+  const isCoachViewer = isCoachEmail(user?.email)
   const [workout, setWorkout] = useState<Workout | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [done, setDone] = useState<Record<string, boolean>>({})
+  // Coach can fix a video/instructions right from this popup — updates the
+  // shared Exercise Library only, doesn't rewrite this workout's own saved
+  // strengthBlocks copy (see components/coach/exercise-edit-dialog.tsx).
+  const [editingExerciseId, setEditingExerciseId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -79,7 +88,14 @@ export function WarmupViewer({ workoutId }: { workoutId: string }) {
                   )}
                   <div className="p-2.5 space-y-1.5">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-semibold">{ex.name}</p>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <p className="text-sm font-semibold truncate">{ex.name}</p>
+                        {isCoachViewer && (
+                          <button type="button" onClick={() => setEditingExerciseId(ex.exerciseId)} className="text-muted-foreground hover:text-foreground shrink-0" title="ערוך בספריית התרגילים">
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
                       <button
                         type="button"
                         onClick={() => setDone((prev) => ({ ...prev, [ex.id]: !prev[ex.id] }))}
@@ -109,6 +125,13 @@ export function WarmupViewer({ workoutId }: { workoutId: string }) {
           </div>
         </div>
       ))}
+      {isCoachViewer && (
+        <ExerciseEditDialog
+          exerciseId={editingExerciseId}
+          open={!!editingExerciseId}
+          onOpenChange={(open) => { if (!open) setEditingExerciseId(null) }}
+        />
+      )}
     </div>
   )
 }
