@@ -12,7 +12,7 @@ import { useSearchParams } from 'next/navigation'
 
 function WorkoutsContent() {
   const searchParams = useSearchParams()
-  const tab = searchParams.get('tab') || 'restore'
+  const tab = searchParams.get('tab') || 'library'
   return (
     <Tabs defaultValue={tab} className="space-y-6">
       <TabsList className="flex gap-1 h-auto">
