@@ -370,6 +370,11 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
                           </div>
                           {roundIdx === 0 && <InstructionList text={ex.instructions} className="text-xs text-muted-foreground space-y-0.5" />}
                           {ex.notes && <p className="text-xs text-primary">{ex.notes}</p>}
+                          <p className="text-xs font-semibold text-[#0a1628]/70">
+                            {ex.targetDurationSec != null
+                              ? `יעד: ${ex.targetDurationSec} שניות`
+                              : `יעד: ${ex.targetReps} חזרות`}
+                          </p>
                           <SetControl
                             ex={ex}
                             setIdx={roundIdx}
