@@ -46,6 +46,14 @@ import { toast } from 'sonner'
 import { MarkDayOffDialog } from '@/components/shared/mark-day-off-dialog'
 import { useDaysOff } from '@/hooks/useDaysOff'
 
+type RoutineTypeRule = { id: string; types: WorkoutType[]; routines: LinkedRoutine[] }
+
+const ALL_WORKOUT_TYPES: WorkoutType[] = [
+  'easy', 'long_run', 'tempo', 'intervals', 'hill_repeats', 'fartlek',
+  'recovery', 'strength', 'stretch', 'cross_training', 'swim', 'bike',
+  'rest', 'race', 'time_trial', 'threshold',
+]
+
 const WEEKDAY_KEYS = [
   'sunday','monday','tuesday','wednesday','thursday','friday','saturday',
 ] as const
@@ -86,6 +94,11 @@ export function AthletePlanner({ athleteId }: Props) {
   // carry its own linkedRoutines. Edited as a local draft with its own
   // Save button since it's a list of text fields, not a single toggle.
   const [defaultRoutinesDraft, setDefaultRoutinesDraft] = useState<LinkedRoutine[]>([])
+  // Per-workout-type rules — e.g. easy/long_run/recovery get one lighter
+  // warm-up, tempo/intervals/hill_repeats/fartlek/threshold get another
+  // with more activation drills. First matching rule wins; the flat
+  // default above is the fallback for any type no rule covers.
+  const [routineRulesDraft, setRoutineRulesDraft] = useState<RoutineTypeRule[]>([])
   const [savingDefaultRoutines, setSavingDefaultRoutines] = useState(false)
   const [routineOptions, setRoutineOptions] = useState<Workout[]>([])
 
@@ -101,15 +114,19 @@ export function AthletePlanner({ athleteId }: Props) {
 
   useEffect(() => {
     setDefaultRoutinesDraft(athlete?.defaultLinkedRoutines || [])
-  }, [athlete?.defaultLinkedRoutines])
+    setRoutineRulesDraft(athlete?.defaultLinkedRoutinesByType || [])
+  }, [athlete?.defaultLinkedRoutines, athlete?.defaultLinkedRoutinesByType])
 
   const saveDefaultRoutines = async () => {
     setSavingDefaultRoutines(true)
     try {
       const complete = defaultRoutinesDraft.filter((l) => l.workoutId && l.label.trim())
+      const completeRules = routineRulesDraft
+        .map((r) => ({ ...r, routines: r.routines.filter((l) => l.workoutId && l.label.trim()) }))
+        .filter((r) => r.types.length > 0 && r.routines.length > 0)
       const { updateDoc: ud, doc: dc } = await import('firebase/firestore')
-      await ud(dc(db, 'users', athleteId), { defaultLinkedRoutines: complete })
-      setAthlete((prev) => (prev ? { ...prev, defaultLinkedRoutines: complete } : prev))
+      await ud(dc(db, 'users', athleteId), { defaultLinkedRoutines: complete, defaultLinkedRoutinesByType: completeRules })
+      setAthlete((prev) => (prev ? { ...prev, defaultLinkedRoutines: complete, defaultLinkedRoutinesByType: completeRules } : prev))
       toast.success('שגרות ברירת המחדל נשמרו')
     } catch (err) {
       console.error('Error saving default routines:', err)
@@ -613,6 +630,8 @@ export function AthletePlanner({ athleteId }: Props) {
    *  to specific activation drills) always wins over the athlete default. */
   const withAthleteDefaultRoutines = (workout: Workout): Workout => {
     if (workout.linkedRoutines?.length) return workout
+    const rule = athlete?.defaultLinkedRoutinesByType?.find((r) => r.types.includes(workout.type))
+    if (rule?.routines.length) return { ...workout, linkedRoutines: rule.routines }
     if (!athlete?.defaultLinkedRoutines?.length) return workout
     return { ...workout, linkedRoutines: athlete.defaultLinkedRoutines }
   }
@@ -2121,12 +2140,74 @@ export function AthletePlanner({ athleteId }: Props) {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm">חימום ברירת מחדל לספורטאי</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground mb-3">
+          <CardContent className="space-y-5">
+            <p className="text-xs text-muted-foreground">
               יתווסף אוטומטית לכל אימון שמשויך לספורטאי הזה, חוץ מאימונים שכבר קושרו לשגרות משלהם בבנאי האימון.
             </p>
-            <LinkedRoutinesEditor value={defaultRoutinesDraft} onChange={setDefaultRoutinesDraft} routineOptions={routineOptions} />
-            <Button onClick={saveDefaultRoutines} disabled={savingDefaultRoutines} size="sm" className="w-full mt-3">
+
+            {/* Per-type rules — checked first, in order, first match wins */}
+            <div className="space-y-3">
+              <Label className="text-xs font-semibold">חימום לפי סוג אימון</Label>
+              <p className="text-[11px] text-muted-foreground">
+                לדוגמה: חימום קל לימי ריצה קלה, חימום מלא + הפעלה ספציפית לימי איכות. הכלל הראשון שתואם את סוג האימון הוא שיחול.
+              </p>
+              {routineRulesDraft.map((rule, ri) => (
+                <div key={rule.id} className="rounded-lg border border-border p-2.5 space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex flex-wrap gap-1.5">
+                      {ALL_WORKOUT_TYPES.map((wt) => {
+                        const active = rule.types.includes(wt)
+                        return (
+                          <button
+                            key={wt}
+                            type="button"
+                            onClick={() => setRoutineRulesDraft((prev) => prev.map((r, i) => (i === ri
+                              ? { ...r, types: active ? r.types.filter((t) => t !== wt) : [...r.types, wt] }
+                              : r)))}
+                            className={cn(
+                              'px-2 py-1 rounded-full text-[11px] font-semibold border transition-colors',
+                              active ? 'bg-[#0a1628] text-white border-[#0a1628]' : 'bg-white text-gray-500 border-gray-200',
+                            )}
+                          >
+                            {workoutTypeLabels[wt]}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setRoutineRulesDraft((prev) => prev.filter((_, i) => i !== ri))}
+                      className="text-destructive hover:text-destructive h-8 w-8 shrink-0"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <LinkedRoutinesEditor
+                    value={rule.routines}
+                    onChange={(next) => setRoutineRulesDraft((prev) => prev.map((r, i) => (i === ri ? { ...r, routines: next } : r)))}
+                    routineOptions={routineOptions}
+                  />
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setRoutineRulesDraft((prev) => [...prev, { id: `rule-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, types: [], routines: [] }])}
+              >
+                <Plus className="h-4 w-4 mr-1" />הוסף כלל לפי סוג אימון
+              </Button>
+            </div>
+
+            {/* Flat fallback — used when no rule above matches the workout's type */}
+            <div className="space-y-2 pt-3 border-t">
+              <Label className="text-xs font-semibold">ברירת מחדל כללית (לכל שאר סוגי האימונים)</Label>
+              <LinkedRoutinesEditor value={defaultRoutinesDraft} onChange={setDefaultRoutinesDraft} routineOptions={routineOptions} />
+            </div>
+
+            <Button onClick={saveDefaultRoutines} disabled={savingDefaultRoutines} size="sm" className="w-full">
               {savingDefaultRoutines ? 'שומר...' : 'שמור ברירת מחדל'}
             </Button>
           </CardContent>

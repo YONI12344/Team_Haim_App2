@@ -87,8 +87,19 @@ export interface AthleteProfile {
   // hard-day template the coach linked routines to directly). Set from
   // the athlete's planner (components/coach/athlete-planner.tsx) so the
   // coach doesn't have to re-add the same warm-up/cooldown rows to every
-  // single workout by hand.
+  // single workout by hand. Used as the fallback when no
+  // defaultLinkedRoutinesByType rule below matches the workout's type.
   defaultLinkedRoutines?: { id: string; workoutId: string; label: string }[]
+  // Same idea, but keyed by workout type — e.g. easy/long_run/recovery get
+  // one lighter warm-up, tempo/intervals/hill_repeats/fartlek/threshold get
+  // another with more activation drills. The first rule whose `types`
+  // includes the workout's type wins; falls back to defaultLinkedRoutines
+  // above if no rule matches.
+  defaultLinkedRoutinesByType?: {
+    id: string
+    types: WorkoutType[]
+    routines: { id: string; workoutId: string; label: string }[]
+  }[]
   onboardingComplete?: boolean
   // Private free-text notes — visible only to the coach, never sent to the
   // athlete (e.g. shoe model, injury history, quirks to remember)
