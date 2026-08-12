@@ -127,6 +127,38 @@ export function AthletePlanner({ athleteId }: Props) {
       const { updateDoc: ud, doc: dc } = await import('firebase/firestore')
       await ud(dc(db, 'users', athleteId), { defaultLinkedRoutines: complete, defaultLinkedRoutinesByType: completeRules })
       setAthlete((prev) => (prev ? { ...prev, defaultLinkedRoutines: complete, defaultLinkedRoutinesByType: completeRules } : prev))
+
+      // Retroactively patch already-scheduled FUTURE workouts too — a
+      // default only auto-applies at the moment a workout is assigned
+      // (see withAthleteDefaultRoutines), so without this a coach saving
+      // a new rule would have to re-assign everything already on the
+      // schedule just to see it show up. Only touches workouts that
+      // don't already carry their own routines (those always win) and
+      // haven't happened yet.
+      const pickDefaultFor = (type: WorkoutType) => {
+        const rule = completeRules.find((r) => r.types.includes(type))
+        if (rule?.routines.length) return rule.routines
+        return complete.length ? complete : null
+      }
+      const todayStr = format(new Date(), 'yyyy-MM-dd')
+      const toPatch = assignedWorkouts.filter((aw) =>
+        aw.status === 'scheduled' && aw.scheduledDate >= todayStr && !aw.workout.linkedRoutines?.length,
+      )
+      let patchedCount = 0
+      for (const aw of toPatch) {
+        const routines = pickDefaultFor(aw.workout.type)
+        if (!routines) continue
+        await ud(dc(db, 'assignedWorkouts', aw.id), { 'workout.linkedRoutines': routines })
+        patchedCount++
+      }
+      if (patchedCount > 0) {
+        setAssignedWorkouts((prev) => prev.map((aw) => {
+          const routines = pickDefaultFor(aw.workout.type)
+          const shouldPatch = toPatch.some((p) => p.id === aw.id) && routines
+          return shouldPatch ? { ...aw, workout: { ...aw.workout, linkedRoutines: routines! } } : aw
+        }))
+      }
+
       // A row missing a workout type, a chosen routine, or a title gets
       // silently dropped by the filters above (Firestore has nowhere to
       // put an incomplete rule) — surface that instead of a blanket
@@ -136,7 +168,7 @@ export function AthletePlanner({ athleteId }: Props) {
       if (droppedFlat > 0 || droppedRules > 0) {
         toast.warning(`נשמר, אבל ${droppedFlat + droppedRules} שורות לא נשמרו — חסר בהן סוג אימון, שגרה, או כותרת`)
       } else {
-        toast.success('שגרות ברירת המחדל נשמרו')
+        toast.success(`שגרות ברירת המחדל נשמרו${patchedCount > 0 ? ` · עודכנו ${patchedCount} אימונים שכבר משובצים` : ''}`)
       }
     } catch (err) {
       console.error('Error saving default routines:', err)
