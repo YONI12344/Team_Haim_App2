@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { ChevronLeft, ChevronRight, Loader2, MapPin, Clock, ChevronDown, ChevronUp, RefreshCw, CheckCircle2, Plus, CalendarClock, Pencil, Info, X as XIcon } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   addMonths, subMonths, addWeeks, subWeeks, eachDayOfInterval, isSameMonth,
@@ -34,7 +35,6 @@ import { ManualLogCard } from '@/components/shared/manual-log-card'
 import { useDaysOff } from '@/hooks/useDaysOff'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { AddActivityDialog } from '@/components/athlete/add-activity-dialog'
-import { WarmupViewer } from '@/components/athlete/warmup-viewer'
 import { MoveWorkoutDialog } from '@/components/athlete/move-workout-dialog'
 import {
   getActivityInfo, getActivityKind, isRunningKind, isGymKind,
@@ -229,6 +229,7 @@ interface AthletePlannerViewProps {
 }
 
 export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePlannerViewProps = {}) {
+  const router = useRouter()
   const { user } = useAuth()
   const { t, isRTL, language } = useLanguage()
   const typeLabels = useWorkoutTypeLabels()
@@ -257,7 +258,6 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
   // renderWorkoutDetail below is a plain closure (not its own component)
   // called once per workout and can't call hooks itself; one dialog
   // rendered once at the bottom of this component's JSX covers every card.
-  const [routineDialog, setRoutineDialog] = useState<{ workoutId: string; title: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [currentDate, setCurrentDate] = useState(() => {
     // parseISO, not `new Date(dateOnlyString)` — a bare 'yyyy-MM-dd' string
@@ -723,7 +723,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               variant="outline"
               size="sm"
               className="w-full"
-              onClick={() => setRoutineDialog({ workoutId: link.workoutId, title: resolveText(language, link.label, link.labelEn) })}
+              onClick={() => router.push(`/athlete/routine/${link.workoutId}?label=${encodeURIComponent(resolveText(language, link.label, link.labelEn))}`)}
             >
               {resolveText(language, link.label, link.labelEn)}
             </Button>
@@ -2483,15 +2483,6 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
       </div>
 
       {/* ── Dialogs ───────────────────────────────────────────────────────── */}
-      <Dialog open={!!routineDialog} onOpenChange={(o) => { if (!o) setRoutineDialog(null) }}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto" dir={language === 'en' ? 'ltr' : 'rtl'}>
-          <DialogHeader>
-            <DialogTitle className="text-right">{routineDialog?.title}</DialogTitle>
-            <DialogDescription className="sr-only">{language === 'en' ? `Routine: ${routineDialog?.title}` : `שגרת ${routineDialog?.title}`}</DialogDescription>
-          </DialogHeader>
-          {routineDialog && <WarmupViewer workoutId={routineDialog.workoutId} />}
-        </DialogContent>
-      </Dialog>
       <AddActivityDialog
         open={addActivityOpen}
         onOpenChange={setAddActivityOpen}
