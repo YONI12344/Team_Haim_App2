@@ -1869,16 +1869,16 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             secondary since the coach/athlete scans for the actual numbers
             and content, not a repeated label they already know from the
             type badge. */}
-        <div className="rounded-3xl overflow-hidden shadow-sm border border-gray-100">
+        <div className="rounded-2xl overflow-hidden shadow-sm border border-gray-100">
           <div className={cn('transition-all',
             isEffectivelyDone ? 'bg-gradient-to-br from-emerald-700 to-emerald-800' : 'bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85')}>
-            <div className="px-4 pt-3 pb-2.5">
+            <div className="px-3 pt-2.5 pb-2">
               <div className="flex items-center justify-between mb-1" dir="rtl">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="bg-white/15 text-white/90 text-[10px] font-bold px-2.5 py-0.5 rounded-full shrink-0">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="bg-white/15 text-white/90 text-[9px] font-bold px-2 py-0.5 rounded-full shrink-0">
                     {typeLabels[w.workout?.type] || w.workout?.type || 'ריצה'}
                   </span>
-                  <p className="font-bold text-white/70 text-xs leading-tight truncate">
+                  <p className="font-bold text-white/70 text-[11px] leading-tight truncate">
                     {resolveText(language, w.workout.title, w.workout.titleEn)}
                   </p>
                 </div>
@@ -1899,26 +1899,26 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               {/* The actual numbers — clearer than a row of small pills,
                   since this (not the title) is what's actually being
                   scanned for. Kept compact (not oversized) per feedback. */}
-              <div className="flex items-baseline gap-3 flex-wrap mt-1.5" dir="rtl">
+              <div className="flex items-baseline gap-2 flex-wrap mt-1" dir="rtl">
                 {w.workout.distance && (
-                  <span className="text-white font-black text-lg leading-none">
-                    {totalMatchedKm ?? topLog?.actualDistance ?? w.workout.distance}<span className="text-xs font-bold ms-1">km</span>
+                  <span className="text-white font-black text-base leading-none">
+                    {totalMatchedKm ?? topLog?.actualDistance ?? w.workout.distance}<span className="text-[10px] font-bold ms-1">km</span>
                   </span>
                 )}
                 {w.workout.duration && !topLog && (
-                  <span className="text-white font-black text-lg leading-none">
-                    {w.workout.duration}<span className="text-xs font-bold ms-1">min</span>
+                  <span className="text-white font-black text-base leading-none">
+                    {w.workout.duration}<span className="text-[10px] font-bold ms-1">min</span>
                   </span>
                 )}
-                {topLog?.actualPace && <span className="text-white/90 text-xs font-bold" dir="ltr">{topLog.actualPace}</span>}
-                {topLog?.effort != null && <span className="text-white/90 text-xs font-bold">{t.effortValueLabel} {topLog.effort}/10</span>}
+                {topLog?.actualPace && <span className="text-white/90 text-[11px] font-bold" dir="ltr">{topLog.actualPace}</span>}
+                {topLog?.effort != null && <span className="text-white/90 text-[11px] font-bold">{t.effortValueLabel} {topLog.effort}/10</span>}
               </div>
               {/* The actual workout — the real content, not just numbers.
                   This is what "the workout in the blue box" means: what
                   the coach actually wrote, right where the eye lands
                   first, not buried in the white body below. */}
               {w.workout.description && (
-                <p className="text-white/85 text-xs leading-relaxed mt-2 whitespace-pre-line">
+                <p className="text-white/85 text-[11px] leading-relaxed mt-1.5 whitespace-pre-line">
                   {resolveText(language, w.workout.description, w.workout.descriptionEn)}
                 </p>
               )}
@@ -2033,8 +2033,12 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
    *  training-log spreadsheet is actually laid out: weeks as blocks,
    *  days as columns, the real content always visible, no click needed. */
   const renderWeekGrid = (days: Date[], keyPrefix: string) => (
+    // Deliberately compact by default — narrower columns than a first pass
+    // at this, since the point is to see MORE of the week/month at once
+    // and pinch-zoom in on one day when it needs to be read closely,
+    // rather than each column already being full desktop-reading size.
     <div className="overflow-x-auto -mx-4 px-4 pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
-      <div className="grid grid-flow-col gap-3" style={{ gridAutoColumns: 'minmax(230px, 1fr)' }} dir="rtl">
+      <div className="grid grid-flow-col gap-2" style={{ gridAutoColumns: 'minmax(150px, 1fr)' }} dir="rtl">
         {days.map((day, di) => {
           const dayWs = getWorkoutsForDay(day)
           const dateStr = format(day, 'yyyy-MM-dd')
@@ -2045,13 +2049,13 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
           const todayFlag = isToday(day)
           const dayOffCard = renderDayOffCard(dateStr)
           return (
-            <div key={`${keyPrefix}-${di}`} className={cn('rounded-2xl border p-2.5 space-y-2',
+            <div key={`${keyPrefix}-${di}`} className={cn('rounded-xl border p-1.5 space-y-1.5',
               todayFlag ? 'border-[#c9a84c]/60 bg-[#c9a84c]/5' : 'border-gray-100 bg-white')}>
-              <div className="text-center pb-1.5 border-b border-gray-100">
-                <p className={cn('text-[9px] font-semibold', todayFlag ? 'text-[#c9a84c]' : 'text-gray-400')}>
+              <div className="text-center pb-1 border-b border-gray-100">
+                <p className={cn('text-[8px] font-semibold', todayFlag ? 'text-[#c9a84c]' : 'text-gray-400')}>
                   {dayShortRot[di]}
                 </p>
-                <p className={cn('text-sm font-black', todayFlag ? 'text-[#0a1628]' : 'text-[#0a1628]/70')}>
+                <p className={cn('text-xs font-black', todayFlag ? 'text-[#0a1628]' : 'text-[#0a1628]/70')}>
                   {format(day, 'd/M')}
                 </p>
               </div>
@@ -2059,12 +2063,12 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               {dayWs.map((w, i) => renderNavyWorkoutBlock(w, dayWs.length > 1, i, dateStr, matchedActivitiesForDay(w), dayWs))}
               {unmatchedActivitiesDay.map(log => <StravaCard key={log.id} log={log} dayWorkouts={dayWs} />)}
               {dayWs.length === 0 && activitiesDay.length === 0 && !dayOffCard && (
-                <p className="text-[11px] text-gray-400 text-center py-6">{t.restDayLabel}</p>
+                <p className="text-[10px] text-gray-400 text-center py-4">{t.restDayLabel}</p>
               )}
               <button
                 onClick={() => { setAddActivityDate(dateStr); setAddActivityOpen(true) }}
-                className="w-full h-9 rounded-xl border-2 border-dashed border-gray-200 hover:border-[#c9a84c]/50 text-gray-400 hover:text-[#c9a84c] text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] bg-white/50">
-                <Plus className="h-3 w-3" />
+                className="w-full h-7 rounded-lg border-2 border-dashed border-gray-200 hover:border-[#c9a84c]/50 text-gray-400 hover:text-[#c9a84c] text-[9px] font-bold flex items-center justify-center gap-1 transition-all active:scale-[0.98] bg-white/50">
+                <Plus className="h-2.5 w-2.5" />
                 {t.addActivityBtn}
               </button>
             </div>
