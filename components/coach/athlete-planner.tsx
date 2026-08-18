@@ -1607,13 +1607,28 @@ export function AthletePlanner({ athleteId }: Props) {
                                     return (
                                       <button key={w.id}
                                         onClick={e => { e.stopPropagation(); setSelectedAssignedId(prev => prev === w.id ? null : w.id); if (inMonth) setSelectedDate(day) }}
-                                        className={cn('w-full text-left text-[8px] rounded px-0.5 py-0.5 border truncate hover:opacity-75 flex items-center gap-0.5',
+                                        className={cn('w-full text-left text-[7px] leading-tight rounded px-1 py-1 border hover:opacity-75 flex flex-col items-start gap-0.5',
                                           suspicious ? 'bg-red-100 text-red-700 border-red-300 font-bold' : (TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy),
                                           isDone ? 'opacity-60' : '',
                                           selectedAssignedId === w.id ? 'ring-1 ring-navy font-bold' : ''
                                         )}>
-                                        {suspicious && <AlertTriangle className="h-2 w-2 flex-shrink-0"/>}
-                                        {isDone ? '✓ ' : ''}{w.workout?.title}
+                                        {/* Coach-only view — full detail, tiny text, cell grows
+                                            to fit (like the Excel sheet's auto row height).
+                                            Athlete's own view is untouched, stays as-is. */}
+                                        <span className="w-full flex items-center gap-0.5 font-bold text-[7.5px]">
+                                          {suspicious && <AlertTriangle className="h-2 w-2 flex-shrink-0"/>}
+                                          {isDone ? '✓ ' : ''}{w.workout?.title}
+                                        </span>
+                                        {(w.workout?.distance || w.workout?.duration) && (
+                                          <span className="w-full opacity-70 font-semibold">
+                                            {w.workout?.distance ? `${w.workout.distance} ק"מ` : ''}
+                                            {w.workout?.distance && w.workout?.duration ? ' · ' : ''}
+                                            {w.workout?.duration ? `${w.workout.duration} דק'` : ''}
+                                          </span>
+                                        )}
+                                        {w.workout?.description && (
+                                          <span className="w-full opacity-70 whitespace-pre-line">{w.workout.description}</span>
+                                        )}
                                       </button>
                                     )
                                   })}
