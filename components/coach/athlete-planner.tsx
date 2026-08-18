@@ -1607,16 +1607,16 @@ export function AthletePlanner({ athleteId }: Props) {
                                     return (
                                       <button key={w.id}
                                         onClick={e => { e.stopPropagation(); setSelectedAssignedId(prev => prev === w.id ? null : w.id); if (inMonth) setSelectedDate(day) }}
-                                        className={cn('w-full text-left text-[7px] leading-tight rounded px-1 py-1 border hover:opacity-75 flex flex-col items-start gap-0.5',
+                                        className={cn('w-full text-left text-[9px] leading-snug rounded px-1.5 py-1.5 border hover:opacity-75 flex flex-col items-start gap-1',
                                           suspicious ? 'bg-red-100 text-red-700 border-red-300 font-bold' : (TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy),
                                           isDone ? 'opacity-60' : '',
                                           selectedAssignedId === w.id ? 'ring-1 ring-navy font-bold' : ''
                                         )}>
-                                        {/* Coach-only view — full detail, tiny text, cell grows
-                                            to fit (like the Excel sheet's auto row height).
-                                            Athlete's own view is untouched, stays as-is. */}
-                                        <span className="w-full flex items-center gap-0.5 font-bold text-[7.5px]">
-                                          {suspicious && <AlertTriangle className="h-2 w-2 flex-shrink-0"/>}
+                                        {/* Coach-only view — full detail, cell grows to fit
+                                            (like the Excel sheet's auto row height). Athlete's
+                                            own view is untouched, stays as-is. */}
+                                        <span className="w-full flex items-center gap-0.5 font-bold text-[10px]">
+                                          {suspicious && <AlertTriangle className="h-2.5 w-2.5 flex-shrink-0"/>}
                                           {isDone ? '✓ ' : ''}{w.workout?.title}
                                         </span>
                                         {(w.workout?.distance || w.workout?.duration) && (
@@ -1624,6 +1624,19 @@ export function AthletePlanner({ athleteId }: Props) {
                                             {w.workout?.distance ? `${w.workout.distance} ק"מ` : ''}
                                             {w.workout?.distance && w.workout?.duration ? ' · ' : ''}
                                             {w.workout?.duration ? `${w.workout.duration} דק'` : ''}
+                                          </span>
+                                        )}
+                                        {/* Structured sets (reps × distance/time), when this
+                                            workout was built with the set editor rather than
+                                            (or in addition to) free-text description. */}
+                                        {!!w.workout?.sets?.length && (
+                                          <span className="w-full opacity-80 font-bold" dir="ltr">
+                                            {w.workout.sets.map((s: any) => {
+                                              const unit = s.distance || (s.distanceMeters ? `${s.distanceMeters}m` : '')
+                                                || s.duration || (s.durationSec ? `${Math.round(s.durationSec / 60)} דק'` : '')
+                                              if (!unit) return null
+                                              return s.reps > 1 ? `${s.reps}×${unit}` : unit
+                                            }).filter(Boolean).join(' + ')}
                                           </span>
                                         )}
                                         {w.workout?.description && (
