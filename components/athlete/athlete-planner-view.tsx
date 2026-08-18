@@ -2184,7 +2184,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                               TYPE_CHIP_COLORS[w.workout?.type] || 'bg-[#0a1628]/5 text-[#0a1628]/70'
                             )}>
                               {done && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 text-white text-[6px] leading-[10px] flex items-center justify-center">✓</span>}
-                              {workoutTypeLabel(w.workout?.type)}
+                              {resolveText(language, w.workout?.title, w.workout?.titleEn)}
                             </span>
                           )
                         })}
@@ -2375,7 +2375,12 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                                     TYPE_CHIP_COLORS[w.workout?.type] || 'bg-[#0a1628]/5 text-[#0a1628]/80'
                                   )}>
                                     {done && <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 text-white text-[8px] leading-[14px] flex items-center justify-center shadow-sm">✓</span>}
-                                    <span className="block truncate text-[9px] font-bold">{workoutTypeLabel(w.workout?.type)}</span>
+                                    {/* Real title, not the generic type name — titles are
+                                        often auto-built with the actual prescription
+                                        (e.g. "אינטרוולים 6×800m"), so this is the closest
+                                        the month grid can get to "the real workout, not
+                                        a label" within one line. */}
+                                    <span className="block truncate text-[9px] font-bold">{resolveText(language, w.workout?.title, w.workout?.titleEn)}</span>
                                     {dist ? <span className="block truncate text-[8px] font-semibold opacity-70">{dist} {isRTL ? 'ק"מ' : 'km'}</span> : null}
                                   </span>
                                 )

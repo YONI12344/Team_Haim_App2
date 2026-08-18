@@ -27,7 +27,7 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import Link from 'next/link'
-import { cn } from '@/lib/utils'
+import { cn, resolveText } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
   collection,
@@ -154,7 +154,7 @@ export function AthleteDashboard() {
   // — no manual refetch callback needed here (unlike the Schedule page's
   // own copy of this hook, which reloads a plain one-time query).
   const { syncing: stravaSyncing, sync: syncStrava } = useStravaSync(user?.id || '')
-  const { t, isRTL } = useLanguage()
+  const { t, isRTL, language } = useLanguage()
   const workoutTypeLabels = useWorkoutTypeLabels()
   const [profile, setProfile] = useState<Partial<AthleteProfile> | null>(null)
   const [assigned, setAssigned] = useState<AssignedWorkout[]>([])
@@ -512,15 +512,33 @@ export function AthleteDashboard() {
               <>
                 {todayWorkouts.map((tw, i) => (
                   <div key={tw.id} className={i > 0 ? 'mt-4 pt-4 border-t border-white/10' : undefined}>
-                    <p className="text-2xl font-bold text-white leading-tight mt-2 mb-3">{tw.workout.title}</p>
-                    <div className="flex items-center gap-2 flex-wrap mb-4">
-                      <span className={cn('rounded-full px-3 py-1 text-xs font-bold',
+                    {/* Type + title small and secondary — the actual
+                        numbers and session content are what matters here,
+                        not a repeated label. */}
+                    <div className="flex items-center gap-2 flex-wrap mt-2 mb-1.5">
+                      <span className={cn('rounded-full px-3 py-1 text-xs font-bold shrink-0',
                         allDone ? 'bg-white/20 text-white' : 'bg-[#c9a84c] text-[#0a1628]')}>
                         {workoutTypeLabels[tw.workout.type as WorkoutType] || tw.workout.type}
                       </span>
-                      {tw.workout.distance && <span className="text-sm text-white/70">{tw.workout.distance} {t.km}</span>}
-                      {tw.workout.duration && <span className="text-sm text-white/70">{tw.workout.duration} {t.min}</span>}
+                      <p className="text-sm font-bold text-white/70 truncate">{resolveText(language, tw.workout.title, tw.workout.titleEn)}</p>
                     </div>
+                    <div className="flex items-baseline gap-3 flex-wrap mb-2">
+                      {tw.workout.distance && (
+                        <span className="text-white font-black text-3xl leading-none">
+                          {tw.workout.distance}<span className="text-sm font-bold ms-1">{t.km}</span>
+                        </span>
+                      )}
+                      {tw.workout.duration && (
+                        <span className="text-white font-black text-3xl leading-none">
+                          {tw.workout.duration}<span className="text-sm font-bold ms-1">{t.min}</span>
+                        </span>
+                      )}
+                    </div>
+                    {tw.workout.description && (
+                      <p className="text-sm text-white/85 leading-relaxed mb-4 whitespace-pre-line">
+                        {resolveText(language, tw.workout.description, tw.workout.descriptionEn)}
+                      </p>
+                    )}
                     <Link href={`/athlete/schedule?date=${tw.scheduledDate}&workoutId=${tw.id}`}>
                       <button className="w-full h-12 rounded-2xl font-bold text-sm active:scale-95 transition-all bg-white/20 text-white hover:bg-white/25">
                         {tw.status === 'completed' ? t.workoutDoneDetails : t.openWorkoutBtn}
