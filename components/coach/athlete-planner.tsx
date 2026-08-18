@@ -1593,7 +1593,7 @@ export function AthletePlanner({ athleteId }: Props) {
                                 }}
                                 onDragOver={(e) => { if (inMonth) e.preventDefault() }}
                                 onDrop={(e) => { if (inMonth) handleDayDrop(e, dateStr) }}
-                                className={cn('min-h-[110px] rounded-lg p-1 border transition-all',
+                                className={cn('min-h-[80px] rounded-lg p-1 border transition-all',
                                   !inMonth ? 'opacity-20 border-transparent' : 'border-border',
                                   todayFlag ? 'border-gold/60 bg-gold/5' : '',
                                   (copiedWorkout || armedBankWorkout) && inMonth ? 'cursor-pointer hover:border-gold' : ''
@@ -1607,31 +1607,13 @@ export function AthletePlanner({ athleteId }: Props) {
                                     return (
                                       <button key={w.id}
                                         onClick={e => { e.stopPropagation(); setSelectedAssignedId(prev => prev === w.id ? null : w.id); if (inMonth) setSelectedDate(day) }}
-                                        className={cn('w-full text-left text-[8px] rounded px-1 py-0.5 border hover:opacity-75 flex flex-col items-start gap-0',
+                                        className={cn('w-full text-left text-[8px] rounded px-0.5 py-0.5 border truncate hover:opacity-75 flex items-center gap-0.5',
                                           suspicious ? 'bg-red-100 text-red-700 border-red-300 font-bold' : (TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy),
                                           isDone ? 'opacity-60' : '',
                                           selectedAssignedId === w.id ? 'ring-1 ring-navy font-bold' : ''
                                         )}>
-                                        <span className="w-full truncate flex items-center gap-0.5">
-                                          {suspicious && <AlertTriangle className="h-2 w-2 flex-shrink-0"/>}
-                                          {isDone ? '✓ ' : ''}{w.workout?.title}
-                                        </span>
-                                        {(w.workout?.distance || w.workout?.duration) && (
-                                          <span className="w-full truncate text-[7px] font-semibold opacity-70">
-                                            {w.workout?.distance ? `${w.workout.distance} ק"מ` : ''}
-                                            {w.workout?.distance && w.workout?.duration ? ' · ' : ''}
-                                            {w.workout?.duration ? `${w.workout.duration} דק'` : ''}
-                                          </span>
-                                        )}
-                                        {/* A real snippet of the actual session, not just its
-                                            name/numbers — this is what "click to see full
-                                            detail" used to hide entirely; now most of it is
-                                            already visible right in the grid. */}
-                                        {w.workout?.description && (
-                                          <span className="w-full text-[7px] opacity-70 leading-tight" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                                            {w.workout.description}
-                                          </span>
-                                        )}
+                                        {suspicious && <AlertTriangle className="h-2 w-2 flex-shrink-0"/>}
+                                        {isDone ? '✓ ' : ''}{w.workout?.title}
                                       </button>
                                     )
                                   })}
