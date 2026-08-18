@@ -13,7 +13,7 @@ import {
   addMonths, subMonths, addWeeks, subWeeks, eachDayOfInterval, isSameMonth,
   isSameDay, isToday, parseISO, eachWeekOfInterval,
 } from 'date-fns'
-import { cn, resolveText } from '@/lib/utils'
+import { cn, resolveText, formatSetsSummary } from '@/lib/utils'
 import { db } from '@/lib/firebase'
 import { collection, doc, getDoc, getDocs, query, where, updateDoc } from 'firebase/firestore'
 import type { AthleteProfile, AssignedWorkout, TrainingDayType } from '@/lib/types'
@@ -1826,6 +1826,11 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
 
   const renderNavyWorkoutBlock = (w: AssignedWorkout, isMulti: boolean, idx: number, dateStr: string, matchedActivities: WeekLog[] = [], dayWorkouts: AssignedWorkout[] = []) => {
     const wEff = getEffectiveStatus(w)
+    // Reps×distance/time ("6×5 min") is the actual session for structured
+    // training — a plain distance/duration total doesn't say what was
+    // actually run. Falls back to distance/duration below when there's no
+    // set structure (a plain easy run has none, and its total IS the point).
+    const setsSummary = formatSetsSummary(w.workout.sets, language)
     // The "no assignedWorkoutId" fallback only applies on a single-workout
     // day (isMulti false) — on a multi-workout day an orphaned log would
     // otherwise get attributed to every workout that day via this same
@@ -1869,7 +1874,12 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             secondary since the coach/athlete scans for the actual numbers
             and content, not a repeated label they already know from the
             type badge. */}
-        <div className="rounded-2xl overflow-hidden shadow-sm border border-gray-100">
+        {/* Left border accent colored by workout TYPE (long run orange, easy
+            green, etc.) — the header itself stays blue/green/red for
+            status, same as before; this is just "what kind of day is this"
+            at a glance, restored from the old compact chip colors. */}
+        <div className={cn('rounded-2xl overflow-hidden shadow-sm border border-gray-100 border-l-4',
+          TYPE_BORDER_COLORS[w.workout?.type] || 'border-l-[#0a1628]')}>
           <div className={cn('transition-all',
             isEffectivelyDone ? 'bg-gradient-to-br from-emerald-700 to-emerald-800' : 'bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85')}>
             <div className="px-3 pt-2.5 pb-2">
@@ -1896,16 +1906,19 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                   )}
                 </div>
               </div>
-              {/* The actual numbers — clearer than a row of small pills,
-                  since this (not the title) is what's actually being
-                  scanned for. Kept compact (not oversized) per feedback. */}
+              {/* The actual session — sets/reps structure when there is
+                  one, since that's what's actually being scanned for
+                  (not a summed total that hides the structure). */}
+              {setsSummary && (
+                <p className="text-white font-black text-base leading-tight mt-1" dir="ltr">{setsSummary}</p>
+              )}
               <div className="flex items-baseline gap-2 flex-wrap mt-1" dir="rtl">
-                {w.workout.distance && (
+                {!setsSummary && w.workout.distance && (
                   <span className="text-white font-black text-base leading-none">
                     {totalMatchedKm ?? topLog?.actualDistance ?? w.workout.distance}<span className="text-[10px] font-bold ms-1">km</span>
                   </span>
                 )}
-                {w.workout.duration && !topLog && (
+                {!setsSummary && w.workout.duration && !topLog && (
                   <span className="text-white font-black text-base leading-none">
                     {w.workout.duration}<span className="text-[10px] font-bold ms-1">min</span>
                   </span>

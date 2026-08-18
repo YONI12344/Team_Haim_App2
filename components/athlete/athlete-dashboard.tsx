@@ -27,7 +27,7 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import Link from 'next/link'
-import { cn, resolveText } from '@/lib/utils'
+import { cn, resolveText, formatSetsSummary } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
   collection,
@@ -522,43 +522,44 @@ export function AthleteDashboard() {
                       </span>
                       <p className="text-sm font-bold text-white/70 truncate">{resolveText(language, tw.workout.title, tw.workout.titleEn)}</p>
                     </div>
-                    <div className="flex items-baseline gap-3 flex-wrap mb-2">
-                      {tw.workout.distance && (
-                        <span className="text-white font-black text-3xl leading-none">
-                          {tw.workout.distance}<span className="text-sm font-bold ms-1">{t.km}</span>
-                        </span>
-                      )}
-                      {tw.workout.duration && (
-                        <span className="text-white font-black text-3xl leading-none">
-                          {tw.workout.duration}<span className="text-sm font-bold ms-1">{t.min}</span>
-                        </span>
-                      )}
-                    </div>
-                    {/* Warm-up / main set / cooldown — the actual session,
-                        each its own clearly labeled part instead of one
-                        undifferentiated paragraph. Linked routine buttons
-                        (if the coach attached any) go last, as additional
-                        detail to open, not the headline content. */}
-                    {tw.workout.warmup && (
-                      <div className="mb-3">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-0.5">{t.warmupLabel}</p>
-                        <p className="text-sm text-white/85 leading-relaxed whitespace-pre-line">
-                          {resolveText(language, tw.workout.warmup, tw.workout.warmupEn)}
-                        </p>
-                      </div>
-                    )}
+                    {/* The main workout — reps×distance/time is what
+                        actually matters for structured training (a
+                        coach/athlete working by time cares that it's
+                        "6×5 min", not that it summed to 9 km). Falls back
+                        to plain distance/duration for a simple run with no
+                        interval structure, where the total IS the point. */}
+                    {(() => {
+                      const setsSummary = formatSetsSummary(tw.workout.sets, language)
+                      if (setsSummary) return (
+                        <p className="text-white font-black text-2xl leading-tight mb-2" dir="ltr">{setsSummary}</p>
+                      )
+                      return (
+                        <div className="flex items-baseline gap-3 flex-wrap mb-2">
+                          {tw.workout.distance && (
+                            <span className="text-white font-black text-3xl leading-none">
+                              {tw.workout.distance}<span className="text-sm font-bold ms-1">{t.km}</span>
+                            </span>
+                          )}
+                          {tw.workout.duration && (
+                            <span className="text-white font-black text-3xl leading-none">
+                              {tw.workout.duration}<span className="text-sm font-bold ms-1">{t.min}</span>
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })()}
                     {tw.workout.description && (
                       <p className="text-sm text-white/85 leading-relaxed mb-3 whitespace-pre-line">
                         {resolveText(language, tw.workout.description, tw.workout.descriptionEn)}
                       </p>
                     )}
-                    {tw.workout.cooldown && (
-                      <div className="mb-3">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-0.5">{t.cooldownLabel}</p>
-                        <p className="text-sm text-white/85 leading-relaxed whitespace-pre-line">
-                          {resolveText(language, tw.workout.cooldown, tw.workout.cooldownEn)}
-                        </p>
-                      </div>
+                    {/* Warm-up/cooldown — secondary, small, not the focus */}
+                    {(tw.workout.warmup || tw.workout.cooldown) && (
+                      <p className="text-[10px] text-white/40 leading-snug mb-3">
+                        {tw.workout.warmup && `${t.warmupLabel}: ${resolveText(language, tw.workout.warmup, tw.workout.warmupEn)}`}
+                        {tw.workout.warmup && tw.workout.cooldown && '  ·  '}
+                        {tw.workout.cooldown && `${t.cooldownLabel}: ${resolveText(language, tw.workout.cooldown, tw.workout.cooldownEn)}`}
+                      </p>
                     )}
                     {!!tw.workout.linkedRoutines?.length && (
                       <div className="flex flex-col gap-1.5 mb-3">

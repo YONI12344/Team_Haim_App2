@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import type { ExerciseLibraryItem, StrengthBlockExercise } from '@/lib/types'
+import type { ExerciseLibraryItem, StrengthBlockExercise, WorkoutSet } from '@/lib/types'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -105,4 +105,23 @@ export function instructionLines(text?: string | null): string[] {
     .split(/(?<=[.!?])\s+/)
     .map((l) => l.trim())
     .filter(Boolean)
+}
+
+/** Compact "the actual session" summary from a workout's structured sets —
+ *  e.g. "6×5 min" or "8×1000m" or "3×3km" — instead of total distance/
+ *  duration, which for interval training tells you nothing about what was
+ *  actually run (a coach/athlete training by structured reps cares about
+ *  the reps, not the sum). Falls back to '' when there's no set structure
+ *  (a plain easy run has none — its distance/duration IS the useful
+ *  number, this helper isn't meant to replace that case). */
+export function formatSetsSummary(sets: WorkoutSet[] | undefined | null, language: 'he' | 'en'): string {
+  if (!sets?.length) return ''
+  const minLabel = language === 'en' ? 'min' : "דק'"
+  const parts = sets.map((s) => {
+    const unit = s.distance || (s.distanceMeters ? `${s.distanceMeters}m` : '')
+      || s.duration || (s.durationSec ? `${Math.round(s.durationSec / 60)} ${minLabel}` : '')
+    if (!unit) return ''
+    return s.reps > 1 ? `${s.reps}×${unit}` : unit
+  }).filter(Boolean)
+  return parts.join(' + ')
 }
