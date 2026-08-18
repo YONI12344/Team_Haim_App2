@@ -1869,77 +1869,92 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             )}
           </div>
         )}
-        <div className={cn('rounded-3xl transition-all',
-          isEffectivelyDone ? 'bg-gradient-to-br from-emerald-700 to-emerald-800' : 'bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85')}>
-          <div className="p-5">
-            <div className="flex items-center justify-between mb-2.5" dir="rtl">
-              <span className="bg-white/15 text-white/90 text-[11px] font-bold px-3 py-1 rounded-full">
-                {typeLabels[w.workout?.type] || w.workout?.type || 'ריצה'}
-              </span>
-              <div className="flex items-center gap-1.5">
-                {stravaThisDay?.feedbackStatus === 'pending' && (
-                  <span className="text-[10px] font-bold bg-[#c9a84c]/25 text-[#c9a84c] border border-[#c9a84c]/40 px-2 py-0.5 rounded-full">ממתין למשוב</span>
-                )}
-                {stravaThisDay && stravaThisDay.feedbackStatus !== 'pending' && (
-                  <span className="text-[10px] font-bold text-[#FC4C02] bg-[#FC4C02]/20 px-2 py-0.5 rounded-full">Strava ✓</span>
-                )}
-                {isEffectivelyDone && !stravaThisDay && <span className="text-[11px] font-bold text-emerald-200">{t.stravaCompletedLabel}</span>}
-                {wEff === 'skipped' && <span className="text-[11px] font-bold text-red-300">{t.stravaNotDoneLabel}</span>}
-                {isToday(parseISO(w.scheduledDate)) && wEff === 'scheduled' && idx === 0 && !stravaThisDay && (
-                  <span className="text-[#c9a84c] text-[11px] font-black">{t.today}</span>
-                )}
-              </div>
-            </div>
-            <p className={cn('font-black text-white leading-tight mb-3', isMulti ? 'text-xl' : 'text-[26px]')}>
-              {resolveText(language, w.workout.title, w.workout.titleEn)}
-            </p>
-            <div className="flex items-center gap-2 mb-4 flex-wrap" dir="rtl">
-              {w.workout.distance && (
-                <span className={cn('text-sm font-bold px-3 py-1.5 rounded-full',
-                  isEffectivelyDone ? 'bg-white/20 text-white' : 'bg-[#c9a84c] text-[#0a1628]')}>
-                  {totalMatchedKm ?? topLog?.actualDistance ?? w.workout.distance} km
-                </span>
-              )}
-              {w.workout.duration && !topLog && (
-                <span className="text-sm bg-white/15 text-white px-3 py-1.5 rounded-full">{w.workout.duration} min</span>
-              )}
-              {topLog?.actualPace && <span className="text-sm bg-white/15 text-white px-3 py-1.5 rounded-full" dir="ltr">{topLog.actualPace}</span>}
-              {topLog?.effort != null && <span className="text-sm bg-white/15 text-white px-3 py-1.5 rounded-full">{t.effortValueLabel} {topLog.effort}/10</span>}
-            </div>
-            {stravaMatch && !topLog && (
-              <div className="flex items-center gap-1.5 mb-3" dir="rtl">
-                <span className="text-[9px] font-black text-[#FC4C02] bg-[#FC4C02]/25 w-4 h-4 rounded flex items-center justify-center flex-shrink-0">S</span>
-                {stravaMatch.planned > 0 ? (
-                  <span className={cn('text-[11px] font-bold',
-                    stravaMatch.status === 'completed' ? 'text-emerald-300' :
-                    stravaMatch.status === 'partial' ? 'text-amber-300' : 'text-red-300')}>
-                    {stravaMatch.actual} / {stravaMatch.planned} km
-                    {stravaMatch.status === 'completed' ? ` ${t.stravaCompletedLabel}` : stravaMatch.status === 'partial' ? ` ${t.stravaPartialLabel}` : ` ${t.stravaNotDoneLabel}`}
+        {/* One unified card, colored header + white body — not two floating
+            boxes. Header color signals status at a glance (blue =
+            scheduled, green = done, red = skipped); the title is small/
+            secondary since the coach/athlete scans for the actual numbers
+            and content, not a repeated label they already know from the
+            type badge. */}
+        <div className="rounded-3xl overflow-hidden shadow-sm border border-gray-100">
+          <div className={cn('transition-all',
+            isEffectivelyDone ? 'bg-gradient-to-br from-emerald-600 to-emerald-700'
+              : wEff === 'skipped' ? 'bg-gradient-to-br from-red-500 to-red-600'
+              : 'bg-gradient-to-br from-[#1d5fb8] to-[#123f80]')}>
+            <div className="px-5 pt-4 pb-3">
+              <div className="flex items-center justify-between mb-1.5" dir="rtl">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="bg-white/15 text-white/90 text-[11px] font-bold px-3 py-1 rounded-full shrink-0">
+                    {typeLabels[w.workout?.type] || w.workout?.type || 'ריצה'}
                   </span>
-                ) : (
-                  <span className="text-[11px] font-bold text-emerald-300">{stravaMatch.actual} km ✓</span>
-                )}
+                  <p className={cn('font-bold text-white/90 leading-tight truncate', isMulti ? 'text-sm' : 'text-base')}>
+                    {resolveText(language, w.workout.title, w.workout.titleEn)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {stravaThisDay?.feedbackStatus === 'pending' && (
+                    <span className="text-[10px] font-bold bg-[#c9a84c]/25 text-[#c9a84c] border border-[#c9a84c]/40 px-2 py-0.5 rounded-full">ממתין למשוב</span>
+                  )}
+                  {stravaThisDay && stravaThisDay.feedbackStatus !== 'pending' && (
+                    <span className="text-[10px] font-bold text-[#FC4C02] bg-[#FC4C02]/20 px-2 py-0.5 rounded-full">Strava ✓</span>
+                  )}
+                  {isEffectivelyDone && !stravaThisDay && <span className="text-[11px] font-bold text-emerald-100">{t.stravaCompletedLabel}</span>}
+                  {wEff === 'skipped' && <span className="text-[11px] font-bold text-red-100">{t.stravaNotDoneLabel}</span>}
+                  {isToday(parseISO(w.scheduledDate)) && wEff === 'scheduled' && idx === 0 && !stravaThisDay && (
+                    <span className="text-[#ffe19a] text-[11px] font-black">{t.today}</span>
+                  )}
+                </div>
               </div>
-            )}
-            {wEff === 'scheduled' && !isEffectivelyDone && (
-              <button
-                onClick={() => setMoveWorkoutTarget(w)}
-                title={t.moveWorkoutBtn}
-                className="h-11 w-11 rounded-2xl bg-white/10 hover:bg-white/20 text-white/70 hover:text-white flex items-center justify-center active:scale-95 transition-all flex-shrink-0">
-                <CalendarClock className="h-5 w-5" />
-              </button>
-            )}
-            {(w as any).movedByAthlete && (
-              <p className="text-[10px] text-white/40 mt-2 text-center" dir="rtl">{t.movedByAthleteTag}</p>
-            )}
+              {/* The actual numbers — bigger and clearer than a row of small
+                  pills, since this (not the title) is what's actually being
+                  scanned for. */}
+              <div className="flex items-baseline gap-3 flex-wrap mt-2" dir="rtl">
+                {w.workout.distance && (
+                  <span className="text-white font-black text-2xl leading-none">
+                    {totalMatchedKm ?? topLog?.actualDistance ?? w.workout.distance}<span className="text-sm font-bold ms-1">km</span>
+                  </span>
+                )}
+                {w.workout.duration && !topLog && (
+                  <span className="text-white font-black text-2xl leading-none">
+                    {w.workout.duration}<span className="text-sm font-bold ms-1">min</span>
+                  </span>
+                )}
+                {topLog?.actualPace && <span className="text-white/90 text-sm font-bold" dir="ltr">{topLog.actualPace}</span>}
+                {topLog?.effort != null && <span className="text-white/90 text-sm font-bold">{t.effortValueLabel} {topLog.effort}/10</span>}
+              </div>
+              {stravaMatch && !topLog && (
+                <div className="flex items-center gap-1.5 mt-2" dir="rtl">
+                  <span className="text-[9px] font-black text-[#FC4C02] bg-[#FC4C02]/25 w-4 h-4 rounded flex items-center justify-center flex-shrink-0">S</span>
+                  {stravaMatch.planned > 0 ? (
+                    <span className={cn('text-[11px] font-bold',
+                      stravaMatch.status === 'completed' ? 'text-emerald-100' :
+                      stravaMatch.status === 'partial' ? 'text-amber-100' : 'text-red-100')}>
+                      {stravaMatch.actual} / {stravaMatch.planned} km
+                      {stravaMatch.status === 'completed' ? ` ${t.stravaCompletedLabel}` : stravaMatch.status === 'partial' ? ` ${t.stravaPartialLabel}` : ` ${t.stravaNotDoneLabel}`}
+                    </span>
+                  ) : (
+                    <span className="text-[11px] font-bold text-emerald-100">{stravaMatch.actual} km ✓</span>
+                  )}
+                </div>
+              )}
+              {wEff === 'scheduled' && !isEffectivelyDone && (
+                <button
+                  onClick={() => setMoveWorkoutTarget(w)}
+                  title={t.moveWorkoutBtn}
+                  className="h-9 w-9 rounded-xl bg-white/10 hover:bg-white/20 text-white/70 hover:text-white flex items-center justify-center active:scale-95 transition-all shrink-0 mt-2">
+                  <CalendarClock className="h-4 w-4" />
+                </button>
+              )}
+              {(w as any).movedByAthlete && (
+                <p className="text-[10px] text-white/40 mt-2 text-center" dir="rtl">{t.movedByAthleteTag}</p>
+              )}
+            </div>
           </div>
-        </div>
-        {/* Full workout content shown directly on the card, no tap-to-expand
-            step — matches how a real coaching platform (TrainingPeaks/Final
-            Surge) shows the day's session up front instead of hiding it
-            behind a "workout details" button. */}
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-          {renderWorkoutDetail(w)}
+          {/* Full workout content — description, warm-up buttons, sets
+              breakdown — shown directly under the header, no tap-to-expand
+              step, in the same unified card. */}
+          <div className="bg-white">
+            {renderWorkoutDetail(w)}
+          </div>
         </div>
         {wMsg && (
           <div className={cn('bg-white rounded-2xl border p-4 shadow-sm',
