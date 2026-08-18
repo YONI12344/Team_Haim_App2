@@ -1593,7 +1593,7 @@ export function AthletePlanner({ athleteId }: Props) {
                                 }}
                                 onDragOver={(e) => { if (inMonth) e.preventDefault() }}
                                 onDrop={(e) => { if (inMonth) handleDayDrop(e, dateStr) }}
-                                className={cn('min-h-[80px] rounded-lg p-1 border transition-all',
+                                className={cn('min-h-[110px] rounded-lg p-1 border transition-all',
                                   !inMonth ? 'opacity-20 border-transparent' : 'border-border',
                                   todayFlag ? 'border-gold/60 bg-gold/5' : '',
                                   (copiedWorkout || armedBankWorkout) && inMonth ? 'cursor-pointer hover:border-gold' : ''
@@ -1621,6 +1621,15 @@ export function AthletePlanner({ athleteId }: Props) {
                                             {w.workout?.distance ? `${w.workout.distance} ק"מ` : ''}
                                             {w.workout?.distance && w.workout?.duration ? ' · ' : ''}
                                             {w.workout?.duration ? `${w.workout.duration} דק'` : ''}
+                                          </span>
+                                        )}
+                                        {/* A real snippet of the actual session, not just its
+                                            name/numbers — this is what "click to see full
+                                            detail" used to hide entirely; now most of it is
+                                            already visible right in the grid. */}
+                                        {w.workout?.description && (
+                                          <span className="w-full text-[7px] opacity-70 leading-tight" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                            {w.workout.description}
                                           </span>
                                         )}
                                       </button>

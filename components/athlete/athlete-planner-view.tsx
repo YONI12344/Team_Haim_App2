@@ -2354,7 +2354,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                             setSelectedMonthDay(prev => prev && isSameDay(prev, day) ? null : day)
                           }}
                           className={cn(
-                            'min-h-[86px] rounded-xl px-1 py-1.5 flex flex-col items-center gap-1 transition-all',
+                            'min-h-[120px] rounded-xl px-1 py-1.5 flex flex-col items-center gap-1 transition-all',
                             !inMonth ? 'opacity-15 pointer-events-none' : '',
                             todayFlag ? 'bg-[#0a1628]/5' : '',
                             selectedInDay ? 'bg-[#c9a84c]/10 ring-1 ring-[#c9a84c]/30' : '',
@@ -2391,6 +2391,14 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                                         a label" within one line. */}
                                     <span className="block truncate text-[10px] font-bold">{resolveText(language, w.workout?.title, w.workout?.titleEn)}</span>
                                     {dist ? <span className="block truncate text-[9px] font-semibold opacity-70">{dist} {isRTL ? 'ק"מ' : 'km'}</span> : null}
+                                    {/* A real snippet of the session, not just its name/
+                                        numbers — most of the actual workout is visible
+                                        right in the grid now, not only after tapping in. */}
+                                    {w.workout?.description && (
+                                      <span className="block text-[8px] opacity-70 leading-tight" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                        {resolveText(language, w.workout.description, w.workout.descriptionEn)}
+                                      </span>
+                                    )}
                                   </span>
                                 )
                               })}
