@@ -1877,9 +1877,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             type badge. */}
         <div className="rounded-3xl overflow-hidden shadow-sm border border-gray-100">
           <div className={cn('transition-all',
-            isEffectivelyDone ? 'bg-gradient-to-br from-emerald-600 to-emerald-700'
-              : wEff === 'skipped' ? 'bg-gradient-to-br from-red-500 to-red-600'
-              : 'bg-gradient-to-br from-[#1d5fb8] to-[#123f80]')}>
+            isEffectivelyDone ? 'bg-gradient-to-br from-emerald-700 to-emerald-800' : 'bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85')}>
             <div className="px-5 pt-4 pb-3">
               <div className="flex items-center justify-between mb-1.5" dir="rtl">
                 <div className="flex items-center gap-2 min-w-0">
