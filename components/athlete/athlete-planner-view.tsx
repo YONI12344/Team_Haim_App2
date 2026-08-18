@@ -275,7 +275,6 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
     return new Date()
   })
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day')
-  const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null)
   // Month grid's "which day is expanded below the calendar" — a day with
   // 2+ workouts used to force-navigate to the full day view on tap, which
   // felt like a jarring, unexpected jump. Now every day (1 workout, many,
@@ -1707,7 +1706,6 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
   const renderWorkoutCard = (w: AssignedWorkout, cardIndex?: number) => {
     const effStatus = getEffectiveStatus(w)
     const msg = coachMessages.find(m => m.assignedWorkoutId === w.id)
-    const isSelected = selectedWorkoutId === w.id
     const log = weekLogs.find(l => l.assignedWorkoutId === w.id && !!l.actualDistance && !isActivityLog(l))
       || weekLogs.find(l => !l.assignedWorkoutId && l.date === w.scheduledDate && !!l.actualDistance && !isActivityLog(l))
     return (
@@ -1733,10 +1731,8 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             </div>
           )}
 
-          {/* Main tap row — min 44px touch target */}
-          <button
-            onClick={() => setSelectedWorkoutId(prev => prev === w.id ? null : w.id)}
-            className="w-full px-4 py-3.5 text-right active:bg-gray-50 transition-colors min-h-[56px]">
+          {/* Header row — no tap needed, full detail is always shown below */}
+          <div className="w-full px-4 py-3.5 text-right min-h-[56px]">
             <div className="flex items-center justify-between gap-3" dir="rtl">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -1765,19 +1761,13 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                   </p>
                 )}
               </div>
-              <div className="flex items-center gap-1 flex-shrink-0">
-                <span className="text-[10px] text-gray-400 font-medium hidden sm:block">{t.detailsBtn}</span>
-                <ChevronDown className={cn('h-4 w-4 text-gray-400 transition-transform duration-200', isSelected ? 'rotate-180' : '')} />
-              </div>
             </div>
-          </button>
+          </div>
 
-          {/* Expanded detail */}
-          {isSelected && (
-            <div className="border-t border-gray-100 px-4 pb-4 pt-3">
-              {renderWorkoutDetail(w)}
-            </div>
-          )}
+          {/* Full detail — always shown, no tap-to-expand */}
+          <div className="border-t border-gray-100 px-4 pb-4 pt-3">
+            {renderWorkoutDetail(w)}
+          </div>
         </div>
 
         {/* Coach message */}
@@ -1842,7 +1832,6 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
 
   const renderNavyWorkoutBlock = (w: AssignedWorkout, isMulti: boolean, idx: number, dateStr: string, matchedActivities: WeekLog[] = [], dayWorkouts: AssignedWorkout[] = []) => {
     const wEff = getEffectiveStatus(w)
-    const wSelected = selectedWorkoutId === w.id
     // The "no assignedWorkoutId" fallback only applies on a single-workout
     // day (isMulti false) — on a multi-workout day an orphaned log would
     // otherwise get attributed to every workout that day via this same
@@ -1932,32 +1921,26 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                 )}
               </div>
             )}
-            <div className="flex gap-2">
+            {wEff === 'scheduled' && !isEffectivelyDone && (
               <button
-                onClick={() => setSelectedWorkoutId(prev => prev === w.id ? null : w.id)}
-                className={cn('flex-1 h-11 rounded-2xl font-bold text-sm active:scale-95 transition-all',
-                  wSelected ? 'bg-white/20 text-white' : 'bg-white/15 text-white hover:bg-white/20')}>
-                {wSelected ? t.closeCta : t.workoutDetailsCta}
+                onClick={() => setMoveWorkoutTarget(w)}
+                title={t.moveWorkoutBtn}
+                className="h-11 w-11 rounded-2xl bg-white/10 hover:bg-white/20 text-white/70 hover:text-white flex items-center justify-center active:scale-95 transition-all flex-shrink-0">
+                <CalendarClock className="h-5 w-5" />
               </button>
-              {wEff === 'scheduled' && !isEffectivelyDone && (
-                <button
-                  onClick={() => setMoveWorkoutTarget(w)}
-                  title={t.moveWorkoutBtn}
-                  className="h-11 w-11 rounded-2xl bg-white/10 hover:bg-white/20 text-white/70 hover:text-white flex items-center justify-center active:scale-95 transition-all flex-shrink-0">
-                  <CalendarClock className="h-5 w-5" />
-                </button>
-              )}
-            </div>
+            )}
             {(w as any).movedByAthlete && (
               <p className="text-[10px] text-white/40 mt-2 text-center" dir="rtl">{t.movedByAthleteTag}</p>
             )}
           </div>
         </div>
-        {wSelected && (
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-            {renderWorkoutDetail(w)}
-          </div>
-        )}
+        {/* Full workout content shown directly on the card, no tap-to-expand
+            step — matches how a real coaching platform (TrainingPeaks/Final
+            Surge) shows the day's session up front instead of hiding it
+            behind a "workout details" button. */}
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+          {renderWorkoutDetail(w)}
+        </div>
         {wMsg && (
           <div className={cn('bg-white rounded-2xl border p-4 shadow-sm',
             !wMsg.read ? 'border-l-4 border-l-[#c9a84c] border-gray-100' : 'border-gray-100')} dir="rtl">
@@ -2160,7 +2143,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                 const isOff = !!dayOffFor(format(day, 'yyyy-MM-dd'))
                 return (
                   <button key={di}
-                    onClick={() => { setSelectedWeekDay(day); setSelectedWorkoutId(null) }}
+                    onClick={() => setSelectedWeekDay(day)}
                     className={cn('flex flex-col items-center gap-1 py-2 px-1 rounded-2xl transition-all active:scale-95 flex-shrink-0 flex-1 min-w-[46px]',
                       isSelDay ? 'bg-[#c9a84c]/10 ring-1 ring-[#c9a84c]/40' : todayFlag ? 'bg-[#0a1628]/5' : 'hover:bg-gray-50')}>
                     <span className={cn('text-[9px] font-semibold', todayFlag ? 'text-[#c9a84c]' : 'text-gray-400')}>
