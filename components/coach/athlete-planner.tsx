@@ -1626,21 +1626,39 @@ export function AthletePlanner({ athleteId }: Props) {
                                             {w.workout?.duration ? `${w.workout.duration} דק'` : ''}
                                           </span>
                                         )}
-                                        {/* Structured sets (reps × distance/time), when this
-                                            workout was built with the set editor rather than
-                                            (or in addition to) free-text description. */}
+                                        {/* Warm-up — small, secondary, before the main set
+                                            (chronologically first, but not the point). */}
+                                        {w.workout?.warmup && (
+                                          <span className="w-full opacity-50 text-[7.5px] whitespace-pre-line">חימום: {w.workout.warmup}</span>
+                                        )}
+                                        {/* Structured sets (reps × distance/time + rest), when
+                                            this workout was built with the set editor rather
+                                            than (or in addition to) free-text description. This
+                                            IS the point — bigger than everything else here. */}
                                         {!!w.workout?.sets?.length && (
-                                          <span className="w-full opacity-80 font-bold" dir="ltr">
+                                          <span className="w-full opacity-90 font-bold text-[10px]" dir="ltr">
                                             {w.workout.sets.map((s: any) => {
                                               const unit = s.distance || (s.distanceMeters ? `${s.distanceMeters}m` : '')
                                                 || s.duration || (s.durationSec ? `${Math.round(s.durationSec / 60)} דק'` : '')
                                               if (!unit) return null
-                                              return s.reps > 1 ? `${s.reps}×${unit}` : unit
+                                              const reps = s.reps > 1 ? `${s.reps}×${unit}` : unit
+                                              // Rest between reps only means anything when there's
+                                              // more than one rep; rest after the whole set is its
+                                              // own thing (recovery before the next set block).
+                                              const restBits = [
+                                                s.reps > 1 && s.restBetweenReps ? `⟳${s.restBetweenReps}` : '',
+                                                s.restAfterSet ? `↓${s.restAfterSet}` : (s.rest || ''),
+                                              ].filter(Boolean).join(' ')
+                                              return restBits ? `${reps} (${restBits})` : reps
                                             }).filter(Boolean).join(' + ')}
                                           </span>
                                         )}
                                         {w.workout?.description && (
-                                          <span className="w-full opacity-70 whitespace-pre-line">{w.workout.description}</span>
+                                          <span className="w-full opacity-90 font-semibold text-[10px] whitespace-pre-line">{w.workout.description}</span>
+                                        )}
+                                        {/* Cooldown — small, secondary, after everything else. */}
+                                        {w.workout?.cooldown && (
+                                          <span className="w-full opacity-50 text-[7.5px] whitespace-pre-line">שחרור: {w.workout.cooldown}</span>
                                         )}
                                       </button>
                                     )
