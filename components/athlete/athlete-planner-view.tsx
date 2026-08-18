@@ -2146,9 +2146,12 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
       {/* ── Week View ─────────────────────────────────────────────────────── */}
       {viewMode === 'week' && (
         <div className="space-y-3">
-          {/* 7-day pill strip — horizontal scroll on mobile */}
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-4">
-            <div className="flex gap-1 overflow-x-auto pb-1" style={{scrollbarWidth:'none'}} dir="rtl">
+          {/* 7-day strip — real boxes with the actual workout (distance/
+              pace), not bare pills with a category label. Tapping a day
+              still opens its full card below (that's the "zoom in"), but
+              the week is scannable without tapping anything first. */}
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-3">
+            <div className="flex gap-1.5 overflow-x-auto pb-1" style={{scrollbarWidth:'none'}} dir="rtl">
               {weekDays.map((day, di) => {
                 const dayWs = getWorkoutsForDay(day)
                 const isSelDay = isSameDay(day, selectedWeekDay)
@@ -2157,37 +2160,45 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                 return (
                   <button key={di}
                     onClick={() => setSelectedWeekDay(day)}
-                    className={cn('flex flex-col items-center gap-1 py-2 px-1 rounded-2xl transition-all active:scale-95 flex-shrink-0 flex-1 min-w-[46px]',
-                      isSelDay ? 'bg-[#c9a84c]/10 ring-1 ring-[#c9a84c]/40' : todayFlag ? 'bg-[#0a1628]/5' : 'hover:bg-gray-50')}>
-                    <span className={cn('text-[9px] font-semibold', todayFlag ? 'text-[#c9a84c]' : 'text-gray-400')}>
-                      {dayShortRot[di]}
-                    </span>
-                    <span className={cn('text-[12px] font-black', todayFlag ? 'text-[#0a1628]' : 'text-[#0a1628]/70')}>
-                      {format(day,'d/M')}
-                    </span>
+                    className={cn('flex flex-col items-stretch gap-1 py-2 px-1 rounded-2xl transition-all active:scale-95 flex-shrink-0 flex-1 min-w-[76px]',
+                      isSelDay ? 'bg-[#c9a84c]/10 ring-2 ring-[#c9a84c]/50' : todayFlag ? 'bg-[#0a1628]/5' : 'hover:bg-gray-50')}>
+                    <div className="flex items-center justify-center gap-1">
+                      <span className={cn('text-[9px] font-semibold', todayFlag ? 'text-[#c9a84c]' : 'text-gray-400')}>
+                        {dayShortRot[di]}
+                      </span>
+                      <span className={cn('text-[12px] font-black', todayFlag ? 'text-[#0a1628]' : 'text-[#0a1628]/70')}>
+                        {format(day,'d/M')}
+                      </span>
+                    </div>
                     {isOff ? (
-                      <span className="text-[10px] mt-0.5">🩹</span>
+                      <span className="text-[11px] text-center mt-1">🩹</span>
                     ) : dayWs.length > 0 ? (
                       // Same colored-box-per-workout style as the month
                       // grid — the type's own color (TYPE_CHIP_COLORS)
                       // always stays, done or not, so an athlete can scan
                       // for "last long run" / "easy" by color regardless
-                      // of completion — only a small ✓ badge marks done,
-                      // it never recolors the whole box green.
-                      <div className="w-full flex flex-col gap-0.5 min-w-0">
+                      // of completion — only a small ✓ badge marks done.
+                      // Real title + distance, not just a category name —
+                      // this box IS the schedule, not a label pointing at it.
+                      <div className="w-full flex flex-col gap-1 min-w-0 mt-1">
                         {dayWs.slice(0,2).map((w,i) => {
                           const done = getEffectiveStatus(w) === 'completed'
                           return (
-                            <span key={i} className={cn('relative w-full min-w-0 truncate text-center text-[7.5px] font-bold leading-[9px] rounded-md px-0.5 py-[3px]',
+                            <div key={i} className={cn('relative w-full min-w-0 rounded-lg px-1.5 py-1.5 text-center',
                               TYPE_CHIP_COLORS[w.workout?.type] || 'bg-[#0a1628]/5 text-[#0a1628]/70'
                             )}>
-                              {done && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 text-white text-[6px] leading-[10px] flex items-center justify-center">✓</span>}
-                              {resolveText(language, w.workout?.title, w.workout?.titleEn)}
-                            </span>
+                              {done && <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 text-white text-[8px] leading-[14px] flex items-center justify-center shadow-sm">✓</span>}
+                              <span className="block truncate text-[10px] font-bold leading-tight">{resolveText(language, w.workout?.title, w.workout?.titleEn)}</span>
+                              {w.workout?.distance ? (
+                                <span className="block truncate text-[9px] font-semibold opacity-70">{w.workout.distance} {isRTL ? 'ק"מ' : 'km'}</span>
+                              ) : w.workout?.duration ? (
+                                <span className="block truncate text-[9px] font-semibold opacity-70">{w.workout.duration} {isRTL ? 'דק׳' : 'min'}</span>
+                              ) : null}
+                            </div>
                           )
                         })}
                         {dayWs.length > 2 && (
-                          <span className="text-[7px] font-bold leading-none text-[#c9a84c]">+{dayWs.length - 2}</span>
+                          <span className="text-[9px] font-bold leading-none text-[#c9a84c]">+{dayWs.length - 2}</span>
                         )}
                       </div>
                     ) : (
@@ -2343,7 +2354,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                             setSelectedMonthDay(prev => prev && isSameDay(prev, day) ? null : day)
                           }}
                           className={cn(
-                            'min-h-[64px] rounded-xl px-0.5 py-1.5 flex flex-col items-center gap-1 transition-all',
+                            'min-h-[86px] rounded-xl px-1 py-1.5 flex flex-col items-center gap-1 transition-all',
                             !inMonth ? 'opacity-15 pointer-events-none' : '',
                             todayFlag ? 'bg-[#0a1628]/5' : '',
                             selectedInDay ? 'bg-[#c9a84c]/10 ring-1 ring-[#c9a84c]/30' : '',
@@ -2369,7 +2380,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                                 const done = getEffectiveStatus(w) === 'completed'
                                 const dist = w.workout?.distance
                                 return (
-                                  <span key={i} className={cn('relative w-full min-w-0 text-center leading-tight rounded-lg px-1 py-1',
+                                  <span key={i} className={cn('relative w-full min-w-0 text-center leading-tight rounded-lg px-1.5 py-1.5',
                                     TYPE_CHIP_COLORS[w.workout?.type] || 'bg-[#0a1628]/5 text-[#0a1628]/80'
                                   )}>
                                     {done && <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 text-white text-[8px] leading-[14px] flex items-center justify-center shadow-sm">✓</span>}
@@ -2378,8 +2389,8 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
                                         (e.g. "אינטרוולים 6×800m"), so this is the closest
                                         the month grid can get to "the real workout, not
                                         a label" within one line. */}
-                                    <span className="block truncate text-[9px] font-bold">{resolveText(language, w.workout?.title, w.workout?.titleEn)}</span>
-                                    {dist ? <span className="block truncate text-[8px] font-semibold opacity-70">{dist} {isRTL ? 'ק"מ' : 'km'}</span> : null}
+                                    <span className="block truncate text-[10px] font-bold">{resolveText(language, w.workout?.title, w.workout?.titleEn)}</span>
+                                    {dist ? <span className="block truncate text-[9px] font-semibold opacity-70">{dist} {isRTL ? 'ק"מ' : 'km'}</span> : null}
                                   </span>
                                 )
                               })}

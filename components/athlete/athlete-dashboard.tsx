@@ -534,10 +534,44 @@ export function AthleteDashboard() {
                         </span>
                       )}
                     </div>
+                    {/* Warm-up / main set / cooldown — the actual session,
+                        each its own clearly labeled part instead of one
+                        undifferentiated paragraph. Linked routine buttons
+                        (if the coach attached any) go last, as additional
+                        detail to open, not the headline content. */}
+                    {tw.workout.warmup && (
+                      <div className="mb-3">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-0.5">{t.warmupLabel}</p>
+                        <p className="text-sm text-white/85 leading-relaxed whitespace-pre-line">
+                          {resolveText(language, tw.workout.warmup, tw.workout.warmupEn)}
+                        </p>
+                      </div>
+                    )}
                     {tw.workout.description && (
-                      <p className="text-sm text-white/85 leading-relaxed mb-4 whitespace-pre-line">
+                      <p className="text-sm text-white/85 leading-relaxed mb-3 whitespace-pre-line">
                         {resolveText(language, tw.workout.description, tw.workout.descriptionEn)}
                       </p>
+                    )}
+                    {tw.workout.cooldown && (
+                      <div className="mb-3">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-0.5">{t.cooldownLabel}</p>
+                        <p className="text-sm text-white/85 leading-relaxed whitespace-pre-line">
+                          {resolveText(language, tw.workout.cooldown, tw.workout.cooldownEn)}
+                        </p>
+                      </div>
+                    )}
+                    {!!tw.workout.linkedRoutines?.length && (
+                      <div className="flex flex-col gap-1.5 mb-3">
+                        {tw.workout.linkedRoutines.map((link) => (
+                          <button
+                            key={link.id}
+                            onClick={() => router.push(`/athlete/routine/${link.workoutId}?label=${encodeURIComponent(resolveText(language, link.label, link.labelEn))}`)}
+                            className="w-full h-10 rounded-xl text-xs font-bold active:scale-95 transition-all bg-white/10 text-white hover:bg-white/15"
+                          >
+                            {resolveText(language, link.label, link.labelEn)}
+                          </button>
+                        ))}
+                      </div>
                     )}
                     <Link href={`/athlete/schedule?date=${tw.scheduledDate}&workoutId=${tw.id}`}>
                       <button className="w-full h-12 rounded-2xl font-bold text-sm active:scale-95 transition-all bg-white/20 text-white hover:bg-white/25">
