@@ -1472,15 +1472,15 @@ export function AthletePlanner({ athleteId }: Props) {
               )}
             </div>
 
-            {/* Week View */}
+            {/* Week View — same wide-column treatment as month view below. */}
             {viewMode === 'week' && (
               <div className="overflow-x-auto -mx-2 px-2">
-                <div style={{minWidth:'560px'}}>
-                  <div className="grid grid-cols-8 gap-2 mb-2">
+                <div>
+                  <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: 'repeat(7, minmax(200px, 1fr)) 90px' }}>
                     {DAY_LABELS.map((d,i) => <div key={i} className="text-center text-xs font-semibold text-muted-foreground py-1">{d}</div>)}
                     <div className="text-center text-xs font-semibold text-muted-foreground py-1">KM</div>
                   </div>
-                  <div className="grid grid-cols-8 gap-2">
+                  <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(7, minmax(200px, 1fr)) 90px' }}>
                     {weekDays.map((day, di) => {
                       const dateStr = format(day, 'yyyy-MM-dd')
                       const dayWorkouts = getWorkoutsForDate2(dateStr)
@@ -1513,22 +1513,50 @@ export function AthletePlanner({ athleteId }: Props) {
                               return (
                                 <button key={w.id}
                                   onClick={e => { e.stopPropagation(); setSelectedAssignedId(prev => prev === w.id ? null : w.id); setSelectedDate(day) }}
-                                  className={cn('w-full text-left text-[10px] rounded-lg px-1.5 py-1.5 border transition-all hover:opacity-80',
+                                  className={cn('w-full text-left text-[11px] leading-snug rounded-lg px-2 py-2 border transition-all hover:opacity-80 flex flex-col gap-1',
                                     suspicious ? 'bg-red-100 text-red-700 border-red-300' : (TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy),
                                     isCompleted ? 'opacity-70' : '',
                                     selectedAssignedId === w.id ? 'ring-2 ring-navy' : ''
                                   )}>
-                                  <p className="font-semibold truncate">{w.workout?.title}</p>
-                                  {w.workout?.distance && (
-                                    <p className={cn('flex items-center gap-0.5', suspicious ? 'font-bold' : 'opacity-70')}>
-                                      {suspicious && <AlertTriangle className="h-2.5 w-2.5"/>}
-                                      {w.workout.distance}k
-                                    </p>
+                                  <span className="font-bold flex items-center gap-1 text-[12px]">
+                                    {suspicious && <AlertTriangle className="h-3 w-3"/>}
+                                    {w.workout?.title}
+                                  </span>
+                                  {(w.workout?.distance || w.workout?.duration) && (
+                                    <span className="opacity-70 font-semibold">
+                                      {w.workout?.distance ? `${w.workout.distance} ק"מ` : ''}
+                                      {w.workout?.distance && w.workout?.duration ? ' · ' : ''}
+                                      {w.workout?.duration ? `${w.workout.duration} דק'` : ''}
+                                    </span>
+                                  )}
+                                  {w.workout?.warmup && (
+                                    <span className="opacity-50 text-[9.5px] whitespace-pre-line">חימום: {w.workout.warmup}</span>
+                                  )}
+                                  {!!w.workout?.sets?.length && (
+                                    <span className="opacity-90 font-bold text-[12px]" dir="ltr">
+                                      {w.workout.sets.map((s: any) => {
+                                        const unit = s.distance || (s.distanceMeters ? `${s.distanceMeters}m` : '')
+                                          || s.duration || (s.durationSec ? `${Math.round(s.durationSec / 60)} דק'` : '')
+                                        if (!unit) return null
+                                        const reps = s.reps > 1 ? `${s.reps}×${unit}` : unit
+                                        const restBits = [
+                                          s.reps > 1 && s.restBetweenReps ? `⟳${s.restBetweenReps}` : '',
+                                          s.restAfterSet ? `↓${s.restAfterSet}` : (s.rest || ''),
+                                        ].filter(Boolean).join(' ')
+                                        return restBits ? `${reps} (${restBits})` : reps
+                                      }).filter(Boolean).join(' + ')}
+                                    </span>
+                                  )}
+                                  {w.workout?.description && (
+                                    <span className="opacity-90 font-semibold text-[12px] whitespace-pre-line">{w.workout.description}</span>
+                                  )}
+                                  {w.workout?.cooldown && (
+                                    <span className="opacity-50 text-[9.5px] whitespace-pre-line">שחרור: {w.workout.cooldown}</span>
                                   )}
                                   {matchLog?.actualDistance && (
-                                    <p className="text-emerald-700 font-bold text-[9px]">{matchLog.actualDistance}k בוצע</p>
+                                    <span className="text-emerald-700 font-bold text-[10px]">{matchLog.actualDistance}k בוצע</span>
                                   )}
-                                  {isCompleted && !matchLog?.actualDistance && <p className="text-emerald-600 text-[9px]">הושלם</p>}
+                                  {isCompleted && !matchLog?.actualDistance && <span className="text-emerald-600 text-[10px]">הושלם</span>}
                                 </button>
                               )
                             })}
@@ -1561,11 +1589,15 @@ export function AthletePlanner({ athleteId }: Props) {
               </div>
             )}
 
-            {/* Month View */}
+            {/* Month View — real card-width columns (like the athlete's own
+                spreadsheet grid design), not a fixed 8-column layout
+                squeezed into whatever the page happens to be wide. Scrolls
+                horizontally; each day gets real reading width instead of
+                cramming everything into ~60px. */}
             {viewMode === 'month' && (
               <div className="overflow-x-auto -mx-2 px-2">
-                <div style={{minWidth:'480px'}}>
-                  <div className="grid grid-cols-8 gap-1 mb-1">
+                <div>
+                  <div className="grid gap-1 mb-1" style={{ gridTemplateColumns: 'repeat(7, minmax(170px, 1fr)) 80px' }}>
                     {DAY_LABELS.map((d,i) => <div key={i} className="text-center text-[10px] font-semibold text-muted-foreground py-1">{d}</div>)}
                     <div className="text-center text-[10px] font-semibold text-muted-foreground py-1">KM</div>
                   </div>
@@ -1574,7 +1606,7 @@ export function AthletePlanner({ athleteId }: Props) {
                       const days = eachDayOfInterval({ start: weekStartDay, end: endOfWeek(weekStartDay,{weekStartsOn:calWeekStartsOn}) })
                       const wKm = getWeekKm2(days)
                       return (
-                        <div key={wi} className="grid grid-cols-8 gap-1">
+                        <div key={wi} className="grid gap-1" style={{ gridTemplateColumns: 'repeat(7, minmax(170px, 1fr)) 80px' }}>
                           {days.map((day, di) => {
                             const inMonth = isSameMonth(day, currentDate)
                             const dateStr = format(day, 'yyyy-MM-dd')
@@ -1593,7 +1625,7 @@ export function AthletePlanner({ athleteId }: Props) {
                                 }}
                                 onDragOver={(e) => { if (inMonth) e.preventDefault() }}
                                 onDrop={(e) => { if (inMonth) handleDayDrop(e, dateStr) }}
-                                className={cn('min-h-[80px] rounded-lg p-1 border transition-all',
+                                className={cn('min-h-[110px] rounded-lg p-1.5 border transition-all',
                                   !inMonth ? 'opacity-20 border-transparent' : 'border-border',
                                   todayFlag ? 'border-gold/60 bg-gold/5' : '',
                                   (copiedWorkout || armedBankWorkout) && inMonth ? 'cursor-pointer hover:border-gold' : ''
@@ -1607,16 +1639,16 @@ export function AthletePlanner({ athleteId }: Props) {
                                     return (
                                       <button key={w.id}
                                         onClick={e => { e.stopPropagation(); setSelectedAssignedId(prev => prev === w.id ? null : w.id); if (inMonth) setSelectedDate(day) }}
-                                        className={cn('w-full text-left text-[9px] leading-snug rounded px-1.5 py-1.5 border hover:opacity-75 flex flex-col items-start gap-1',
+                                        className={cn('w-full text-left text-[11px] leading-snug rounded px-2 py-2 border hover:opacity-75 flex flex-col items-start gap-1',
                                           suspicious ? 'bg-red-100 text-red-700 border-red-300 font-bold' : (TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy),
                                           isDone ? 'opacity-60' : '',
                                           selectedAssignedId === w.id ? 'ring-1 ring-navy font-bold' : ''
                                         )}>
-                                        {/* Coach-only view — full detail, cell grows to fit
-                                            (like the Excel sheet's auto row height). Athlete's
-                                            own view is untouched, stays as-is. */}
-                                        <span className="w-full flex items-center gap-0.5 font-bold text-[10px]">
-                                          {suspicious && <AlertTriangle className="h-2.5 w-2.5 flex-shrink-0"/>}
+                                        {/* Coach-only view — full detail, real card width, cell
+                                            grows to fit (like the Excel sheet's auto row
+                                            height). Athlete's own view is untouched. */}
+                                        <span className="w-full flex items-center gap-1 font-bold text-[12px]">
+                                          {suspicious && <AlertTriangle className="h-3 w-3 flex-shrink-0"/>}
                                           {isDone ? '✓ ' : ''}{w.workout?.title}
                                         </span>
                                         {(w.workout?.distance || w.workout?.duration) && (
@@ -1629,14 +1661,14 @@ export function AthletePlanner({ athleteId }: Props) {
                                         {/* Warm-up — small, secondary, before the main set
                                             (chronologically first, but not the point). */}
                                         {w.workout?.warmup && (
-                                          <span className="w-full opacity-50 text-[7.5px] whitespace-pre-line">חימום: {w.workout.warmup}</span>
+                                          <span className="w-full opacity-50 text-[9.5px] whitespace-pre-line">חימום: {w.workout.warmup}</span>
                                         )}
                                         {/* Structured sets (reps × distance/time + rest), when
                                             this workout was built with the set editor rather
                                             than (or in addition to) free-text description. This
                                             IS the point — bigger than everything else here. */}
                                         {!!w.workout?.sets?.length && (
-                                          <span className="w-full opacity-90 font-bold text-[10px]" dir="ltr">
+                                          <span className="w-full opacity-90 font-bold text-[12px]" dir="ltr">
                                             {w.workout.sets.map((s: any) => {
                                               const unit = s.distance || (s.distanceMeters ? `${s.distanceMeters}m` : '')
                                                 || s.duration || (s.durationSec ? `${Math.round(s.durationSec / 60)} דק'` : '')
@@ -1654,11 +1686,11 @@ export function AthletePlanner({ athleteId }: Props) {
                                           </span>
                                         )}
                                         {w.workout?.description && (
-                                          <span className="w-full opacity-90 font-semibold text-[10px] whitespace-pre-line">{w.workout.description}</span>
+                                          <span className="w-full opacity-90 font-semibold text-[12px] whitespace-pre-line">{w.workout.description}</span>
                                         )}
                                         {/* Cooldown — small, secondary, after everything else. */}
                                         {w.workout?.cooldown && (
-                                          <span className="w-full opacity-50 text-[7.5px] whitespace-pre-line">שחרור: {w.workout.cooldown}</span>
+                                          <span className="w-full opacity-50 text-[9.5px] whitespace-pre-line">שחרור: {w.workout.cooldown}</span>
                                         )}
                                       </button>
                                     )
