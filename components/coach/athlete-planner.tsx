@@ -1587,6 +1587,16 @@ export function AthletePlanner({ athleteId }: Props) {
                                   {w.workout?.description && (
                                     <span className="opacity-90 font-semibold text-[10.5px] whitespace-pre-line">{w.workout.description}</span>
                                   )}
+                                  {/* Lift/strength workouts have no sets/description — the
+                                      actual content is the exercise list (strengthBlocks),
+                                      one block per set/superset. Very small, still exact. */}
+                                  {!!w.workout?.strengthBlocks?.length && (
+                                    <span className="opacity-90 font-semibold text-[9px] leading-tight">
+                                      {w.workout.strengthBlocks.map((b: any) =>
+                                        `${b.label}: ${b.exercises.map((ex: any) => `${ex.name} ${ex.targetSets}×${ex.targetDurationSec ? `${ex.targetDurationSec}s` : ex.targetReps}`).join(', ')}`
+                                      ).join(' | ')}
+                                    </span>
+                                  )}
                                   {/* Cooldown — very small, secondary line. */}
                                   {w.workout?.cooldown && (
                                     <span className="opacity-45 text-[7.5px] whitespace-pre-line">שחרור: {w.workout.cooldown}</span>
@@ -1728,6 +1738,16 @@ export function AthletePlanner({ athleteId }: Props) {
                                         )}
                                         {w.workout?.description && (
                                           <span className="w-full opacity-90 font-semibold text-[10.5px] whitespace-pre-line">{w.workout.description}</span>
+                                        )}
+                                        {/* Lift/strength workouts have no sets/description — the
+                                            actual content is the exercise list (strengthBlocks),
+                                            one block per set/superset. Very small, still exact. */}
+                                        {!!w.workout?.strengthBlocks?.length && (
+                                          <span className="w-full opacity-90 font-semibold text-[9px] leading-tight">
+                                            {w.workout.strengthBlocks.map((b: any) =>
+                                              `${b.label}: ${b.exercises.map((ex: any) => `${ex.name} ${ex.targetSets}×${ex.targetDurationSec ? `${ex.targetDurationSec}s` : ex.targetReps}`).join(', ')}`
+                                            ).join(' | ')}
+                                          </span>
                                         )}
                                         {/* Cooldown — very small, secondary line. */}
                                         {w.workout?.cooldown && (
