@@ -15,7 +15,7 @@ import {
   ArrowLeft, ChevronLeft, ChevronRight, Plus, X,
   Loader2, Clock, Check, Calendar, Copy, Pencil, Trash2, ClipboardPaste,
   BarChart2, Sparkles, Send, FlaskConical, Target, NotebookPen, User, Eye, AlertTriangle,
-  ClipboardList, Repeat, Folder,
+  ClipboardList, Repeat, Folder, ZoomIn, ZoomOut,
 } from 'lucide-react'
 import Link from 'next/link'
 import {
@@ -80,6 +80,13 @@ export function AthletePlanner({ athleteId }: Props) {
   const workoutTypeLabels = useWorkoutTypeLabels()
   const router = useRouter()
 
+  // Week/month grid zoom — a real two-finger pinch gesture on a nested
+  // horizontal-scroll grid is unreliable across phones/browsers (fights
+  // with the scroll container, no native support for scaling just one
+  // element), so this is a manual scale control instead: reliable
+  // everywhere, same "bigger/smaller" outcome. Native page pinch-zoom
+  // still works too — nothing in this app disables it.
+  const [gridZoom, setGridZoom] = useState(1)
   const [athlete, setAthlete] = useState<AthleteProfile | null>(null)
   // Full active journey — powers season-aware planning in the month view
   const [activeJourney, setActiveJourney] = useState<JourneyDoc | null>(null)
@@ -1472,10 +1479,31 @@ export function AthletePlanner({ athleteId }: Props) {
               )}
             </div>
 
+            {/* Zoom control — bigger/smaller for the whole grid below, a
+                reliable substitute for pinch-to-zoom on a nested
+                horizontal-scroll grid (that gesture fights with the
+                scroll container and isn't consistent across phones).
+                Native page pinch-zoom still works on top of this too. */}
+            {(viewMode === 'week' || viewMode === 'month') && (
+              <div className="flex items-center justify-center gap-1 mb-3">
+                <Button variant="outline" size="icon" className="h-7 w-7" disabled={gridZoom <= 0.6}
+                  onClick={() => setGridZoom(z => Math.max(0.6, Math.round((z - 0.15) * 100) / 100))}>
+                  <ZoomOut className="h-3.5 w-3.5"/>
+                </Button>
+                <button onClick={() => setGridZoom(1)} className="text-[11px] text-muted-foreground w-12 text-center hover:text-navy" title="איפוס זום">
+                  {Math.round(gridZoom * 100)}%
+                </button>
+                <Button variant="outline" size="icon" className="h-7 w-7" disabled={gridZoom >= 1.6}
+                  onClick={() => setGridZoom(z => Math.min(1.6, Math.round((z + 0.15) * 100) / 100))}>
+                  <ZoomIn className="h-3.5 w-3.5"/>
+                </Button>
+              </div>
+            )}
+
             {/* Week View — same wide-column treatment as month view below. */}
             {viewMode === 'week' && (
               <div className="overflow-x-auto -mx-2 px-2">
-                <div>
+                <div style={{ zoom: gridZoom }}>
                   <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: 'repeat(7, minmax(200px, 1fr)) 90px' }}>
                     {DAY_LABELS.map((d,i) => <div key={i} className="text-center text-xs font-semibold text-muted-foreground py-1">{d}</div>)}
                     <div className="text-center text-xs font-semibold text-muted-foreground py-1">KM</div>
@@ -1596,7 +1624,7 @@ export function AthletePlanner({ athleteId }: Props) {
                 cramming everything into ~60px. */}
             {viewMode === 'month' && (
               <div className="overflow-x-auto -mx-2 px-2">
-                <div>
+                <div style={{ zoom: gridZoom }}>
                   <div className="grid gap-1 mb-1" style={{ gridTemplateColumns: 'repeat(7, minmax(170px, 1fr)) 80px' }}>
                     {DAY_LABELS.map((d,i) => <div key={i} className="text-center text-[10px] font-semibold text-muted-foreground py-1">{d}</div>)}
                     <div className="text-center text-[10px] font-semibold text-muted-foreground py-1">KM</div>
