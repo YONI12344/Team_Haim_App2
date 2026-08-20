@@ -23,7 +23,7 @@ import { useWorkoutLactateGroups, buildSessionCurves, currentWorkoutThresholds, 
 import { LactateMultiCurveChart, curveThresholds, paceDelta, type CurveInput, type AxisMode } from '@/components/coach/lactate-multi-curve-chart'
 import { WorkoutComparisonChart } from '@/components/coach/workout-comparison-chart'
 import { type ComparisonPoint } from '@/hooks/useWorkoutComparisonGroups'
-import { formatTargetRange, paceToSec } from '@/lib/physiology'
+import { formatTargetRange, paceToSec, secToPace, interpolateAtLactate, LT1_TARGET, LT2_TARGET, LT3_TARGET } from '@/lib/physiology'
 import { useLanguage } from '@/contexts/language-context'
 
 /** Per-session pace/HR trend built from the group's raw logs (not the
@@ -93,6 +93,7 @@ export function LactateWorkoutGallery({ athleteId, readOnly }: { athleteId: stri
   // feed a card's numbers, for tracing a suspected data-mixing report back
   // to a specific document instead of guessing.
   const [showDebugById, setShowDebugById] = useState<Record<string, boolean>>({})
+  const [showBaselineDebug, setShowBaselineDebug] = useState(false)
 
   const handleDeleteSession = async (logId: string) => {
     setDeletingId(logId)
@@ -203,6 +204,68 @@ export function LactateWorkoutGallery({ athleteId, readOnly }: { athleteId: stri
           {renderCard({ id: 'baseline', title: t.labBaselineTest, color: CURVE_COLOR_BASELINE, curves: [baselineCurve] } as Card)}
         </div>
       )}
+
+      {/* Baseline zone-slope debug — every workout card's "≈ extrapolated"
+          T1/T2/T3 numbers are computed by walking from the workout's own
+          real point through THESE per-zone slopes (rest→T1, T1→T2, T2→T3),
+          derived from the athlete's own lab test. Surfaced here so an
+          implausible extrapolated number (e.g. a projected HR lower than
+          every real HR in the session) can be traced back to the exact
+          baseline points/slopes that produced it, instead of guessing. */}
+      {baselineSteps && baselineSteps.length >= 2 && (() => {
+        const bT1 = interpolateAtLactate(baselineSteps, LT1_TARGET)
+        const bT2 = interpolateAtLactate(baselineSteps, LT2_TARGET)
+        const bT3 = interpolateAtLactate(baselineSteps, LT3_TARGET)
+        const restPt = [...baselineSteps].sort((a, b) => a.lactate - b.lactate)[0]
+        const slope = (a: { pace: number; hr: number | null; lac: number } | null, b: { pace: number; hr: number | null; lac: number } | null) => {
+          if (!a || !b || b.lac === a.lac) return null
+          return {
+            paceSecPerMmol: Math.round(((b.pace - a.pace) / (b.lac - a.lac)) * 10) / 10,
+            hrPerMmol: a.hr != null && b.hr != null ? Math.round(((b.hr - a.hr) / (b.lac - a.lac)) * 10) / 10 : null,
+          }
+        }
+        const restP = restPt ? { pace: paceToSec(restPt.pace) ?? 0, hr: restPt.hr ?? null, lac: restPt.lactate } : null
+        const t1P = bT1 ? { pace: bT1.paceSecPerKm, hr: bT1.hr, lac: LT1_TARGET } : null
+        const t2P = bT2 ? { pace: bT2.paceSecPerKm, hr: bT2.hr, lac: LT2_TARGET } : null
+        const t3P = bT3 ? { pace: bT3.paceSecPerKm, hr: bT3.hr, lac: LT3_TARGET } : null
+        const m1 = slope(restP, t1P)
+        const m2 = slope(t1P, t2P)
+        const m3 = slope(t2P, t3P)
+        return (
+          <div className="px-1">
+            <button
+              type="button"
+              onClick={() => setShowBaselineDebug(v => !v)}
+              className="text-[9px] font-semibold text-muted-foreground hover:text-navy underline decoration-dotted"
+            >
+              🔍 {showBaselineDebug ? 'הסתר שיפועי בדיקת מעבדה' : 'הצג שיפועי בדיקת מעבדה (משמש לחישוב ההערכות)'}
+            </button>
+            {showBaselineDebug && (
+              <div className="mt-1.5 rounded-lg border border-border overflow-x-auto p-2 text-[9px] space-y-2" dir="ltr">
+                <div>
+                  <p className="font-semibold text-muted-foreground mb-1">Raw baseline test steps:</p>
+                  {baselineSteps.map((s, i) => (
+                    <span key={i} className="inline-block mr-3">{s.pace} · ♥{s.hr ?? '—'} · {s.lactate}</span>
+                  ))}
+                </div>
+                <div>
+                  <p className="font-semibold text-muted-foreground mb-1">Interpolated zone points (rest / T1 / T2 / T3):</p>
+                  <span className="inline-block mr-3">rest: {restP ? `${secToPace(restP.pace)} · ♥${restP.hr ?? '—'} · ${restP.lac}` : '—'}</span>
+                  <span className="inline-block mr-3">T1: {t1P ? `${secToPace(t1P.pace)} · ♥${t1P.hr ?? '—'} · ${t1P.lac}` : '—'}</span>
+                  <span className="inline-block mr-3">T2: {t2P ? `${secToPace(t2P.pace)} · ♥${t2P.hr ?? '—'} · ${t2P.lac}` : '—'}</span>
+                  <span className="inline-block mr-3">T3: {t3P ? `${secToPace(t3P.pace)} · ♥${t3P.hr ?? '—'} · ${t3P.lac}` : '—'}</span>
+                </div>
+                <div>
+                  <p className="font-semibold text-muted-foreground mb-1">Zone slopes (sec/km per mmol, bpm per mmol):</p>
+                  <span className="inline-block mr-3">rest→T1 (m1): {m1 ? `${m1.paceSecPerMmol} sec/km · ${m1.hrPerMmol ?? '—'} bpm` : '—'}</span>
+                  <span className="inline-block mr-3">T1→T2 (m2): {m2 ? `${m2.paceSecPerMmol} sec/km · ${m2.hrPerMmol ?? '—'} bpm` : '—'}</span>
+                  <span className="inline-block mr-3">T2→T3 (m3): {m3 ? `${m3.paceSecPerMmol} sec/km · ${m3.hrPerMmol ?? '—'} bpm` : '—'}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       <div className="space-y-2">
         {orderedFolders.map(folder => (
