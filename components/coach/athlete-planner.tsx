@@ -1504,11 +1504,11 @@ export function AthletePlanner({ athleteId }: Props) {
             {viewMode === 'week' && (
               <div className="overflow-x-auto -mx-2 px-2">
                 <div style={{ zoom: gridZoom }}>
-                  <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: 'repeat(7, minmax(120px, 1fr)) 70px' }}>
+                  <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: 'repeat(7, minmax(190px, 1fr)) 80px' }}>
                     {DAY_LABELS.map((d,i) => <div key={i} className="text-center text-xs font-semibold text-muted-foreground py-1">{d}</div>)}
                     <div className="text-center text-xs font-semibold text-muted-foreground py-1">KM</div>
                   </div>
-                  <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(7, minmax(120px, 1fr)) 70px' }}>
+                  <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(7, minmax(190px, 1fr)) 80px' }}>
                     {weekDays.map((day, di) => {
                       const dateStr = format(day, 'yyyy-MM-dd')
                       const dayWorkouts = getWorkoutsForDate2(dateStr)
@@ -1526,7 +1526,7 @@ export function AthletePlanner({ athleteId }: Props) {
                           }}
                           onDragOver={(e) => e.preventDefault()}
                           onDrop={(e) => handleDayDrop(e, dateStr)}
-                          className={cn('min-h-[70px] rounded-xl border transition-all cursor-pointer',
+                          className={cn('min-h-[70px] min-w-0 rounded-xl border transition-all cursor-pointer',
                             todayFlag ? 'border-gold bg-gold/5' : 'border-border hover:border-gold/40',
                             (copiedWorkout || armedBankWorkout) ? 'hover:border-gold hover:bg-gold/5' : ''
                           )}>
@@ -1550,65 +1550,66 @@ export function AthletePlanner({ athleteId }: Props) {
                                   {/* Hebrew content needs dir="rtl" + text-right explicitly —
                                       this whole grid had neither, so Hebrew text/wrapping was
                                       rendering in the wrong direction throughout. */}
-                                  <span className="font-bold flex items-center gap-1 truncate text-[10px]">
-                                    {suspicious && <AlertTriangle className="h-2.5 w-2.5"/>}
+                                  <div className="w-full min-w-0 font-bold flex items-center gap-1 truncate text-[10px]">
+                                    {suspicious && <AlertTriangle className="h-2.5 w-2.5 shrink-0"/>}
                                     {w.workout?.title}
-                                  </span>
+                                  </div>
                                   {(w.workout?.distance || w.workout?.duration) && (
-                                    <span className="opacity-70 truncate">
+                                    <div className="w-full min-w-0 opacity-70 truncate">
                                       {w.workout?.distance ? `${w.workout.distance} ק"מ` : ''}
                                       {w.workout?.distance && w.workout?.duration ? ' · ' : ''}
                                       {w.workout?.duration ? `${w.workout.duration} דק'` : ''}
-                                    </span>
+                                    </div>
                                   )}
                                   {/* Warm-up — very small, secondary line. */}
                                   {w.workout?.warmup && (
-                                    <span className="opacity-45 text-[7.5px] whitespace-pre-line">חימום: {w.workout.warmup}</span>
+                                    <div className="w-full min-w-0 opacity-45 text-[7.5px] break-words whitespace-pre-line">חימום: {w.workout.warmup}</div>
                                   )}
                                   {/* Main workout — bigger than warm-up/cooldown, exact same
                                       content the athlete sees (sets + free-text description),
                                       not a different coach-only summary, so the coach can
                                       actually verify several days are correct at a glance. */}
                                   {!!w.workout?.sets?.length && (
-                                    <span className="opacity-90 font-bold text-[10.5px]" dir="ltr">
-                                      {w.workout.sets.map((s: any) => {
+                                    <div className="w-full min-w-0 opacity-90 font-bold text-[10.5px] break-words" dir="ltr">
+                                      {w.workout.sets.map((s: any, i: number) => {
                                         const unit = s.distance || (s.distanceMeters ? `${s.distanceMeters}m` : '')
-                                          || s.duration || (s.durationSec ? `${Math.round(s.durationSec / 60)} דק'` : '')
+                                          || s.duration || (s.durationSec ? `${Math.round(s.durationSec / 60)} min` : '')
                                         if (!unit) return null
                                         const reps = s.reps > 1 ? `${s.reps}×${unit}` : unit
                                         const restBits = [
-                                          s.reps > 1 && s.restBetweenReps ? `⟳${s.restBetweenReps}` : '',
-                                          s.restAfterSet ? `↓${s.restAfterSet}` : (s.rest || ''),
-                                        ].filter(Boolean).join(' ')
-                                        return restBits ? `${reps} (${restBits})` : reps
-                                      }).filter(Boolean).join(' + ')}
-                                    </span>
+                                          s.reps > 1 && s.restBetweenReps ? `rest ${s.restBetweenReps}` : '',
+                                          s.restAfterSet ? `then ${s.restAfterSet}` : (s.rest || ''),
+                                        ].filter(Boolean).join(', ')
+                                        return <div key={s.id || i}>{i + 1}. {reps}{restBits ? ` (${restBits})` : ''}</div>
+                                      })}
+                                    </div>
                                   )}
                                   {w.workout?.description && (
-                                    <span className="opacity-90 font-semibold text-[10.5px] whitespace-pre-line">{w.workout.description}</span>
+                                    <div className="w-full min-w-0 opacity-90 font-semibold text-[10.5px] break-words whitespace-pre-line">{w.workout.description}</div>
                                   )}
                                   {/* Lift/strength workouts have no sets/description — the
-                                      actual content is the exercise list (strengthBlocks),
-                                      one block per set/superset. Very small, still exact. */}
+                                      actual content is the exercise list, one line per
+                                      block/superset. Names only (no sets/reps clutter) —
+                                      that's what makes this scannable, not "everything". */}
                                   {!!w.workout?.strengthBlocks?.length && (
-                                    <span className="opacity-90 font-semibold text-[9px] leading-tight">
-                                      {w.workout.strengthBlocks.map((b: any) =>
-                                        `${b.label}: ${b.exercises.map((ex: any) => `${ex.name} ${ex.targetSets}×${ex.targetDurationSec ? `${ex.targetDurationSec}s` : ex.targetReps}`).join(', ')}`
-                                      ).join(' | ')}
-                                    </span>
+                                    <div className="w-full min-w-0 opacity-90 font-semibold text-[9px] leading-tight break-words">
+                                      {w.workout.strengthBlocks.map((b: any) => (
+                                        <div key={b.id}>{b.label}: {b.exercises.map((ex: any) => ex.name).join(', ')}</div>
+                                      ))}
+                                    </div>
                                   )}
                                   {/* Cooldown — very small, secondary line. */}
                                   {w.workout?.cooldown && (
-                                    <span className="opacity-45 text-[7.5px] whitespace-pre-line">שחרור: {w.workout.cooldown}</span>
+                                    <div className="w-full min-w-0 opacity-45 text-[7.5px] break-words whitespace-pre-line">שחרור: {w.workout.cooldown}</div>
                                   )}
                                   {/* Coach-only note on this assignment — very small. */}
                                   {(w as any).coachFeedback && (
-                                    <span className="opacity-45 text-[7.5px] whitespace-pre-line">מאמן: {(w as any).coachFeedback}</span>
+                                    <div className="w-full min-w-0 opacity-45 text-[7.5px] break-words whitespace-pre-line">מאמן: {(w as any).coachFeedback}</div>
                                   )}
                                   {matchLog?.actualDistance && (
-                                    <span className="text-emerald-700 font-bold">{matchLog.actualDistance}k בוצע</span>
+                                    <div className="w-full min-w-0 text-emerald-700 font-bold">{matchLog.actualDistance}k בוצע</div>
                                   )}
-                                  {isCompleted && !matchLog?.actualDistance && <span className="text-emerald-600">הושלם</span>}
+                                  {isCompleted && !matchLog?.actualDistance && <div className="w-full min-w-0 text-emerald-600">הושלם</div>}
                                 </button>
                               )
                             })}
@@ -1649,7 +1650,7 @@ export function AthletePlanner({ athleteId }: Props) {
             {viewMode === 'month' && (
               <div className="overflow-x-auto -mx-2 px-2">
                 <div style={{ zoom: gridZoom }}>
-                  <div className="grid gap-1 mb-1" style={{ gridTemplateColumns: 'repeat(7, minmax(105px, 1fr)) 60px' }}>
+                  <div className="grid gap-1 mb-1" style={{ gridTemplateColumns: 'repeat(7, minmax(170px, 1fr)) 70px' }}>
                     {DAY_LABELS.map((d,i) => <div key={i} className="text-center text-[10px] font-semibold text-muted-foreground py-1">{d}</div>)}
                     <div className="text-center text-[10px] font-semibold text-muted-foreground py-1">KM</div>
                   </div>
@@ -1658,7 +1659,7 @@ export function AthletePlanner({ athleteId }: Props) {
                       const days = eachDayOfInterval({ start: weekStartDay, end: endOfWeek(weekStartDay,{weekStartsOn:calWeekStartsOn}) })
                       const wKm = getWeekKm2(days)
                       return (
-                        <div key={wi} className="grid gap-1" style={{ gridTemplateColumns: 'repeat(7, minmax(105px, 1fr)) 60px' }}>
+                        <div key={wi} className="grid gap-1" style={{ gridTemplateColumns: 'repeat(7, minmax(170px, 1fr)) 70px' }}>
                           {days.map((day, di) => {
                             const inMonth = isSameMonth(day, currentDate)
                             const dateStr = format(day, 'yyyy-MM-dd')
@@ -1677,7 +1678,7 @@ export function AthletePlanner({ athleteId }: Props) {
                                 }}
                                 onDragOver={(e) => { if (inMonth) e.preventDefault() }}
                                 onDrop={(e) => { if (inMonth) handleDayDrop(e, dateStr) }}
-                                className={cn('min-h-[70px] rounded-lg p-1 border transition-all',
+                                className={cn('min-h-[70px] min-w-0 rounded-lg p-1 border transition-all',
                                   !inMonth ? 'opacity-20 border-transparent' : 'border-border',
                                   todayFlag ? 'border-gold/60 bg-gold/5' : '',
                                   (copiedWorkout || armedBankWorkout) && inMonth ? 'cursor-pointer hover:border-gold' : ''
@@ -1703,59 +1704,60 @@ export function AthletePlanner({ athleteId }: Props) {
                                             still opens the full card below (setSelectedDate
                                             above), same "exactly like the athlete sees" panel
                                             as always. */}
-                                        <span className="w-full truncate flex items-center gap-0.5 font-bold text-[10px]">
+                                        <div className="w-full min-w-0 truncate flex items-center gap-0.5 font-bold text-[10px]">
                                           {suspicious && <AlertTriangle className="h-2 w-2 flex-shrink-0"/>}
                                           {isDone ? '✓ ' : ''}{w.workout?.title}
-                                        </span>
+                                        </div>
                                         {(w.workout?.distance || w.workout?.duration) && (
-                                          <span className="w-full truncate opacity-70">
+                                          <div className="w-full min-w-0 truncate opacity-70">
                                             {w.workout?.distance ? `${w.workout.distance} ק"מ` : ''}
                                             {w.workout?.distance && w.workout?.duration ? ' · ' : ''}
                                             {w.workout?.duration ? `${w.workout.duration} דק'` : ''}
-                                          </span>
+                                          </div>
                                         )}
                                         {/* Warm-up — very small, secondary line. */}
                                         {w.workout?.warmup && (
-                                          <span className="w-full opacity-45 text-[7.5px] whitespace-pre-line">חימום: {w.workout.warmup}</span>
+                                          <div className="w-full min-w-0 opacity-45 text-[7.5px] break-words whitespace-pre-line">חימום: {w.workout.warmup}</div>
                                         )}
                                         {/* Main workout — bigger than warm-up/cooldown, exact
                                             same content the athlete sees, so the coach can
                                             actually verify several days at a glance. */}
                                         {!!w.workout?.sets?.length && (
-                                          <span className="w-full opacity-90 font-bold text-[10.5px]" dir="ltr">
-                                            {w.workout.sets.map((s: any) => {
+                                          <div className="w-full min-w-0 opacity-90 font-bold text-[10.5px] break-words" dir="ltr">
+                                            {w.workout.sets.map((s: any, i: number) => {
                                               const unit = s.distance || (s.distanceMeters ? `${s.distanceMeters}m` : '')
-                                                || s.duration || (s.durationSec ? `${Math.round(s.durationSec / 60)} דק'` : '')
+                                                || s.duration || (s.durationSec ? `${Math.round(s.durationSec / 60)} min` : '')
                                               if (!unit) return null
                                               const reps = s.reps > 1 ? `${s.reps}×${unit}` : unit
                                               const restBits = [
-                                                s.reps > 1 && s.restBetweenReps ? `⟳${s.restBetweenReps}` : '',
-                                                s.restAfterSet ? `↓${s.restAfterSet}` : (s.rest || ''),
-                                              ].filter(Boolean).join(' ')
-                                              return restBits ? `${reps} (${restBits})` : reps
-                                            }).filter(Boolean).join(' + ')}
-                                          </span>
+                                                s.reps > 1 && s.restBetweenReps ? `rest ${s.restBetweenReps}` : '',
+                                                s.restAfterSet ? `then ${s.restAfterSet}` : (s.rest || ''),
+                                              ].filter(Boolean).join(', ')
+                                              return <div key={s.id || i}>{i + 1}. {reps}{restBits ? ` (${restBits})` : ''}</div>
+                                            })}
+                                          </div>
                                         )}
                                         {w.workout?.description && (
-                                          <span className="w-full opacity-90 font-semibold text-[10.5px] whitespace-pre-line">{w.workout.description}</span>
+                                          <div className="w-full min-w-0 opacity-90 font-semibold text-[10.5px] break-words whitespace-pre-line">{w.workout.description}</div>
                                         )}
                                         {/* Lift/strength workouts have no sets/description — the
-                                            actual content is the exercise list (strengthBlocks),
-                                            one block per set/superset. Very small, still exact. */}
+                                            actual content is the exercise list, one line per
+                                            block/superset. Names only — that's what makes this
+                                            scannable, not "everything". */}
                                         {!!w.workout?.strengthBlocks?.length && (
-                                          <span className="w-full opacity-90 font-semibold text-[9px] leading-tight">
-                                            {w.workout.strengthBlocks.map((b: any) =>
-                                              `${b.label}: ${b.exercises.map((ex: any) => `${ex.name} ${ex.targetSets}×${ex.targetDurationSec ? `${ex.targetDurationSec}s` : ex.targetReps}`).join(', ')}`
-                                            ).join(' | ')}
-                                          </span>
+                                          <div className="w-full min-w-0 opacity-90 font-semibold text-[9px] leading-tight break-words">
+                                            {w.workout.strengthBlocks.map((b: any) => (
+                                              <div key={b.id}>{b.label}: {b.exercises.map((ex: any) => ex.name).join(', ')}</div>
+                                            ))}
+                                          </div>
                                         )}
                                         {/* Cooldown — very small, secondary line. */}
                                         {w.workout?.cooldown && (
-                                          <span className="w-full opacity-45 text-[7.5px] whitespace-pre-line">שחרור: {w.workout.cooldown}</span>
+                                          <div className="w-full min-w-0 opacity-45 text-[7.5px] break-words whitespace-pre-line">שחרור: {w.workout.cooldown}</div>
                                         )}
                                         {/* Coach-only note on this assignment — very small. */}
                                         {(w as any).coachFeedback && (
-                                          <span className="w-full opacity-45 text-[7.5px] whitespace-pre-line">מאמן: {(w as any).coachFeedback}</span>
+                                          <div className="w-full min-w-0 opacity-45 text-[7.5px] break-words whitespace-pre-line">מאמן: {(w as any).coachFeedback}</div>
                                         )}
                                       </button>
                                     )
