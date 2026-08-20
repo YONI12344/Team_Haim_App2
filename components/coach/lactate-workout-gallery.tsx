@@ -89,6 +89,10 @@ export function LactateWorkoutGallery({ athleteId, readOnly }: { athleteId: stri
   const [baselineSteps, setBaselineSteps] = useState<LactateStep[] | null>(null)
   const [baselineLoading, setBaselineLoading] = useState(true)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  // Raw-data debug toggle — shows exactly which logs (and whose athleteId)
+  // feed a card's numbers, for tracing a suspected data-mixing report back
+  // to a specific document instead of guessing.
+  const [showDebugById, setShowDebugById] = useState<Record<string, boolean>>({})
 
   const handleDeleteSession = async (logId: string) => {
     setDeletingId(logId)
@@ -127,7 +131,7 @@ export function LactateWorkoutGallery({ athleteId, readOnly }: { athleteId: stri
     points: baselineSteps.map(s => ({ pace: s.pace, hr: s.hr, lactate: s.lactate })),
   } : null
 
-  type Card = { id: string; title: string; type?: string; color: string; curves: CurveInput[]; thresholds?: ReturnType<typeof currentWorkoutThresholds>; rest?: ReturnType<typeof latestSessionRest>; trend?: ReturnType<typeof paceDelta>; sessionCount?: number; trendPoints?: ComparisonPoint[]; sourceMeta?: ReturnType<typeof latestSessionLogMeta> }
+  type Card = { id: string; title: string; type?: string; color: string; curves: CurveInput[]; thresholds?: ReturnType<typeof currentWorkoutThresholds>; rest?: ReturnType<typeof latestSessionRest>; trend?: ReturnType<typeof paceDelta>; sessionCount?: number; trendPoints?: ComparisonPoint[]; sourceMeta?: ReturnType<typeof latestSessionLogMeta>; rawLogs?: WorkoutLactateGroup['logs'] }
   const workoutCards: Card[] = workoutOptions.map((o, i) => {
     const group = grouped.get(o.id)!
     // baselineSteps lets an untested session's reps still land on this
@@ -160,6 +164,12 @@ export function LactateWorkoutGallery({ athleteId, readOnly }: { athleteId: stri
       // no baseline test to estimate from, or no HR either) — fall back
       // to the plain pace/HR-over-time trend built from the raw logs.
       trendPoints: curves.length === 0 ? toTrendPoints(group) : undefined,
+      // Raw contributing logs, athleteId included on each one — surfaced
+      // via the 🔍 debug toggle below so a coach who suspects cross-athlete
+      // mixing can see for themselves that every log powering this card's
+      // numbers really does belong to athleteId (the prop this whole
+      // gallery was fetched with) rather than trusting the query blind.
+      rawLogs: group.logs,
     }
   })
 
@@ -286,6 +296,56 @@ export function LactateWorkoutGallery({ athleteId, readOnly }: { athleteId: stri
             <p className="text-[10px] text-muted-foreground mt-1.5">{t.labNoLactateYetTrend}</p>
           )}
         </button>
+
+        {/* Raw-data debug — every log contributing to this card, with its
+            own athleteId, so a suspected cross-athlete mix-up can be
+            confirmed or ruled out by looking at the actual documents
+            instead of trusting the chart alone. */}
+        {card.id !== 'baseline' && card.rawLogs && card.rawLogs.length > 0 && (
+          <div className="px-3 pb-2 -mt-1">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setShowDebugById(p => ({ ...p, [card.id]: !p[card.id] })) }}
+              className="text-[9px] font-semibold text-muted-foreground hover:text-navy underline decoration-dotted"
+            >
+              🔍 {showDebugById[card.id] ? 'הסתר נתוני מקור' : 'הצג נתוני מקור (בדיקת שיוך לספורטאי)'}
+            </button>
+            {showDebugById[card.id] && (
+              <div className="mt-1.5 rounded-lg border border-border overflow-x-auto">
+                <table className="w-full text-[9px]" dir="ltr">
+                  <thead>
+                    <tr className="bg-muted/40 text-muted-foreground">
+                      <th className="px-1.5 py-1 text-right">date</th>
+                      <th className="px-1.5 py-1 text-right">athleteId</th>
+                      <th className="px-1.5 py-1 text-right">logId</th>
+                      <th className="px-1.5 py-1 text-right">workoutId</th>
+                      <th className="px-1.5 py-1 text-right">thresholdDistance</th>
+                      <th className="px-1.5 py-1 text-right">reps (pace · hr · lac)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {card.rawLogs.map((log) => (
+                      <tr key={log.id} className={cn('border-t border-border/50', log.athleteId !== athleteId && 'bg-red-100 text-red-700 font-bold')}>
+                        <td className="px-1.5 py-1 whitespace-nowrap">{log.date}</td>
+                        <td className="px-1.5 py-1 whitespace-nowrap">{log.athleteId}{log.athleteId !== athleteId ? ' ⚠️ MISMATCH' : ''}</td>
+                        <td className="px-1.5 py-1 whitespace-nowrap">{log.id}</td>
+                        <td className="px-1.5 py-1 whitespace-nowrap">{log.workoutId}</td>
+                        <td className="px-1.5 py-1 whitespace-nowrap">{log.thresholdDistance ?? '—'}</td>
+                        <td className="px-1.5 py-1">
+                          {(log.splitLogs || []).map((r, i) => (
+                            <span key={i} className="inline-block mr-2 whitespace-nowrap">
+                              {r.pace ?? '—'} · {r.avgHr ?? r.heartRate ?? '—'} · {r.lactate ?? '—'}
+                            </span>
+                          ))}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
 
         {isOpen && card.id !== 'baseline' && card.curves.length === 0 && (
           <CardContent className="px-3 pb-3">

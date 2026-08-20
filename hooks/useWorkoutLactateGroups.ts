@@ -50,6 +50,10 @@ function repHr(r: WorkoutRepEntry): number | null {
 
 export interface WorkoutLactateLog {
   id: string
+  /** Present on every real doc (the query itself filters by it) — typed
+   *  here mainly so a debug/audit view can display it and prove there's
+   *  no mismatch, rather than trusting the query silently. */
+  athleteId: string
   workoutId: string
   workoutTitle?: string
   /** Rep distance this session was built around (e.g. 400 for "20×400") —
