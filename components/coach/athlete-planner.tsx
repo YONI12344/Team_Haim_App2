@@ -1486,8 +1486,8 @@ export function AthletePlanner({ athleteId }: Props) {
                 Native page pinch-zoom still works on top of this too. */}
             {(viewMode === 'week' || viewMode === 'month') && (
               <div className="flex items-center justify-center gap-1 mb-3">
-                <Button variant="outline" size="icon" className="h-7 w-7" disabled={gridZoom <= 0.6}
-                  onClick={() => setGridZoom(z => Math.max(0.6, Math.round((z - 0.15) * 100) / 100))}>
+                <Button variant="outline" size="icon" className="h-7 w-7" disabled={gridZoom <= 0.35}
+                  onClick={() => setGridZoom(z => Math.max(0.35, Math.round((z - 0.15) * 100) / 100))}>
                   <ZoomOut className="h-3.5 w-3.5"/>
                 </Button>
                 <button onClick={() => setGridZoom(1)} className="text-[11px] text-muted-foreground w-12 text-center hover:text-navy" title="איפוס זום">
@@ -1504,11 +1504,11 @@ export function AthletePlanner({ athleteId }: Props) {
             {viewMode === 'week' && (
               <div className="overflow-x-auto -mx-2 px-2">
                 <div style={{ zoom: gridZoom }}>
-                  <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: 'repeat(7, minmax(200px, 1fr)) 90px' }}>
+                  <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: 'repeat(7, minmax(120px, 1fr)) 70px' }}>
                     {DAY_LABELS.map((d,i) => <div key={i} className="text-center text-xs font-semibold text-muted-foreground py-1">{d}</div>)}
                     <div className="text-center text-xs font-semibold text-muted-foreground py-1">KM</div>
                   </div>
-                  <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(7, minmax(200px, 1fr)) 90px' }}>
+                  <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(7, minmax(120px, 1fr)) 70px' }}>
                     {weekDays.map((day, di) => {
                       const dateStr = format(day, 'yyyy-MM-dd')
                       const dayWorkouts = getWorkoutsForDate2(dateStr)
@@ -1526,7 +1526,7 @@ export function AthletePlanner({ athleteId }: Props) {
                           }}
                           onDragOver={(e) => e.preventDefault()}
                           onDrop={(e) => handleDayDrop(e, dateStr)}
-                          className={cn('min-h-[130px] rounded-xl border transition-all cursor-pointer',
+                          className={cn('min-h-[70px] rounded-xl border transition-all cursor-pointer',
                             todayFlag ? 'border-gold bg-gold/5' : 'border-border hover:border-gold/40',
                             (copiedWorkout || armedBankWorkout) ? 'hover:border-gold hover:bg-gold/5' : ''
                           )}>
@@ -1541,50 +1541,29 @@ export function AthletePlanner({ athleteId }: Props) {
                               return (
                                 <button key={w.id}
                                   onClick={e => { e.stopPropagation(); setSelectedAssignedId(prev => prev === w.id ? null : w.id); setSelectedDate(day) }}
-                                  className={cn('w-full text-left text-[11px] leading-snug rounded-lg px-2 py-2 border transition-all hover:opacity-80 flex flex-col gap-1',
+                                  className={cn('w-full text-left text-[9px] leading-tight rounded-lg px-1.5 py-1.5 border transition-all hover:opacity-80 flex flex-col gap-0',
                                     suspicious ? 'bg-red-100 text-red-700 border-red-300' : (TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy),
                                     isCompleted ? 'opacity-70' : '',
                                     selectedAssignedId === w.id ? 'ring-2 ring-navy' : ''
                                   )}>
-                                  <span className="font-bold flex items-center gap-1 text-[12px]">
-                                    {suspicious && <AlertTriangle className="h-3 w-3"/>}
+                                  {/* Excel-dense by default — click opens the full card
+                                      below (same "exactly like the athlete sees" panel as
+                                      always), that's where the real detail lives. */}
+                                  <span className="font-bold flex items-center gap-1 truncate">
+                                    {suspicious && <AlertTriangle className="h-2.5 w-2.5"/>}
                                     {w.workout?.title}
                                   </span>
                                   {(w.workout?.distance || w.workout?.duration) && (
-                                    <span className="opacity-70 font-semibold">
+                                    <span className="opacity-70 truncate">
                                       {w.workout?.distance ? `${w.workout.distance} ק"מ` : ''}
                                       {w.workout?.distance && w.workout?.duration ? ' · ' : ''}
                                       {w.workout?.duration ? `${w.workout.duration} דק'` : ''}
                                     </span>
                                   )}
-                                  {w.workout?.warmup && (
-                                    <span className="opacity-50 text-[9.5px] whitespace-pre-line">חימום: {w.workout.warmup}</span>
-                                  )}
-                                  {!!w.workout?.sets?.length && (
-                                    <span className="opacity-90 font-bold text-[12px]" dir="ltr">
-                                      {w.workout.sets.map((s: any) => {
-                                        const unit = s.distance || (s.distanceMeters ? `${s.distanceMeters}m` : '')
-                                          || s.duration || (s.durationSec ? `${Math.round(s.durationSec / 60)} דק'` : '')
-                                        if (!unit) return null
-                                        const reps = s.reps > 1 ? `${s.reps}×${unit}` : unit
-                                        const restBits = [
-                                          s.reps > 1 && s.restBetweenReps ? `⟳${s.restBetweenReps}` : '',
-                                          s.restAfterSet ? `↓${s.restAfterSet}` : (s.rest || ''),
-                                        ].filter(Boolean).join(' ')
-                                        return restBits ? `${reps} (${restBits})` : reps
-                                      }).filter(Boolean).join(' + ')}
-                                    </span>
-                                  )}
-                                  {w.workout?.description && (
-                                    <span className="opacity-90 font-semibold text-[12px] whitespace-pre-line">{w.workout.description}</span>
-                                  )}
-                                  {w.workout?.cooldown && (
-                                    <span className="opacity-50 text-[9.5px] whitespace-pre-line">שחרור: {w.workout.cooldown}</span>
-                                  )}
                                   {matchLog?.actualDistance && (
-                                    <span className="text-emerald-700 font-bold text-[10px]">{matchLog.actualDistance}k בוצע</span>
+                                    <span className="text-emerald-700 font-bold">{matchLog.actualDistance}k בוצע</span>
                                   )}
-                                  {isCompleted && !matchLog?.actualDistance && <span className="text-emerald-600 text-[10px]">הושלם</span>}
+                                  {isCompleted && !matchLog?.actualDistance && <span className="text-emerald-600">הושלם</span>}
                                 </button>
                               )
                             })}
@@ -1602,7 +1581,7 @@ export function AthletePlanner({ athleteId }: Props) {
                       const targetKm = getWeekTargetKm(weekStart)
                       const kmOk = targetKm ? Math.abs(wkKm - targetKm) <= targetKm * 0.1 : null
                       return (
-                        <div className="flex flex-col items-center justify-center rounded-xl bg-muted/30 border border-border/30 min-h-[130px]">
+                        <div className="flex flex-col items-center justify-center rounded-xl bg-muted/30 border border-border/30 min-h-[70px]">
                           <p className={cn('text-lg font-bold',
                             kmOk == null ? 'text-navy' : kmOk ? 'text-emerald-700' : wkKm < (targetKm || 0) ? 'text-amber-700' : 'text-red-600')}>
                             {wkKm}
@@ -1625,7 +1604,7 @@ export function AthletePlanner({ athleteId }: Props) {
             {viewMode === 'month' && (
               <div className="overflow-x-auto -mx-2 px-2">
                 <div style={{ zoom: gridZoom }}>
-                  <div className="grid gap-1 mb-1" style={{ gridTemplateColumns: 'repeat(7, minmax(170px, 1fr)) 80px' }}>
+                  <div className="grid gap-1 mb-1" style={{ gridTemplateColumns: 'repeat(7, minmax(105px, 1fr)) 60px' }}>
                     {DAY_LABELS.map((d,i) => <div key={i} className="text-center text-[10px] font-semibold text-muted-foreground py-1">{d}</div>)}
                     <div className="text-center text-[10px] font-semibold text-muted-foreground py-1">KM</div>
                   </div>
@@ -1634,7 +1613,7 @@ export function AthletePlanner({ athleteId }: Props) {
                       const days = eachDayOfInterval({ start: weekStartDay, end: endOfWeek(weekStartDay,{weekStartsOn:calWeekStartsOn}) })
                       const wKm = getWeekKm2(days)
                       return (
-                        <div key={wi} className="grid gap-1" style={{ gridTemplateColumns: 'repeat(7, minmax(170px, 1fr)) 80px' }}>
+                        <div key={wi} className="grid gap-1" style={{ gridTemplateColumns: 'repeat(7, minmax(105px, 1fr)) 60px' }}>
                           {days.map((day, di) => {
                             const inMonth = isSameMonth(day, currentDate)
                             const dateStr = format(day, 'yyyy-MM-dd')
@@ -1653,7 +1632,7 @@ export function AthletePlanner({ athleteId }: Props) {
                                 }}
                                 onDragOver={(e) => { if (inMonth) e.preventDefault() }}
                                 onDrop={(e) => { if (inMonth) handleDayDrop(e, dateStr) }}
-                                className={cn('min-h-[110px] rounded-lg p-1.5 border transition-all',
+                                className={cn('min-h-[70px] rounded-lg p-1 border transition-all',
                                   !inMonth ? 'opacity-20 border-transparent' : 'border-border',
                                   todayFlag ? 'border-gold/60 bg-gold/5' : '',
                                   (copiedWorkout || armedBankWorkout) && inMonth ? 'cursor-pointer hover:border-gold' : ''
@@ -1667,58 +1646,27 @@ export function AthletePlanner({ athleteId }: Props) {
                                     return (
                                       <button key={w.id}
                                         onClick={e => { e.stopPropagation(); setSelectedAssignedId(prev => prev === w.id ? null : w.id); if (inMonth) setSelectedDate(day) }}
-                                        className={cn('w-full text-left text-[11px] leading-snug rounded px-2 py-2 border hover:opacity-75 flex flex-col items-start gap-1',
+                                        className={cn('w-full text-left text-[9px] leading-tight rounded px-1 py-1 border hover:opacity-75 flex flex-col items-start gap-0',
                                           suspicious ? 'bg-red-100 text-red-700 border-red-300 font-bold' : (TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy),
                                           isDone ? 'opacity-60' : '',
                                           selectedAssignedId === w.id ? 'ring-1 ring-navy font-bold' : ''
                                         )}>
-                                        {/* Coach-only view — full detail, real card width, cell
-                                            grows to fit (like the Excel sheet's auto row
-                                            height). Athlete's own view is untouched. */}
-                                        <span className="w-full flex items-center gap-1 font-bold text-[12px]">
-                                          {suspicious && <AlertTriangle className="h-3 w-3 flex-shrink-0"/>}
+                                        {/* Excel-dense by default — just enough to recognize
+                                            the day at a glance. Click opens the full card
+                                            below (setSelectedDate above), same "exactly like
+                                            the athlete sees" panel as always — that's where
+                                            the real detail (sets, warm-up, cooldown,
+                                            description) lives, not crammed into every cell. */}
+                                        <span className="w-full truncate flex items-center gap-0.5 font-bold">
+                                          {suspicious && <AlertTriangle className="h-2 w-2 flex-shrink-0"/>}
                                           {isDone ? '✓ ' : ''}{w.workout?.title}
                                         </span>
                                         {(w.workout?.distance || w.workout?.duration) && (
-                                          <span className="w-full opacity-70 font-semibold">
+                                          <span className="w-full truncate opacity-70">
                                             {w.workout?.distance ? `${w.workout.distance} ק"מ` : ''}
                                             {w.workout?.distance && w.workout?.duration ? ' · ' : ''}
                                             {w.workout?.duration ? `${w.workout.duration} דק'` : ''}
                                           </span>
-                                        )}
-                                        {/* Warm-up — small, secondary, before the main set
-                                            (chronologically first, but not the point). */}
-                                        {w.workout?.warmup && (
-                                          <span className="w-full opacity-50 text-[9.5px] whitespace-pre-line">חימום: {w.workout.warmup}</span>
-                                        )}
-                                        {/* Structured sets (reps × distance/time + rest), when
-                                            this workout was built with the set editor rather
-                                            than (or in addition to) free-text description. This
-                                            IS the point — bigger than everything else here. */}
-                                        {!!w.workout?.sets?.length && (
-                                          <span className="w-full opacity-90 font-bold text-[12px]" dir="ltr">
-                                            {w.workout.sets.map((s: any) => {
-                                              const unit = s.distance || (s.distanceMeters ? `${s.distanceMeters}m` : '')
-                                                || s.duration || (s.durationSec ? `${Math.round(s.durationSec / 60)} דק'` : '')
-                                              if (!unit) return null
-                                              const reps = s.reps > 1 ? `${s.reps}×${unit}` : unit
-                                              // Rest between reps only means anything when there's
-                                              // more than one rep; rest after the whole set is its
-                                              // own thing (recovery before the next set block).
-                                              const restBits = [
-                                                s.reps > 1 && s.restBetweenReps ? `⟳${s.restBetweenReps}` : '',
-                                                s.restAfterSet ? `↓${s.restAfterSet}` : (s.rest || ''),
-                                              ].filter(Boolean).join(' ')
-                                              return restBits ? `${reps} (${restBits})` : reps
-                                            }).filter(Boolean).join(' + ')}
-                                          </span>
-                                        )}
-                                        {w.workout?.description && (
-                                          <span className="w-full opacity-90 font-semibold text-[12px] whitespace-pre-line">{w.workout.description}</span>
-                                        )}
-                                        {/* Cooldown — small, secondary, after everything else. */}
-                                        {w.workout?.cooldown && (
-                                          <span className="w-full opacity-50 text-[9.5px] whitespace-pre-line">שחרור: {w.workout.cooldown}</span>
                                         )}
                                       </button>
                                     )
