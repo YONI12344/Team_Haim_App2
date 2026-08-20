@@ -1540,16 +1540,17 @@ export function AthletePlanner({ athleteId }: Props) {
                               const suspicious = isSuspiciousDistance(w.workout?.distance)
                               return (
                                 <button key={w.id}
+                                  dir="rtl"
                                   onClick={e => { e.stopPropagation(); setSelectedAssignedId(prev => prev === w.id ? null : w.id); setSelectedDate(day) }}
-                                  className={cn('w-full text-left text-[9px] leading-tight rounded-lg px-1.5 py-1.5 border transition-all hover:opacity-80 flex flex-col gap-0',
+                                  className={cn('w-full text-right text-[9px] leading-tight rounded-lg px-1.5 py-1.5 border transition-all hover:opacity-80 flex flex-col gap-0.5',
                                     suspicious ? 'bg-red-100 text-red-700 border-red-300' : (TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy),
                                     isCompleted ? 'opacity-70' : '',
                                     selectedAssignedId === w.id ? 'ring-2 ring-navy' : ''
                                   )}>
-                                  {/* Excel-dense by default — click opens the full card
-                                      below (same "exactly like the athlete sees" panel as
-                                      always), that's where the real detail lives. */}
-                                  <span className="font-bold flex items-center gap-1 truncate">
+                                  {/* Hebrew content needs dir="rtl" + text-right explicitly —
+                                      this whole grid had neither, so Hebrew text/wrapping was
+                                      rendering in the wrong direction throughout. */}
+                                  <span className="font-bold flex items-center gap-1 truncate text-[10px]">
                                     {suspicious && <AlertTriangle className="h-2.5 w-2.5"/>}
                                     {w.workout?.title}
                                   </span>
@@ -1559,6 +1560,40 @@ export function AthletePlanner({ athleteId }: Props) {
                                       {w.workout?.distance && w.workout?.duration ? ' · ' : ''}
                                       {w.workout?.duration ? `${w.workout.duration} דק'` : ''}
                                     </span>
+                                  )}
+                                  {/* Warm-up — very small, secondary line. */}
+                                  {w.workout?.warmup && (
+                                    <span className="opacity-45 text-[7.5px] whitespace-pre-line">חימום: {w.workout.warmup}</span>
+                                  )}
+                                  {/* Main workout — bigger than warm-up/cooldown, exact same
+                                      content the athlete sees (sets + free-text description),
+                                      not a different coach-only summary, so the coach can
+                                      actually verify several days are correct at a glance. */}
+                                  {!!w.workout?.sets?.length && (
+                                    <span className="opacity-90 font-bold text-[10.5px]" dir="ltr">
+                                      {w.workout.sets.map((s: any) => {
+                                        const unit = s.distance || (s.distanceMeters ? `${s.distanceMeters}m` : '')
+                                          || s.duration || (s.durationSec ? `${Math.round(s.durationSec / 60)} דק'` : '')
+                                        if (!unit) return null
+                                        const reps = s.reps > 1 ? `${s.reps}×${unit}` : unit
+                                        const restBits = [
+                                          s.reps > 1 && s.restBetweenReps ? `⟳${s.restBetweenReps}` : '',
+                                          s.restAfterSet ? `↓${s.restAfterSet}` : (s.rest || ''),
+                                        ].filter(Boolean).join(' ')
+                                        return restBits ? `${reps} (${restBits})` : reps
+                                      }).filter(Boolean).join(' + ')}
+                                    </span>
+                                  )}
+                                  {w.workout?.description && (
+                                    <span className="opacity-90 font-semibold text-[10.5px] whitespace-pre-line">{w.workout.description}</span>
+                                  )}
+                                  {/* Cooldown — very small, secondary line. */}
+                                  {w.workout?.cooldown && (
+                                    <span className="opacity-45 text-[7.5px] whitespace-pre-line">שחרור: {w.workout.cooldown}</span>
+                                  )}
+                                  {/* Coach-only note on this assignment — very small. */}
+                                  {(w as any).coachFeedback && (
+                                    <span className="opacity-45 text-[7.5px] whitespace-pre-line">מאמן: {(w as any).coachFeedback}</span>
                                   )}
                                   {matchLog?.actualDistance && (
                                     <span className="text-emerald-700 font-bold">{matchLog.actualDistance}k בוצע</span>
@@ -1645,19 +1680,20 @@ export function AthletePlanner({ athleteId }: Props) {
                                     const suspicious = isSuspiciousDistance(w.workout?.distance)
                                     return (
                                       <button key={w.id}
+                                        dir="rtl"
                                         onClick={e => { e.stopPropagation(); setSelectedAssignedId(prev => prev === w.id ? null : w.id); if (inMonth) setSelectedDate(day) }}
-                                        className={cn('w-full text-left text-[9px] leading-tight rounded px-1 py-1 border hover:opacity-75 flex flex-col items-start gap-0',
+                                        className={cn('w-full text-right text-[9px] leading-tight rounded px-1.5 py-1.5 border hover:opacity-75 flex flex-col items-start gap-0.5',
                                           suspicious ? 'bg-red-100 text-red-700 border-red-300 font-bold' : (TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy),
                                           isDone ? 'opacity-60' : '',
                                           selectedAssignedId === w.id ? 'ring-1 ring-navy font-bold' : ''
                                         )}>
-                                        {/* Excel-dense by default — just enough to recognize
-                                            the day at a glance. Click opens the full card
-                                            below (setSelectedDate above), same "exactly like
-                                            the athlete sees" panel as always — that's where
-                                            the real detail (sets, warm-up, cooldown,
-                                            description) lives, not crammed into every cell. */}
-                                        <span className="w-full truncate flex items-center gap-0.5 font-bold">
+                                        {/* Hebrew content needs dir="rtl" + text-right — this
+                                            whole grid had neither before, so Hebrew text was
+                                            rendering/wrapping in the wrong direction. Click
+                                            still opens the full card below (setSelectedDate
+                                            above), same "exactly like the athlete sees" panel
+                                            as always. */}
+                                        <span className="w-full truncate flex items-center gap-0.5 font-bold text-[10px]">
                                           {suspicious && <AlertTriangle className="h-2 w-2 flex-shrink-0"/>}
                                           {isDone ? '✓ ' : ''}{w.workout?.title}
                                         </span>
@@ -1667,6 +1703,39 @@ export function AthletePlanner({ athleteId }: Props) {
                                             {w.workout?.distance && w.workout?.duration ? ' · ' : ''}
                                             {w.workout?.duration ? `${w.workout.duration} דק'` : ''}
                                           </span>
+                                        )}
+                                        {/* Warm-up — very small, secondary line. */}
+                                        {w.workout?.warmup && (
+                                          <span className="w-full opacity-45 text-[7.5px] whitespace-pre-line">חימום: {w.workout.warmup}</span>
+                                        )}
+                                        {/* Main workout — bigger than warm-up/cooldown, exact
+                                            same content the athlete sees, so the coach can
+                                            actually verify several days at a glance. */}
+                                        {!!w.workout?.sets?.length && (
+                                          <span className="w-full opacity-90 font-bold text-[10.5px]" dir="ltr">
+                                            {w.workout.sets.map((s: any) => {
+                                              const unit = s.distance || (s.distanceMeters ? `${s.distanceMeters}m` : '')
+                                                || s.duration || (s.durationSec ? `${Math.round(s.durationSec / 60)} דק'` : '')
+                                              if (!unit) return null
+                                              const reps = s.reps > 1 ? `${s.reps}×${unit}` : unit
+                                              const restBits = [
+                                                s.reps > 1 && s.restBetweenReps ? `⟳${s.restBetweenReps}` : '',
+                                                s.restAfterSet ? `↓${s.restAfterSet}` : (s.rest || ''),
+                                              ].filter(Boolean).join(' ')
+                                              return restBits ? `${reps} (${restBits})` : reps
+                                            }).filter(Boolean).join(' + ')}
+                                          </span>
+                                        )}
+                                        {w.workout?.description && (
+                                          <span className="w-full opacity-90 font-semibold text-[10.5px] whitespace-pre-line">{w.workout.description}</span>
+                                        )}
+                                        {/* Cooldown — very small, secondary line. */}
+                                        {w.workout?.cooldown && (
+                                          <span className="w-full opacity-45 text-[7.5px] whitespace-pre-line">שחרור: {w.workout.cooldown}</span>
+                                        )}
+                                        {/* Coach-only note on this assignment — very small. */}
+                                        {(w as any).coachFeedback && (
+                                          <span className="w-full opacity-45 text-[7.5px] whitespace-pre-line">מאמן: {(w as any).coachFeedback}</span>
                                         )}
                                       </button>
                                     )
