@@ -663,7 +663,7 @@ Generate a 14-day training plan starting from ${startDate} following Team Haim m
           className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ChevronDown className={cn('h-4 w-4 transition-transform', showBakken && 'rotate-180')} />
-          Bakken AI (full-plan generator)
+          Assistant Coach AI (full-plan generator)
         </button>
         {showBakken && (
           <div className="mt-3">

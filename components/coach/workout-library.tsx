@@ -186,7 +186,7 @@ export function WorkoutLibrary() {
         for (const id of idsToDelete.slice(i, i + 450)) batch.delete(doc(db, 'workouts', id))
         await batch.commit()
       }
-      toast.success(`נמחקו ${idsToDelete.length} אימוני Bakken AI מהספרייה`)
+      toast.success(`נמחקו ${idsToDelete.length} אימוני עוזר המאמן AI מהספרייה`)
       setBulkDeleteOpen(false)
       await load()
     } catch (err) {
@@ -375,7 +375,7 @@ export function WorkoutLibrary() {
           {([
             { key: 'all' as const, label: `הכל (${workouts.length})` },
             { key: 'coach' as const, label: `שלי (${coachCount})` },
-            { key: 'bakken' as const, label: `Bakken AI (${bakkenCount})` },
+            { key: 'bakken' as const, label: `Assistant Coach AI (${bakkenCount})` },
           ]).map((opt) => (
             <Button
               key={opt.key}
@@ -395,7 +395,7 @@ export function WorkoutLibrary() {
           {bakkenCount > 0 && (
             <Button variant="outline" size="sm" onClick={() => setBulkDeleteOpen(true)} className="text-destructive hover:text-destructive border-destructive/30">
               <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-              מחק את כל אימוני Bakken AI ({bakkenCount})
+              מחק את כל אימוני עוזר המאמן AI ({bakkenCount})
             </Button>
           )}
           <Button variant="ghost" size="sm" onClick={() => setCleanupOpen((v) => !v)}>
@@ -472,7 +472,7 @@ export function WorkoutLibrary() {
                       )}
                       {isBakken(workout) && (
                         <Badge variant="outline" className="border-primary/30 text-primary text-[10px]">
-                          <Sparkles className="h-2.5 w-2.5 mr-1" />Bakken AI
+                          <Sparkles className="h-2.5 w-2.5 mr-1" />Assistant Coach AI
                         </Badge>
                       )}
                       {isRecent && (
@@ -608,9 +608,9 @@ export function WorkoutLibrary() {
       <AlertDialog open={bulkDeleteOpen} onOpenChange={(open) => !open && setBulkDeleteOpen(false)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>מחיקת כל אימוני Bakken AI</AlertDialogTitle>
+            <AlertDialogTitle>מחיקת כל אימוני עוזר המאמן AI</AlertDialogTitle>
             <AlertDialogDescription>
-              פעולה זו תמחק {bakkenCount} אימונים שה-Bakken AI יצר בספרייה. האימונים שאתם יצרתם באופן ידני לא ייפגעו.
+              פעולה זו תמחק {bakkenCount} אימונים שעוזר המאמן AI יצר בספרייה. האימונים שאתם יצרתם באופן ידני לא ייפגעו.
               לוח הזמנים שכבר נוצר לספורטאים (assignedWorkouts) לא נמחק — זו מחיקה של תבניות הספרייה בלבד. לא ניתן לבטל פעולה זו.
             </AlertDialogDescription>
           </AlertDialogHeader>

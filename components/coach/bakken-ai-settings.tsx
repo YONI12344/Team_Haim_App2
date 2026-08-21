@@ -41,7 +41,7 @@ export function BakkenAiSettings() {
       <CardHeader className="pb-3">
         <CardTitle className="text-lg flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-gold" />
-          Bakken AI
+          Assistant Coach AI
         </CardTitle>
         <CardDescription>יצירת תוכנית מלאה עם AI לספורטאי נבחר — כלי משני, לא זרימת העבודה היומיומית (זו נמצאת בבנק האימונים).</CardDescription>
       </CardHeader>
