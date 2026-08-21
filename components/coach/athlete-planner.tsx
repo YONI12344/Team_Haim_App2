@@ -1506,8 +1506,8 @@ export function AthletePlanner({ athleteId }: Props) {
                 <button onClick={() => setGridZoom(1)} className="text-[11px] text-muted-foreground w-12 text-center hover:text-navy" title="איפוס זום">
                   {Math.round(gridZoom * 100)}%
                 </button>
-                <Button variant="outline" size="icon" className="h-7 w-7" disabled={gridZoom >= 1.6}
-                  onClick={() => setGridZoom(z => Math.min(1.6, Math.round((z + 0.15) * 100) / 100))}>
+                <Button variant="outline" size="icon" className="h-7 w-7" disabled={gridZoom >= 4}
+                  onClick={() => setGridZoom(z => Math.min(4, Math.round((z + 0.15) * 100) / 100))}>
                   <ZoomIn className="h-3.5 w-3.5"/>
                 </Button>
               </div>
@@ -1552,26 +1552,65 @@ export function AthletePlanner({ athleteId }: Props) {
                               const isCompleted = w.status === 'completed' || !!matchLog?.actualDistance
                               const suspicious = isSuspiciousDistance(w.workout?.distance)
                               // Same dark-navy gradient as the athlete's own workout-card
-                              // hero (renderNavyWorkoutBlock in athlete-planner-view.tsx),
-                              // shrunk to one line — a small colored dot keeps the type
-                              // scannable, a gold pill carries the one key number (km or
-                              // minutes), full detail is still one click away below.
+                              // hero (renderNavyWorkoutBlock in athlete-planner-view.tsx).
+                              // Title stays a small one-liner up top; the full structure
+                              // (warmup/sets/rest/cooldown/notes) is written out below it
+                              // at genuinely tiny font — the grid's own zoom control (now up
+                              // to 400%) is how the coach reads it, same idea as a dense
+                              // spreadsheet cell you zoom into rather than one that resizes
+                              // itself to fit its own content.
                               const metric = w.workout?.distance ? `${w.workout.distance}k` : w.workout?.duration ? `${w.workout.duration}'` : null
                               return (
                                 <button key={w.id}
                                   dir="rtl"
                                   onClick={e => { e.stopPropagation(); setSelectedAssignedId(prev => prev === w.id ? null : w.id); setSelectedDate(day) }}
-                                  className={cn('w-full text-right text-[9px] rounded-lg px-1.5 py-1.5 transition-all hover:opacity-90 flex items-center gap-1 overflow-hidden',
+                                  className={cn('w-full text-right rounded-lg px-1.5 py-1.5 transition-all hover:opacity-90 flex flex-col gap-0.5 overflow-hidden',
                                     suspicious ? 'bg-gradient-to-br from-red-700 to-red-800 text-white' : 'bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 text-white',
                                     isCompleted ? 'opacity-60' : '',
                                     selectedAssignedId === w.id ? 'ring-2 ring-gold' : ''
                                   )}>
-                                  <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', TYPE_DOT_COLORS[w.workout?.type as string] || TYPE_DOT_COLORS.easy)} />
-                                  {suspicious && <AlertTriangle className="h-2.5 w-2.5 shrink-0"/>}
-                                  {isCompleted && <span className="flex-shrink-0 text-emerald-400">✓</span>}
-                                  <span className="flex-1 min-w-0 truncate font-bold">{w.workout?.title}</span>
-                                  {metric && (
-                                    <span className="flex-shrink-0 text-[8px] font-bold bg-gold text-navy px-1.5 py-0.5 rounded-full">{metric}</span>
+                                  <div className="w-full min-w-0 flex items-center gap-1 text-[8px]">
+                                    <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', TYPE_DOT_COLORS[w.workout?.type as string] || TYPE_DOT_COLORS.easy)} />
+                                    {suspicious && <AlertTriangle className="h-2.5 w-2.5 shrink-0"/>}
+                                    {isCompleted && <span className="flex-shrink-0 text-emerald-400">✓</span>}
+                                    <span className="flex-1 min-w-0 truncate font-bold">{w.workout?.title}</span>
+                                    {metric && (
+                                      <span className="flex-shrink-0 text-[7px] font-bold bg-gold text-navy px-1.5 py-0.5 rounded-full">{metric}</span>
+                                    )}
+                                  </div>
+                                  {w.workout?.warmup && (
+                                    <div className="w-full min-w-0 opacity-60 text-[6px] leading-[7px] break-words whitespace-pre-line">חימום: {w.workout.warmup}</div>
+                                  )}
+                                  {!!w.workout?.sets?.length && (
+                                    <div className="w-full min-w-0 opacity-95 font-semibold text-[6.5px] leading-[7.5px] break-words" dir="ltr">
+                                      {w.workout.sets.map((s: any, i: number) => {
+                                        const unit = s.distance || (s.distanceMeters ? `${s.distanceMeters}m` : '')
+                                          || s.duration || (s.durationSec ? `${Math.round(s.durationSec / 60)} min` : '')
+                                        if (!unit) return null
+                                        const reps = s.reps > 1 ? `${s.reps}×${unit}` : unit
+                                        const restBits = [
+                                          s.reps > 1 && s.restBetweenReps ? `rest ${s.restBetweenReps}` : '',
+                                          s.restAfterSet ? `then ${s.restAfterSet}` : (s.rest || ''),
+                                        ].filter(Boolean).join(', ')
+                                        return <div key={s.id || i}>{i + 1}. {reps}{restBits ? ` (${restBits})` : ''}</div>
+                                      })}
+                                    </div>
+                                  )}
+                                  {w.workout?.description && (
+                                    <div className="w-full min-w-0 opacity-90 font-medium text-[6px] leading-[7px] break-words whitespace-pre-line">{w.workout.description}</div>
+                                  )}
+                                  {!!w.workout?.strengthBlocks?.length && (
+                                    <div className="w-full min-w-0 opacity-90 font-medium text-[6px] leading-[7px] break-words">
+                                      {w.workout.strengthBlocks.map((b: any) => (
+                                        <div key={b.id}>{b.label}: {b.exercises.map((ex: any) => ex.name).join(', ')}</div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {w.workout?.cooldown && (
+                                    <div className="w-full min-w-0 opacity-60 text-[6px] leading-[7px] break-words whitespace-pre-line">שחרור: {w.workout.cooldown}</div>
+                                  )}
+                                  {(w as any).coachFeedback && (
+                                    <div className="w-full min-w-0 opacity-60 text-[6px] leading-[7px] break-words whitespace-pre-line">מאמן: {(w as any).coachFeedback}</div>
                                   )}
                                 </button>
                               )
@@ -1658,7 +1697,7 @@ export function AthletePlanner({ athleteId }: Props) {
                                       <button key={w.id}
                                         dir="rtl"
                                         onClick={e => { e.stopPropagation(); setSelectedAssignedId(prev => prev === w.id ? null : w.id); if (inMonth) setSelectedDate(day) }}
-                                        className={cn('w-full text-right text-[9px] rounded px-1.5 py-1.5 hover:opacity-90 flex items-center gap-1 overflow-hidden',
+                                        className={cn('w-full text-right rounded px-1.5 py-1.5 hover:opacity-90 flex flex-col gap-0.5 overflow-hidden',
                                           suspicious ? 'bg-gradient-to-br from-red-700 to-red-800 text-white' : 'bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 text-white',
                                           isDone ? 'opacity-60' : '',
                                           selectedAssignedId === w.id ? 'ring-1 ring-gold' : ''
@@ -1668,13 +1707,51 @@ export function AthletePlanner({ athleteId }: Props) {
                                             rendering/wrapping in the wrong direction. Click
                                             still opens the full card below (setSelectedDate
                                             above), same "exactly like the athlete sees" panel
-                                            as always. */}
-                                        <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', TYPE_DOT_COLORS[w.workout?.type as string] || TYPE_DOT_COLORS.easy)} />
-                                        {suspicious && <AlertTriangle className="h-2 w-2 flex-shrink-0"/>}
-                                        {isDone && <span className="flex-shrink-0 text-emerald-400">✓</span>}
-                                        <span className="flex-1 min-w-0 truncate font-bold">{w.workout?.title}</span>
-                                        {metric && (
-                                          <span className="flex-shrink-0 text-[8px] font-bold bg-gold text-navy px-1 py-0.5 rounded-full">{metric}</span>
+                                            as always. Full structure written out below the
+                                            title at tiny font — same zoom-to-read approach as
+                                            the week view. */}
+                                        <div className="w-full min-w-0 flex items-center gap-1 text-[8px]">
+                                          <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', TYPE_DOT_COLORS[w.workout?.type as string] || TYPE_DOT_COLORS.easy)} />
+                                          {suspicious && <AlertTriangle className="h-2 w-2 flex-shrink-0"/>}
+                                          {isDone && <span className="flex-shrink-0 text-emerald-400">✓</span>}
+                                          <span className="flex-1 min-w-0 truncate font-bold">{w.workout?.title}</span>
+                                          {metric && (
+                                            <span className="flex-shrink-0 text-[7px] font-bold bg-gold text-navy px-1 py-0.5 rounded-full">{metric}</span>
+                                          )}
+                                        </div>
+                                        {w.workout?.warmup && (
+                                          <div className="w-full min-w-0 opacity-60 text-[6px] leading-[7px] break-words whitespace-pre-line">חימום: {w.workout.warmup}</div>
+                                        )}
+                                        {!!w.workout?.sets?.length && (
+                                          <div className="w-full min-w-0 opacity-95 font-semibold text-[6.5px] leading-[7.5px] break-words" dir="ltr">
+                                            {w.workout.sets.map((s: any, i: number) => {
+                                              const unit = s.distance || (s.distanceMeters ? `${s.distanceMeters}m` : '')
+                                                || s.duration || (s.durationSec ? `${Math.round(s.durationSec / 60)} min` : '')
+                                              if (!unit) return null
+                                              const reps = s.reps > 1 ? `${s.reps}×${unit}` : unit
+                                              const restBits = [
+                                                s.reps > 1 && s.restBetweenReps ? `rest ${s.restBetweenReps}` : '',
+                                                s.restAfterSet ? `then ${s.restAfterSet}` : (s.rest || ''),
+                                              ].filter(Boolean).join(', ')
+                                              return <div key={s.id || i}>{i + 1}. {reps}{restBits ? ` (${restBits})` : ''}</div>
+                                            })}
+                                          </div>
+                                        )}
+                                        {w.workout?.description && (
+                                          <div className="w-full min-w-0 opacity-90 font-medium text-[6px] leading-[7px] break-words whitespace-pre-line">{w.workout.description}</div>
+                                        )}
+                                        {!!w.workout?.strengthBlocks?.length && (
+                                          <div className="w-full min-w-0 opacity-90 font-medium text-[6px] leading-[7px] break-words">
+                                            {w.workout.strengthBlocks.map((b: any) => (
+                                              <div key={b.id}>{b.label}: {b.exercises.map((ex: any) => ex.name).join(', ')}</div>
+                                            ))}
+                                          </div>
+                                        )}
+                                        {w.workout?.cooldown && (
+                                          <div className="w-full min-w-0 opacity-60 text-[6px] leading-[7px] break-words whitespace-pre-line">שחרור: {w.workout.cooldown}</div>
+                                        )}
+                                        {(w as any).coachFeedback && (
+                                          <div className="w-full min-w-0 opacity-60 text-[6px] leading-[7px] break-words whitespace-pre-line">מאמן: {(w as any).coachFeedback}</div>
                                         )}
                                       </button>
                                     )
