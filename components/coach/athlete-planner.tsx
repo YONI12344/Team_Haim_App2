@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo, useCallback, type DragEvent } from 'react'
+import { useEffect, useState, useMemo, useCallback, type DragEvent, type CSSProperties } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -1570,7 +1570,12 @@ export function AthletePlanner({ athleteId }: Props) {
             {/* Week View — same wide-column treatment as month view below. */}
             {viewMode === 'week' && (
               <div className="overflow-x-auto -mx-2 px-2">
-                <div style={{ zoom: gridZoom }}>
+                {/* WebkitTextSizeAdjust/textSizeAdjust: 100% — without this,
+                    mobile Safari auto-inflates small text independently of
+                    the zoom scale, so at low zoom the tiny detail lines
+                    stayed too large for their now-shrunk container and
+                    overlapped each other instead of shrinking with it. */}
+                <div style={{ zoom: gridZoom, WebkitTextSizeAdjust: '100%', textSizeAdjust: '100%' } as CSSProperties}>
                   <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: 'repeat(7, minmax(190px, 1fr)) 80px' }}>
                     {DAY_LABELS.map((d,i) => <div key={i} className="text-center text-xs font-semibold text-muted-foreground py-1">{d}</div>)}
                     <div className="text-center text-xs font-semibold text-muted-foreground py-1">KM</div>
@@ -1674,7 +1679,12 @@ export function AthletePlanner({ athleteId }: Props) {
                 cramming everything into ~60px. */}
             {viewMode === 'month' && (
               <div className="overflow-x-auto -mx-2 px-2">
-                <div style={{ zoom: gridZoom }}>
+                {/* WebkitTextSizeAdjust/textSizeAdjust: 100% — without this,
+                    mobile Safari auto-inflates small text independently of
+                    the zoom scale, so at low zoom the tiny detail lines
+                    stayed too large for their now-shrunk container and
+                    overlapped each other instead of shrinking with it. */}
+                <div style={{ zoom: gridZoom, WebkitTextSizeAdjust: '100%', textSizeAdjust: '100%' } as CSSProperties}>
                   <div className="grid gap-1 mb-1" style={{ gridTemplateColumns: 'repeat(7, minmax(170px, 1fr)) 70px' }}>
                     {DAY_LABELS.map((d,i) => <div key={i} className="text-center text-[10px] font-semibold text-muted-foreground py-1">{d}</div>)}
                     <div className="text-center text-[10px] font-semibold text-muted-foreground py-1">KM</div>
