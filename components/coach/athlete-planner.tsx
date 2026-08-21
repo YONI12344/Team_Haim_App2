@@ -1919,7 +1919,7 @@ export function AthletePlanner({ athleteId }: Props) {
               })()}
             </CardHeader>
             <CardContent className="px-4 pb-4">
-              <AthletePlannerView overrideAthleteId={athleteId} initialDate={format(selectedDate, 'yyyy-MM-dd')} />
+              <AthletePlannerView overrideAthleteId={athleteId} initialDate={format(selectedDate, 'yyyy-MM-dd')} autoExpandWorkouts />
 
               {/* Coach comments — write feedback on this day, sent straight to the athlete */}
               <div className="space-y-1.5 border-t pt-3 mt-4" dir="rtl">

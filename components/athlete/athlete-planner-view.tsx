@@ -226,9 +226,16 @@ interface AthletePlannerViewProps {
    *  keeps syncing the displayed date so it always matches the date the
    *  coach is looking at, instead of defaulting to today. */
   initialDate?: string
+  /** Coach-only: skip the athlete's tap-to-expand "פרטי אימון" step and
+   *  show every workout's full warmup/sets/cooldown/notes immediately —
+   *  the coach already tapped once to pick this date on their calendar,
+   *  a second tap just to see the actual workout was one click too many.
+   *  Athlete's own view never sets this, so its default (tap to expand,
+   *  kept compact for a small phone screen) is unaffected. */
+  autoExpandWorkouts?: boolean
 }
 
-export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePlannerViewProps = {}) {
+export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandWorkouts }: AthletePlannerViewProps = {}) {
   const router = useRouter()
   const { user } = useAuth()
   const { t, isRTL, language } = useLanguage()
@@ -1933,12 +1940,17 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
               </div>
             )}
             <div className="flex gap-2">
-              <button
-                onClick={() => setSelectedWorkoutId(prev => prev === w.id ? null : w.id)}
-                className={cn('flex-1 h-11 rounded-2xl font-bold text-sm active:scale-95 transition-all',
-                  wSelected ? 'bg-white/20 text-white' : 'bg-white/15 text-white hover:bg-white/20')}>
-                {wSelected ? t.closeCta : t.workoutDetailsCta}
-              </button>
+              {/* Coach mode shows the full detail unconditionally below (see
+                  autoExpandWorkouts), so this tap-to-expand toggle would
+                  just be dead weight — hidden there entirely. */}
+              {!autoExpandWorkouts && (
+                <button
+                  onClick={() => setSelectedWorkoutId(prev => prev === w.id ? null : w.id)}
+                  className={cn('flex-1 h-11 rounded-2xl font-bold text-sm active:scale-95 transition-all',
+                    wSelected ? 'bg-white/20 text-white' : 'bg-white/15 text-white hover:bg-white/20')}>
+                  {wSelected ? t.closeCta : t.workoutDetailsCta}
+                </button>
+              )}
               {wEff === 'scheduled' && !isEffectivelyDone && (
                 <button
                   onClick={() => setMoveWorkoutTarget(w)}
@@ -1953,7 +1965,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate }: AthletePl
             )}
           </div>
         </div>
-        {wSelected && (
+        {(wSelected || autoExpandWorkouts) && (
           <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
             {renderWorkoutDetail(w)}
           </div>
