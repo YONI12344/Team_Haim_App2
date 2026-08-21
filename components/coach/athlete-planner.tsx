@@ -900,6 +900,60 @@ export function AthletePlanner({ athleteId }: Props) {
     rest: 'bg-slate-500',
   }
 
+  // Mirrors athlete-planner-view.tsx's renderWorkoutDetail structure and
+  // wording EXACTLY (set headers, intervals, both rest kinds, warmup/
+  // cooldown labels) — just shrunk to tiny font for the calendar badge,
+  // never reworded or restructured, so the coach reads the identical
+  // content the athlete will see, not a different summary of it. Always
+  // rtl — this app's workout content is Hebrew by default, and wrapping
+  // the whole block in ltr (the earlier bug) scrambled embedded Hebrew
+  // rest/warmup/cooldown text.
+  const renderCompactWorkoutDetail = (workout: any) => {
+    if (!workout) return null
+    return (
+      <div className="w-full min-w-0 space-y-0.5" dir="rtl">
+        {workout.description && (
+          <p className="opacity-90 font-medium text-[6px] leading-[7px] break-words">{workout.description}</p>
+        )}
+        {workout.warmup && (
+          <p className="opacity-60 text-[6px] leading-[7px] break-words">{t.warmupLabel}: {workout.warmup}</p>
+        )}
+        {workout.sets?.map((set: any, si: number) => {
+          const hasIntervals = set.intervals && set.intervals.length > 0
+          const isLastSet = si === workout.sets.length - 1
+          return (
+            <div key={set.id || si} className="space-y-0.5">
+              <p className="font-bold opacity-95 text-[6.5px] leading-[7.5px] break-words">
+                {t.setLabelPrefix} {si + 1}
+                {set.reps > 1 && !hasIntervals && ` · ${set.reps}× ${set.distance || set.duration || ''}`}
+                {!hasIntervals && !(set.reps > 1) && (set.distance || set.duration) && ` · ${set.distance || set.duration}`}
+                {hasIntervals && set.reps > 1 && ` · ${set.reps}×`}
+                {set.pace && ` @ ${set.pace}`}
+              </p>
+              {hasIntervals && set.intervals.map((iv: any, ii: number) => (
+                <p key={iv.id || ii} className="opacity-80 text-[6px] leading-[7px] break-words pr-1.5">
+                  {ii + 1}. {iv.distance || iv.duration}{iv.pace ? ` @ ${iv.pace}` : ''}{iv.rest ? ` — ${t.restPrefix} ${iv.rest}` : ''}
+                </p>
+              ))}
+              {(set.reps || 1) > 1 && set.restBetweenReps && (
+                <p className="opacity-50 text-[6px] leading-[7px]">{t.restBetweenReps}: {set.restBetweenReps}</p>
+              )}
+              {!isLastSet && (
+                <p className="opacity-50 text-[6px] leading-[7px]">{set.restAfterSet ? `${t.restBetweenSets}: ${set.restAfterSet}` : t.continueToNext}</p>
+              )}
+            </div>
+          )
+        })}
+        {!!workout.strengthBlocks?.length && workout.strengthBlocks.map((b: any) => (
+          <p key={b.id} className="opacity-90 font-medium text-[6px] leading-[7px] break-words">{b.label}: {b.exercises.map((ex: any) => ex.name).join(', ')}</p>
+        ))}
+        {workout.cooldown && (
+          <p className="opacity-60 text-[6px] leading-[7px] break-words">{t.cooldownLabel}: {workout.cooldown}</p>
+        )}
+      </div>
+    )
+  }
+
   // Quick-assign sheet: type picker order + emoji
   const QUICK_TYPES: WorkoutType[] = [
     'easy', 'threshold', 'intervals', 'tempo', 'long_run', 'hill_repeats', 'fartlek',
@@ -1578,39 +1632,9 @@ export function AthletePlanner({ athleteId }: Props) {
                                       <span className="flex-shrink-0 text-[7px] font-bold bg-gold text-navy px-1.5 py-0.5 rounded-full">{metric}</span>
                                     )}
                                   </div>
-                                  {w.workout?.warmup && (
-                                    <div className="w-full min-w-0 opacity-60 text-[6px] leading-[7px] break-words whitespace-pre-line">חימום: {w.workout.warmup}</div>
-                                  )}
-                                  {!!w.workout?.sets?.length && (
-                                    <div className="w-full min-w-0 opacity-95 font-semibold text-[6.5px] leading-[7.5px] break-words" dir="ltr">
-                                      {w.workout.sets.map((s: any, i: number) => {
-                                        const unit = s.distance || (s.distanceMeters ? `${s.distanceMeters}m` : '')
-                                          || s.duration || (s.durationSec ? `${Math.round(s.durationSec / 60)} min` : '')
-                                        if (!unit) return null
-                                        const reps = s.reps > 1 ? `${s.reps}×${unit}` : unit
-                                        const restBits = [
-                                          s.reps > 1 && s.restBetweenReps ? `rest ${s.restBetweenReps}` : '',
-                                          s.restAfterSet ? `then ${s.restAfterSet}` : (s.rest || ''),
-                                        ].filter(Boolean).join(', ')
-                                        return <div key={s.id || i}>{i + 1}. {reps}{restBits ? ` (${restBits})` : ''}</div>
-                                      })}
-                                    </div>
-                                  )}
-                                  {w.workout?.description && (
-                                    <div className="w-full min-w-0 opacity-90 font-medium text-[6px] leading-[7px] break-words whitespace-pre-line">{w.workout.description}</div>
-                                  )}
-                                  {!!w.workout?.strengthBlocks?.length && (
-                                    <div className="w-full min-w-0 opacity-90 font-medium text-[6px] leading-[7px] break-words">
-                                      {w.workout.strengthBlocks.map((b: any) => (
-                                        <div key={b.id}>{b.label}: {b.exercises.map((ex: any) => ex.name).join(', ')}</div>
-                                      ))}
-                                    </div>
-                                  )}
-                                  {w.workout?.cooldown && (
-                                    <div className="w-full min-w-0 opacity-60 text-[6px] leading-[7px] break-words whitespace-pre-line">שחרור: {w.workout.cooldown}</div>
-                                  )}
+                                  {renderCompactWorkoutDetail(w.workout)}
                                   {(w as any).coachFeedback && (
-                                    <div className="w-full min-w-0 opacity-60 text-[6px] leading-[7px] break-words whitespace-pre-line">מאמן: {(w as any).coachFeedback}</div>
+                                    <p className="w-full min-w-0 opacity-60 text-[6px] leading-[7px] break-words" dir="rtl">מאמן: {(w as any).coachFeedback}</p>
                                   )}
                                 </button>
                               )
@@ -1719,39 +1743,9 @@ export function AthletePlanner({ athleteId }: Props) {
                                             <span className="flex-shrink-0 text-[7px] font-bold bg-gold text-navy px-1 py-0.5 rounded-full">{metric}</span>
                                           )}
                                         </div>
-                                        {w.workout?.warmup && (
-                                          <div className="w-full min-w-0 opacity-60 text-[6px] leading-[7px] break-words whitespace-pre-line">חימום: {w.workout.warmup}</div>
-                                        )}
-                                        {!!w.workout?.sets?.length && (
-                                          <div className="w-full min-w-0 opacity-95 font-semibold text-[6.5px] leading-[7.5px] break-words" dir="ltr">
-                                            {w.workout.sets.map((s: any, i: number) => {
-                                              const unit = s.distance || (s.distanceMeters ? `${s.distanceMeters}m` : '')
-                                                || s.duration || (s.durationSec ? `${Math.round(s.durationSec / 60)} min` : '')
-                                              if (!unit) return null
-                                              const reps = s.reps > 1 ? `${s.reps}×${unit}` : unit
-                                              const restBits = [
-                                                s.reps > 1 && s.restBetweenReps ? `rest ${s.restBetweenReps}` : '',
-                                                s.restAfterSet ? `then ${s.restAfterSet}` : (s.rest || ''),
-                                              ].filter(Boolean).join(', ')
-                                              return <div key={s.id || i}>{i + 1}. {reps}{restBits ? ` (${restBits})` : ''}</div>
-                                            })}
-                                          </div>
-                                        )}
-                                        {w.workout?.description && (
-                                          <div className="w-full min-w-0 opacity-90 font-medium text-[6px] leading-[7px] break-words whitespace-pre-line">{w.workout.description}</div>
-                                        )}
-                                        {!!w.workout?.strengthBlocks?.length && (
-                                          <div className="w-full min-w-0 opacity-90 font-medium text-[6px] leading-[7px] break-words">
-                                            {w.workout.strengthBlocks.map((b: any) => (
-                                              <div key={b.id}>{b.label}: {b.exercises.map((ex: any) => ex.name).join(', ')}</div>
-                                            ))}
-                                          </div>
-                                        )}
-                                        {w.workout?.cooldown && (
-                                          <div className="w-full min-w-0 opacity-60 text-[6px] leading-[7px] break-words whitespace-pre-line">שחרור: {w.workout.cooldown}</div>
-                                        )}
+                                        {renderCompactWorkoutDetail(w.workout)}
                                         {(w as any).coachFeedback && (
-                                          <div className="w-full min-w-0 opacity-60 text-[6px] leading-[7px] break-words whitespace-pre-line">מאמן: {(w as any).coachFeedback}</div>
+                                          <p className="w-full min-w-0 opacity-60 text-[6px] leading-[7px] break-words" dir="rtl">מאמן: {(w as any).coachFeedback}</p>
                                         )}
                                       </button>
                                     )
