@@ -886,6 +886,19 @@ export function AthletePlanner({ athleteId }: Props) {
     bike: 'bg-slate-100 text-slate-600 border-slate-200',
     rest: 'bg-muted text-muted-foreground',
   }
+  // Same groups as TYPE_COLORS, reduced to a small solid dot — used on the
+  // dark-navy calendar cell badges (matching the athlete's own workout-card
+  // hero style) where a full pastel background would fight the dark bg
+  // instead of the type still needing to read at a glance.
+  const TYPE_DOT_COLORS: Record<string, string> = {
+    easy: 'bg-emerald-400', recovery: 'bg-emerald-400',
+    long_run: 'bg-orange-400',
+    tempo: 'bg-amber-400', intervals: 'bg-amber-400', hill_repeats: 'bg-amber-400', fartlek: 'bg-amber-400',
+    threshold: 'bg-pink-400',
+    race: 'bg-gold', time_trial: 'bg-gold',
+    strength: 'bg-slate-400', cross_training: 'bg-slate-400', swim: 'bg-slate-400', bike: 'bg-slate-400',
+    rest: 'bg-slate-500',
+  }
 
   // Quick-assign sheet: type picker order + emoji
   const QUICK_TYPES: WorkoutType[] = [
@@ -1538,38 +1551,28 @@ export function AthletePlanner({ athleteId }: Props) {
                               const matchLog = logs.find((l: any) => l.assignedWorkoutId === w.id || (l.workoutId === w.workoutId && l.date === dateStr))
                               const isCompleted = w.status === 'completed' || !!matchLog?.actualDistance
                               const suspicious = isSuspiciousDistance(w.workout?.distance)
+                              // Same dark-navy gradient as the athlete's own workout-card
+                              // hero (renderNavyWorkoutBlock in athlete-planner-view.tsx),
+                              // shrunk to one line — a small colored dot keeps the type
+                              // scannable, a gold pill carries the one key number (km or
+                              // minutes), full detail is still one click away below.
+                              const metric = w.workout?.distance ? `${w.workout.distance}k` : w.workout?.duration ? `${w.workout.duration}'` : null
                               return (
                                 <button key={w.id}
                                   dir="rtl"
                                   onClick={e => { e.stopPropagation(); setSelectedAssignedId(prev => prev === w.id ? null : w.id); setSelectedDate(day) }}
-                                  className={cn('w-full text-right text-[9px] leading-tight rounded-lg px-1.5 py-1.5 border transition-all hover:opacity-80 flex flex-col gap-0.5',
-                                    suspicious ? 'bg-red-100 text-red-700 border-red-300' : (TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy),
-                                    isCompleted ? 'opacity-70' : '',
-                                    selectedAssignedId === w.id ? 'ring-2 ring-navy' : ''
+                                  className={cn('w-full text-right text-[9px] rounded-lg px-1.5 py-1.5 transition-all hover:opacity-90 flex items-center gap-1 overflow-hidden',
+                                    suspicious ? 'bg-gradient-to-br from-red-700 to-red-800 text-white' : 'bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 text-white',
+                                    isCompleted ? 'opacity-60' : '',
+                                    selectedAssignedId === w.id ? 'ring-2 ring-gold' : ''
                                   )}>
-                                  {/* Hebrew content needs dir="rtl" + text-right explicitly —
-                                      this whole grid had neither, so Hebrew text/wrapping was
-                                      rendering in the wrong direction throughout. */}
-                                  <div className="w-full min-w-0 font-bold flex items-center gap-1 truncate text-[10px]">
-                                    {suspicious && <AlertTriangle className="h-2.5 w-2.5 shrink-0"/>}
-                                    {w.workout?.title}
-                                  </div>
-                                  {(w.workout?.distance || w.workout?.duration) && (
-                                    <div className="w-full min-w-0 opacity-70 truncate">
-                                      {w.workout?.distance ? `${w.workout.distance} ק"מ` : ''}
-                                      {w.workout?.distance && w.workout?.duration ? ' · ' : ''}
-                                      {w.workout?.duration ? `${w.workout.duration} דק'` : ''}
-                                    </div>
+                                  <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', TYPE_DOT_COLORS[w.workout?.type as string] || TYPE_DOT_COLORS.easy)} />
+                                  {suspicious && <AlertTriangle className="h-2.5 w-2.5 shrink-0"/>}
+                                  {isCompleted && <span className="flex-shrink-0 text-emerald-400">✓</span>}
+                                  <span className="flex-1 min-w-0 truncate font-bold">{w.workout?.title}</span>
+                                  {metric && (
+                                    <span className="flex-shrink-0 text-[8px] font-bold bg-gold text-navy px-1.5 py-0.5 rounded-full">{metric}</span>
                                   )}
-                                  {/* Compact badge only — title + distance/duration, same
-                                      density as the athlete's own week-strip chips. Full detail
-                                      (warmup/sets/description/cooldown) lives one click away in
-                                      the "exactly like the athlete sees" card below, not crammed
-                                      in here — that's what made this grid unreadable before. */}
-                                  {matchLog?.actualDistance && (
-                                    <div className="w-full min-w-0 text-emerald-700 font-bold">{matchLog.actualDistance}k בוצע</div>
-                                  )}
-                                  {isCompleted && !matchLog?.actualDistance && <div className="w-full min-w-0 text-emerald-600">הושלם</div>}
                                 </button>
                               )
                             })}
@@ -1649,14 +1652,16 @@ export function AthletePlanner({ athleteId }: Props) {
                                     const mLog = logs.find((l: any) => l.assignedWorkoutId === w.id || (l.workoutId === w.workoutId && l.date === dateStr))
                                     const isDone = w.status === 'completed' || !!mLog?.actualDistance
                                     const suspicious = isSuspiciousDistance(w.workout?.distance)
+                                    // Same dark-navy hero style as the week view above.
+                                    const metric = w.workout?.distance ? `${w.workout.distance}k` : w.workout?.duration ? `${w.workout.duration}'` : null
                                     return (
                                       <button key={w.id}
                                         dir="rtl"
                                         onClick={e => { e.stopPropagation(); setSelectedAssignedId(prev => prev === w.id ? null : w.id); if (inMonth) setSelectedDate(day) }}
-                                        className={cn('w-full text-right text-[9px] leading-tight rounded px-1.5 py-1.5 border hover:opacity-75 flex flex-col items-start gap-0.5',
-                                          suspicious ? 'bg-red-100 text-red-700 border-red-300 font-bold' : (TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy),
+                                        className={cn('w-full text-right text-[9px] rounded px-1.5 py-1.5 hover:opacity-90 flex items-center gap-1 overflow-hidden',
+                                          suspicious ? 'bg-gradient-to-br from-red-700 to-red-800 text-white' : 'bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 text-white',
                                           isDone ? 'opacity-60' : '',
-                                          selectedAssignedId === w.id ? 'ring-1 ring-navy font-bold' : ''
+                                          selectedAssignedId === w.id ? 'ring-1 ring-gold' : ''
                                         )}>
                                         {/* Hebrew content needs dir="rtl" + text-right — this
                                             whole grid had neither before, so Hebrew text was
@@ -1664,19 +1669,13 @@ export function AthletePlanner({ athleteId }: Props) {
                                             still opens the full card below (setSelectedDate
                                             above), same "exactly like the athlete sees" panel
                                             as always. */}
-                                        <div className="w-full min-w-0 truncate flex items-center gap-0.5 font-bold text-[10px]">
-                                          {suspicious && <AlertTriangle className="h-2 w-2 flex-shrink-0"/>}
-                                          {isDone ? '✓ ' : ''}{w.workout?.title}
-                                        </div>
-                                        {(w.workout?.distance || w.workout?.duration) && (
-                                          <div className="w-full min-w-0 truncate opacity-70">
-                                            {w.workout?.distance ? `${w.workout.distance} ק"מ` : ''}
-                                            {w.workout?.distance && w.workout?.duration ? ' · ' : ''}
-                                            {w.workout?.duration ? `${w.workout.duration} דק'` : ''}
-                                          </div>
+                                        <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', TYPE_DOT_COLORS[w.workout?.type as string] || TYPE_DOT_COLORS.easy)} />
+                                        {suspicious && <AlertTriangle className="h-2 w-2 flex-shrink-0"/>}
+                                        {isDone && <span className="flex-shrink-0 text-emerald-400">✓</span>}
+                                        <span className="flex-1 min-w-0 truncate font-bold">{w.workout?.title}</span>
+                                        {metric && (
+                                          <span className="flex-shrink-0 text-[8px] font-bold bg-gold text-navy px-1 py-0.5 rounded-full">{metric}</span>
                                         )}
-                                        {/* Compact badge only — see the week-view comment above
-                                            for why (full detail lives one click away). */}
                                       </button>
                                     )
                                   })}
@@ -1821,13 +1820,18 @@ export function AthletePlanner({ athleteId }: Props) {
             This replaced the old separate "workout detail" card entirely;
             its Copy/Edit/Delete actions now live in this card's header. */}
         {selectedDate && (
-          <Card className="border-navy/15">
-            <CardHeader className="pb-2 pt-4 px-4">
+          <Card className="border-navy/15 overflow-hidden">
+            {/* Slim action bar only — no separate "exactly like the athlete
+                sees" title box above the workout card anymore. The actual
+                dark-navy workout card (rendered by AthletePlannerView right
+                below) already carries the real title, so a second generic
+                header just duplicated it; this bar is now just the date +
+                the coach-only actions. */}
+            <CardHeader className="pb-2 pt-3 px-4">
               <div className="flex items-start justify-between gap-2 flex-wrap">
-                <CardTitle className="text-sm flex items-center gap-1.5">
-                  <User className="h-3.5 w-3.5 text-muted-foreground"/>
-                  בדיוק כמו שהספורטאי רואה
-                  <span className="text-xs font-normal text-muted-foreground">— {format(selectedDate, 'EEEE, d MMMM')}</span>
+                <CardTitle className="text-xs font-normal text-muted-foreground flex items-center gap-1.5">
+                  <User className="h-3 w-3"/>
+                  {format(selectedDate, 'EEEE, d MMMM')}
                 </CardTitle>
                 {selectedAW && (
                   <div className="flex gap-1 flex-shrink-0">
