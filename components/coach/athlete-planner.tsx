@@ -913,17 +913,17 @@ export function AthletePlanner({ athleteId }: Props) {
     return (
       <div className="w-full min-w-0 space-y-0.5" dir="rtl">
         {workout.description && (
-          <p className="opacity-90 font-medium text-[6px] leading-[7px] break-words">{workout.description}</p>
+          <p className="opacity-90 font-medium text-[6px] leading-[1.15] break-words">{workout.description}</p>
         )}
         {workout.warmup && (
-          <p className="opacity-60 text-[6px] leading-[7px] break-words">{t.warmupLabel}: {workout.warmup}</p>
+          <p className="opacity-60 text-[6px] leading-[1.15] break-words">{t.warmupLabel}: {workout.warmup}</p>
         )}
         {workout.sets?.map((set: any, si: number) => {
           const hasIntervals = set.intervals && set.intervals.length > 0
           const isLastSet = si === workout.sets.length - 1
           return (
             <div key={set.id || si} className="space-y-0.5">
-              <p className="font-bold opacity-95 text-[6.5px] leading-[7.5px] break-words">
+              <p className="font-bold opacity-95 text-[6.5px] leading-[1.15] break-words">
                 {t.setLabelPrefix} {si + 1}
                 {set.reps > 1 && !hasIntervals && ` · ${set.reps}× ${set.distance || set.duration || ''}`}
                 {!hasIntervals && !(set.reps > 1) && (set.distance || set.duration) && ` · ${set.distance || set.duration}`}
@@ -931,24 +931,24 @@ export function AthletePlanner({ athleteId }: Props) {
                 {set.pace && ` @ ${set.pace}`}
               </p>
               {hasIntervals && set.intervals.map((iv: any, ii: number) => (
-                <p key={iv.id || ii} className="opacity-80 text-[6px] leading-[7px] break-words pr-1.5">
+                <p key={iv.id || ii} className="opacity-80 text-[6px] leading-[1.15] break-words pr-1.5">
                   {ii + 1}. {iv.distance || iv.duration}{iv.pace ? ` @ ${iv.pace}` : ''}{iv.rest ? ` — ${t.restPrefix} ${iv.rest}` : ''}
                 </p>
               ))}
               {(set.reps || 1) > 1 && set.restBetweenReps && (
-                <p className="opacity-50 text-[6px] leading-[7px]">{t.restBetweenReps}: {set.restBetweenReps}</p>
+                <p className="opacity-50 text-[6px] leading-[1.15]">{t.restBetweenReps}: {set.restBetweenReps}</p>
               )}
               {!isLastSet && (
-                <p className="opacity-50 text-[6px] leading-[7px]">{set.restAfterSet ? `${t.restBetweenSets}: ${set.restAfterSet}` : t.continueToNext}</p>
+                <p className="opacity-50 text-[6px] leading-[1.15]">{set.restAfterSet ? `${t.restBetweenSets}: ${set.restAfterSet}` : t.continueToNext}</p>
               )}
             </div>
           )
         })}
         {!!workout.strengthBlocks?.length && workout.strengthBlocks.map((b: any) => (
-          <p key={b.id} className="opacity-90 font-medium text-[6px] leading-[7px] break-words">{b.label}: {b.exercises.map((ex: any) => ex.name).join(', ')}</p>
+          <p key={b.id} className="opacity-90 font-medium text-[6px] leading-[1.15] break-words">{b.label}: {b.exercises.map((ex: any) => ex.name).join(', ')}</p>
         ))}
         {workout.cooldown && (
-          <p className="opacity-60 text-[6px] leading-[7px] break-words">{t.cooldownLabel}: {workout.cooldown}</p>
+          <p className="opacity-60 text-[6px] leading-[1.15] break-words">{t.cooldownLabel}: {workout.cooldown}</p>
         )}
       </div>
     )
@@ -1638,7 +1638,7 @@ export function AthletePlanner({ athleteId }: Props) {
                                   </div>
                                   {renderCompactWorkoutDetail(w.workout)}
                                   {(w as any).coachFeedback && (
-                                    <p className="w-full min-w-0 opacity-60 text-[6px] leading-[7px] break-words" dir="rtl">מאמן: {(w as any).coachFeedback}</p>
+                                    <p className="w-full min-w-0 opacity-60 text-[6px] leading-[1.15] break-words" dir="rtl">מאמן: {(w as any).coachFeedback}</p>
                                   )}
                                 </button>
                               )
@@ -1753,7 +1753,7 @@ export function AthletePlanner({ athleteId }: Props) {
                                         </div>
                                         {renderCompactWorkoutDetail(w.workout)}
                                         {(w as any).coachFeedback && (
-                                          <p className="w-full min-w-0 opacity-60 text-[6px] leading-[7px] break-words" dir="rtl">מאמן: {(w as any).coachFeedback}</p>
+                                          <p className="w-full min-w-0 opacity-60 text-[6px] leading-[1.15] break-words" dir="rtl">מאמן: {(w as any).coachFeedback}</p>
                                         )}
                                       </button>
                                     )
