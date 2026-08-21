@@ -1561,51 +1561,11 @@ export function AthletePlanner({ athleteId }: Props) {
                                       {w.workout?.duration ? `${w.workout.duration} דק'` : ''}
                                     </div>
                                   )}
-                                  {/* Warm-up — very small, secondary line. */}
-                                  {w.workout?.warmup && (
-                                    <div className="w-full min-w-0 opacity-45 text-[7.5px] break-words whitespace-pre-line">חימום: {w.workout.warmup}</div>
-                                  )}
-                                  {/* Main workout — bigger than warm-up/cooldown, exact same
-                                      content the athlete sees (sets + free-text description),
-                                      not a different coach-only summary, so the coach can
-                                      actually verify several days are correct at a glance. */}
-                                  {!!w.workout?.sets?.length && (
-                                    <div className="w-full min-w-0 opacity-90 font-bold text-[10.5px] break-words" dir="ltr">
-                                      {w.workout.sets.map((s: any, i: number) => {
-                                        const unit = s.distance || (s.distanceMeters ? `${s.distanceMeters}m` : '')
-                                          || s.duration || (s.durationSec ? `${Math.round(s.durationSec / 60)} min` : '')
-                                        if (!unit) return null
-                                        const reps = s.reps > 1 ? `${s.reps}×${unit}` : unit
-                                        const restBits = [
-                                          s.reps > 1 && s.restBetweenReps ? `rest ${s.restBetweenReps}` : '',
-                                          s.restAfterSet ? `then ${s.restAfterSet}` : (s.rest || ''),
-                                        ].filter(Boolean).join(', ')
-                                        return <div key={s.id || i}>{i + 1}. {reps}{restBits ? ` (${restBits})` : ''}</div>
-                                      })}
-                                    </div>
-                                  )}
-                                  {w.workout?.description && (
-                                    <div className="w-full min-w-0 opacity-90 font-semibold text-[10.5px] break-words whitespace-pre-line">{w.workout.description}</div>
-                                  )}
-                                  {/* Lift/strength workouts have no sets/description — the
-                                      actual content is the exercise list, one line per
-                                      block/superset. Names only (no sets/reps clutter) —
-                                      that's what makes this scannable, not "everything". */}
-                                  {!!w.workout?.strengthBlocks?.length && (
-                                    <div className="w-full min-w-0 opacity-90 font-semibold text-[9px] leading-tight break-words">
-                                      {w.workout.strengthBlocks.map((b: any) => (
-                                        <div key={b.id}>{b.label}: {b.exercises.map((ex: any) => ex.name).join(', ')}</div>
-                                      ))}
-                                    </div>
-                                  )}
-                                  {/* Cooldown — very small, secondary line. */}
-                                  {w.workout?.cooldown && (
-                                    <div className="w-full min-w-0 opacity-45 text-[7.5px] break-words whitespace-pre-line">שחרור: {w.workout.cooldown}</div>
-                                  )}
-                                  {/* Coach-only note on this assignment — very small. */}
-                                  {(w as any).coachFeedback && (
-                                    <div className="w-full min-w-0 opacity-45 text-[7.5px] break-words whitespace-pre-line">מאמן: {(w as any).coachFeedback}</div>
-                                  )}
+                                  {/* Compact badge only — title + distance/duration, same
+                                      density as the athlete's own week-strip chips. Full detail
+                                      (warmup/sets/description/cooldown) lives one click away in
+                                      the "exactly like the athlete sees" card below, not crammed
+                                      in here — that's what made this grid unreadable before. */}
                                   {matchLog?.actualDistance && (
                                     <div className="w-full min-w-0 text-emerald-700 font-bold">{matchLog.actualDistance}k בוצע</div>
                                   )}
@@ -1715,50 +1675,8 @@ export function AthletePlanner({ athleteId }: Props) {
                                             {w.workout?.duration ? `${w.workout.duration} דק'` : ''}
                                           </div>
                                         )}
-                                        {/* Warm-up — very small, secondary line. */}
-                                        {w.workout?.warmup && (
-                                          <div className="w-full min-w-0 opacity-45 text-[7.5px] break-words whitespace-pre-line">חימום: {w.workout.warmup}</div>
-                                        )}
-                                        {/* Main workout — bigger than warm-up/cooldown, exact
-                                            same content the athlete sees, so the coach can
-                                            actually verify several days at a glance. */}
-                                        {!!w.workout?.sets?.length && (
-                                          <div className="w-full min-w-0 opacity-90 font-bold text-[10.5px] break-words" dir="ltr">
-                                            {w.workout.sets.map((s: any, i: number) => {
-                                              const unit = s.distance || (s.distanceMeters ? `${s.distanceMeters}m` : '')
-                                                || s.duration || (s.durationSec ? `${Math.round(s.durationSec / 60)} min` : '')
-                                              if (!unit) return null
-                                              const reps = s.reps > 1 ? `${s.reps}×${unit}` : unit
-                                              const restBits = [
-                                                s.reps > 1 && s.restBetweenReps ? `rest ${s.restBetweenReps}` : '',
-                                                s.restAfterSet ? `then ${s.restAfterSet}` : (s.rest || ''),
-                                              ].filter(Boolean).join(', ')
-                                              return <div key={s.id || i}>{i + 1}. {reps}{restBits ? ` (${restBits})` : ''}</div>
-                                            })}
-                                          </div>
-                                        )}
-                                        {w.workout?.description && (
-                                          <div className="w-full min-w-0 opacity-90 font-semibold text-[10.5px] break-words whitespace-pre-line">{w.workout.description}</div>
-                                        )}
-                                        {/* Lift/strength workouts have no sets/description — the
-                                            actual content is the exercise list, one line per
-                                            block/superset. Names only — that's what makes this
-                                            scannable, not "everything". */}
-                                        {!!w.workout?.strengthBlocks?.length && (
-                                          <div className="w-full min-w-0 opacity-90 font-semibold text-[9px] leading-tight break-words">
-                                            {w.workout.strengthBlocks.map((b: any) => (
-                                              <div key={b.id}>{b.label}: {b.exercises.map((ex: any) => ex.name).join(', ')}</div>
-                                            ))}
-                                          </div>
-                                        )}
-                                        {/* Cooldown — very small, secondary line. */}
-                                        {w.workout?.cooldown && (
-                                          <div className="w-full min-w-0 opacity-45 text-[7.5px] break-words whitespace-pre-line">שחרור: {w.workout.cooldown}</div>
-                                        )}
-                                        {/* Coach-only note on this assignment — very small. */}
-                                        {(w as any).coachFeedback && (
-                                          <div className="w-full min-w-0 opacity-45 text-[7.5px] break-words whitespace-pre-line">מאמן: {(w as any).coachFeedback}</div>
-                                        )}
+                                        {/* Compact badge only — see the week-view comment above
+                                            for why (full detail lives one click away). */}
                                       </button>
                                     )
                                   })}
