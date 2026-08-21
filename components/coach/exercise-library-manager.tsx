@@ -25,6 +25,7 @@ import { seedRunnerStretchProgram } from '@/lib/seed-runner-stretch-program'
 import { seedStrapStretchProgram } from '@/lib/seed-strap-stretch-program'
 import { seedAncillaryRoutines } from '@/lib/seed-ancillary-routines'
 import { seedPowerConditioningProgram } from '@/lib/seed-power-conditioning-program'
+import { seedUpperBodyAlon } from '@/lib/seed-upper-body-alon'
 import { ExerciseEditDialog } from '@/components/coach/exercise-edit-dialog'
 import { cn } from '@/lib/utils'
 
@@ -45,7 +46,7 @@ export function ExerciseLibraryManager() {
   const [deleteTarget, setDeleteTarget] = useState<ExerciseLibraryItem | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [filterCategory, setFilterCategory] = useState<'strength' | 'stretch' | 'warmup'>('strength')
-  const [importingKey, setImportingKey] = useState<'strength' | 'stretch' | 'strap' | 'ancillary' | 'power' | null>(null)
+  const [importingKey, setImportingKey] = useState<'strength' | 'stretch' | 'strap' | 'ancillary' | 'power' | 'upper-body-alon' | null>(null)
   const [translatingAll, setTranslatingAll] = useState(false)
 
   const load = async () => {
@@ -182,6 +183,25 @@ export function ExerciseLibraryManager() {
     }
   }
 
+  const handleImportUpperBodyAlon = async () => {
+    if (!user) return
+    setImportingKey('upper-body-alon')
+    try {
+      const result = await seedUpperBodyAlon(user.id || '')
+      if (result.alreadyExisted) {
+        toast.info('אימון Upper Body Alon כבר יובא בעבר')
+      } else {
+        toast.success(`יובאו ${result.exerciseCount} תרגילים ואימון "Upper Body Alon" — זמין בספריית האימונים`)
+        await load()
+      }
+    } catch (err) {
+      console.error('Error importing Upper Body Alon workout:', err)
+      toast.error('הייבוא נכשל')
+    } finally {
+      setImportingKey(null)
+    }
+  }
+
   const handleBackfillTranslations = async () => {
     setTranslatingAll(true)
     try {
@@ -231,6 +251,10 @@ export function ExerciseLibraryManager() {
           <Button onClick={handleImportPowerProgram} disabled={importingKey !== null} size="sm" variant="outline">
             {importingKey === 'power' ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Download className="h-4 w-4 mr-1" />}
             ייבוא: כוח וקונדישן (קטלבל)
+          </Button>
+          <Button onClick={handleImportUpperBodyAlon} disabled={importingKey !== null} size="sm" variant="outline">
+            {importingKey === 'upper-body-alon' ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Download className="h-4 w-4 mr-1" />}
+            ייבוא: Upper Body Alon
           </Button>
           <Button onClick={handleBackfillTranslations} disabled={translatingAll} size="sm" variant="outline" title="מתרגם תרגילים ללא גרסה באנגלית">
             {translatingAll ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Languages className="h-4 w-4 mr-1" />}
