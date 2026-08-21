@@ -290,12 +290,35 @@ export function AthletePlanner({ athleteId }: Props) {
   // Which type-folders are expanded, e.g. { easy: true } — folders start
   // closed so the browser stays compact under the calendar.
   const [openBankFolders, setOpenBankFolders] = useState<Record<string, boolean>>({})
+  // 'level' = the generic level-wide bank (bankLevel-tagged workouts,
+  // shared across every athlete at that level). 'history' = only the
+  // workouts THIS specific athlete has actually been assigned before —
+  // no separate fetch needed, derived straight from assignedWorkouts
+  // (already loaded for the calendar), deduped by workoutId so a workout
+  // given 5 times shows once.
+  const [bankSource, setBankSource] = useState<'level' | 'history'>('level')
   useEffect(() => {
     if (!athlete?.experienceLevel) { setBankWorkouts([]); return }
     getDocs(query(collection(db, 'workouts'), where('bankLevel', '==', athlete.experienceLevel)))
       .then((snap) => setBankWorkouts(snap.docs.map((d) => ({ ...(d.data() as Workout), id: d.id }))))
       .catch((err) => console.error('Error loading bank workouts:', err))
   }, [athlete?.experienceLevel])
+
+  const historyWorkouts = useMemo(() => {
+    const seen = new Set<string>()
+    const list: Workout[] = []
+    // Most-recent-first, so the deduped keeper is the latest version of a
+    // repeatedly-assigned workout, not whichever happened to load first.
+    const sorted = [...assignedWorkouts].sort((a, b) => b.scheduledDate.localeCompare(a.scheduledDate))
+    for (const aw of sorted) {
+      if (!aw.workout || seen.has(aw.workoutId)) continue
+      seen.add(aw.workoutId)
+      list.push(aw.workout)
+    }
+    return list
+  }, [assignedWorkouts])
+
+  const displayedBankWorkouts = bankSource === 'level' ? bankWorkouts : historyWorkouts
 
   const setAthleteLevel = async (level: ExperienceLevel) => {
     if (!athlete) return
@@ -319,7 +342,7 @@ export function AthletePlanner({ athleteId }: Props) {
   const handleDayDrop = (e: DragEvent, dateStr: string) => {
     e.preventDefault()
     const workoutId = e.dataTransfer.getData('text/plain')
-    const workout = bankWorkouts.find((w) => w.id === workoutId)
+    const workout = displayedBankWorkouts.find((w) => w.id === workoutId)
     if (workout) assignWorkoutToDate(workout, dateStr)
   }
 
@@ -1098,12 +1121,12 @@ export function AthletePlanner({ athleteId }: Props) {
   // workouts, instead of one long flat list.
   const bankByType = useMemo(() => {
     const groups: Record<string, Workout[]> = {}
-    for (const w of bankWorkouts) {
+    for (const w of displayedBankWorkouts) {
       if (!groups[w.type]) groups[w.type] = []
       groups[w.type].push(w)
     }
     return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]))
-  }, [bankWorkouts])
+  }, [displayedBankWorkouts])
 
   // Last-14-days analysis (computed from loaded state, no API call)
   const analysisData = useMemo(() => {
@@ -1831,22 +1854,41 @@ export function AthletePlanner({ athleteId }: Props) {
         {selectedDate && (
         <div className="lg:w-80 flex-shrink-0">
           <Card className="border-gold/30 bg-gold/[0.03]">
-            <CardHeader className="pb-2 pt-4 px-4">
+            <CardHeader className="pb-2 pt-4 px-4 space-y-2">
               <CardTitle className="text-sm flex items-center gap-1.5">
                 <Folder className="h-4 w-4 text-gold"/>
                 בנק אימונים
-                {athlete?.experienceLevel && (
+                {bankSource === 'level' && athlete?.experienceLevel && (
                   <span className="text-xs font-normal text-muted-foreground">
                     — {athlete.experienceLevel === 'beginner' ? 'מתחילים' : athlete.experienceLevel === 'intermediate' ? 'בינוני' : athlete.experienceLevel === 'advanced' ? 'מתקדם' : 'עילית'}
                   </span>
                 )}
+                {bankSource === 'history' && (
+                  <span className="text-xs font-normal text-muted-foreground">— {athlete?.name || 'ספורטאי'}</span>
+                )}
               </CardTitle>
+              {/* Switch between the shared level-wide bank and this specific
+                  athlete's own assignment history — no separate fetch for
+                  history, it's just a dedup over assignedWorkouts already
+                  loaded for the calendar above. */}
+              <div className="flex gap-1 bg-muted rounded-lg p-0.5 w-fit">
+                <button type="button" onClick={() => setBankSource('level')}
+                  className={cn('text-[10px] px-2.5 py-1 rounded-md font-semibold transition-all', bankSource === 'level' ? 'bg-white text-navy shadow-sm' : 'text-muted-foreground')}>
+                  לפי רמה
+                </button>
+                <button type="button" onClick={() => setBankSource('history')}
+                  className={cn('text-[10px] px-2.5 py-1 rounded-md font-semibold transition-all', bankSource === 'history' ? 'bg-white text-navy shadow-sm' : 'text-muted-foreground')}>
+                  היסטוריית ספורטאי
+                </button>
+              </div>
             </CardHeader>
             <CardContent className="px-4 pb-4">
-              {!athlete?.experienceLevel ? (
+              {bankSource === 'level' && !athlete?.experienceLevel ? (
                 <p className="text-xs text-muted-foreground">בחרו רמה למעלה כדי לראות את הבנק המתאים.</p>
               ) : bankByType.length === 0 ? (
-                <p className="text-xs text-muted-foreground">אין עדיין אימונים בבנק לרמה הזו.</p>
+                <p className="text-xs text-muted-foreground">
+                  {bankSource === 'level' ? 'אין עדיין אימונים בבנק לרמה הזו.' : 'לספורטאי הזה עדיין לא שובצו אימונים.'}
+                </p>
               ) : (
                 <div className="space-y-1.5 max-h-[70vh] overflow-y-auto pr-1">
                   {bankByType.map(([type, items]) => (
