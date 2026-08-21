@@ -1620,7 +1620,6 @@ export function AthletePlanner({ athleteId }: Props) {
                                   onClick={e => { e.stopPropagation(); setSelectedAssignedId(prev => prev === w.id ? null : w.id); setSelectedDate(day) }}
                                   className={cn('w-full text-right rounded-lg px-1.5 py-1.5 transition-all hover:opacity-90 flex flex-col gap-0.5 overflow-hidden',
                                     suspicious ? 'bg-gradient-to-br from-red-700 to-red-800 text-white' : 'bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 text-white',
-                                    isCompleted ? 'opacity-60' : '',
                                     selectedAssignedId === w.id ? 'ring-2 ring-gold' : ''
                                   )}>
                                   <div className="w-full min-w-0 flex items-center gap-1 text-[8px]">
@@ -1723,7 +1722,6 @@ export function AthletePlanner({ athleteId }: Props) {
                                         onClick={e => { e.stopPropagation(); setSelectedAssignedId(prev => prev === w.id ? null : w.id); if (inMonth) setSelectedDate(day) }}
                                         className={cn('w-full text-right rounded px-1.5 py-1.5 hover:opacity-90 flex flex-col gap-0.5 overflow-hidden',
                                           suspicious ? 'bg-gradient-to-br from-red-700 to-red-800 text-white' : 'bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 text-white',
-                                          isDone ? 'opacity-60' : '',
                                           selectedAssignedId === w.id ? 'ring-1 ring-gold' : ''
                                         )}>
                                         {/* Hebrew content needs dir="rtl" + text-right — this
