@@ -1008,20 +1008,16 @@ export function AthletePlanner({ athleteId }: Props) {
    * (reps, distances...) without touching the original week or the library.
    * `libraryHidden` keeps these clones out of the workout library lists.
    */
+  // Full-fidelity clone — spreads every field off the source Workout (not a
+  // hand-picked subset) so strengthBlocks/linkedRoutines/bank fields/etc.
+  // never silently drop on fork, same pattern as workout-library.tsx
+  // handleDuplicate. libraryHidden:true keeps per-athlete forks out of the
+  // shared browse list; WorkoutBuilder flips that back to false if the
+  // coach explicitly re-saves it from there.
   const cloneWorkoutDoc = async (src: Workout): Promise<Workout> => {
+    const { id, createdAt, updatedAt, ...rest } = src as any
     const data: any = {
-      title: src.title || 'אימון',
-      type: src.type || 'easy',
-      description: src.description || '',
-      duration: src.duration ?? null,
-      distance: src.distance ?? null,
-      warmup: (src as any).warmup || null,
-      cooldown: (src as any).cooldown || null,
-      notes: src.notes || null,
-      sets: (src.sets || []).map((s: any) => ({
-        ...s,
-        intervals: (s.intervals || []).map((iv: any) => ({ ...iv })),
-      })),
+      ...rest,
       libraryHidden: true,
       createdBy: user?.id || null,
     }
@@ -1029,6 +1025,26 @@ export function AthletePlanner({ athleteId }: Props) {
       ...data, createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
     })
     return { ...data, id: ref.id, createdAt: new Date(), updatedAt: new Date() } as Workout
+  }
+
+  /**
+   * Open the full builder to edit ONE athlete's assigned instance. Always
+   * forks a private clone first — every edit becomes its own new workout
+   * doc, so the coach can freely rename/tweak an assigned workout (even
+   * one just copied to another athlete) without ever mutating the shared
+   * template or any other athlete's/day's assignment that still points at
+   * the original. Coach explicitly asked for this: "every time I edit the
+   * workout, save as a new one."
+   */
+  const openEditForAssigned = async (aw: AssignedWorkout) => {
+    try {
+      const cloned = await cloneWorkoutDoc(aw.workout)
+      await updateDoc(doc(db, 'assignedWorkouts', aw.id), { workoutId: cloned.id, workout: cloned })
+      setAssignedWorkouts(prev => prev.map(w => w.id === aw.id ? { ...w, workoutId: cloned.id, workout: cloned } : w))
+      setBuilderWorkoutId(cloned.id)
+      setEditingAssignedId(aw.id)
+      setShowBuilderDialog(true)
+    } catch { toast.error(t.tryAgainLaterText) }
   }
 
   /**
@@ -1962,7 +1978,7 @@ export function AthletePlanner({ athleteId }: Props) {
                     <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setCopiedWorkout(selectedAW); setSelectedAssignedId(null); toast.success(t.toastAdded) }}>
                       <Copy className="h-3 w-3 mr-1"/>{t.copyBtn}
                     </Button>
-                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setBuilderWorkoutId(selectedAW.workoutId); setEditingAssignedId(selectedAW.id); setShowBuilderDialog(true) }}>
+                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => openEditForAssigned(selectedAW)}>
                       <Pencil className="h-3 w-3 mr-1"/>{t.editBtn}
                     </Button>
                     <Button variant="outline" size="sm" className="h-7 text-xs text-destructive hover:text-destructive" onClick={() => handleDeleteWorkout(selectedAW)}>
@@ -2826,7 +2842,7 @@ export function AthletePlanner({ athleteId }: Props) {
                             </select>
                           )}
                           <button
-                            onClick={() => { setBuilderWorkoutId(w.workoutId); setEditingAssignedId(w.id); setQuickAssignDate(null); setShowBuilderDialog(true) }}
+                            onClick={() => { setQuickAssignDate(null); openEditForAssigned(w) }}
                             className="text-[10px] font-semibold bg-white/70 border border-black/10 rounded-full px-2 py-0.5 flex-shrink-0">
                             {t.editBtn}
                           </button>
@@ -2990,7 +3006,7 @@ export function AthletePlanner({ athleteId }: Props) {
                     const freshWorkout = { ...wSnap.data(), id: wid } as Workout
                     // Update only the specific assigned workout
                     if (aid) {
-                      await ud(dc(db, 'assignedWorkouts', aid), { workout: freshWorkout })
+                      await ud(dc(db, 'assignedWorkouts', aid), { workoutId: wid, workout: freshWorkout })
                     }
                   }
                 }

@@ -124,29 +124,32 @@ export function CoachPlanningHub() {
 
   const handleOpenEdit = async (assignedWorkout: AssignedWorkout) => {
     try {
-      // Duplicate the workout so edits don't affect other assignments
+      // Always fork a private copy before editing — never mutate the
+      // shared template/another athlete's assignment in place. Coach
+      // explicitly asked for this: every edit becomes its own new workout.
       const { getDoc } = await import('firebase/firestore')
       const origSnap = await getDoc(doc(db, 'workouts', assignedWorkout.workoutId))
       if (!origSnap.exists()) { toast.error('אימון לא נמצא'); return }
       const origData = origSnap.data()
-      // Create a new workout document (copy)
+      // Create a new, private workout document (fork)
       const newRef = await addDoc(collection(db, 'workouts'), {
         ...origData,
         title: origData.title,
+        libraryHidden: true,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       })
       // Update the assigned workout to point to the new copy
       await updateDoc(doc(db, 'assignedWorkouts', assignedWorkout.id), {
         workoutId: newRef.id,
-        workout: { ...origData, id: newRef.id },
+        workout: { ...origData, id: newRef.id, libraryHidden: true },
       })
       // Update local state
       setAthleteData(prev => prev.map(ad => ({
         ...ad,
         assignedWorkouts: ad.assignedWorkouts.map(w =>
           w.id === assignedWorkout.id
-            ? { ...w, workoutId: newRef.id, workout: { ...w.workout, id: newRef.id } }
+            ? { ...w, workoutId: newRef.id, workout: { ...w.workout, id: newRef.id, libraryHidden: true } }
             : w
         )
       })))
