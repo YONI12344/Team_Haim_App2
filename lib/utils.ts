@@ -6,6 +6,10 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+export function normalizeExerciseName(name: string): string {
+  return name.trim().toLowerCase()
+}
+
 /** Merges a workout's stored StrengthBlockExercise with the CURRENT
  *  Exercise Library entry it points at (if it still exists), so an edited
  *  video/instructions/name/category shows up everywhere immediately —
@@ -14,13 +18,25 @@ export function cn(...inputs: ClassValue[]) {
  *  targetReps/targetDurationSec/notes stay as stored, since those really
  *  are workout-specific (how many sets THIS workout wants). Falls back to
  *  the stored snapshot fields if the library entry was since deleted, so a
- *  removed exercise doesn't go blank in workouts already built with it. */
+ *  removed exercise doesn't go blank in workouts already built with it.
+ *
+ *  If the id lookup misses or finds an entry with no video (a stale/wrong
+ *  exerciseId — e.g. two library entries ended up with the same name and
+ *  the video only got uploaded to the other one), falls back to matching
+ *  by exact exercise name against libraryByName, so a video the coach can
+ *  clearly see attached to "this exercise" in the library actually shows
+ *  up here instead of silently staying blank. */
 export function resolveExerciseDisplay(
   ex: StrengthBlockExercise,
   libraryById: Map<string, ExerciseLibraryItem>,
   language: 'he' | 'en' = 'he',
+  libraryByName?: Map<string, ExerciseLibraryItem>,
 ): StrengthBlockExercise {
-  const live = libraryById.get(ex.exerciseId)
+  let live = libraryById.get(ex.exerciseId)
+  if ((!live || !live.videoUrl) && libraryByName) {
+    const byName = libraryByName.get(normalizeExerciseName(ex.name))
+    if (byName?.videoUrl) live = byName
+  }
   const merged: StrengthBlockExercise = live
     ? {
         ...ex,

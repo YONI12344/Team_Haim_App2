@@ -12,7 +12,7 @@ import { toast } from 'sonner'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
 import { isCoachEmail } from '@/lib/constants'
-import { instructionLines, resolveExerciseDisplay, resolveText, formatSetTarget, translateBlockLabel } from '@/lib/utils'
+import { instructionLines, resolveExerciseDisplay, resolveText, formatSetTarget, translateBlockLabel, normalizeExerciseName } from '@/lib/utils'
 import { ExerciseEditDialog } from '@/components/coach/exercise-edit-dialog'
 import { listExercises } from '@/lib/exercise-library'
 import type { AssignedWorkout, StrengthBlockExercise, ExerciseLibraryItem } from '@/lib/types'
@@ -312,10 +312,18 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
   // Only targetSets/targetReps/targetDurationSec/notes stay as stored,
   // since those are workout-specific. See lib/utils.ts resolveExerciseDisplay.
   const [libraryById, setLibraryById] = useState<Map<string, ExerciseLibraryItem>>(new Map())
+  // Same-name fallback index — covers a workout whose stored exerciseId
+  // points at a stale/duplicate library entry while the video actually
+  // landed on a different entry with the identical name. See
+  // lib/utils.ts resolveExerciseDisplay.
+  const [libraryByName, setLibraryByName] = useState<Map<string, ExerciseLibraryItem>>(new Map())
 
   useEffect(() => {
     listExercises()
-      .then((list) => setLibraryById(new Map(list.map((e) => [e.id, e]))))
+      .then((list) => {
+        setLibraryById(new Map(list.map((e) => [e.id, e])))
+        setLibraryByName(new Map(list.map((e) => [normalizeExerciseName(e.name), e])))
+      })
       .catch((err) => console.error('Error loading exercise library for live resolution:', err))
   }, [])
 
@@ -498,10 +506,10 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
                 {block.exercises.map((rawEx, exIdx) => {
                   const set = progress[rawEx.id]?.[roundIdx]
                   if (!set) return null
-                  const primaryDisplay = resolveExerciseDisplay(rawEx, libraryById, language)
+                  const primaryDisplay = resolveExerciseDisplay(rawEx, libraryById, language, libraryByName)
                   const isAlt = !!altChosen[rawEx.id] && !!rawEx.alternateExerciseId
                   const ex = isAlt
-                    ? resolveExerciseDisplay({ ...rawEx, exerciseId: rawEx.alternateExerciseId! }, libraryById, language)
+                    ? resolveExerciseDisplay({ ...rawEx, exerciseId: rawEx.alternateExerciseId! }, libraryById, language, libraryByName)
                     : primaryDisplay
                   const altLive = rawEx.alternateExerciseId ? libraryById.get(rawEx.alternateExerciseId) : undefined
                   return (
@@ -571,10 +579,10 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
       ) : (
         <div className="space-y-4">
           {block.exercises.map((rawEx) => {
-            const primaryDisplay = resolveExerciseDisplay(rawEx, libraryById, language)
+            const primaryDisplay = resolveExerciseDisplay(rawEx, libraryById, language, libraryByName)
             const isAlt = !!altChosen[rawEx.id] && !!rawEx.alternateExerciseId
             const ex = isAlt
-              ? resolveExerciseDisplay({ ...rawEx, exerciseId: rawEx.alternateExerciseId! }, libraryById, language)
+              ? resolveExerciseDisplay({ ...rawEx, exerciseId: rawEx.alternateExerciseId! }, libraryById, language, libraryByName)
               : primaryDisplay
             const altLive = rawEx.alternateExerciseId ? libraryById.get(rawEx.alternateExerciseId) : undefined
             return (

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { Loader2, Check, Pencil } from 'lucide-react'
-import { instructionLines, resolveExerciseDisplay, resolveText, formatSetTarget, translateBlockLabel } from '@/lib/utils'
+import { instructionLines, resolveExerciseDisplay, resolveText, formatSetTarget, translateBlockLabel, normalizeExerciseName } from '@/lib/utils'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
 import { isCoachEmail } from '@/lib/constants'
@@ -38,10 +38,15 @@ export function WarmupViewer({ workoutId }: { workoutId: string }) {
   // Same live-resolution as Lift Mode (see lib/utils.ts resolveExerciseDisplay)
   // — an edited video/instructions/name shows up here immediately too.
   const [libraryById, setLibraryById] = useState<Map<string, ExerciseLibraryItem>>(new Map())
+  // Same-name fallback index — see lib/utils.ts resolveExerciseDisplay.
+  const [libraryByName, setLibraryByName] = useState<Map<string, ExerciseLibraryItem>>(new Map())
 
   useEffect(() => {
     listExercises()
-      .then((list) => setLibraryById(new Map(list.map((e) => [e.id, e]))))
+      .then((list) => {
+        setLibraryById(new Map(list.map((e) => [e.id, e])))
+        setLibraryByName(new Map(list.map((e) => [normalizeExerciseName(e.name), e])))
+      })
       .catch((err) => console.error('Error loading exercise library for live resolution:', err))
   }, [])
 
@@ -86,7 +91,7 @@ export function WarmupViewer({ workoutId }: { workoutId: string }) {
           </div>
           <div className="p-2.5 space-y-2.5">
             {block.exercises.map((rawEx) => {
-              const ex = resolveExerciseDisplay(rawEx, libraryById, language)
+              const ex = resolveExerciseDisplay(rawEx, libraryById, language, libraryByName)
               const lines = instructionLines(ex.instructions)
               const target = formatSetTarget(language, ex.targetReps, ex.targetDurationSec, ex.targetSets)
               const isDone = !!done[ex.id]
