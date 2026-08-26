@@ -247,12 +247,15 @@ export interface Lead {
   // experienceLevel (self-assessed skill), useful as a sanity check on it.
   runningExperienceDuration?: 'under_6mo' | '6to12mo' | '1to3yr' | 'over_3yr'
   weeklyMileage?: number
+  // Typical training week over the last 3 weeks, keyed by day of week —
+  // free text in the athlete's own words (distance, pace, HR, intervals,
+  // gym/other sport), not a structured field.
+  typicalWeek?: Record<string, string | null>
   recentRaceEvent?: string
   recentRaceTime?: string
   recentRaceDate?: string
   shoesInfo?: string
   devicesUsed?: string[]
-  stravaOrGarminLink?: string
   primaryGoal?: string
   longTermGoal?: string
   goalRaceEvent?: string

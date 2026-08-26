@@ -112,7 +112,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                       lead.medicalNotes ? `Medical: ${lead.medicalNotes}` : null,
                       lead.runningExperienceDuration ? `Training seriously: ${lead.runningExperienceDuration}` : null,
                       lead.injuryHistory && lead.currentInjuries ? `Injury history: ${lead.injuryHistory}` : null,
-                      lead.stravaOrGarminLink ? `Strava/Garmin: ${lead.stravaOrGarminLink}` : null,
+                      lead.typicalWeek ? `Typical week (last 3wk): ${(Object.entries(lead.typicalWeek) as [string, string | null][])
+                        .filter(([, desc]) => desc)
+                        .map(([day, desc]) => `${day.slice(0, 3)}: ${desc}`)
+                        .join(' | ')}` : null,
                       lead.additionalNotes ? `Notes: ${lead.additionalNotes}` : null,
                     ].filter(Boolean).join(' · ') || null,
                     ...(lead.recentRaceEvent && lead.recentRaceTime ? {

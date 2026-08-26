@@ -2114,8 +2114,15 @@ export function AthletePlanner({ athleteId }: Props) {
                   {leadData.facilitiesAccess && leadData.facilitiesAccess.length > 0 && <div><span className="font-semibold">מתקנים זמינים: </span>{leadData.facilitiesAccess.join(', ')}</div>}
                   {leadData.devicesUsed && leadData.devicesUsed.length > 0 && <div><span className="font-semibold">מכשירים: </span>{leadData.devicesUsed.join(', ')}</div>}
                   {leadData.shoesInfo && <div><span className="font-semibold">נעליים: </span>{leadData.shoesInfo}</div>}
-                  {leadData.stravaOrGarminLink && <div><span className="font-semibold">Strava/Garmin: </span>{leadData.stravaOrGarminLink}</div>}
                   {leadData.recentRaceEvent && <div><span className="font-semibold">מירוץ אחרון: </span>{leadData.recentRaceEvent} {leadData.recentRaceTime} ({leadData.recentRaceDate})</div>}
+                  {leadData.typicalWeek && (
+                    <div className="sm:col-span-2 space-y-0.5">
+                      <span className="font-semibold">שבוע אימונים טיפוסי: </span>
+                      {Object.entries(leadData.typicalWeek).filter(([, desc]) => desc).map(([day, desc]) => (
+                        <div key={day}><span className="text-muted-foreground">{day.slice(0, 3)}: </span>{desc}</div>
+                      ))}
+                    </div>
+                  )}
                   {leadData.lifestyleNotes && <div className="sm:col-span-2"><span className="font-semibold">שינה/עומס חיים: </span>{leadData.lifestyleNotes}</div>}
                   {leadData.currentInjuries && <div className="sm:col-span-2"><span className="font-semibold">פציעה נוכחית: </span>{leadData.currentInjuries}</div>}
                   {leadData.medicalNotes && <div className="sm:col-span-2"><span className="font-semibold">הערות רפואיות: </span>{leadData.medicalNotes}</div>}

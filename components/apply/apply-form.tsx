@@ -12,6 +12,7 @@ type Facility = 'track' | 'gym' | 'treadmill' | 'trails'
 type RunningDuration = 'under_6mo' | '6to12mo' | '1to3yr' | 'over_3yr'
 type Device = 'garmin' | 'strava' | 'polar' | 'coros' | 'apple_watch' | 'hr_strap' | 'other'
 type DayKey = 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday'
+interface DayTraining { description: string }
 
 const EXPERIENCE_LEVELS: ExperienceLevel[] = ['beginner', 'intermediate', 'advanced', 'professional']
 const RACE_DISTANCES: RaceDistance[] = ['1500m', 'mile', '3000m', '5k', '10k', '15k', 'half_marathon', 'marathon']
@@ -19,8 +20,8 @@ const RACE_DISTANCE_LABELS: Record<'en' | 'he', Record<RaceDistance, string>> = 
   en: { '1500m': '1500m', mile: 'Mile', '3000m': '3000m', '5k': '5K', '10k': '10K', '15k': '15K', half_marathon: 'Half Marathon', marathon: 'Marathon' },
   he: { '1500m': '1500 מ׳', mile: 'מייל', '3000m': '3000 מ׳', '5k': '5 ק"מ', '10k': '10 ק"מ', '15k': '15 ק"מ', half_marathon: 'חצי מרתון', marathon: 'מרתון' },
 }
-// Finer steps in the range most athletes fall in, coarser at the high end
-// — more options than a handful of round-10 buttons, so someone doesn't
+// Finer steps in the range most athletes fall in, coarser at the high end.
+// More options than a handful of round-10 buttons, so someone doesn't
 // have to round their real weekly km up or down significantly.
 const MILEAGE_PRESETS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 80, 90, 100, 120, 150]
 const DAYS_PRESETS = [3, 4, 5, 6, 7]
@@ -44,13 +45,13 @@ const DAY_LABELS: Record<'en' | 'he', Record<DayKey, string>> = {
   en: { sunday: 'Sun', monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat' },
   he: { sunday: 'א׳', monday: 'ב׳', tuesday: 'ג׳', wednesday: 'ד׳', thursday: 'ה׳', friday: 'ו׳', saturday: 'ש׳' },
 }
-
 interface FormState {
   name: string; email: string; phone: string; dateOfBirth: string; city: string
   height: number | ''; weight: number | ''
   experienceLevel: ExperienceLevel | ''
   runningExperienceDuration: RunningDuration | ''
   weeklyMileage: number | ''
+  typicalWeek: Record<DayKey, DayTraining>
   recentRaceDistance: RaceDistance | ''
   recentRaceHours: number
   recentRaceMinutes: number | ''
@@ -58,7 +59,6 @@ interface FormState {
   recentRaceDate: string
   shoesInfo: string
   devicesUsed: Device[]
-  stravaOrGarminLink: string
   primaryGoal: string
   longTermGoal: string
   goalRaceEvent: string
@@ -75,12 +75,18 @@ interface FormState {
   additionalNotes: string
 }
 
+const EMPTY_TYPICAL_WEEK: Record<DayKey, DayTraining> = DAY_ORDER.reduce((acc, day) => {
+  acc[day] = { description: '' }
+  return acc
+}, {} as Record<DayKey, DayTraining>)
+
 const EMPTY_FORM: FormState = {
   name: '', email: '', phone: '', dateOfBirth: '', city: '',
   height: '', weight: '',
   experienceLevel: '', runningExperienceDuration: '', weeklyMileage: '',
+  typicalWeek: EMPTY_TYPICAL_WEEK,
   recentRaceDistance: '', recentRaceHours: 0, recentRaceMinutes: '', recentRaceSeconds: '', recentRaceDate: '',
-  shoesInfo: '', devicesUsed: [], stravaOrGarminLink: '',
+  shoesInfo: '', devicesUsed: [],
   primaryGoal: '', longTermGoal: '',
   goalRaceEvent: '', goalRaceDistance: '', goalRaceDate: '', goalRaceTarget: '',
   daysPerWeek: '', preferredDays: [], facilitiesAccess: [],
@@ -88,10 +94,10 @@ const EMPTY_FORM: FormState = {
 }
 
 /**
- * Public "apply to work with me" intake — no login required. Submissions
+ * Public "apply to work with me" intake, no login required. Submissions
  * land in the `leads` Firestore collection for the coach to review at
  * /coach/leads. Accepting a lead there means its data auto-fills the
- * athlete's profile the moment they actually sign up (matched by email —
+ * athlete's profile the moment they actually sign up (matched by email,
  * see contexts/auth-context.tsx), so nothing has to be typed twice between
  * "applying" and the real in-app onboarding.
  */
@@ -117,6 +123,8 @@ export function ApplyForm() {
     set('preferredDays', form.preferredDays.includes(d)
       ? form.preferredDays.filter((x) => x !== d)
       : [...form.preferredDays, d])
+  const setDayTraining = (day: DayKey, patch: Partial<DayTraining>) =>
+    setForm((f) => ({ ...f, typicalWeek: { ...f.typicalWeek, [day]: { ...f.typicalWeek[day], ...patch } } }))
 
   const inputCls = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#c9a84c]"
   const t = (en: string, he: string) => (language === 'he' ? he : en)
@@ -151,12 +159,14 @@ export function ApplyForm() {
         experienceLevel: form.experienceLevel || null,
         runningExperienceDuration: form.runningExperienceDuration || null,
         weeklyMileage: form.weeklyMileage === '' ? null : Number(form.weeklyMileage),
+        typicalWeek: Object.fromEntries(
+          DAY_ORDER.map((day) => [day, form.typicalWeek[day].description.trim() || null])
+        ),
         recentRaceEvent: form.recentRaceDistance ? RACE_DISTANCE_LABELS.en[form.recentRaceDistance] : null,
         recentRaceTime: formattedRecentRaceTime(),
         recentRaceDate: form.recentRaceDate || null,
         shoesInfo: form.shoesInfo.trim() || null,
         devicesUsed: form.devicesUsed,
-        stravaOrGarminLink: form.stravaOrGarminLink.trim() || null,
         primaryGoal: form.primaryGoal.trim() || null,
         longTermGoal: form.longTermGoal.trim() || null,
         goalRaceEvent: form.goalRaceEvent.trim() || null,
@@ -178,7 +188,7 @@ export function ApplyForm() {
       setSubmitted(true)
     } catch (e) {
       console.error(e)
-      setError(t('Something went wrong — please try again.', 'משהו השתבש — נסה/י שוב.'))
+      setError(t('Something went wrong, please try again.', 'משהו השתבש, נסה/י שוב.'))
     } finally {
       setSaving(false)
     }
@@ -194,7 +204,7 @@ export function ApplyForm() {
             </div>
           </div>
           <h1 className="text-xl font-serif font-bold text-[#1a2744]">
-            {t('Thanks — application received!', 'תודה — הבקשה התקבלה!')}
+            {t('Thanks, application received!', 'תודה, הבקשה התקבלה!')}
           </h1>
           <p className="text-gray-600">
             {t("I'll review your info and get back to you soon.", 'אעבור על הפרטים שלך ואחזור אליך בקרוב.')}
@@ -219,7 +229,7 @@ export function ApplyForm() {
           <div>
             <h1 className="text-2xl font-serif font-bold text-[#1a2744]">{t('Apply to work with me', 'בקשה לאימון אישי')}</h1>
             <p className="text-sm text-gray-500 mt-1">
-              {t('A few questions so I can see if we\'re a good fit — takes about 3 minutes.', 'כמה שאלות כדי לבדוק התאמה — לוקח כ-3 דקות.')}
+              {t('A few questions so I can see if we\'re a good fit. Takes about 3 minutes.', 'כמה שאלות כדי לבדוק התאמה. לוקח כ-3 דקות.')}
             </p>
           </div>
 
@@ -234,12 +244,10 @@ export function ApplyForm() {
               <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Phone', 'טלפון')}</label>
                 <input type="tel" className={inputCls} value={form.phone} onChange={(e) => set('phone', e.target.value)} dir="ltr" /></div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="min-w-0"><label className="block text-sm font-medium text-gray-700 mb-1">{t('Date of Birth', 'תאריך לידה')}</label>
-                <input type="date" className={inputCls} value={form.dateOfBirth} onChange={(e) => set('dateOfBirth', e.target.value)} /></div>
-              <div className="min-w-0"><label className="block text-sm font-medium text-gray-700 mb-1">{t('City', 'עיר')}</label>
-                <input className={inputCls} value={form.city} onChange={(e) => set('city', e.target.value)} /></div>
-            </div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Date of Birth', 'תאריך לידה')}</label>
+              <input type="date" className={inputCls} value={form.dateOfBirth} onChange={(e) => set('dateOfBirth', e.target.value)} dir="ltr" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('City', 'עיר')}</label>
+              <input className={inputCls} value={form.city} onChange={(e) => set('city', e.target.value)} /></div>
             <div className="grid grid-cols-2 gap-3">
               <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Height (cm)', 'גובה (ס"מ)')}</label>
                 <input type="number" className={inputCls} value={form.height} onChange={(e) => set('height', e.target.value === '' ? '' : Number(e.target.value))} /></div>
@@ -288,6 +296,29 @@ export function ApplyForm() {
                 placeholder={t('Or type your exact km/week', 'או הקלד/י ק"מ מדויק')} dir="ltr" />
             </div>
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('Typical training week (last 3 weeks)', 'שבוע אימונים טיפוסי (3 שבועות אחרונים)')}</label>
+              <p className="text-xs text-gray-500 mb-2">
+                {t(
+                  'Describe what you actually did each day: distance, pace, intervals, heart rate if known, plus gym or other sports. E.g. "Easy run 8km, 5:30/km, HR 145" or "Rest, gym legs 45min". More detail is better.',
+                  'תאר/י מה עשית בפועל בכל יום: מרחק, קצב, אינטרוולים, דופק אם ידוע, וגם חדר כושר או ספורט נוסף. לדוגמה: "ריצה קלה 8 ק"מ, קצב 5:30, דופק 145" או "מנוחה, חדר כושר רגליים 45 דק\'". ככל שיהיו יותר פרטים, יותר טוב.'
+                )}
+                <br />
+                {t(
+                  'The more you write, the more precisely I can figure out your current shape and build a training plan that actually fits you.',
+                  'ככל שתכתוב/תכתבי יותר, כך אוכל להבין בצורה מדויקת יותר את הכושר הנוכחי שלך ולבנות תוכנית אימונים שבאמת מתאימה לך.'
+                )}
+              </p>
+              <div className="space-y-2">
+                {DAY_ORDER.map((day) => (
+                  <div key={day}>
+                    <label className="block text-xs font-bold text-[#1a2744] mb-1">{DAY_LABELS[language][day]}</label>
+                    <textarea className={inputCls} rows={2} value={form.typicalWeek[day].description}
+                      onChange={(e) => setDayTraining(day, { description: e.target.value })} />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">{t('Recent race result (optional)', 'תוצאת מירוץ אחרונה (לא חובה)')}</label>
               <div className="grid grid-cols-2 gap-2 mb-2">
                 {RACE_DISTANCES.map((dist) => (
@@ -319,8 +350,8 @@ export function ApplyForm() {
                   </div>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <input type="date" className={inputCls} value={form.recentRaceDate} onChange={(e) => set('recentRaceDate', e.target.value)} />
+              <div>
+                <input type="date" className={inputCls} value={form.recentRaceDate} onChange={(e) => set('recentRaceDate', e.target.value)} dir="ltr" />
               </div>
             </div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Running shoes (models, size, estimated mileage)', 'נעלי ריצה (דגמים, מידה, קילומטראז\' משוער)')}</label>
@@ -336,8 +367,6 @@ export function ApplyForm() {
                 ))}
               </div>
             </div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Strava / Garmin Connect link (optional)', 'קישור ל-Strava / Garmin Connect (לא חובה)')}</label>
-              <input className={inputCls} value={form.stravaOrGarminLink} onChange={(e) => set('stravaOrGarminLink', e.target.value)} dir="ltr" /></div>
           </div>
 
           {/* Goals */}

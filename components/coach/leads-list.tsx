@@ -17,6 +17,9 @@ const STATUS_STYLE: Record<Lead['status'], string> = {
   converted: 'bg-gold/15 text-navy border-gold/40',
 }
 
+const DAY_ORDER = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const
+const DAY_SHORT: Record<string, string> = { sunday: 'Sun', monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat' }
+
 /**
  * Coach-side review for public /apply submissions. Accepting a lead just
  * flips its status — the actual handoff into a real athlete profile
@@ -129,10 +132,20 @@ export function LeadsList() {
                   {lead.devicesUsed && lead.devicesUsed.length > 0 && (
                     <div className="col-span-2">Devices: <span className="text-foreground">{lead.devicesUsed.join(', ')}</span></div>
                   )}
-                  {lead.stravaOrGarminLink && (
-                    <div className="col-span-2">Strava/Garmin: <a className="text-foreground underline" href={lead.stravaOrGarminLink} target="_blank" rel="noreferrer">{lead.stravaOrGarminLink}</a></div>
-                  )}
                 </div>
+                {lead.typicalWeek && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Typical week (last 3 weeks)</p>
+                    <div className="space-y-0.5">
+                      {DAY_ORDER.filter((day) => lead.typicalWeek?.[day]).map((day) => (
+                        <div key={day}>
+                          <span className="text-muted-foreground">{DAY_SHORT[day]}:</span>{' '}
+                          <span className="text-foreground">{lead.typicalWeek![day]}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {lead.primaryGoal && <div><p className="text-xs text-muted-foreground">Primary goal</p><p>{lead.primaryGoal}</p></div>}
                 {lead.longTermGoal && <div><p className="text-xs text-muted-foreground">Long-term goal</p><p>{lead.longTermGoal}</p></div>}
                 {lead.shoesInfo && <div><p className="text-xs text-muted-foreground">Shoes</p><p>{lead.shoesInfo}</p></div>}
