@@ -1,19 +1,26 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useMemo } from 'react'
+import dynamic from 'next/dynamic'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Plus, Dumbbell, Pencil, X, Trash2, Loader2, FolderInput, PackagePlus } from 'lucide-react'
 import Link from 'next/link'
-import { collection, deleteDoc, doc, getDoc, getDocs, orderBy, query, updateDoc, where } from 'firebase/firestore'
+import { collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { toast } from 'sonner'
 import type { ExperienceLevel, Workout, WorkoutType } from '@/lib/types'
 import { workoutTypeColors, useWorkoutTypeLabels } from '@/lib/workout-labels'
 import { cn } from '@/lib/utils'
-import { WorkoutBuilder } from '@/components/coach/workout-builder'
+import { useWorkoutLibrary, invalidateWorkoutLibrary, mutateWorkoutLibrary } from '@/hooks/useWorkoutLibrary'
+
+// Only ever mounted inside the (closed-by-default) edit/create dialogs
+// below — dynamic-imported so it isn't part of this page's initial JS.
+const WorkoutBuilder = dynamic(() => import('@/components/coach/workout-builder').then(m => m.WorkoutBuilder), {
+  loading: () => <div className="p-8 text-center text-sm text-muted-foreground">Loading…</div>,
+})
 
 const BANK_LEVELS: ExperienceLevel[] = ['beginner', 'intermediate', 'advanced', 'professional']
 const BANK_LEVEL_LABELS_HE: Record<ExperienceLevel, string> = {
@@ -34,6 +41,11 @@ function QuickMoveForm({ workout, onSaved, onCancel }: { workout: Workout; onSav
         bankStage: level ? (stage.trim() || null) : null,
         bankOrder: level && order !== '' ? Number(order) : null,
       })
+      mutateWorkoutLibrary((prev) => prev.map((w) => (
+        w.id === workout.id
+          ? { ...w, bankLevel: level || undefined, bankStage: level ? (stage.trim() || undefined) : undefined, bankOrder: level && order !== '' ? Number(order) : undefined }
+          : w
+      )))
       toast.success('עודכן')
       onSaved()
     } catch (err) {
@@ -124,8 +136,11 @@ function BankItemGrid({ items, onRemove, onDelete, removing, deleting, onMoved, 
 // in place without opening the full workout builder.
 export function WorkoutBankManager() {
   const workoutTypeLabels = useWorkoutTypeLabels()
-  const [workouts, setWorkouts] = useState<Workout[]>([])
-  const [loading, setLoading] = useState(true)
+  // Shared/cached across every coach page via SWR — see hooks/useWorkoutLibrary.
+  const { workouts: allWorkouts, isLoading: loading } = useWorkoutLibrary()
+  const workouts = useMemo(() => (
+    allWorkouts.filter((w) => !!w.bankLevel).sort((a, b) => a.title.localeCompare(b.title))
+  ), [allWorkouts])
   const [removing, setRemoving] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
   // Editing opens in a dialog over the current scroll position/open
@@ -139,27 +154,13 @@ export function WorkoutBankManager() {
   // hand afterward.
   const [creatingFor, setCreatingFor] = useState<{ level: ExperienceLevel; type?: WorkoutType } | null>(null)
 
-  // `silent` skips the full-page spinner — used after an in-place edit so
-  // the refresh doesn't blow away scroll position and open <details>.
-  const load = async (silent = false) => {
-    if (!silent) setLoading(true)
-    try {
-      const snap = await getDocs(query(collection(db, 'workouts'), orderBy('title', 'asc')))
-      setWorkouts(snap.docs.map((d) => ({ ...(d.data() as Workout), id: d.id })).filter((w) => !!w.bankLevel))
-    } catch (err) {
-      console.error('Error loading workout bank:', err)
-    } finally {
-      if (!silent) setLoading(false)
-    }
-  }
-
-  useEffect(() => { load() }, [])
-
   const removeFromBank = async (workout: Workout) => {
     setRemoving(workout.id)
     try {
       await updateDoc(doc(db, 'workouts', workout.id), { bankLevel: null })
-      setWorkouts((prev) => prev.filter((w) => w.id !== workout.id))
+      // Only clears bankLevel — the workout itself stays in the shared
+      // library, it just drops out of this page's bankLevel-filtered view.
+      mutateWorkoutLibrary((prev) => prev.map((w) => (w.id === workout.id ? { ...w, bankLevel: undefined } : w)))
       toast.success('הוסר מהבנק')
     } catch (err) {
       console.error('Error removing from bank:', err)
@@ -178,7 +179,7 @@ export function WorkoutBankManager() {
     setDeleting(workout.id)
     try {
       await deleteDoc(doc(db, 'workouts', workout.id))
-      setWorkouts((prev) => prev.filter((w) => w.id !== workout.id))
+      mutateWorkoutLibrary((prev) => prev.filter((w) => w.id !== workout.id))
       toast.success('נמחק לצמיתות')
     } catch (err) {
       console.error('Error deleting workout:', err)
@@ -238,7 +239,7 @@ export function WorkoutBankManager() {
         await updateDoc(doc(db, 'workouts', item.workoutId), { bankLevel: item.level })
       }
       toast.success(`נוספו ${plan.length} אימונים לבנק`)
-      await load(true)
+      await invalidateWorkoutLibrary()
     } catch (err) {
       console.error('Error backfilling workout bank from assigned workouts:', err)
       toast.error('הפעולה נכשלה')
@@ -331,12 +332,12 @@ export function WorkoutBankManager() {
                           {Array.from(byStage.entries()).map(([stage, stageItems]) => (
                             <div key={stage || '_none'}>
                               {stage && <p className="text-[11px] text-muted-foreground mb-1">↳ {stage}</p>}
-                              <BankItemGrid items={stageItems} onRemove={removeFromBank} onDelete={deleteWorkoutEntirely} removing={removing} deleting={deleting} onMoved={() => load(true)} onEdit={setEditingWorkout} />
+                              <BankItemGrid items={stageItems} onRemove={removeFromBank} onDelete={deleteWorkoutEntirely} removing={removing} deleting={deleting} onMoved={() => {}} onEdit={setEditingWorkout} />
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <BankItemGrid items={items} onRemove={removeFromBank} onDelete={deleteWorkoutEntirely} removing={removing} deleting={deleting} onMoved={() => load(true)} onEdit={setEditingWorkout} />
+                        <BankItemGrid items={items} onRemove={removeFromBank} onDelete={deleteWorkoutEntirely} removing={removing} deleting={deleting} onMoved={() => {}} onEdit={setEditingWorkout} />
                       )}
                     </div>
                   )
@@ -358,7 +359,7 @@ export function WorkoutBankManager() {
             <WorkoutBuilder
               workoutId={editingWorkout.id}
               hideBackButton
-              onDone={() => { setEditingWorkout(null); load(true) }}
+              onDone={() => setEditingWorkout(null)}
             />
           )}
         </DialogContent>
@@ -379,7 +380,7 @@ export function WorkoutBankManager() {
               initialBankLevel={creatingFor.level}
               initialType={creatingFor.type}
               hideBackButton
-              onDone={() => { setCreatingFor(null); load(true) }}
+              onDone={() => setCreatingFor(null)}
             />
           )}
         </DialogContent>

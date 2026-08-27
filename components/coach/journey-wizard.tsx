@@ -150,6 +150,10 @@ export function JourneyWizard({ open, onOpenChange, athleteId, onCreated }: Prop
           })
         } catch (e) { console.error('Interim race creation failed:', e) }
       }
+      if (interimRaces.some((r) => r.event.trim() && r.date)) {
+        const { invalidateWorkoutLibrary } = await import('@/hooks/useWorkoutLibrary')
+        void invalidateWorkoutLibrary()
+      }
 
       // Keep the athlete's profile in sync with the new plan
       const { doc, updateDoc } = await import('firebase/firestore')

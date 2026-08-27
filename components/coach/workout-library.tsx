@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -28,7 +28,6 @@ import {
   deleteDoc,
   doc,
   getDocs,
-  orderBy,
   query,
   serverTimestamp,
   setDoc,
@@ -41,6 +40,7 @@ import { useLanguage } from '@/contexts/language-context'
 import { isCoachEmail } from '@/lib/constants'
 import { translateTexts } from '@/lib/translate'
 import { workoutTypeColors, useWorkoutTypeLabels } from '@/lib/workout-labels'
+import { useWorkoutLibrary, invalidateWorkoutLibrary, mutateWorkoutLibrary } from '@/hooks/useWorkoutLibrary'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -62,7 +62,23 @@ export function WorkoutLibrary() {
   const [searchQuery, setSearchQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<WorkoutType | 'all' | 'warmup'>('all')
   const [sourceFilter, setSourceFilter] = useState<'all' | 'bakken' | 'coach'>('all')
-  const [workouts, setWorkouts] = useState<Workout[]>([])
+
+  const toDate = (v: any): Date | null => {
+    if (!v) return null
+    if (typeof v.toDate === 'function') return v.toDate()
+    const d = new Date(v)
+    return isNaN(d.getTime()) ? null : d
+  }
+
+  // Shared/cached across every coach page via SWR — see hooks/useWorkoutLibrary.
+  const { workouts: allWorkouts, isLoading: libraryLoading } = useWorkoutLibrary()
+  const workouts = useMemo(() => (
+    allWorkouts
+      // Hide per-week clones created by copy-week / paste
+      .filter((w) => !w.libraryHidden)
+      .sort((a, b) => (toDate((b as any).createdAt)?.getTime() ?? 0) - (toDate((a as any).createdAt)?.getTime() ?? 0))
+  ), [allWorkouts])
+
   // Every workouts/{id} doc referenced by an assignedWorkouts doc with
   // source:'bakken' — Bakken generates its own standalone library entry
   // for every day it creates (bakken-plan-panel.tsx), alongside the
@@ -73,7 +89,8 @@ export function WorkoutLibrary() {
   // source) — used by the cleanup tool below to only ever offer deleting
   // library templates nobody's actual schedule depends on.
   const [assignedWorkoutIds, setAssignedWorkoutIds] = useState<Set<string>>(new Set())
-  const [loading, setLoading] = useState(true)
+  const [setsLoading, setSetsLoading] = useState(true)
+  const loading = libraryLoading || setsLoading
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [duplicating, setDuplicating] = useState<string | null>(null)
@@ -90,39 +107,24 @@ export function WorkoutLibrary() {
   const [cleanupConfirmOpen, setCleanupConfirmOpen] = useState(false)
   const [cleanupDeleting, setCleanupDeleting] = useState(false)
 
+  // Only the assignedWorkouts-derived sets — the workout list itself
+  // comes from the shared useWorkoutLibrary cache above.
   const load = async () => {
-    setLoading(true)
+    setSetsLoading(true)
     try {
-      const [workoutsSnap, bakkenAssignedSnap, allAssignedSnap] = await Promise.all([
-        getDocs(query(collection(db, 'workouts'), orderBy('createdAt', 'desc'))),
+      const [bakkenAssignedSnap, allAssignedSnap] = await Promise.all([
         getDocs(query(collection(db, 'assignedWorkouts'), where('source', '==', 'bakken'))),
         getDocs(collection(db, 'assignedWorkouts')),
       ])
       setBakkenWorkoutIds(new Set(bakkenAssignedSnap.docs.map((d) => d.data().workoutId).filter(Boolean)))
       setAssignedWorkoutIds(new Set(allAssignedSnap.docs.map((d) => d.data().workoutId).filter(Boolean)))
-      setWorkouts(
-        workoutsSnap.docs
-          // Hide per-week clones created by copy-week / paste
-          .filter((d) => !d.data().libraryHidden)
-          .map((d) => ({
-            ...(d.data() as Workout),
-            id: d.id,
-          })),
-      )
     } catch (err) {
-      console.error('Error loading workouts:', err)
-      setWorkouts([])
+      console.error('Error loading assigned workout sets:', err)
     } finally {
-      setLoading(false)
+      setSetsLoading(false)
     }
   }
 
-  const toDate = (v: any): Date | null => {
-    if (!v) return null
-    if (typeof v.toDate === 'function') return v.toDate()
-    const d = new Date(v)
-    return isNaN(d.getTime()) ? null : d
-  }
   const cleanupCandidates = workouts.filter((w) => {
     if (assignedWorkoutIds.has(w.id)) return false
     const created = toDate((w as any).createdAt)
@@ -143,6 +145,7 @@ export function WorkoutLibrary() {
       }
       toast.success(`נמחקו ${ids.length} אימונים`)
       setCleanupConfirmOpen(false)
+      await invalidateWorkoutLibrary()
       await load()
     } catch (err) {
       console.error('Error cleaning up workouts:', err)
@@ -188,6 +191,7 @@ export function WorkoutLibrary() {
       }
       toast.success(`נמחקו ${idsToDelete.length} אימוני עוזר המאמן AI מהספרייה`)
       setBulkDeleteOpen(false)
+      await invalidateWorkoutLibrary()
       await load()
     } catch (err) {
       console.error('Error bulk deleting Bakken workouts:', err)
@@ -238,7 +242,7 @@ export function WorkoutLibrary() {
     setDeleting(true)
     try {
       await deleteDoc(doc(db, 'workouts', deleteId))
-      setWorkouts((prev) => prev.filter((w) => w.id !== deleteId))
+      mutateWorkoutLibrary((prev) => prev.filter((w) => w.id !== deleteId))
       toast.success('Workout deleted')
     } catch (err) {
       console.error('Error deleting workout:', err)
@@ -259,7 +263,7 @@ export function WorkoutLibrary() {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       })
-      setWorkouts(prev => [{ ...rest, title: rest.title + ' (Copy)', id: newDoc.id, createdAt: new Date(), updatedAt: new Date() } as Workout, ...prev])
+      mutateWorkoutLibrary(prev => [{ ...rest, title: rest.title + ' (Copy)', id: newDoc.id, createdAt: new Date(), updatedAt: new Date() } as Workout, ...prev])
       toast.success('Workout duplicated!')
     } catch (err) {
       console.error('Error duplicating workout:', err)
@@ -304,7 +308,7 @@ export function WorkoutLibrary() {
         }
       }
       toast.success(`תורגמו ${done} אימונים לאנגלית`)
-      await load()
+      await invalidateWorkoutLibrary()
     } catch (err) {
       console.error('Error backfilling workout translations:', err)
       toast.error('התרגום נכשל')
