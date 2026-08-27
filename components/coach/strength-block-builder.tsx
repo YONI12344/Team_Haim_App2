@@ -90,13 +90,11 @@ export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }
       id: genId('ex'),
       exerciseId: ex.id,
       name: ex.name,
-      videoUrl: ex.videoUrl,
       // Coerced to a real boolean (not left as ex.videoMuted directly) —
       // exercises saved before this field existed have it as `undefined`
       // in Firestore, and undefined is illegal on write, same reasoning as
       // the targetDurationSec fix above.
       videoMuted: ex.videoMuted ?? false,
-      instructions: ex.instructions,
       category: ex.category ?? 'strength',
       targetSets: ex.defaultSets || 3,
       targetReps: ex.defaultReps || '10',
@@ -104,6 +102,10 @@ export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }
       // Omit the key entirely rather than set undefined — Firestore's
       // client SDK throws "Unsupported field value: undefined" on write,
       // it only accepts null or a missing key for an empty optional field.
+      // videoUrl/instructions hit this exact case for any exercise that
+      // doesn't have one yet ("failed to save workout" on every add).
+      ...(ex.videoUrl ? { videoUrl: ex.videoUrl } : {}),
+      ...(ex.instructions ? { instructions: ex.instructions } : {}),
       ...(ex.isTimed ? { targetDurationSec: ex.defaultDurationSec || 30 } : {}),
     }
     onChange(blocks.map((b) => (b.id === blockId ? { ...b, exercises: [...b.exercises, newExercise] } : b)))
