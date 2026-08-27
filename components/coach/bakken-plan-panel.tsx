@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   collection,
   addDoc,
@@ -21,6 +21,7 @@ import { useWorkoutTypeLabels } from '@/lib/workout-labels'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
 import { useLatestStepTest } from '@/hooks/useLatestStepTest'
+import { useWorkoutLibrary, invalidateWorkoutLibrary } from '@/hooks/useWorkoutLibrary'
 import { saveJourney, getJourney, stageDisplayName } from '@/lib/journey'
 import { interpolateAtLactate, stepsFromPhysiologySummary } from '@/lib/physiology'
 import type { WorkoutType, JourneyDoc, JourneyStage, Workout } from '@/lib/types'
@@ -476,12 +477,9 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
   // Existing library workouts a recurring activity can reference (e.g. a
   // real structured lift workout, or a stretching routine) instead of a
   // generic type+title stub — loaded once, same list as the workout library.
-  const [libraryWorkouts, setLibraryWorkouts] = useState<Workout[]>([])
-  useEffect(() => {
-    getDocs(collection(db, 'workouts')).then((snap) => {
-      setLibraryWorkouts(snap.docs.filter((d) => !d.data().libraryHidden).map((d) => ({ ...(d.data() as Workout), id: d.id })))
-    }).catch(console.error)
-  }, [])
+  // Shared/cached across every coach page via SWR — see hooks/useWorkoutLibrary.
+  const { workouts: allWorkouts } = useWorkoutLibrary()
+  const libraryWorkouts = useMemo(() => allWorkouts.filter((w) => !w.libraryHidden), [allWorkouts])
   // Coach-defined weekday->type skeleton per season-stage TYPE (base/build/
   // peak/etc.) — the AI generator uses the exact type on that weekday for
   // any week that stage is active instead of deciding itself. See rule 2c.
@@ -1182,6 +1180,9 @@ export function BakkenPlanPanel({ athleteId }: { athleteId: string }) {
         visibleWeeksAhead: 2,
         bakkenPlanGeneratedAt: serverTimestamp(),
       })
+      // One shared-cache revalidation for the whole batch, not per workout —
+      // `writeWorkout` above runs in a loop that can write dozens of docs.
+      void invalidateWorkoutLibrary()
 
       setLastSummary(
         `${journeyDoc.stages.length} ${uiLang === 'he' ? 'שלבים עד' : 'phases through'} ${journeyDoc.goalRaceDate}, ${blocks.length} ${uiLang === 'he' ? 'בלוקים' : 'blocks'}, ${totalWritten} ${uiLang === 'he' ? 'אימונים נכתבו. הספורטאי רואה את השבועיים הראשונים; השאר נחשף אוטומטית כל שבת.' : 'workouts written. Athlete sees the first 2 weeks; the rest reveals automatically each Saturday.'}\n\n${firstBlockSummary ?? ''}`,

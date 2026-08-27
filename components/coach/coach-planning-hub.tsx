@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChevronLeft, ChevronRight, Copy, Loader2, Plus, X, Search, Check, ClipboardPaste, Pencil, Trash2, Eye } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { WorkoutBuilder } from '@/components/coach/workout-builder'
+import dynamic from 'next/dynamic'
 import { WorkoutDetailCard } from '@/components/shared/workout-detail-card'
 import { deleteDoc, doc, updateDoc } from 'firebase/firestore'
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, startOfMonth, endOfMonth, addMonths, subMonths, eachWeekOfInterval } from 'date-fns'
@@ -19,6 +19,13 @@ import type { AthleteProfile, AssignedWorkout, Workout } from '@/lib/types'
 import { listJourneys, computeJourneyProgress } from '@/lib/journey'
 import { toast } from 'sonner'
 import { workoutTypeColors } from '@/lib/workout-labels'
+import { useWorkoutLibrary, invalidateWorkoutLibrary } from '@/hooks/useWorkoutLibrary'
+
+// Only ever mounted inside the (closed-by-default) edit Dialog below —
+// dynamic-imported so it isn't part of this page's initial JS payload.
+const WorkoutBuilder = dynamic(() => import('@/components/coach/workout-builder').then(m => m.WorkoutBuilder), {
+  loading: () => <div className="p-8 text-center text-sm text-muted-foreground">Loading…</div>,
+})
 
 const DAY_LABELS = ['א','ב','ג','ד','ה','ו','ש']
 
@@ -47,18 +54,13 @@ interface CopiedWeek {
   weekLabel: string
 }
 
-// Module-level cache - persists between page navigations
-let _cachedAthletes: any[] | null = null
-let _cachedLibrary: any[] | null = null
-let _cachedAssigned: any[] | null = null
-let _cacheTime = 0
-const CACHE_TTL = 60000 // 1 minute
-
 export function CoachPlanningHub() {
   const [viewMode, setViewMode] = useState<'week' | 'month'>('week')
   const [currentDate, setCurrentDate] = useState(new Date())
   const [athleteData, setAthleteData] = useState<AthleteWeekData[]>([])
-  const [workoutLibrary, setWorkoutLibrary] = useState<Workout[]>([])
+  // Shared/cached across every coach page via SWR — see hooks/useWorkoutLibrary.
+  const { workouts: allWorkouts } = useWorkoutLibrary()
+  const workoutLibrary = useMemo(() => allWorkouts.filter((w) => !w.libraryHidden), [allWorkouts])
   const [loading, setLoading] = useState(true)
   const [copiedWeek, setCopiedWeek] = useState<CopiedWeek | null>(null)
   const [pasting, setPasting] = useState<string | null>(null)
@@ -80,25 +82,14 @@ export function CoachPlanningHub() {
 
   useEffect(() => {
     const load = async () => {
-      // Use cache if fresh
-      const now = Date.now()
-      if (_cachedAthletes && _cachedLibrary && _cachedAssigned && (now - _cacheTime < CACHE_TTL)) {
-        setAthletes(_cachedAthletes)
-        setWorkoutLibrary(_cachedLibrary)
-        setAssignedWorkouts(_cachedAssigned)
-        setLoading(false)
-        return
-      }
       setLoading(true)
       try {
-        const [usersSnap, awSnap, wSnap] = await Promise.all([
+        const [usersSnap, awSnap] = await Promise.all([
           getDocs(query(collection(db, 'users'), where('role', '==', 'athlete'))),
           getDocs(collection(db, 'assignedWorkouts')),
-          getDocs(collection(db, 'workouts')),
         ])
         const athletes = usersSnap.docs.map(d => ({ ...(d.data() as AthleteProfile), id: d.id }))
         const allAW = awSnap.docs.map(d => ({ ...(d.data() as AssignedWorkout), id: d.id }))
-        setWorkoutLibrary(wSnap.docs.filter(d => !d.data().libraryHidden).map(d => ({ ...(d.data() as Workout), id: d.id })))
         const result: AthleteWeekData[] = await Promise.all(athletes.map(async (athlete) => {
           let journeyStage = undefined
           try {
@@ -144,6 +135,7 @@ export function CoachPlanningHub() {
         workoutId: newRef.id,
         workout: { ...origData, id: newRef.id, libraryHidden: true },
       })
+      void invalidateWorkoutLibrary()
       // Update local state
       setAthleteData(prev => prev.map(ad => ({
         ...ad,

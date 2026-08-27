@@ -1,6 +1,11 @@
 import { initializeApp, getApps } from 'firebase/app'
 import { getAuth, GoogleAuthProvider } from 'firebase/auth'
-import { getFirestore } from 'firebase/firestore'
+import {
+  initializeFirestore,
+  getFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from 'firebase/firestore'
 import { getDatabase } from 'firebase/database'
 import { getStorage } from 'firebase/storage'
 
@@ -35,8 +40,22 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 export const auth = getAuth(app)
 export const googleProvider = new GoogleAuthProvider()
 
-// Firestore (main database)
-export const db = getFirestore(app)
+// Firestore (main database) — persistent IndexedDB cache means repeat reads
+// (revisiting a page, reloading, switching tabs across the app) are served
+// instantly from disk and only the delta syncs over the network, instead of
+// every navigation re-fetching everything from Firestore's servers.
+// Falls back to the plain (memory-only) client if persistence can't init —
+// e.g. private/incognito browsing, or a browser without IndexedDB support.
+let firestoreDb
+try {
+  firestoreDb = initializeFirestore(app, {
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+  })
+} catch (err) {
+  console.error('Firestore persistent cache unavailable, falling back to memory cache:', err)
+  firestoreDb = getFirestore(app)
+}
+export const db = firestoreDb
 
 // Realtime Database (for chat)
 export const realtimeDb = getDatabase(app)

@@ -35,16 +35,24 @@ import { occurrenceDates, isDownWeekFor, MAX_OCCURRENCES, type RepeatFrequency }
 import { sortBySession } from '@/lib/types'
 import { legacyEffortToNumber } from '@/lib/types'
 import { listJourneys, computeJourneyProgress, saveJourney, stageDisplayName, isRestWeek } from '@/lib/journey'
+import { useWorkoutLibrary, invalidateWorkoutLibrary, mutateWorkoutLibrary } from '@/hooks/useWorkoutLibrary'
 import { useAuth } from '@/contexts/auth-context'
 import { useWorkoutTypeLabels, autoWorkoutTitle } from '@/lib/workout-labels'
 import { secToPace } from '@/lib/physiology'
-import { WorkoutBuilder } from '@/components/coach/workout-builder'
+import dynamic from 'next/dynamic'
 import { LinkedRoutinesEditor, type LinkedRoutine } from '@/components/coach/linked-routines-editor'
 import { AthletePlannerView } from '@/components/athlete/athlete-planner-view'
 import { useLanguage } from '@/contexts/language-context'
 import { toast } from 'sonner'
 import { MarkDayOffDialog } from '@/components/shared/mark-day-off-dialog'
 import { useDaysOff } from '@/hooks/useDaysOff'
+
+// Only ever mounted inside the (closed-by-default) builder Dialog below —
+// dynamic-imported so its ~1200 lines + own deps aren't part of this
+// already-huge page's initial JS payload.
+const WorkoutBuilder = dynamic(() => import('@/components/coach/workout-builder').then(m => m.WorkoutBuilder), {
+  loading: () => <div className="p-8 text-center text-sm text-muted-foreground">Loading…</div>,
+})
 
 type RoutineTypeRule = { id: string; types: WorkoutType[]; routines: LinkedRoutine[] }
 
@@ -79,6 +87,8 @@ export function AthletePlanner({ athleteId }: Props) {
   const { t } = useLanguage()
   const workoutTypeLabels = useWorkoutTypeLabels()
   const router = useRouter()
+  // Shared/cached across every coach page via SWR — see hooks/useWorkoutLibrary.
+  const { workouts: allWorkouts } = useWorkoutLibrary()
 
   // Week/month grid zoom — a real two-finger pinch gesture on a nested
   // horizontal-scroll grid is unreliable across phones/browsers (fights
@@ -107,17 +117,11 @@ export function AthletePlanner({ athleteId }: Props) {
   // default above is the fallback for any type no rule covers.
   const [routineRulesDraft, setRoutineRulesDraft] = useState<RoutineTypeRule[]>([])
   const [savingDefaultRoutines, setSavingDefaultRoutines] = useState(false)
-  const [routineOptions, setRoutineOptions] = useState<Workout[]>([])
-
-  useEffect(() => {
-    getDocs(collection(db, 'workouts')).then((snap) => {
-      const options = snap.docs
-        .map((d) => ({ ...(d.data() as Workout), id: d.id }))
-        .filter((w) => w.type === 'stretch' && !w.libraryHidden)
-        .sort((a, b) => (b.isWarmup ? 1 : 0) - (a.isWarmup ? 1 : 0) || a.title.localeCompare(b.title))
-      setRoutineOptions(options)
-    }).catch((err) => console.error('Error loading routine options:', err))
-  }, [])
+  const routineOptions = useMemo(() => (
+    allWorkouts
+      .filter((w) => w.type === 'stretch' && !w.libraryHidden)
+      .sort((a, b) => (b.isWarmup ? 1 : 0) - (a.isWarmup ? 1 : 0) || a.title.localeCompare(b.title))
+  ), [allWorkouts])
 
   useEffect(() => {
     setDefaultRoutinesDraft(athlete?.defaultLinkedRoutines || [])
@@ -213,7 +217,7 @@ export function AthletePlanner({ athleteId }: Props) {
       .catch(() => {})
   }, [])
   const [journey, setJourney] = useState<JourneySummary | null>(null)
-  const [workoutLibrary, setWorkoutLibrary] = useState<Workout[]>([])
+  const workoutLibrary = useMemo(() => allWorkouts.filter((w) => !w.libraryHidden), [allWorkouts])
   const [assignedWorkouts, setAssignedWorkouts] = useState<AssignedWorkout[]>([])
   const [logs, setLogs] = useState<WorkoutLog[]>([])
   const [loading, setLoading] = useState(true)
@@ -389,7 +393,12 @@ export function AthletePlanner({ athleteId }: Props) {
     const load = async () => {
       setLoading(true)
       try {
-        const profileSnap = await getDoc(doc(db, 'users', athleteId))
+        // Profile + journeys don't depend on each other — fire both at once
+        // instead of paying for two sequential round trips.
+        const [profileSnap, journeys] = await Promise.all([
+          getDoc(doc(db, 'users', athleteId)),
+          listJourneys(athleteId),
+        ])
         if (profileSnap.exists()) {
           const d = profileSnap.data()
           setAthlete({
@@ -425,7 +434,6 @@ export function AthletePlanner({ athleteId }: Props) {
 
           // Journey
           const today = new Date()
-          const journeys = await listJourneys(athleteId)
           setAllJourneys(journeys)
           const active = journeys.find(j =>
             new Date(j.startDate) <= today && new Date(j.goalRaceDate) >= today
@@ -452,9 +460,6 @@ export function AthletePlanner({ athleteId }: Props) {
             }
           }
         }
-
-        const wSnap = await getDocs(collection(db, 'workouts'))
-        setWorkoutLibrary(wSnap.docs.filter(d => !d.data().libraryHidden).map(d => ({ ...(d.data() as Workout), id: d.id })))
       } catch (err) {
         console.error('Planner load error:', err)
       } finally {
@@ -464,16 +469,23 @@ export function AthletePlanner({ athleteId }: Props) {
     load()
   }, [athleteId])
 
-  // ── Load assigned workouts for current month ──────────────────────────────
+  // ── Load assigned workouts + logs ─────────────────────────────────────────
+  // Neither query is actually scoped to a month (both pull this athlete's
+  // full history), so this only needs to run once per athlete — it used to
+  // also re-run on every `currentMonth` change (paging the calendar), which
+  // meant clicking "next month" a few times refetched the athlete's entire
+  // history that many extra times for no reason.
   useEffect(() => {
-    const loadMonth = async () => {
+    const load = async () => {
       try {
-        const snap = await getDocs(query(
-          collection(db, 'assignedWorkouts'),
-          where('athleteId', '==', athleteId),
-                  ))
+        const [snap, logsSnap] = await Promise.all([
+          getDocs(query(
+            collection(db, 'assignedWorkouts'),
+            where('athleteId', '==', athleteId),
+          )),
+          getDocs(query(collection(db, 'logs'), where('athleteId', '==', athleteId))),
+        ])
         setAssignedWorkouts(snap.docs.map(d => ({ ...(d.data() as AssignedWorkout), id: d.id })))
-        const logsSnap = await getDocs(query(collection(db, 'logs'), where('athleteId', '==', athleteId)))
         setLogs(logsSnap.docs.map(d => {
           const data = d.data()
           return {
@@ -491,11 +503,11 @@ export function AthletePlanner({ athleteId }: Props) {
           } as any
         }))
       } catch (err) {
-        console.error('Month load error:', err)
+        console.error('Assigned workouts/logs load error:', err)
       }
     }
-    loadMonth()
-  }, [athleteId, currentMonth])
+    load()
+  }, [athleteId])
 
   // ── Per-athlete week settings ─────────────────────────────────────────────
   // Calendar week start (0 = Sunday default, 1 = Monday)
@@ -648,7 +660,7 @@ export function AthletePlanner({ athleteId }: Props) {
         ...(autoBankLevel ? { bankLevel: autoBankLevel } : {}),
         createdBy: user?.id || '', createdAt: new Date(), updatedAt: new Date(),
       }
-      setWorkoutLibrary(prev => [created, ...prev])
+      mutateWorkoutLibrary(prev => [created, ...prev])
       // Auto-assign to selected date if one is selected
       if (selectedDate && user) {
         const dateStr = format(selectedDate, 'yyyy-MM-dd')
@@ -705,7 +717,7 @@ export function AthletePlanner({ athleteId }: Props) {
       setAssignedWorkouts(prev => prev.map(w =>
         w.workoutId === editingWorkout.id ? { ...w, workout: { ...w.workout, ...updated } as Workout } : w
       ))
-      setWorkoutLibrary(prev => prev.map(w =>
+      mutateWorkoutLibrary(prev => prev.map(w =>
         w.id === editingWorkout.id ? ({ ...w, ...updated } as Workout) : w
       ))
       setEditingWorkout(null)
@@ -831,7 +843,7 @@ export function AthletePlanner({ athleteId }: Props) {
     if (!confirm(`למחוק את "${w.title}" מהספרייה? אימונים שכבר שובצו לא יושפעו.`)) return
     try {
       await deleteDoc(doc(db, 'workouts', w.id))
-      setWorkoutLibrary(prev => prev.filter(x => x.id !== w.id))
+      mutateWorkoutLibrary(prev => prev.filter(x => x.id !== w.id))
       toast.success(t.workoutDeleted)
     } catch { toast.error(t.errorDeleting) }
   }
@@ -862,7 +874,7 @@ export function AthletePlanner({ athleteId }: Props) {
         notes: undefined,
         createdBy: user.id || '', createdAt: new Date(), updatedAt: new Date(),
       }
-      setWorkoutLibrary(prev => [created, ...prev])
+      mutateWorkoutLibrary(prev => [created, ...prev])
       await assignWorkoutToDate(created, format(quickAssignDate, 'yyyy-MM-dd'), qaSession)
       toast.success(`✓ ${finalTitle} — ${format(quickAssignDate, 'd/M')}`)
       resetQuickAssign()
@@ -3018,8 +3030,7 @@ export function AthletePlanner({ athleteId }: Props) {
                   }
                 }
                 // Reload library and assignments
-                const wLibSnap = await getDocs(collection(db, 'workouts'))
-                setWorkoutLibrary(wLibSnap.docs.filter(d => !d.data().libraryHidden).map(d => ({ ...(d.data() as Workout), id: d.id })))
+                await invalidateWorkoutLibrary()
                 const snap = await getDocs(query(collection(db,'assignedWorkouts'),where('athleteId','==',athleteId)))
                 setAssignedWorkouts(snap.docs.map(d => ({...(d.data() as AssignedWorkout), id: d.id})))
               }}

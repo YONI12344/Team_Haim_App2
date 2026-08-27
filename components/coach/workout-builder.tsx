@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -26,7 +26,6 @@ import {
   collection,
   doc,
   getDoc,
-  getDocs,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -37,6 +36,7 @@ import { isCoachEmail } from '@/lib/constants'
 import { useWorkoutTypeLabels, autoWorkoutTitle } from '@/lib/workout-labels'
 import { useLanguage } from '@/contexts/language-context'
 import { translateAndCacheFields, translateTexts } from '@/lib/translate'
+import { useWorkoutLibrary, invalidateWorkoutLibrary } from '@/hooks/useWorkoutLibrary'
 
 const workoutTypeOrder: WorkoutType[] = [
   'easy',
@@ -347,43 +347,28 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton, initialType,
   // import scripts, with no way to turn it on for a workout built by hand.
   const [isWarmup, setIsWarmup] = useState(false)
   const [linkedRoutines, setLinkedRoutines] = useState<{ id: string; workoutId: string; label: string }[]>([])
-  const [routineOptions, setRoutineOptions] = useState<Workout[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [loading, setLoading] = useState(!!workoutId)
 
+  // Shared/cached across every coach page via SWR — see hooks/useWorkoutLibrary.
+  const { workouts: allWorkouts } = useWorkoutLibrary()
+
   // Every 'stretch'-type workout (warm-ups included) — offered as the
   // routine-link options for ANY workout type below.
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const snap = await getDocs(collection(db, 'workouts'))
-        const options = snap.docs
-          .map((d) => ({ ...(d.data() as Workout), id: d.id }))
-          .filter((w) => w.type === 'stretch' && !w.libraryHidden)
-          .sort((a, b) => (b.isWarmup ? 1 : 0) - (a.isWarmup ? 1 : 0) || a.title.localeCompare(b.title))
-        setRoutineOptions(options)
-      } catch (err) { console.error('Error loading routine options:', err) }
-    }
-    load()
-  }, [])
+  const routineOptions = useMemo(() => (
+    allWorkouts
+      .filter((w) => w.type === 'stretch' && !w.libraryHidden)
+      .sort((a, b) => (b.isWarmup ? 1 : 0) - (a.isWarmup ? 1 : 0) || a.title.localeCompare(b.title))
+  ), [allWorkouts])
 
   // Existing comparisonGroup names across every workout template, so the
   // coach can reuse "Fartlek A" exactly (autocomplete) instead of retyping
   // it slightly differently each time and accidentally splitting the group.
   useEffect(() => {
-    const load = async () => {
-      try {
-        const snap = await getDocs(collection(db, 'workouts'))
-        const names = new Set<string>()
-        snap.docs.forEach(d => {
-          const g = (d.data() as Workout).comparisonGroup
-          if (g) names.add(g)
-        })
-        setExistingGroups(Array.from(names).sort())
-      } catch (err) { console.error('Error loading comparison groups:', err) }
-    }
-    load()
-  }, [])
+    const names = new Set<string>()
+    allWorkouts.forEach((w) => { if (w.comparisonGroup) names.add(w.comparisonGroup) })
+    setExistingGroups(Array.from(names).sort())
+  }, [allWorkouts])
 
   // Load existing workout when editing
   useEffect(() => {
@@ -531,20 +516,14 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton, initialType,
     // entries under slightly different names (which just fragments the
     // variety the generator actually sees for that type/level).
     if (bankLevel) {
-      try {
-        const snap = await getDocs(collection(db, 'workouts'))
-        const normalizedTitle = finalTitle.trim().toLowerCase()
-        const dupe = snap.docs.find((d) => {
-          if (d.id === workoutId) return false
-          const data = d.data() as Workout
-          return data.bankLevel === bankLevel && data.type === type
-            && (data.title || '').trim().toLowerCase() === normalizedTitle
-        })
-        if (dupe && !confirm(`"${finalTitle}" כבר קיים בבנק (${BANK_LEVEL_LABELS[bankLevel]} / ${workoutTypeLabels[type]}). לשמור בכל זאת?`)) {
-          return
-        }
-      } catch (err) {
-        console.error('Error checking for duplicate bank workout:', err)
+      const normalizedTitle = finalTitle.trim().toLowerCase()
+      const dupe = allWorkouts.find((w) => {
+        if (w.id === workoutId) return false
+        return w.bankLevel === bankLevel && w.type === type
+          && (w.title || '').trim().toLowerCase() === normalizedTitle
+      })
+      if (dupe && !confirm(`"${finalTitle}" כבר קיים בבנק (${BANK_LEVEL_LABELS[bankLevel]} / ${workoutTypeLabels[type]}). לשמור בכל זאת?`)) {
+        return
       }
     }
 
@@ -628,6 +607,7 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton, initialType,
         savedId = ref.id
         toast.success('Workout created!')
       }
+      void invalidateWorkoutLibrary()
       void translateAndCacheFields('workouts', savedId as string, {
         ...(enEdited ? {} : { title: payload.title, description: payload.description }),
         warmup: payload.warmup,

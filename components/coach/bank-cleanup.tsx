@@ -5,12 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Loader2, AlertTriangle, Copy, FolderTree, Sparkles, Trash2 } from 'lucide-react'
-import { addDoc, collection, doc, getDocs, serverTimestamp, writeBatch } from 'firebase/firestore'
+import { addDoc, collection, doc, serverTimestamp, writeBatch } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/auth-context'
 import type { ExperienceLevel, Workout } from '@/lib/types'
 import { useWorkoutTypeLabels } from '@/lib/workout-labels'
+import { useWorkoutLibrary } from '@/hooks/useWorkoutLibrary'
 import {
   findEmptyStubs, findBadDurations, findBadReps, findExactDuplicates, proposeTitleDisambiguation, proposeLevel,
   findCoverageGaps, buildAdaptedWorkout, LEVEL_LABEL_HE,
@@ -37,8 +38,10 @@ async function commitInChunks(ops: Array<{ id: string; data: Record<string, unkn
 export function BankCleanup() {
   const { user } = useAuth()
   const workoutTypeLabels = useWorkoutTypeLabels()
-  const [workouts, setWorkouts] = useState<Workout[]>([])
-  const [loading, setLoading] = useState(true)
+  // Shared/cached across every coach page via SWR — see hooks/useWorkoutLibrary.
+  const { workouts, isLoading: libraryLoading, mutate: mutateLibrary } = useWorkoutLibrary()
+  const [refreshing, setRefreshing] = useState(false)
+  const loading = libraryLoading || refreshing
   const [applying, setApplying] = useState<string | null>(null)
   // Coverage-gap section: per-gap opt-in (keyed by type+targetLevel)
   const [gapOverrides, setGapOverrides] = useState<Record<string, boolean>>({})
@@ -52,20 +55,19 @@ export function BankCleanup() {
   // Level section: per-workout chosen level + opt-in
   const [levelOverrides, setLevelOverrides] = useState<Record<string, { checked: boolean; level: ExperienceLevel | '' }>>({})
 
+  // Force a fresh read from Firestore and push it into the shared cache —
+  // used after batch commits below, where a stale cached list would show
+  // duplicates/flags that were already just fixed.
   const load = async () => {
-    setLoading(true)
+    setRefreshing(true)
     try {
-      const snap = await getDocs(collection(db, 'workouts'))
-      const list = snap.docs.map((d) => ({ ...(d.data() as Workout), id: d.id }))
-      setWorkouts(list)
+      await mutateLibrary()
     } catch (err) {
       console.error('Error loading workouts for cleanup:', err)
     } finally {
-      setLoading(false)
+      setRefreshing(false)
     }
   }
-
-  useEffect(() => { load() }, [])
 
   const stubs = useMemo(() => findEmptyStubs(workouts), [workouts])
   const badDurations = useMemo(() => findBadDurations(workouts), [workouts])

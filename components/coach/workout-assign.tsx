@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -30,6 +30,7 @@ import { workoutTypeColors, useWorkoutTypeLabels } from '@/lib/workout-labels'
 import { useLanguage } from '@/contexts/language-context'
 import { listJourneys, computeJourneyProgress } from '@/lib/journey'
 import { occurrenceDates, isDownWeekFor, MAX_OCCURRENCES, type RepeatFrequency } from '@/lib/recurrence'
+import { useWorkoutLibrary } from '@/hooks/useWorkoutLibrary'
 
 interface WorkoutAssignProps {
   workoutId?: string
@@ -65,7 +66,9 @@ export function WorkoutAssign({ workoutId, athleteId }: WorkoutAssignProps) {
   const isCoach = isCoachEmail(user?.email)
 
   const [athletes, setAthletes] = useState<AthleteProfile[]>([])
-  const [workouts, setWorkouts] = useState<Workout[]>([])
+  // Shared/cached across every coach page via SWR — see hooks/useWorkoutLibrary.
+  const { workouts: allWorkouts } = useWorkoutLibrary()
+  const workouts = useMemo(() => allWorkouts.filter((w) => !w.libraryHidden), [allWorkouts])
   const [loading, setLoading] = useState(true)
 
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null)
@@ -93,10 +96,7 @@ export function WorkoutAssign({ workoutId, athleteId }: WorkoutAssignProps) {
     const load = async () => {
       setLoading(true)
       try {
-        const [aSnap, wSnap] = await Promise.all([
-          getDocs(query(collection(db, 'users'), where('role', '==', 'athlete'))),
-          getDocs(collection(db, 'workouts')),
-        ])
+        const aSnap = await getDocs(query(collection(db, 'users'), where('role', '==', 'athlete')))
 
         const loadedAthletes: AthleteProfile[] = aSnap.docs.map((d) => {
           const data = d.data()
@@ -126,16 +126,8 @@ export function WorkoutAssign({ workoutId, athleteId }: WorkoutAssignProps) {
         })
         setAthletes(loadedAthletes)
 
-        const loadedWorkouts: Workout[] = wSnap.docs
-          .filter((d) => !d.data().libraryHidden)
-          .map((d) => ({
-            ...(d.data() as Workout),
-            id: d.id,
-          }))
-        setWorkouts(loadedWorkouts)
-
         if (workoutId) {
-          const found = loadedWorkouts.find((w) => w.id === workoutId)
+          const found = workouts.find((w) => w.id === workoutId)
           if (found) {
             setSelectedWorkout(found)
           } else {
