@@ -42,7 +42,8 @@ import {
   getDownloadURL,
   deleteObject,
 } from 'firebase/storage'
-import { db, storage } from '@/lib/firebase'
+import { db } from '@/lib/firebase'
+import { storage } from '@/lib/firebase-storage'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
 import { toast } from 'sonner'

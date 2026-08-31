@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { storage } from '@/lib/firebase'
+import { storage } from '@/lib/firebase-storage'
 import { ref, getDownloadURL, listAll } from 'firebase/storage'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'

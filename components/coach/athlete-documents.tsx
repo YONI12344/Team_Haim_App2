@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { storage } from '@/lib/firebase'
+import { storage } from '@/lib/firebase-storage'
 import { ref, uploadBytesResumable, getDownloadURL, listAll, deleteObject } from 'firebase/storage'
 import { useAuth } from '@/contexts/auth-context'
 

@@ -18,7 +18,8 @@ import {
   deleteDoc,
 } from 'firebase/firestore'
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage'
-import { db, storage } from '@/lib/firebase'
+import { db } from '@/lib/firebase'
+import { storage } from '@/lib/firebase-storage'
 import type { ExerciseLibraryItem } from '@/lib/types'
 import { translateTexts } from '@/lib/translate'
 

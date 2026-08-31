@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react"
 import { ref, onValue, query, orderByChild, limitToLast } from "firebase/database"
-import { realtimeDb, db } from "@/lib/firebase"
+import { db } from "@/lib/firebase"
+import { realtimeDb } from "@/lib/firebase-realtime"
 import { collection, getDocs, query as fsQuery, where } from "firebase/firestore"
 import { Card } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"

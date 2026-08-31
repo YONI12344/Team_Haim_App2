@@ -41,7 +41,8 @@ import {
   type DocumentData,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore'
-import { db, realtimeDb } from '@/lib/firebase'
+import { db } from '@/lib/firebase'
+import { realtimeDb } from '@/lib/firebase-realtime'
 import { ref, push, onValue, query as rtQuery, orderByChild, limitToLast } from 'firebase/database'
 import { getCoachInfo, conversationId } from '@/lib/coach'
 import { useStravaSync } from '@/hooks/useStravaSync'

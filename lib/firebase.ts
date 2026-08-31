@@ -6,8 +6,11 @@ import {
   persistentLocalCache,
   persistentMultipleTabManager,
 } from 'firebase/firestore'
-import { getDatabase } from 'firebase/database'
-import { getStorage } from 'firebase/storage'
+// Realtime Database and Storage are intentionally NOT imported here —
+// see lib/firebase-realtime.ts / lib/firebase-storage.ts. This file is
+// imported by contexts/auth-context.tsx, which wraps the entire app in
+// the root layout, so anything pulled in here ships to every page,
+// including ones with no chat or upload feature at all.
 
 // Read configuration from NEXT_PUBLIC_* env vars when available, falling back
 // to the team-haim project values so local development works out of the box.
@@ -64,11 +67,5 @@ try {
   firestoreDb = getFirestore(app)
 }
 export const db = firestoreDb
-
-// Realtime Database (for chat)
-export const realtimeDb = getDatabase(app)
-
-// Storage (for profile photos & uploaded media)
-export const storage = getStorage(app)
 
 export default app

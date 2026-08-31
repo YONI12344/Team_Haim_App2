@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { ref, push, onValue, query, orderByChild, limitToLast } from "firebase/database"
-import { realtimeDb } from "@/lib/firebase"
+import { realtimeDb } from "@/lib/firebase-realtime"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"

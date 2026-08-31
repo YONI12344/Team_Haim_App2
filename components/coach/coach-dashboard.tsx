@@ -16,7 +16,8 @@ import {
   collection, getDocs, query, where, orderBy,
   addDoc, serverTimestamp, DocumentData, QueryDocumentSnapshot,
 } from 'firebase/firestore'
-import { db, realtimeDb } from '@/lib/firebase'
+import { db } from '@/lib/firebase'
+import { realtimeDb } from '@/lib/firebase-realtime'
 import { ref, push, onValue, query as rtQuery, orderByChild, limitToLast } from 'firebase/database'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'

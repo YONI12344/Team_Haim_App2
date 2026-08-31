@@ -24,7 +24,8 @@ import {
   isSameDay, isToday,
 } from 'date-fns'
 import { cn } from '@/lib/utils'
-import { db, realtimeDb } from '@/lib/firebase'
+import { db } from '@/lib/firebase'
+import { realtimeDb } from '@/lib/firebase-realtime'
 import { ref, push } from 'firebase/database'
 import {
   collection, doc, getDoc, getDocs, query,
