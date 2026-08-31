@@ -339,14 +339,18 @@ export function AthleteRoster() {
             {filteredAthletes.map((athlete) => (
               <Card key={athlete.id} className="hover:shadow-md transition-luxury h-full">
                 <CardContent className="pt-6">
-                  <div className="flex flex-col items-center text-center mb-4">
+                  {/* Whole header block → straight to this athlete's
+                      schedule, the single most common thing a coach does
+                      after opening the roster. "View Profile" below still
+                      goes to the overview page for the less-common case. */}
+                  <Link href={`/coach/athletes/${athlete.id}/planner`} className="flex flex-col items-center text-center mb-4">
                     <Avatar className="h-16 w-16 mb-3 border-2 border-gold/20">
                       <AvatarImage src={athlete.photoURL} alt={athlete.name} />
                       <AvatarFallback className="bg-gold/10 text-gold text-xl font-serif">
                         {getInitials(athlete.name)}
                       </AvatarFallback>
                     </Avatar>
-                    <h3 className="font-serif font-semibold text-navy text-lg">
+                    <h3 className="font-serif font-semibold text-navy text-lg hover:text-gold transition-colors">
                       {athlete.name}
                     </h3>
                     {athlete.email && (
@@ -359,7 +363,7 @@ export function AthleteRoster() {
                         </Badge>
                       ))}
                     </div>
-                  </div>
+                  </Link>
 
                   <div className="grid grid-cols-3 gap-2 pt-4 border-t border-border">
                     <div className="text-center">
