@@ -200,23 +200,7 @@ export interface Translations {
   deletingDots: string
 
   // Workout assign
-  selectWorkoutTitle: string
-  selectAthletesTitle: string
-  selectDateTitle: string
-  assignmentSummaryTitle: string
   backBtn: string
-  assignWorkoutTitle: string
-  assignWorkoutSubtitle: string
-  noWorkoutsInLibrary: string
-  workoutColon: string
-  athletesColon: string
-  dateColon: string
-  notSelected: string
-  athletesSelectedSuffix: string
-  noneSelected: string
-  assigningDots: string
-  assignWorkoutBtn: string
-  onlyCoachCanAssign: string
 
   // Athlete detail
   scheduleTab: string
@@ -1116,23 +1100,7 @@ const translations: Record<Language, Translations> = {
     deleteBtn: 'Delete',
     deletingDots: 'Deleting…',
 
-    selectWorkoutTitle: 'Select Workout',
-    selectAthletesTitle: 'Select Athletes',
-    selectDateTitle: 'Select Date',
-    assignmentSummaryTitle: 'Assignment Summary',
     backBtn: 'Back',
-    assignWorkoutTitle: 'Assign Workout',
-    assignWorkoutSubtitle: 'Select a workout, athletes, and date to schedule',
-    noWorkoutsInLibrary: 'No workouts in the library yet.',
-    workoutColon: 'Workout:',
-    athletesColon: 'Athletes:',
-    dateColon: 'Date:',
-    notSelected: 'Not selected',
-    athletesSelectedSuffix: 'athlete(s) selected',
-    noneSelected: 'None selected',
-    assigningDots: 'Assigning...',
-    assignWorkoutBtn: 'Assign Workout',
-    onlyCoachCanAssign: 'Only the coach account can assign workouts.',
 
     scheduleTab: 'Schedule',
     pacesTab: 'Paces',
@@ -1993,23 +1961,7 @@ const translations: Record<Language, Translations> = {
     deleteBtn: 'מחק',
     deletingDots: 'מוחק…',
 
-    selectWorkoutTitle: 'בחר אימון',
-    selectAthletesTitle: 'בחר ספורטאים',
-    selectDateTitle: 'בחר תאריך',
-    assignmentSummaryTitle: 'סיכום הקצאה',
     backBtn: 'חזור',
-    assignWorkoutTitle: 'הקצה אימון',
-    assignWorkoutSubtitle: 'בחר אימון, ספורטאים ותאריך לתזמון',
-    noWorkoutsInLibrary: 'אין עדיין אימונים בספרייה.',
-    workoutColon: 'אימון:',
-    athletesColon: 'ספורטאים:',
-    dateColon: 'תאריך:',
-    notSelected: 'לא נבחר',
-    athletesSelectedSuffix: 'ספורטאים נבחרו',
-    noneSelected: 'לא נבחר אף אחד',
-    assigningDots: 'מקצה...',
-    assignWorkoutBtn: 'הקצה אימון',
-    onlyCoachCanAssign: 'רק חשבון המאמן יכול להקצות אימונים.',
 
     scheduleTab: 'לו"ז',
     pacesTab: 'קצבים',

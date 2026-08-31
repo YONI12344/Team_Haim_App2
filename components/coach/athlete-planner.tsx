@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo, useCallback, type DragEvent, type CSSProperties } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -87,6 +87,7 @@ export function AthletePlanner({ athleteId }: Props) {
   const { t } = useLanguage()
   const workoutTypeLabels = useWorkoutTypeLabels()
   const router = useRouter()
+  const searchParams = useSearchParams()
   // Shared/cached across every coach page via SWR — see hooks/useWorkoutLibrary.
   const { workouts: allWorkouts } = useWorkoutLibrary()
 
@@ -243,6 +244,29 @@ export function AthletePlanner({ athleteId }: Props) {
   // as the copiedWorkout paste flow above, so it also works without drag,
   // which plain HTML5 drag-and-drop doesn't support on touch devices).
   const [armedBankWorkout, setArmedBankWorkout] = useState<Workout | null>(null)
+
+  // Arriving here via ?assignWorkoutId=<id> — from the Workout Library's
+  // "Assign to athlete" flow (components/coach/assign-pick-athlete.tsx),
+  // which already knows the workout and the athlete, so all that's left is
+  // "which day." Auto-arms that workout the same way clicking it in the
+  // Workout Bank folder browser does (armedBankWorkout above), so the
+  // coach lands straight on this athlete's real schedule and just taps a
+  // date — no re-picking the workout, no bare inline date picker. Runs
+  // once; strips the query param right after so a refresh/back-nav doesn't
+  // re-arm it.
+  useEffect(() => {
+    const assignWorkoutId = searchParams.get('assignWorkoutId')
+    if (!assignWorkoutId) return
+    const arm = async () => {
+      const found = allWorkouts.find((w) => w.id === assignWorkoutId)
+      if (found) { setArmedBankWorkout(found); return }
+      const snap = await getDoc(doc(db, 'workouts', assignWorkoutId))
+      if (snap.exists()) setArmedBankWorkout({ ...(snap.data() as Workout), id: snap.id })
+    }
+    arm()
+    router.replace(`/coach/athletes/${athleteId}/planner`)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // "Repeat this workout" — opened from the already-scheduled workout's
   // detail header (clicking a day that has a workout), not from the drag

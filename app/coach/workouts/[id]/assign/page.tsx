@@ -1,5 +1,5 @@
 import { CoachLayout } from '@/components/coach/coach-layout'
-import { WorkoutAssign } from '@/components/coach/workout-assign'
+import { AssignPickAthlete } from '@/components/coach/assign-pick-athlete'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -7,10 +7,10 @@ interface PageProps {
 
 export default async function AssignWorkoutPage({ params }: PageProps) {
   const { id } = await params
-  
+
   return (
     <CoachLayout>
-      <WorkoutAssign workoutId={id} />
+      <AssignPickAthlete workoutId={id} />
     </CoachLayout>
   )
 }
