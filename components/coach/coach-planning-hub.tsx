@@ -57,11 +57,24 @@ interface CopiedWeek {
 export function CoachPlanningHub() {
   const [viewMode, setViewMode] = useState<'week' | 'month'>('week')
   const [currentDate, setCurrentDate] = useState(new Date())
-  const [athleteData, setAthleteData] = useState<AthleteWeekData[]>([])
+  // Athlete roster + journey stage (loaded once) and assignedWorkouts for a
+  // window around the visible month (reloaded when that window changes) are
+  // kept separate and merged below — see the effects further down for why.
+  const [athletesBase, setAthletesBase] = useState<{ athlete: AthleteProfile; journeyStage?: string }[]>([])
+  const [rangeAW, setRangeAW] = useState<AssignedWorkout[]>([])
+  const athleteData: AthleteWeekData[] = useMemo(() => (
+    athletesBase.map(({ athlete, journeyStage }) => ({
+      athlete,
+      journeyStage,
+      assignedWorkouts: rangeAW.filter((w) => w.athleteId === athlete.id),
+    }))
+  ), [athletesBase, rangeAW])
   // Shared/cached across every coach page via SWR — see hooks/useWorkoutLibrary.
   const { workouts: allWorkouts } = useWorkoutLibrary()
   const workoutLibrary = useMemo(() => allWorkouts.filter((w) => !w.libraryHidden), [allWorkouts])
-  const [loading, setLoading] = useState(true)
+  const [athletesLoading, setAthletesLoading] = useState(true)
+  const [rangeLoading, setRangeLoading] = useState(true)
+  const loading = athletesLoading || rangeLoading
   const [copiedWeek, setCopiedWeek] = useState<CopiedWeek | null>(null)
   const [pasting, setPasting] = useState<string | null>(null)
   const [librarySearch, setLibrarySearch] = useState('')
@@ -80,17 +93,14 @@ export function CoachPlanningHub() {
   const monthEnd = endOfMonth(currentDate)
   const monthWeeks = eachWeekOfInterval({ start: monthStart, end: monthEnd }, { weekStartsOn: 0 })
 
+  // Athlete roster + journey stage — small (one doc per athlete), loaded once.
   useEffect(() => {
-    const load = async () => {
-      setLoading(true)
+    const loadAthletes = async () => {
+      setAthletesLoading(true)
       try {
-        const [usersSnap, awSnap] = await Promise.all([
-          getDocs(query(collection(db, 'users'), where('role', '==', 'athlete'))),
-          getDocs(collection(db, 'assignedWorkouts')),
-        ])
+        const usersSnap = await getDocs(query(collection(db, 'users'), where('role', '==', 'athlete')))
         const athletes = usersSnap.docs.map(d => ({ ...(d.data() as AthleteProfile), id: d.id }))
-        const allAW = awSnap.docs.map(d => ({ ...(d.data() as AssignedWorkout), id: d.id }))
-        const result: AthleteWeekData[] = await Promise.all(athletes.map(async (athlete) => {
+        const withStage = await Promise.all(athletes.map(async (athlete) => {
           let journeyStage = undefined
           try {
             const journeys = await listJourneys(athlete.id)
@@ -101,17 +111,51 @@ export function CoachPlanningHub() {
               if (progress.activeStage) journeyStage = progress.activeStage.name
             }
           } catch {}
-          return { athlete, assignedWorkouts: allAW.filter(w => w.athleteId === athlete.id), journeyStage }
+          return { athlete, journeyStage }
         }))
-        setAthleteData(result)
-        setSelectedAthletes(result.map(d => d.athlete.id))
+        setAthletesBase(withStage)
+        setSelectedAthletes(withStage.map(d => d.athlete.id))
       } catch (err) { console.error(err) }
-      finally {
-        setLoading(false)
-      }
+      finally { setAthletesLoading(false) }
+    }
+    loadAthletes()
+  }, [])
+
+  // assignedWorkouts is by far the biggest, fastest-growing collection in
+  // the whole app (every workout ever assigned, to every athlete, forever)
+  // — this page used to fetch the ENTIRE collection on every load and
+  // after every single edit. Instead, only load a window one month either
+  // side of the visible month: the week/month grid and the copy/paste-week
+  // and quick-assign actions all only ever touch dates inside the
+  // currently visible month, so this always covers everything the UI can
+  // actually reach. Reloads only when the coach navigates to a different
+  // month, not on every render.
+  const monthKey = format(currentDate, 'yyyy-MM')
+  const reloadWorkouts = async () => {
+    const rangeStart = format(startOfWeek(startOfMonth(subMonths(currentDate, 1)), { weekStartsOn: 0 }), 'yyyy-MM-dd')
+    const rangeEnd = format(endOfWeek(endOfMonth(addMonths(currentDate, 1)), { weekStartsOn: 0 }), 'yyyy-MM-dd')
+    const awSnap = await getDocs(query(
+      collection(db, 'assignedWorkouts'),
+      where('scheduledDate', '>=', rangeStart),
+      where('scheduledDate', '<=', rangeEnd),
+    ))
+    setRangeAW(awSnap.docs.map(d => ({ ...(d.data() as AssignedWorkout), id: d.id })))
+  }
+
+  useEffect(() => {
+    const load = async () => {
+      setRangeLoading(true)
+      try { await reloadWorkouts() }
+      catch (err) { console.error(err) }
+      finally { setRangeLoading(false) }
     }
     load()
-  }, [])
+    // reloadWorkouts closes over currentDate; re-running it is exactly what
+    // should happen whenever monthKey changes, so it's intentionally left
+    // out of the deps here rather than making this effect fire on every
+    // currentDate tick (e.g. same-month week navigation).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [monthKey])
 
   const handleOpenEdit = async (assignedWorkout: AssignedWorkout) => {
     try {
@@ -137,14 +181,11 @@ export function CoachPlanningHub() {
       })
       void invalidateWorkoutLibrary()
       // Update local state
-      setAthleteData(prev => prev.map(ad => ({
-        ...ad,
-        assignedWorkouts: ad.assignedWorkouts.map(w =>
-          w.id === assignedWorkout.id
-            ? { ...w, workoutId: newRef.id, workout: { ...w.workout, id: newRef.id, libraryHidden: true } }
-            : w
-        )
-      })))
+      setRangeAW(prev => prev.map(w =>
+        w.id === assignedWorkout.id
+          ? { ...w, workoutId: newRef.id, workout: { ...w.workout, id: newRef.id, libraryHidden: true } }
+          : w
+      ))
       setEditingWorkoutId(newRef.id)
       setEditingAthleteId(assignedWorkout.athleteId)
     } catch (e) { console.error(e); toast.error('שגיאה') }
@@ -153,19 +194,10 @@ export function CoachPlanningHub() {
   const handleDeleteWorkout = async (assignedWorkout: AssignedWorkout) => {
     try {
       await deleteDoc(doc(db, 'assignedWorkouts', assignedWorkout.id))
-      setAthleteData(prev => prev.map(ad => ({
-        ...ad,
-        assignedWorkouts: ad.assignedWorkouts.filter(w => w.id !== assignedWorkout.id)
-      })))
+      setRangeAW(prev => prev.filter(w => w.id !== assignedWorkout.id))
       setSelectedAssignedWorkout(null)
       toast.success('אימון נמחק')
     } catch { toast.error('שגיאה במחיקה') }
-  }
-
-  const reloadWorkouts = async () => {
-    const awSnap = await getDocs(collection(db, 'assignedWorkouts'))
-    const allAW = awSnap.docs.map(d => ({ ...(d.data() as AssignedWorkout), id: d.id }))
-    setAthleteData(prev => prev.map(ad => ({ ...ad, assignedWorkouts: allAW.filter(w => w.athleteId === ad.athlete.id) })))
   }
 
   const getWorkoutsForDay = (data: AthleteWeekData, date: Date) =>

@@ -28,9 +28,17 @@ const firebaseConfig = {
   appId:
     process.env.NEXT_PUBLIC_FIREBASE_APP_ID ||
     '1:57632152447:web:b2109f9fb26f50cc5a584a',
+  // The NEXT_PUBLIC_FIREBASE_DATABASE_URL env var is set in Vercel but
+  // empty, so this fallback is what's actually in effect everywhere,
+  // including production. The Realtime Database instance itself lives in
+  // europe-west1 (matching Cloud Functions — see firebase.json), so it
+  // MUST use the region-qualified *.firebasedatabase.app host: the plain
+  // *.firebaseio.com host silently redirects every single connection
+  // through us-central1 first, adding a network hop to every chat
+  // read/write and unread-count listener in the app.
   databaseURL:
     process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL ||
-    'https://team-haim-default-rtdb.firebaseio.com',
+    'https://team-haim-default-rtdb.europe-west1.firebasedatabase.app',
 }
 
 // Initialize Firebase only once
