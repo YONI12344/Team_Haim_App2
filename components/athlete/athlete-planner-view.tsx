@@ -1684,9 +1684,9 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
   const renderCompactWorkoutDetail = (workout: any) => {
     if (!workout) return null
     return (
-      <div className="w-full min-w-0 space-y-0.5">
+      <div className="w-full min-w-0 space-y-1">
         {workout.warmup && (
-          <p className="opacity-60 text-[6px] leading-[1.15] break-words">{t.warmupLabel}: {workout.warmup}</p>
+          <p className="opacity-60 text-[8px] leading-[1.3] break-words">{t.warmupLabel}: {workout.warmup}</p>
         )}
         {workout.sets?.map((set: any, si: number) => {
           const hasIntervals = set.intervals && set.intervals.length > 0
@@ -1694,8 +1694,8 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
           const restBetweenReps = setRestBetweenReps(set)
           const restAfterSet = setRestAfter(set)
           return (
-            <div key={set.id || si} className="space-y-0.5">
-              <p className="font-bold opacity-95 text-[6.5px] leading-[1.15] break-words">
+            <div key={set.id || si} className="space-y-1">
+              <p className="font-bold opacity-95 text-[9px] leading-[1.3] break-words">
                 {t.setLabelPrefix} {si + 1}
                 {set.reps > 1 && !hasIntervals && ` · ${set.reps}× ${set.distance || set.duration || ''}`}
                 {!hasIntervals && !(set.reps > 1) && (set.distance || set.duration) && ` · ${set.distance || set.duration}`}
@@ -1703,21 +1703,21 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                 {set.pace && ` @ ${set.pace}`}
               </p>
               {hasIntervals && set.intervals.map((iv: any, ii: number) => (
-                <p key={iv.id || ii} className="opacity-80 text-[6px] leading-[1.15] break-words pr-1.5">
+                <p key={iv.id || ii} className="opacity-80 text-[8px] leading-[1.3] break-words pr-1.5">
                   {ii + 1}. {iv.distance || iv.duration}{iv.pace ? ` @ ${iv.pace}` : ''}{iv.rest ? ` — ${t.restPrefix} ${iv.rest}` : ''}
                 </p>
               ))}
               {(set.reps || 1) > 1 && restBetweenReps && (
-                <p className="opacity-50 text-[6px] leading-[1.15]">{t.restBetweenReps}: {restBetweenReps}</p>
+                <p className="opacity-50 text-[8px] leading-[1.3]">{t.restBetweenReps}: {restBetweenReps}</p>
               )}
               {!isLastSet && (
-                <p className="opacity-50 text-[6px] leading-[1.15]">{restAfterSet ? `${t.restBetweenSets}: ${restAfterSet}` : t.continueToNext}</p>
+                <p className="opacity-50 text-[8px] leading-[1.3]">{restAfterSet ? `${t.restBetweenSets}: ${restAfterSet}` : t.continueToNext}</p>
               )}
             </div>
           )
         })}
         {workout.cooldown && (
-          <p className="opacity-60 text-[6px] leading-[1.15] break-words">{t.cooldownLabel}: {workout.cooldown}</p>
+          <p className="opacity-60 text-[8px] leading-[1.3] break-words">{t.cooldownLabel}: {workout.cooldown}</p>
         )}
       </div>
     )
@@ -2203,13 +2203,13 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
               a KM column, zoom to read it. Read-only here — tapping a day
               just selects it (same as the old pill strip did), no
               drag/paste/assign like the coach's version has. */}
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-3 overflow-x-auto">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-2 overflow-x-auto">
             <div style={{ zoom: gridZoom, WebkitTextSizeAdjust: '100%', textSizeAdjust: '100%' } as CSSProperties}>
-              <div className="grid gap-1.5 mb-1.5" style={{ gridTemplateColumns: 'repeat(7, minmax(210px, 1fr)) 34px' }}>
+              <div className="grid gap-1.5 mb-1.5" style={{ gridTemplateColumns: 'repeat(7, minmax(230px, 1fr)) 34px' }}>
                 {dayLabelsRot.map((d,i) => <div key={i} className="text-center text-[10px] font-semibold text-gray-400 py-1">{d}</div>)}
                 <div className="text-center text-[7px] font-semibold text-gray-300 py-1">{isRTL ? 'קמ' : 'km'}</div>
               </div>
-              <div className="grid gap-1.5" style={{ gridTemplateColumns: 'repeat(7, minmax(210px, 1fr)) 34px' }}>
+              <div className="grid gap-1.5" style={{ gridTemplateColumns: 'repeat(7, minmax(230px, 1fr)) 34px' }}>
                 {weekDays.map((day, di) => {
                   const dateStr = format(day, 'yyyy-MM-dd')
                   const dayWs = getWorkoutsForDay(day)
@@ -2219,26 +2219,26 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                   return (
                     <div key={di}
                       onClick={() => { setSelectedWeekDay(day); setSelectedWorkoutId(null) }}
-                      className={cn('min-h-[70px] min-w-0 rounded-xl border transition-all cursor-pointer',
+                      className={cn('min-h-[140px] min-w-0 rounded-lg border transition-all cursor-pointer',
                         isSelDay ? 'border-[#c9a84c] bg-[#c9a84c]/5' : todayFlag ? 'border-[#0a1628]/25 bg-[#0a1628]/5' : 'border-gray-100 hover:border-gray-200')}>
-                      <div className="p-1.5 border-b border-gray-100 text-center">
-                        <p className={cn('text-xs font-bold', isSelDay ? 'text-[#c9a84c]' : todayFlag ? 'text-[#0a1628]' : 'text-[#0a1628]/60')}>{format(day,'d')}</p>
+                      <div className="p-2 border-b border-gray-100 text-center">
+                        <p className={cn('text-sm font-bold', isSelDay ? 'text-[#c9a84c]' : todayFlag ? 'text-[#0a1628]' : 'text-[#0a1628]/60')}>{format(day,'d')}</p>
                       </div>
-                      <div className="p-1.5 space-y-1">
+                      <div className="p-2 space-y-1.5">
                         {isOff ? (
-                          <p className="text-[9px] text-center text-gray-400">🩹</p>
+                          <p className="text-xs text-center text-gray-400">🩹</p>
                         ) : dayWs.map(w => {
                           const done = getEffectiveStatus(w) === 'completed'
                           const metric = w.workout?.distance ? `${w.workout.distance}k` : w.workout?.duration ? `${w.workout.duration}'` : null
                           return (
                             <div key={w.id}
-                              className="w-full text-right rounded-lg px-1.5 py-1.5 flex flex-col gap-0.5 overflow-hidden bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 text-white">
-                              <div className="w-full min-w-0 flex items-center gap-1 text-[8px]">
-                                <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', TYPE_DOT_COLORS[w.workout?.type as string] || TYPE_DOT_COLORS.easy)} />
+                              className="w-full text-right rounded-md px-2 py-2 flex flex-col gap-1 overflow-hidden bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 text-white">
+                              <div className="w-full min-w-0 flex items-center gap-1 text-[10px]">
+                                <span className={cn('w-2 h-2 rounded-full flex-shrink-0', TYPE_DOT_COLORS[w.workout?.type as string] || TYPE_DOT_COLORS.easy)} />
                                 {done && <span className="flex-shrink-0 text-emerald-400">✓</span>}
                                 <span className="flex-1 min-w-0 truncate font-bold">{resolveText(language, w.workout.title, w.workout.titleEn)}</span>
                                 {metric && (
-                                  <span className="flex-shrink-0 text-[7px] font-bold bg-[#c9a84c] text-[#0a1628] px-1.5 py-0.5 rounded-full">{metric}</span>
+                                  <span className="flex-shrink-0 text-[9px] font-bold bg-[#c9a84c] text-[#0a1628] px-1.5 py-0.5 rounded-full">{metric}</span>
                                 )}
                               </div>
                               {renderCompactWorkoutDetail(w.workout)}
@@ -2257,7 +2257,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                     return s + weekLogs.filter(l => l.date === dStr).reduce((a, l) => a + (l.actualDistance || 0), 0)
                   }, 0))
                   return (
-                    <div className="flex flex-col items-center justify-center min-h-[70px] gap-0.5">
+                    <div className="flex flex-col items-center justify-center min-h-[140px] gap-0.5">
                       {weekPlanned > 0 ? <p className="text-[9px] font-bold text-[#0a1628]/60">{weekPlanned}</p> : <p className="text-[9px] text-gray-300">—</p>}
                       {weekActual > 0 && <p className="text-[8px] font-bold text-emerald-600">{weekActual}</p>}
                     </div>
@@ -2358,10 +2358,10 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
               structure written out tiny, a KM column, zoom to read it.
               Read-only here — tapping a day just selects it below, no
               drag/paste/assign/delete-week like the coach's version. */}
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-3 overflow-x-auto">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-2 overflow-x-auto">
             <div style={{ zoom: gridZoom, WebkitTextSizeAdjust: '100%', textSizeAdjust: '100%' } as CSSProperties}>
               {/* Day headers */}
-              <div className="grid gap-1 mb-1" style={{ gridTemplateColumns: 'repeat(7, minmax(190px, 1fr)) 30px' }}>
+              <div className="grid gap-1 mb-1" style={{ gridTemplateColumns: 'repeat(7, minmax(210px, 1fr)) 30px' }}>
                 {dayLabelsRot.map((d,i) => (
                   <div key={i} className="text-center text-[10px] font-semibold text-gray-400 py-1">{d}</div>
                 ))}
@@ -2377,7 +2377,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                     return s + weekLogs.filter(l=>l.date===dStr).reduce((a,l)=>a+(l.actualDistance||0),0)
                   },0))
                   return (
-                    <div key={wi} className="grid gap-1" style={{ gridTemplateColumns: 'repeat(7, minmax(190px, 1fr)) 30px' }}>
+                    <div key={wi} className="grid gap-1" style={{ gridTemplateColumns: 'repeat(7, minmax(210px, 1fr)) 30px' }}>
                       {days.map((day, di) => {
                         const inMonth = isSameMonth(day, currentDate)
                         const dayWs = getWorkoutsForDay(day)
@@ -2394,29 +2394,29 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                               if (!clickable) return
                               setSelectedMonthDay(prev => prev && isSameDay(prev, day) ? null : day)
                             }}
-                            className={cn('min-h-[70px] min-w-0 rounded-xl border transition-all',
+                            className={cn('min-h-[110px] min-w-0 rounded-lg border transition-all',
                               !inMonth ? 'opacity-15 pointer-events-none border-transparent' : 'border-gray-100',
                               todayFlag ? 'border-[#0a1628]/25 bg-[#0a1628]/5' : '',
                               selectedInDay ? 'border-[#c9a84c] bg-[#c9a84c]/5' : '',
                               clickable ? 'cursor-pointer hover:border-gray-200' : ''
                             )}>
-                            <div className="p-1.5 border-b border-gray-100 text-center flex items-center justify-center gap-1">
-                              <p className={cn('text-xs font-bold', selectedInDay ? 'text-[#c9a84c]' : todayFlag ? 'text-[#0a1628]' : inMonth ? 'text-[#0a1628]/60' : 'text-gray-300')}>{format(day,'d')}</p>
+                            <div className="p-2 border-b border-gray-100 text-center flex items-center justify-center gap-1">
+                              <p className={cn('text-sm font-bold', selectedInDay ? 'text-[#c9a84c]' : todayFlag ? 'text-[#0a1628]' : inMonth ? 'text-[#0a1628]/60' : 'text-gray-300')}>{format(day,'d')}</p>
                               {hasUnreadMsg && <span className="w-1 h-1 rounded-full bg-[#c9a84c]" />}
                             </div>
-                            <div className="p-1.5 space-y-1">
+                            <div className="p-2 space-y-1.5">
                               {dayWs.map(w => {
                                 const done = getEffectiveStatus(w) === 'completed'
                                 const metric = w.workout?.distance ? `${w.workout.distance}k` : w.workout?.duration ? `${w.workout.duration}'` : null
                                 return (
                                   <div key={w.id}
-                                    className="w-full text-right rounded-lg px-1.5 py-1.5 flex flex-col gap-0.5 overflow-hidden bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 text-white">
-                                    <div className="w-full min-w-0 flex items-center gap-1 text-[8px]">
-                                      <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', TYPE_DOT_COLORS[w.workout?.type as string] || TYPE_DOT_COLORS.easy)} />
+                                    className="w-full text-right rounded-md px-2 py-2 flex flex-col gap-1 overflow-hidden bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 text-white">
+                                    <div className="w-full min-w-0 flex items-center gap-1 text-[10px]">
+                                      <span className={cn('w-2 h-2 rounded-full flex-shrink-0', TYPE_DOT_COLORS[w.workout?.type as string] || TYPE_DOT_COLORS.easy)} />
                                       {done && <span className="flex-shrink-0 text-emerald-400">✓</span>}
                                       <span className="flex-1 min-w-0 truncate font-bold">{resolveText(language, w.workout.title, w.workout.titleEn)}</span>
                                       {metric && (
-                                        <span className="flex-shrink-0 text-[7px] font-bold bg-[#c9a84c] text-[#0a1628] px-1.5 py-0.5 rounded-full">{metric}</span>
+                                        <span className="flex-shrink-0 text-[9px] font-bold bg-[#c9a84c] text-[#0a1628] px-1.5 py-0.5 rounded-full">{metric}</span>
                                       )}
                                     </div>
                                     {renderCompactWorkoutDetail(w.workout)}
@@ -2425,7 +2425,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                               })}
                               {/* Extra done activities beyond the plan */}
                               {dayWs.length === 0 && dayActivities.length > 0 && (
-                                <p className="text-[9px] text-center">
+                                <p className="text-xs text-center">
                                   {dayActivities.slice(0,3).map((l, i) => <span key={i}>{getActivityInfo(l).emoji}</span>)}
                                 </p>
                               )}
@@ -2434,7 +2434,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                         )
                       })}
                       {/* Week KM cell */}
-                      <div className="flex flex-col items-center justify-center min-h-[70px] gap-0.5">
+                      <div className="flex flex-col items-center justify-center min-h-[110px] gap-0.5">
                         {wKm > 0 ? <p className="text-[9px] font-bold text-[#0a1628]/60">{wKm}</p> : <p className="text-[9px] text-gray-300">—</p>}
                         {wDone > 0 && <p className="text-[8px] font-bold text-emerald-600">{wDone}</p>}
                       </div>
