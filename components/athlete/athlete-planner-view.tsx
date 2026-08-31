@@ -13,7 +13,7 @@ import {
   addMonths, subMonths, addWeeks, subWeeks, eachDayOfInterval, isSameMonth,
   isSameDay, isToday, parseISO, eachWeekOfInterval,
 } from 'date-fns'
-import { cn, resolveText } from '@/lib/utils'
+import { cn, resolveText, isCoachMessageRecent } from '@/lib/utils'
 import { db } from '@/lib/firebase'
 import { collection, doc, getDoc, getDocs, query, where, updateDoc } from 'firebase/firestore'
 import type { AthleteProfile, AssignedWorkout, TrainingDayType } from '@/lib/types'
@@ -409,7 +409,8 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
     if (!athleteId) return
     getDocs(query(collection(db, 'coachMessages'), where('athleteId', '==', athleteId)))
       .then(snap => {
-        setCoachMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+        const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() })) as any[]
+        setCoachMessages(msgs.filter(m => isCoachMessageRecent(m.createdAt)))
       })
       .catch(() => {})
   }, [athleteId])

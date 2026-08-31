@@ -27,7 +27,7 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import Link from 'next/link'
-import { cn } from '@/lib/utils'
+import { cn, isCoachMessageRecent } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
   collection,
@@ -258,8 +258,9 @@ export function AthleteDashboard() {
       where('athleteId', '==', user.id),
     )).then(snap => {
       const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() })) as any[]
-      msgs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
-      setCoachMessages(msgs)
+      const recent = msgs.filter(m => isCoachMessageRecent(m.createdAt))
+      recent.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+      setCoachMessages(recent)
     }).catch(() => {})
 
     // Real-time listener for assigned workouts — last 14 days + all future

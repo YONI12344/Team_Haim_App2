@@ -10,6 +10,22 @@ export function normalizeExerciseName(name: string): string {
   return name.trim().toLowerCase()
 }
 
+/** Coach → athlete workout messages (Firestore `coachMessages`, sent from
+ *  the coach's day/workout note box) auto-hide from the athlete's dashboard
+ *  and planner this many days after being sent — coach notes about a
+ *  specific workout are meant to be timely, not a permanent fixture the
+ *  athlete has to keep dismissing weeks later. */
+export const COACH_MESSAGE_VISIBLE_DAYS = 3
+
+/** True if a Firestore doc's `createdAt` (server timestamp) is within the
+ *  last COACH_MESSAGE_VISIBLE_DAYS days. Missing/unresolved timestamps are
+ *  treated as recent (fail open) rather than silently hidden. */
+export function isCoachMessageRecent(createdAt: any): boolean {
+  const ms = createdAt?.toMillis?.() ?? (createdAt?.seconds != null ? createdAt.seconds * 1000 : undefined)
+  if (ms == null) return true
+  return Date.now() - ms <= COACH_MESSAGE_VISIBLE_DAYS * 24 * 60 * 60 * 1000
+}
+
 /** Merges a workout's stored StrengthBlockExercise with the CURRENT
  *  Exercise Library entry it points at (if it still exists), so an edited
  *  video/instructions/name/category shows up everywhere immediately —
