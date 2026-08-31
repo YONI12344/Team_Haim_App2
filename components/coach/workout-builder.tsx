@@ -607,7 +607,11 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton, initialType,
         savedId = ref.id
         toast.success('Workout created!')
       }
-      void invalidateWorkoutLibrary()
+      // Awaited (not fire-and-forget) — the caller navigates away or closes
+      // this dialog right after, so the shared cache must already be fresh
+      // by then or the Library/athlete-picker can briefly render without
+      // this workout at all.
+      await invalidateWorkoutLibrary()
       void translateAndCacheFields('workouts', savedId as string, {
         ...(enEdited ? {} : { title: payload.title, description: payload.description }),
         warmup: payload.warmup,

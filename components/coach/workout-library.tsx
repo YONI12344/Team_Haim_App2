@@ -62,6 +62,9 @@ export function WorkoutLibrary() {
   const [searchQuery, setSearchQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<WorkoutType | 'all' | 'warmup'>('all')
   const [sourceFilter, setSourceFilter] = useState<'all' | 'bakken' | 'coach'>('all')
+  // 'recent': most recently created OR edited first — 'type': grouped by
+  // workout type (recency as the tiebreaker within each type).
+  const [sortBy, setSortBy] = useState<'recent' | 'type'>('recent')
 
   const toDate = (v: any): Date | null => {
     if (!v) return null
@@ -69,15 +72,19 @@ export function WorkoutLibrary() {
     const d = new Date(v)
     return isNaN(d.getTime()) ? null : d
   }
+  // updatedAt is set on every save (create AND edit — see workout-builder.tsx),
+  // so sorting by it (falling back to createdAt for docs missing it) makes an
+  // edited workout jump back to the top too, not just a freshly created one.
+  const recencyMs = (w: any): number => (toDate(w.updatedAt) ?? toDate(w.createdAt))?.getTime() ?? 0
 
   // Shared/cached across every coach page via SWR — see hooks/useWorkoutLibrary.
   const { workouts: allWorkouts, isLoading: libraryLoading } = useWorkoutLibrary()
-  const workouts = useMemo(() => (
-    allWorkouts
-      // Hide per-week clones created by copy-week / paste
-      .filter((w) => !w.libraryHidden)
-      .sort((a, b) => (toDate((b as any).createdAt)?.getTime() ?? 0) - (toDate((a as any).createdAt)?.getTime() ?? 0))
-  ), [allWorkouts])
+  const workouts = useMemo(() => {
+    const visible = allWorkouts.filter((w) => !w.libraryHidden) // hide per-week clones created by copy-week / paste
+    return sortBy === 'type'
+      ? [...visible].sort((a, b) => (a.type || '').localeCompare(b.type || '') || recencyMs(b) - recencyMs(a))
+      : [...visible].sort((a, b) => recencyMs(b) - recencyMs(a))
+  }, [allWorkouts, sortBy])
 
   // Every workouts/{id} doc referenced by an assignedWorkouts doc with
   // source:'bakken' — Bakken generates its own standalone library entry
@@ -355,6 +362,23 @@ export function WorkoutLibrary() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"
           />
+        </div>
+        <div className="flex gap-1.5 items-center">
+          <span className="text-xs text-muted-foreground shrink-0">מיון:</span>
+          {([
+            { key: 'recent' as const, label: 'עדכני' },
+            { key: 'type' as const, label: 'סוג' },
+          ]).map((opt) => (
+            <Button
+              key={opt.key}
+              variant="outline"
+              size="sm"
+              onClick={() => setSortBy(opt.key)}
+              className={cn(opt.key === sortBy && 'bg-gold/10 border-gold text-gold')}
+            >
+              {opt.label}
+            </Button>
+          ))}
         </div>
         <div className="flex flex-wrap gap-2">
           {workoutTypes.map((type) => (
