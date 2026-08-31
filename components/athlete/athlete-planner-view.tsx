@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useEffect, useState, useMemo, useCallback, type CSSProperties } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ChevronLeft, ChevronRight, Loader2, MapPin, Clock, ChevronDown, ChevronUp, RefreshCw, CheckCircle2, Plus, CalendarClock, Pencil, Info, X as XIcon } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2, MapPin, Clock, ChevronDown, ChevronUp, RefreshCw, CheckCircle2, Plus, CalendarClock, Pencil, Info, X as XIcon, ZoomIn, ZoomOut } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -99,25 +99,6 @@ const TYPE_DOT_COLORS: Record<string, string> = {
   cross_training: 'bg-teal-500',
   swim: 'bg-sky-500',
   bike: 'bg-indigo-400',
-}
-
-// Soft tint chips for the week/month grids — same type hues as TYPE_DOT_COLORS,
-// toned down so tiny title labels stay legible on the light premium cards.
-const TYPE_CHIP_COLORS: Record<string, string> = {
-  easy: 'bg-emerald-500/10 text-emerald-700',
-  long_run: 'bg-orange-500/10 text-orange-700',
-  tempo: 'bg-purple-500/10 text-purple-700',
-  intervals: 'bg-blue-500/10 text-blue-700',
-  hill_repeats: 'bg-amber-500/10 text-amber-700',
-  fartlek: 'bg-cyan-500/10 text-cyan-700',
-  recovery: 'bg-gray-400/10 text-gray-500',
-  rest: 'bg-gray-300/20 text-gray-400',
-  race: 'bg-red-500/10 text-red-700',
-  time_trial: 'bg-indigo-500/10 text-indigo-700',
-  strength: 'bg-rose-500/10 text-rose-700',
-  cross_training: 'bg-teal-500/10 text-teal-700',
-  swim: 'bg-sky-500/10 text-sky-700',
-  bike: 'bg-indigo-400/10 text-indigo-600',
 }
 
 // Session labels for days with more than one workout (e.g. easy run AM, gym PM)
@@ -240,7 +221,6 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
   const { user } = useAuth()
   const { t, isRTL, language } = useLanguage()
   const typeLabels = useWorkoutTypeLabels()
-  const dayShort = [t.sun, t.mon, t.tue, t.wed, t.thu, t.fri, t.sat]
   const dayLabels = [t.sun, t.mon, t.tue, t.wed, t.thu, t.fri, t.sat]
   const dayEN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
   const formatHeDateLong = (d: Date) => d.toLocaleDateString(isRTL ? 'he-IL' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
@@ -282,6 +262,10 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
     return new Date()
   })
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day')
+  // Zoom for the week/month dense grid below — same substitute for
+  // pinch-to-zoom on a horizontal-scroll grid as the coach's own
+  // week/month view (components/coach/athlete-planner.tsx).
+  const [gridZoom, setGridZoom] = useState(1)
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null)
   // Month grid's "which day is expanded below the calendar" — a day with
   // 2+ workouts used to force-navigate to the full day view on tap, which
@@ -392,7 +376,6 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
   const kmWeekStartsOn: 0 | 1 = athlete?.kmWeekStartDay === 0 ? 0 : 1
   // Day labels rotated to match the athlete's week start
   const rotateDays = <T,>(a: T[]): T[] => [...a.slice(calWeekStartsOn), ...a.slice(0, calWeekStartsOn)]
-  const dayShortRot = rotateDays(dayShort)
   const dayLabelsRot = rotateDays(isRTL ? dayLabels : dayEN)
 
   useEffect(() => {
@@ -492,27 +475,6 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
     if (w.status === 'skipped') return 'skipped'
     return 'scheduled'
   }, [weekLogs])
-
-  // Week/month grid label — the workout TYPE, short, not the free-text title:
-  // a real title ("אימון מרווחים בשדה התעופה") never fits a phone-width day
-  // cell and just gets clipped to noise ("...ri", "1600..."). The type word
-  // ("אינטרוולים", "קל", "טמפו"...) is short by construction and lets an
-  // athlete scan the month for "when was my last long run" by color+word.
-  const workoutTypeLabel = useCallback((type?: string): string => {
-    switch (type) {
-      case 'easy': return t.labFolderEasy
-      case 'long_run': return t.labFolderLongRun
-      case 'tempo': return t.labFolderTempo
-      case 'intervals': return t.labFolderInterval
-      case 'hill_repeats': return t.labFolderHillRepeats
-      case 'fartlek': return t.labFolderFartlek
-      case 'recovery': return t.labFolderRecovery
-      case 'race': return t.labFolderRace
-      case 'time_trial': return t.labFolderTimeTrial
-      case 'threshold': return t.labFolderThreshold
-      default: return t.labFolderOther
-    }
-  }, [t])
 
   const todayWorkouts = useMemo(() => getWorkoutsForDay(new Date()), [getWorkoutsForDay])
 
@@ -1711,6 +1673,53 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
     )
   }
 
+  // Tiny full-structure readout for a week/month grid cell — same wording
+  // and set/interval/rest logic as renderWorkoutDetail above, just shrunk
+  // down (mirrors the coach's own dense grid in athlete-planner.tsx so the
+  // athlete's week/month view reads identically, only read-only and
+  // without any of the coach's edit/assign affordances).
+  const renderCompactWorkoutDetail = (workout: any) => {
+    if (!workout) return null
+    return (
+      <div className="w-full min-w-0 space-y-0.5">
+        {workout.warmup && (
+          <p className="opacity-60 text-[6px] leading-[1.15] break-words">{t.warmupLabel}: {workout.warmup}</p>
+        )}
+        {workout.sets?.map((set: any, si: number) => {
+          const hasIntervals = set.intervals && set.intervals.length > 0
+          const isLastSet = si === workout.sets.length - 1
+          const restBetweenReps = setRestBetweenReps(set)
+          const restAfterSet = setRestAfter(set)
+          return (
+            <div key={set.id || si} className="space-y-0.5">
+              <p className="font-bold opacity-95 text-[6.5px] leading-[1.15] break-words">
+                {t.setLabelPrefix} {si + 1}
+                {set.reps > 1 && !hasIntervals && ` · ${set.reps}× ${set.distance || set.duration || ''}`}
+                {!hasIntervals && !(set.reps > 1) && (set.distance || set.duration) && ` · ${set.distance || set.duration}`}
+                {hasIntervals && set.reps > 1 && ` · ${set.reps}×`}
+                {set.pace && ` @ ${set.pace}`}
+              </p>
+              {hasIntervals && set.intervals.map((iv: any, ii: number) => (
+                <p key={iv.id || ii} className="opacity-80 text-[6px] leading-[1.15] break-words pr-1.5">
+                  {ii + 1}. {iv.distance || iv.duration}{iv.pace ? ` @ ${iv.pace}` : ''}{iv.rest ? ` — ${t.restPrefix} ${iv.rest}` : ''}
+                </p>
+              ))}
+              {(set.reps || 1) > 1 && restBetweenReps && (
+                <p className="opacity-50 text-[6px] leading-[1.15]">{t.restBetweenReps}: {restBetweenReps}</p>
+              )}
+              {!isLastSet && (
+                <p className="opacity-50 text-[6px] leading-[1.15]">{restAfterSet ? `${t.restBetweenSets}: ${restAfterSet}` : t.continueToNext}</p>
+              )}
+            </div>
+          )
+        })}
+        {workout.cooldown && (
+          <p className="opacity-60 text-[6px] leading-[1.15] break-words">{t.cooldownLabel}: {workout.cooldown}</p>
+        )}
+      </div>
+    )
+  }
+
   // ── Shared premium workout card renderer ────────────────────────────────────
   const renderWorkoutCard = (w: AssignedWorkout, cardIndex?: number) => {
     const effStatus = getEffectiveStatus(w)
@@ -2097,6 +2106,28 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
         </div>
       </div>
 
+      {/* Zoom control for the dense week/month grid below — lets the
+          athlete shrink/enlarge the same tiny compact-detail text the
+          coach's own grid uses, instead of fighting page pinch-zoom on a
+          nested horizontal-scroll container. */}
+      {(viewMode === 'week' || viewMode === 'month') && (
+        <div className="flex items-center justify-center gap-1">
+          <button onClick={() => setGridZoom(z => Math.max(0.35, Math.round((z - 0.15) * 100) / 100))}
+            disabled={gridZoom <= 0.35}
+            className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 disabled:opacity-30 active:scale-90 transition-all">
+            <ZoomOut className="h-3.5 w-3.5" />
+          </button>
+          <button onClick={() => setGridZoom(1)} className="text-[11px] text-gray-400 w-12 text-center">
+            {Math.round(gridZoom * 100)}%
+          </button>
+          <button onClick={() => setGridZoom(z => Math.min(4, Math.round((z + 0.15) * 100) / 100))}
+            disabled={gridZoom >= 4}
+            className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 disabled:opacity-30 active:scale-90 transition-all">
+            <ZoomIn className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* ── Day View ──────────────────────────────────────────────────────── */}
       {viewMode === 'day' && (() => {
         const dayWs = getWorkoutsForDay(currentDate)
@@ -2163,79 +2194,74 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
       {/* ── Week View ─────────────────────────────────────────────────────── */}
       {viewMode === 'week' && (
         <div className="space-y-3">
-          {/* 7-day pill strip — horizontal scroll on mobile */}
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-4">
-            <div className="flex gap-1 overflow-x-auto pb-1" style={{scrollbarWidth:'none'}} dir="rtl">
-              {weekDays.map((day, di) => {
-                const dayWs = getWorkoutsForDay(day)
-                const isSelDay = isSameDay(day, selectedWeekDay)
-                const todayFlag = isToday(day)
-                const isOff = !!dayOffFor(format(day, 'yyyy-MM-dd'))
-                return (
-                  <button key={di}
-                    onClick={() => { setSelectedWeekDay(day); setSelectedWorkoutId(null) }}
-                    className={cn('flex flex-col items-center gap-1 py-2 px-1 rounded-2xl transition-all active:scale-95 flex-shrink-0 flex-1 min-w-[46px]',
-                      isSelDay ? 'bg-[#c9a84c]/10 ring-1 ring-[#c9a84c]/40' : todayFlag ? 'bg-[#0a1628]/5' : 'hover:bg-gray-50')}>
-                    <span className={cn('text-[9px] font-semibold', todayFlag ? 'text-[#c9a84c]' : 'text-gray-400')}>
-                      {dayShortRot[di]}
-                    </span>
-                    <span className={cn('text-[12px] font-black', todayFlag ? 'text-[#0a1628]' : 'text-[#0a1628]/70')}>
-                      {format(day,'d/M')}
-                    </span>
-                    {isOff ? (
-                      <span className="text-[10px] mt-0.5">🩹</span>
-                    ) : dayWs.length > 0 ? (
-                      // Same colored-box-per-workout style as the month
-                      // grid — the type's own color (TYPE_CHIP_COLORS)
-                      // always stays, done or not, so an athlete can scan
-                      // for "last long run" / "easy" by color regardless
-                      // of completion — only a small ✓ badge marks done,
-                      // it never recolors the whole box green.
-                      <div className="w-full flex flex-col gap-0.5 min-w-0">
-                        {dayWs.slice(0,2).map((w,i) => {
+          {/* Dense week grid — same visual language as the coach's own
+              week/month view (components/coach/athlete-planner.tsx): dark
+              navy boxes with the full workout structure written out tiny,
+              a KM column, zoom to read it. Read-only here — tapping a day
+              just selects it (same as the old pill strip did), no
+              drag/paste/assign like the coach's version has. */}
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-3 overflow-x-auto">
+            <div style={{ zoom: gridZoom, WebkitTextSizeAdjust: '100%', textSizeAdjust: '100%' } as CSSProperties}>
+              <div className="grid gap-1.5 mb-1.5" style={{ gridTemplateColumns: 'repeat(7, minmax(150px, 1fr)) 64px' }}>
+                {dayLabelsRot.map((d,i) => <div key={i} className="text-center text-[10px] font-semibold text-gray-400 py-1">{d}</div>)}
+                <div className="text-center text-[10px] font-semibold text-gray-400 py-1">{isRTL ? 'קמ' : 'km'}</div>
+              </div>
+              <div className="grid gap-1.5" style={{ gridTemplateColumns: 'repeat(7, minmax(150px, 1fr)) 64px' }}>
+                {weekDays.map((day, di) => {
+                  const dateStr = format(day, 'yyyy-MM-dd')
+                  const dayWs = getWorkoutsForDay(day)
+                  const todayFlag = isToday(day)
+                  const isSelDay = isSameDay(day, selectedWeekDay)
+                  const isOff = !!dayOffFor(dateStr)
+                  return (
+                    <div key={di}
+                      onClick={() => { setSelectedWeekDay(day); setSelectedWorkoutId(null) }}
+                      className={cn('min-h-[70px] min-w-0 rounded-xl border transition-all cursor-pointer',
+                        isSelDay ? 'border-[#c9a84c] bg-[#c9a84c]/5' : todayFlag ? 'border-[#0a1628]/25 bg-[#0a1628]/5' : 'border-gray-100 hover:border-gray-200')}>
+                      <div className="p-1.5 border-b border-gray-100 text-center">
+                        <p className={cn('text-xs font-bold', isSelDay ? 'text-[#c9a84c]' : todayFlag ? 'text-[#0a1628]' : 'text-[#0a1628]/60')}>{format(day,'d')}</p>
+                      </div>
+                      <div className="p-1.5 space-y-1">
+                        {isOff ? (
+                          <p className="text-[9px] text-center text-gray-400">🩹</p>
+                        ) : dayWs.map(w => {
                           const done = getEffectiveStatus(w) === 'completed'
+                          const metric = w.workout?.distance ? `${w.workout.distance}k` : w.workout?.duration ? `${w.workout.duration}'` : null
                           return (
-                            <span key={i} className={cn('relative w-full min-w-0 truncate text-center text-[7.5px] font-bold leading-[9px] rounded-md px-0.5 py-[3px]',
-                              TYPE_CHIP_COLORS[w.workout?.type] || 'bg-[#0a1628]/5 text-[#0a1628]/70'
-                            )}>
-                              {done && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 text-white text-[6px] leading-[10px] flex items-center justify-center">✓</span>}
-                              {workoutTypeLabel(w.workout?.type)}
-                            </span>
+                            <div key={w.id}
+                              className="w-full text-right rounded-lg px-1.5 py-1.5 flex flex-col gap-0.5 overflow-hidden bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 text-white">
+                              <div className="w-full min-w-0 flex items-center gap-1 text-[8px]">
+                                <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', TYPE_DOT_COLORS[w.workout?.type as string] || TYPE_DOT_COLORS.easy)} />
+                                {done && <span className="flex-shrink-0 text-emerald-400">✓</span>}
+                                <span className="flex-1 min-w-0 truncate font-bold">{resolveText(language, w.workout.title, w.workout.titleEn)}</span>
+                                {metric && (
+                                  <span className="flex-shrink-0 text-[7px] font-bold bg-[#c9a84c] text-[#0a1628] px-1.5 py-0.5 rounded-full">{metric}</span>
+                                )}
+                              </div>
+                              {renderCompactWorkoutDetail(w.workout)}
+                            </div>
                           )
                         })}
-                        {dayWs.length > 2 && (
-                          <span className="text-[7px] font-bold leading-none text-[#c9a84c]">+{dayWs.length - 2}</span>
-                        )}
                       </div>
-                    ) : (
-                      <span className="w-1.5 h-1.5 rounded-full opacity-0 mt-1" />
-                    )}
-                  </button>
-                )
-              })}
+                    </div>
+                  )
+                })}
+                {/* Week KM cell */}
+                {(() => {
+                  const weekPlanned = getWeekKm(weekDays)
+                  const weekActual = Math.round(weekDays.reduce((s, d) => {
+                    const dStr = format(d, 'yyyy-MM-dd')
+                    return s + weekLogs.filter(l => l.date === dStr).reduce((a, l) => a + (l.actualDistance || 0), 0)
+                  }, 0))
+                  return (
+                    <div className="flex flex-col items-center justify-center rounded-xl bg-gray-50 border border-gray-100 min-h-[70px] gap-0.5">
+                      {weekPlanned > 0 ? <p className="text-sm font-bold text-[#0a1628]">{weekPlanned}</p> : <p className="text-xs text-gray-300">—</p>}
+                      {weekActual > 0 && <p className="text-[10px] font-bold text-emerald-600">{weekActual}</p>}
+                    </div>
+                  )
+                })()}
+              </div>
             </div>
-
-            {/* Week km progress bar in gold */}
-            {(() => {
-              const weekPlanned = getWeekKm(weekDays)
-              const weekActual = Math.round(weekDays.reduce((s, d) => {
-                const dStr = format(d, 'yyyy-MM-dd')
-                return s + weekLogs.filter(l => l.date === dStr).reduce((a, l) => a + (l.actualDistance || 0), 0)
-              }, 0))
-              if (weekPlanned === 0) return null
-              return (
-                <div className="mt-3 pt-3 border-t border-gray-50">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs font-bold text-[#0a1628]">{weekActual} {t.weekKmDoneLabel}</span>
-                    <span className="text-xs text-gray-400">{t.ofPlannedLabel} {weekPlanned} km</span>
-                  </div>
-                  <div className="w-full bg-gray-100 rounded-full h-1.5">
-                    <div className={cn('h-1.5 rounded-full transition-all', weekActual >= weekPlanned ? 'bg-emerald-500' : 'bg-[#c9a84c]')}
-                      style={{width:`${Math.min(100,(weekActual/weekPlanned)*100)}%`}} />
-                  </div>
-                </div>
-              )
-            })()}
           </div>
 
           {/* Selected day's workouts */}
@@ -2324,100 +2350,95 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
             )
           })()}
 
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-4">
-            {/* Day headers */}
-            <div className="grid grid-cols-8 gap-1 mb-2">
-              {dayLabelsRot.map((d,i) => (
-                <div key={i} className="text-center text-[9px] font-bold text-gray-400 py-1 uppercase tracking-wider">{d}</div>
-              ))}
-              <div className="text-center text-[9px] font-bold text-gray-400 py-1 uppercase tracking-wider">km</div>
-            </div>
+          {/* Dense month grid — same visual language as the coach's own
+              week/month view: dark-navy boxes with the full workout
+              structure written out tiny, a KM column, zoom to read it.
+              Read-only here — tapping a day just selects it below, no
+              drag/paste/assign/delete-week like the coach's version. */}
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-3 overflow-x-auto">
+            <div style={{ zoom: gridZoom, WebkitTextSizeAdjust: '100%', textSizeAdjust: '100%' } as CSSProperties}>
+              {/* Day headers */}
+              <div className="grid gap-1 mb-1" style={{ gridTemplateColumns: 'repeat(7, minmax(130px, 1fr)) 56px' }}>
+                {dayLabelsRot.map((d,i) => (
+                  <div key={i} className="text-center text-[10px] font-semibold text-gray-400 py-1">{d}</div>
+                ))}
+                <div className="text-center text-[10px] font-semibold text-gray-400 py-1">{isRTL ? 'קמ' : 'km'}</div>
+              </div>
 
-            <div className="space-y-1">
-              {monthWeeks.map((weekStartDay, wi) => {
-                const days = eachDayOfInterval({ start: weekStartDay, end: endOfWeek(weekStartDay,{weekStartsOn:calWeekStartsOn}) })
-                const wKm = getWeekKm(days)
-                const wDone = Math.round(days.reduce((s,d) => {
-                  const dStr = format(d,'yyyy-MM-dd')
-                  return s + weekLogs.filter(l=>l.date===dStr).reduce((a,l)=>a+(l.actualDistance||0),0)
-                },0))
-                return (
-                  <div key={wi} className="grid grid-cols-8 gap-1">
-                    {days.map((day, di) => {
-                      const inMonth = isSameMonth(day, currentDate)
-                      const dayWs = getWorkoutsForDay(day)
-                      const dStr = format(day, 'yyyy-MM-dd')
-                      // Done activities (Strava / manual) — shown even on days with no planned workout
-                      const dayActivities = weekLogs.filter(l => l.date === dStr && isActivityLog(l))
-                      const todayFlag = isToday(day)
-                      const selectedInDay = !!selectedMonthDay && isSameDay(day, selectedMonthDay)
-                      const hasUnreadMsg = dayWs.some(w => coachMessages.some(m => m.assignedWorkoutId === w.id && !m.read))
-                      const clickable = inMonth && (dayWs.length > 0 || dayActivities.length > 0)
-                      return (
-                        <div key={di}
-                          onClick={() => {
-                            if (!clickable) return
-                            setSelectedMonthDay(prev => prev && isSameDay(prev, day) ? null : day)
-                          }}
-                          className={cn(
-                            'min-h-[64px] rounded-xl px-0.5 py-1.5 flex flex-col items-center gap-1 transition-all',
-                            !inMonth ? 'opacity-15 pointer-events-none' : '',
-                            todayFlag ? 'bg-[#0a1628]/5' : '',
-                            selectedInDay ? 'bg-[#c9a84c]/10 ring-1 ring-[#c9a84c]/30' : '',
-                            clickable ? 'cursor-pointer hover:bg-gray-50' : ''
-                          )}>
-                          {todayFlag ? (
-                            <span className="w-5 h-5 rounded-full bg-[#c9a84c] flex items-center justify-center text-[9px] font-black text-[#0a1628]">{format(day,'d')}</span>
-                          ) : (
-                            <span className={cn('text-[11px] font-semibold', inMonth ? 'text-[#0a1628]/70' : 'text-gray-300')}>{format(day,'d')}</span>
-                          )}
-                          {(dayWs.length > 0 || dayActivities.length > 0) && (
-                            <div className="w-full flex flex-col items-center gap-1 min-w-0">
-                              {/* Workout boxes — title + planned distance,
-                                  glanceable "what is this day" (mirrors the
-                                  coach's own calendar boxes), one box per
-                                  workout so a multi-workout day never gets
-                                  cut down to a vague "+N". The type's own
-                                  color always stays (done or not) so an
-                                  athlete can scan for "last long run" /
-                                  "easy" by color regardless of completion —
-                                  only a small ✓ badge marks done. */}
-                              {dayWs.slice(0,4).map((w,i) => {
+              <div className="space-y-1">
+                {monthWeeks.map((weekStartDay, wi) => {
+                  const days = eachDayOfInterval({ start: weekStartDay, end: endOfWeek(weekStartDay,{weekStartsOn:calWeekStartsOn}) })
+                  const wKm = getWeekKm(days)
+                  const wDone = Math.round(days.reduce((s,d) => {
+                    const dStr = format(d,'yyyy-MM-dd')
+                    return s + weekLogs.filter(l=>l.date===dStr).reduce((a,l)=>a+(l.actualDistance||0),0)
+                  },0))
+                  return (
+                    <div key={wi} className="grid gap-1" style={{ gridTemplateColumns: 'repeat(7, minmax(130px, 1fr)) 56px' }}>
+                      {days.map((day, di) => {
+                        const inMonth = isSameMonth(day, currentDate)
+                        const dayWs = getWorkoutsForDay(day)
+                        const dStr = format(day, 'yyyy-MM-dd')
+                        // Done activities (Strava / manual) — shown even on days with no planned workout
+                        const dayActivities = weekLogs.filter(l => l.date === dStr && isActivityLog(l))
+                        const todayFlag = isToday(day)
+                        const selectedInDay = !!selectedMonthDay && isSameDay(day, selectedMonthDay)
+                        const hasUnreadMsg = dayWs.some(w => coachMessages.some(m => m.assignedWorkoutId === w.id && !m.read))
+                        const clickable = inMonth && (dayWs.length > 0 || dayActivities.length > 0)
+                        return (
+                          <div key={di}
+                            onClick={() => {
+                              if (!clickable) return
+                              setSelectedMonthDay(prev => prev && isSameDay(prev, day) ? null : day)
+                            }}
+                            className={cn('min-h-[70px] min-w-0 rounded-xl border transition-all',
+                              !inMonth ? 'opacity-15 pointer-events-none border-transparent' : 'border-gray-100',
+                              todayFlag ? 'border-[#0a1628]/25 bg-[#0a1628]/5' : '',
+                              selectedInDay ? 'border-[#c9a84c] bg-[#c9a84c]/5' : '',
+                              clickable ? 'cursor-pointer hover:border-gray-200' : ''
+                            )}>
+                            <div className="p-1.5 border-b border-gray-100 text-center flex items-center justify-center gap-1">
+                              <p className={cn('text-xs font-bold', selectedInDay ? 'text-[#c9a84c]' : todayFlag ? 'text-[#0a1628]' : inMonth ? 'text-[#0a1628]/60' : 'text-gray-300')}>{format(day,'d')}</p>
+                              {hasUnreadMsg && <span className="w-1 h-1 rounded-full bg-[#c9a84c]" />}
+                            </div>
+                            <div className="p-1.5 space-y-1">
+                              {dayWs.map(w => {
                                 const done = getEffectiveStatus(w) === 'completed'
-                                const dist = w.workout?.distance
+                                const metric = w.workout?.distance ? `${w.workout.distance}k` : w.workout?.duration ? `${w.workout.duration}'` : null
                                 return (
-                                  <span key={i} className={cn('relative w-full min-w-0 text-center leading-tight rounded-lg px-1 py-1',
-                                    TYPE_CHIP_COLORS[w.workout?.type] || 'bg-[#0a1628]/5 text-[#0a1628]/80'
-                                  )}>
-                                    {done && <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 text-white text-[8px] leading-[14px] flex items-center justify-center shadow-sm">✓</span>}
-                                    <span className="block truncate text-[9px] font-bold">{workoutTypeLabel(w.workout?.type)}</span>
-                                    {dist ? <span className="block truncate text-[8px] font-semibold opacity-70">{dist} {isRTL ? 'ק"מ' : 'km'}</span> : null}
-                                  </span>
+                                  <div key={w.id}
+                                    className="w-full text-right rounded-lg px-1.5 py-1.5 flex flex-col gap-0.5 overflow-hidden bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 text-white">
+                                    <div className="w-full min-w-0 flex items-center gap-1 text-[8px]">
+                                      <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', TYPE_DOT_COLORS[w.workout?.type as string] || TYPE_DOT_COLORS.easy)} />
+                                      {done && <span className="flex-shrink-0 text-emerald-400">✓</span>}
+                                      <span className="flex-1 min-w-0 truncate font-bold">{resolveText(language, w.workout.title, w.workout.titleEn)}</span>
+                                      {metric && (
+                                        <span className="flex-shrink-0 text-[7px] font-bold bg-[#c9a84c] text-[#0a1628] px-1.5 py-0.5 rounded-full">{metric}</span>
+                                      )}
+                                    </div>
+                                    {renderCompactWorkoutDetail(w.workout)}
+                                  </div>
                                 )
                               })}
-                              {dayWs.length > 4 && (
-                                <span className="text-[8px] font-bold leading-none text-[#c9a84c]">+{dayWs.length - 4}</span>
-                              )}
                               {/* Extra done activities beyond the plan */}
-                              {dayWs.length === 0 && dayActivities.slice(0,3).map((l, i) => (
-                                <span key={`a${i}`} className="text-[8px] leading-none">
-                                  {getActivityInfo(l).emoji}
-                                </span>
-                              ))}
+                              {dayWs.length === 0 && dayActivities.length > 0 && (
+                                <p className="text-[9px] text-center">
+                                  {dayActivities.slice(0,3).map((l, i) => <span key={i}>{getActivityInfo(l).emoji}</span>)}
+                                </p>
+                              )}
                             </div>
-                          )}
-                          {hasUnreadMsg && <span className="w-1 h-1 rounded-full bg-[#c9a84c]" />}
-                        </div>
-                      )
-                    })}
-                    {/* Week KM cell */}
-                    <div className="flex flex-col items-center justify-center rounded-xl p-1 gap-0.5">
-                      {wKm > 0 ? <p className="text-[10px] font-bold text-[#0a1628]/50">{wKm}</p> : <p className="text-[10px] text-gray-200">—</p>}
-                      {wDone > 0 && <p className="text-[10px] font-bold text-emerald-600">{wDone}</p>}
+                          </div>
+                        )
+                      })}
+                      {/* Week KM cell */}
+                      <div className="flex flex-col items-center justify-center rounded-xl bg-gray-50 border border-gray-100 min-h-[70px] gap-0.5">
+                        {wKm > 0 ? <p className="text-xs font-bold text-[#0a1628]">{wKm}</p> : <p className="text-xs text-gray-300">—</p>}
+                        {wDone > 0 && <p className="text-[10px] font-bold text-emerald-600">{wDone}</p>}
+                      </div>
                     </div>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
             </div>
           </div>
 
