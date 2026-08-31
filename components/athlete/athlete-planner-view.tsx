@@ -1676,15 +1676,18 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
     )
   }
 
-  // Tiny full-structure readout for a week/month grid cell — same wording
-  // and set/interval/rest logic as renderWorkoutDetail above, just shrunk
-  // down (mirrors the coach's own dense grid in athlete-planner.tsx so the
-  // athlete's week/month view reads identically, only read-only and
-  // without any of the coach's edit/assign affordances).
+  // Tiny full-structure readout for a week/month grid cell — deliberately
+  // matches components/coach/athlete-planner.tsx's own renderCompactWorkoutDetail
+  // content 1:1 (description, warmup, every set/interval/rest, strength
+  // exercises, cooldown), just shrunk down. Read-only here — no edit/assign
+  // affordances like the coach's version has.
   const renderCompactWorkoutDetail = (workout: any) => {
     if (!workout) return null
     return (
       <div className="w-full min-w-0 space-y-1">
+        {workout.description && (
+          <p className="opacity-90 font-medium text-[8px] leading-[1.3] break-words">{workout.description}</p>
+        )}
         {workout.warmup && (
           <p className="opacity-60 text-[8px] leading-[1.3] break-words">{t.warmupLabel}: {workout.warmup}</p>
         )}
@@ -1716,6 +1719,9 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
             </div>
           )
         })}
+        {!!workout.strengthBlocks?.length && workout.strengthBlocks.map((b: any) => (
+          <p key={b.id} className="opacity-90 font-medium text-[8px] leading-[1.3] break-words">{b.label}: {b.exercises.map((ex: any) => ex.name).join(', ')}</p>
+        ))}
         {workout.cooldown && (
           <p className="opacity-60 text-[8px] leading-[1.3] break-words">{t.cooldownLabel}: {workout.cooldown}</p>
         )}
