@@ -669,10 +669,13 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
             )}
           </div>
       ))}
-      {/* Description — the main session text. Was never rendered anywhere in
-          this view, so easy/recovery days (which rely on it entirely, no
-          sets) showed nothing but a bare title. */}
-      {w.workout.description && (
+      {/* Description — the main session text for a cardio day (easy/recovery
+          days rely on it entirely, no sets). Strength/lift workouts skip
+          it here — the coach's free-text exercise rationale for those is
+          exercise-by-exercise detail meant for the lift-mode flow, not a
+          paragraph dumped under the title; the athlete just gets the
+          title for those. */}
+      {w.workout.description && w.workout.type !== 'strength' && (
         <div className="px-4 py-3 border-b border-border">
           <p className="text-sm text-navy text-right">{resolveText(language, w.workout.description, w.workout.descriptionEn)}</p>
         </div>
@@ -2202,11 +2205,11 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
               drag/paste/assign like the coach's version has. */}
           <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-3 overflow-x-auto">
             <div style={{ zoom: gridZoom, WebkitTextSizeAdjust: '100%', textSizeAdjust: '100%' } as CSSProperties}>
-              <div className="grid gap-1.5 mb-1.5" style={{ gridTemplateColumns: 'repeat(7, minmax(150px, 1fr)) 64px' }}>
+              <div className="grid gap-1.5 mb-1.5" style={{ gridTemplateColumns: 'repeat(7, minmax(210px, 1fr)) 34px' }}>
                 {dayLabelsRot.map((d,i) => <div key={i} className="text-center text-[10px] font-semibold text-gray-400 py-1">{d}</div>)}
-                <div className="text-center text-[10px] font-semibold text-gray-400 py-1">{isRTL ? 'קמ' : 'km'}</div>
+                <div className="text-center text-[7px] font-semibold text-gray-300 py-1">{isRTL ? 'קמ' : 'km'}</div>
               </div>
-              <div className="grid gap-1.5" style={{ gridTemplateColumns: 'repeat(7, minmax(150px, 1fr)) 64px' }}>
+              <div className="grid gap-1.5" style={{ gridTemplateColumns: 'repeat(7, minmax(210px, 1fr)) 34px' }}>
                 {weekDays.map((day, di) => {
                   const dateStr = format(day, 'yyyy-MM-dd')
                   const dayWs = getWorkoutsForDay(day)
@@ -2254,9 +2257,9 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                     return s + weekLogs.filter(l => l.date === dStr).reduce((a, l) => a + (l.actualDistance || 0), 0)
                   }, 0))
                   return (
-                    <div className="flex flex-col items-center justify-center rounded-xl bg-gray-50 border border-gray-100 min-h-[70px] gap-0.5">
-                      {weekPlanned > 0 ? <p className="text-sm font-bold text-[#0a1628]">{weekPlanned}</p> : <p className="text-xs text-gray-300">—</p>}
-                      {weekActual > 0 && <p className="text-[10px] font-bold text-emerald-600">{weekActual}</p>}
+                    <div className="flex flex-col items-center justify-center min-h-[70px] gap-0.5">
+                      {weekPlanned > 0 ? <p className="text-[9px] font-bold text-[#0a1628]/60">{weekPlanned}</p> : <p className="text-[9px] text-gray-300">—</p>}
+                      {weekActual > 0 && <p className="text-[8px] font-bold text-emerald-600">{weekActual}</p>}
                     </div>
                   )
                 })()}
@@ -2358,11 +2361,11 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
           <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-3 overflow-x-auto">
             <div style={{ zoom: gridZoom, WebkitTextSizeAdjust: '100%', textSizeAdjust: '100%' } as CSSProperties}>
               {/* Day headers */}
-              <div className="grid gap-1 mb-1" style={{ gridTemplateColumns: 'repeat(7, minmax(130px, 1fr)) 56px' }}>
+              <div className="grid gap-1 mb-1" style={{ gridTemplateColumns: 'repeat(7, minmax(190px, 1fr)) 30px' }}>
                 {dayLabelsRot.map((d,i) => (
                   <div key={i} className="text-center text-[10px] font-semibold text-gray-400 py-1">{d}</div>
                 ))}
-                <div className="text-center text-[10px] font-semibold text-gray-400 py-1">{isRTL ? 'קמ' : 'km'}</div>
+                <div className="text-center text-[7px] font-semibold text-gray-300 py-1">{isRTL ? 'קמ' : 'km'}</div>
               </div>
 
               <div className="space-y-1">
@@ -2374,7 +2377,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                     return s + weekLogs.filter(l=>l.date===dStr).reduce((a,l)=>a+(l.actualDistance||0),0)
                   },0))
                   return (
-                    <div key={wi} className="grid gap-1" style={{ gridTemplateColumns: 'repeat(7, minmax(130px, 1fr)) 56px' }}>
+                    <div key={wi} className="grid gap-1" style={{ gridTemplateColumns: 'repeat(7, minmax(190px, 1fr)) 30px' }}>
                       {days.map((day, di) => {
                         const inMonth = isSameMonth(day, currentDate)
                         const dayWs = getWorkoutsForDay(day)
@@ -2431,9 +2434,9 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                         )
                       })}
                       {/* Week KM cell */}
-                      <div className="flex flex-col items-center justify-center rounded-xl bg-gray-50 border border-gray-100 min-h-[70px] gap-0.5">
-                        {wKm > 0 ? <p className="text-xs font-bold text-[#0a1628]">{wKm}</p> : <p className="text-xs text-gray-300">—</p>}
-                        {wDone > 0 && <p className="text-[10px] font-bold text-emerald-600">{wDone}</p>}
+                      <div className="flex flex-col items-center justify-center min-h-[70px] gap-0.5">
+                        {wKm > 0 ? <p className="text-[9px] font-bold text-[#0a1628]/60">{wKm}</p> : <p className="text-[9px] text-gray-300">—</p>}
+                        {wDone > 0 && <p className="text-[8px] font-bold text-emerald-600">{wDone}</p>}
                       </div>
                     </div>
                   )
