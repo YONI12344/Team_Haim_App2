@@ -245,7 +245,12 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
     }
     return new Date()
   })
-  const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day')
+  // Month is the default — a full calendar the athlete lands on and can
+  // scan at a glance, like the coach's own planner, instead of a single
+  // day that hides everything else. Except the coach's own single-day
+  // preview embed (autoExpandWorkouts, in athlete-planner.tsx's selected-
+  // day card), which still wants to open straight on that one day.
+  const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>(autoExpandWorkouts ? 'day' : 'month')
   // Zoom for the week/month dense grid below — same substitute for
   // pinch-to-zoom on a horizontal-scroll grid as the coach's own
   // week/month view (components/coach/athlete-planner.tsx).
@@ -2026,16 +2031,6 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
               </button>
             ))}
           </div>
-          <button onClick={() => handleStravaSync(format(currentDate, 'yyyy-MM-dd'))} disabled={stravaSyncing}
-            className="h-10 px-3 rounded-2xl bg-[#FC4C02]/10 flex items-center gap-1.5 active:scale-95 transition-all flex-shrink-0 disabled:opacity-50"
-            title="סנכרן Strava">
-            {stravaSyncing ? (
-              <Loader2 className="h-4 w-4 animate-spin text-[#FC4C02]" />
-            ) : (
-              <RefreshCw className="h-4 w-4 text-[#FC4C02]" />
-            )}
-            <span className="text-xs font-bold text-[#FC4C02]">Strava</span>
-          </button>
           {isCoachViewer && viewMode === 'day' && (
             <button onClick={handleResetDayDebug}
               className="h-10 px-3 rounded-2xl bg-red-50 flex items-center gap-1.5 active:scale-95 transition-all flex-shrink-0"
@@ -2249,32 +2244,6 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
       {/* ── Month View ────────────────────────────────────────────────────── */}
       {viewMode === 'month' && (
         <div className="space-y-3">
-          {/* Month stats — total km + completions */}
-          {(() => {
-            const mStart = format(monthStart, 'yyyy-MM-dd')
-            const mEnd = format(monthEnd, 'yyyy-MM-dd')
-            const monthWs = assignedWorkouts.filter(w => w.scheduledDate >= mStart && w.scheduledDate <= mEnd)
-            const mCompleted = monthWs.filter(w => getEffectiveStatus(w) === 'completed').length
-            const mTotal = monthWs.length
-            const mKm = Math.round(weekLogs.filter(l => l.date >= mStart && l.date <= mEnd).reduce((s, l) => s + (l.actualDistance || 0), 0))
-            return (
-              <div className="grid grid-cols-3 gap-2">
-                <div className="bg-[#0a1628] rounded-2xl p-3 text-center">
-                  <p className="text-xl font-black text-white">{mKm}</p>
-                  <p className="text-[10px] text-white/50 mt-0.5">{t.weekKmDoneLabel}</p>
-                </div>
-                <div className="bg-emerald-600 rounded-2xl p-3 text-center">
-                  <p className="text-xl font-black text-white">{mCompleted}</p>
-                  <p className="text-[10px] text-white/70 mt-0.5">{t.doneBadge}</p>
-                </div>
-                <div className="bg-white rounded-2xl border border-gray-100 p-3 text-center shadow-sm">
-                  <p className="text-xl font-black text-[#0a1628]">{mTotal}</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">{t.workouts}</p>
-                </div>
-              </div>
-            )
-          })()}
-
           {/* Dense month grid — same visual language as the coach's own
               week/month view: dark-navy boxes with the full workout
               structure written out tiny, a KM column, zoom to read it.
@@ -2380,6 +2349,34 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
               </div>
             )
           })()}
+
+          {/* Month stats — total km + completions. Kept below the grid,
+              not above it, so the schedule itself is the first thing the
+              athlete sees when the page opens, not a row of stat cards. */}
+          {(() => {
+            const mStart = format(monthStart, 'yyyy-MM-dd')
+            const mEnd = format(monthEnd, 'yyyy-MM-dd')
+            const monthWs = assignedWorkouts.filter(w => w.scheduledDate >= mStart && w.scheduledDate <= mEnd)
+            const mCompleted = monthWs.filter(w => getEffectiveStatus(w) === 'completed').length
+            const mTotal = monthWs.length
+            const mKm = Math.round(weekLogs.filter(l => l.date >= mStart && l.date <= mEnd).reduce((s, l) => s + (l.actualDistance || 0), 0))
+            return (
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-[#0a1628] rounded-2xl p-3 text-center">
+                  <p className="text-xl font-black text-white">{mKm}</p>
+                  <p className="text-[10px] text-white/50 mt-0.5">{t.weekKmDoneLabel}</p>
+                </div>
+                <div className="bg-emerald-600 rounded-2xl p-3 text-center">
+                  <p className="text-xl font-black text-white">{mCompleted}</p>
+                  <p className="text-[10px] text-white/70 mt-0.5">{t.doneBadge}</p>
+                </div>
+                <div className="bg-white rounded-2xl border border-gray-100 p-3 text-center shadow-sm">
+                  <p className="text-xl font-black text-[#0a1628]">{mTotal}</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">{t.workouts}</p>
+                </div>
+              </div>
+            )
+          })()}
         </div>
       )}
 
@@ -2424,6 +2421,21 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
             </div>
           ) : <p className="text-sm text-gray-500">{t.goalKmNotSet}</p>}
         </div>
+      </div>
+
+      {/* Strava sync — moved out of the top nav so the schedule itself is
+          the first, uncluttered thing the page shows; still syncs
+          whatever date is currently open. */}
+      <div className="flex justify-center">
+        <button onClick={() => handleStravaSync(format(currentDate, 'yyyy-MM-dd'))} disabled={stravaSyncing}
+          className="h-10 px-4 rounded-2xl bg-[#FC4C02]/10 flex items-center gap-1.5 active:scale-95 transition-all disabled:opacity-50">
+          {stravaSyncing ? (
+            <Loader2 className="h-4 w-4 animate-spin text-[#FC4C02]" />
+          ) : (
+            <RefreshCw className="h-4 w-4 text-[#FC4C02]" />
+          )}
+          <span className="text-xs font-bold text-[#FC4C02]">{isRTL ? 'סנכרן Strava' : 'Sync Strava'}</span>
+        </button>
       </div>
 
       {/* ── Dialogs ───────────────────────────────────────────────────────── */}
