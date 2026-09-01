@@ -2020,7 +2020,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
           </button>
         </div>
 
-        {/* Row 2: View tabs (gold active) + Strava sync button */}
+        {/* Row 2: View tabs (gold active) + Strava sync icon */}
         <div className="flex items-center gap-2">
           <div className="flex gap-1 bg-gray-100 rounded-2xl p-1 flex-1">
             {(['day','week','month'] as const).map(mode => (
@@ -2031,6 +2031,17 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
               </button>
             ))}
           </div>
+          {/* Icon-only, not a labeled button — small like a Google-Calendar-
+              style top-right utility icon, not competing with the schedule. */}
+          <button onClick={() => handleStravaSync(format(currentDate, 'yyyy-MM-dd'))} disabled={stravaSyncing}
+            className="w-10 h-10 rounded-2xl bg-[#FC4C02]/10 flex items-center justify-center active:scale-95 transition-all flex-shrink-0 disabled:opacity-50"
+            title={isRTL ? 'סנכרן Strava' : 'Sync Strava'}>
+            {stravaSyncing ? (
+              <Loader2 className="h-4 w-4 animate-spin text-[#FC4C02]" />
+            ) : (
+              <RefreshCw className="h-4 w-4 text-[#FC4C02]" />
+            )}
+          </button>
           {isCoachViewer && viewMode === 'day' && (
             <button onClick={handleResetDayDebug}
               className="h-10 px-3 rounded-2xl bg-red-50 flex items-center gap-1.5 active:scale-95 transition-all flex-shrink-0"
@@ -2349,55 +2360,23 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
               </div>
             )
           })()}
-
-          {/* Month stats — total km + completions. Kept below the grid,
-              not above it, so the schedule itself is the first thing the
-              athlete sees when the page opens, not a row of stat cards. */}
-          {(() => {
-            const mStart = format(monthStart, 'yyyy-MM-dd')
-            const mEnd = format(monthEnd, 'yyyy-MM-dd')
-            const monthWs = assignedWorkouts.filter(w => w.scheduledDate >= mStart && w.scheduledDate <= mEnd)
-            const mCompleted = monthWs.filter(w => getEffectiveStatus(w) === 'completed').length
-            const mTotal = monthWs.length
-            const mKm = Math.round(weekLogs.filter(l => l.date >= mStart && l.date <= mEnd).reduce((s, l) => s + (l.actualDistance || 0), 0))
-            return (
-              <div className="grid grid-cols-3 gap-2">
-                <div className="bg-[#0a1628] rounded-2xl p-3 text-center">
-                  <p className="text-xl font-black text-white">{mKm}</p>
-                  <p className="text-[10px] text-white/50 mt-0.5">{t.weekKmDoneLabel}</p>
-                </div>
-                <div className="bg-emerald-600 rounded-2xl p-3 text-center">
-                  <p className="text-xl font-black text-white">{mCompleted}</p>
-                  <p className="text-[10px] text-white/70 mt-0.5">{t.doneBadge}</p>
-                </div>
-                <div className="bg-white rounded-2xl border border-gray-100 p-3 text-center shadow-sm">
-                  <p className="text-xl font-black text-[#0a1628]">{mTotal}</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">{t.workouts}</p>
-                </div>
-              </div>
-            )
-          })()}
         </div>
       )}
 
       {/* ── Bottom Info Cards ─────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {/* שלב העונה */}
+        {/* שלב העונה — a slim strip, not a full card: secondary info, not
+            something that should compete with the schedule for attention. */}
         {journey && (
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-3">{t.seasonStageTitle}</p>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-bold bg-[#0a1628]/10 text-[#0a1628] px-3 py-1 rounded-full">{journey.stageName}</span>
-                <span className="text-sm font-semibold text-[#0a1628]">{t.weekWord} {journey.weekInStage}/{journey.totalWeeksInStage}</span>
-                <span className={cn('text-xs font-bold px-3 py-1 rounded-full', journey.isOffWeek ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700')}>
-                  {journey.isOffWeek ? t.offWeekLabel : t.trainingWeekLabel}
-                </span>
-              </div>
-              {journey.goalRaceEvent && (
-                <p className="text-xs text-gray-500">{journey.goalRaceEvent} · {format(parseISO(journey.goalRaceDate),'MMM d, yyyy')}</p>
-              )}
-            </div>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-3 py-2 flex items-center gap-1.5 flex-wrap">
+            <span className="text-[10px] font-bold bg-[#0a1628]/10 text-[#0a1628] px-2 py-0.5 rounded-full">{journey.stageName}</span>
+            <span className="text-xs font-semibold text-[#0a1628]/70">{t.weekWord} {journey.weekInStage}/{journey.totalWeeksInStage}</span>
+            <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full', journey.isOffWeek ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700')}>
+              {journey.isOffWeek ? t.offWeekLabel : t.trainingWeekLabel}
+            </span>
+            {journey.goalRaceEvent && (
+              <span className="text-[10px] text-gray-400 ml-auto">{journey.goalRaceEvent} · {format(parseISO(journey.goalRaceDate),'MMM d')}</span>
+            )}
           </div>
         )}
 
@@ -2423,20 +2402,6 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
         </div>
       </div>
 
-      {/* Strava sync — moved out of the top nav so the schedule itself is
-          the first, uncluttered thing the page shows; still syncs
-          whatever date is currently open. */}
-      <div className="flex justify-center">
-        <button onClick={() => handleStravaSync(format(currentDate, 'yyyy-MM-dd'))} disabled={stravaSyncing}
-          className="h-10 px-4 rounded-2xl bg-[#FC4C02]/10 flex items-center gap-1.5 active:scale-95 transition-all disabled:opacity-50">
-          {stravaSyncing ? (
-            <Loader2 className="h-4 w-4 animate-spin text-[#FC4C02]" />
-          ) : (
-            <RefreshCw className="h-4 w-4 text-[#FC4C02]" />
-          )}
-          <span className="text-xs font-bold text-[#FC4C02]">{isRTL ? 'סנכרן Strava' : 'Sync Strava'}</span>
-        </button>
-      </div>
 
       {/* ── Dialogs ───────────────────────────────────────────────────────── */}
       <AddActivityDialog
