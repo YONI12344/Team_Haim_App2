@@ -31,11 +31,11 @@ import {
   collection, doc, getDoc, getDocs, query,
   where, addDoc, serverTimestamp, deleteDoc, updateDoc, writeBatch,
 } from 'firebase/firestore'
-import type { AthleteProfile, Workout, AssignedWorkout, TrainingDayType, WorkoutLog, WorkoutType, JourneyDoc, JourneyStage, Lead, ExperienceLevel } from '@/lib/types'
+import type { AthleteProfile, Workout, AssignedWorkout, TrainingDayType, WorkoutLog, WorkoutType, JourneyDoc, Lead, ExperienceLevel } from '@/lib/types'
 import { occurrenceDates, isDownWeekFor, MAX_OCCURRENCES, type RepeatFrequency } from '@/lib/recurrence'
 import { sortBySession } from '@/lib/types'
 import { legacyEffortToNumber } from '@/lib/types'
-import { listJourneys, computeJourneyProgress, saveJourney, stageDisplayName, isRestWeek } from '@/lib/journey'
+import { listJourneys, computeJourneyProgress, saveJourney, stageDisplayName, isRestWeek, weekSeasonInfo, weekTargetKm } from '@/lib/journey'
 import { useWorkoutLibrary, invalidateWorkoutLibrary, mutateWorkoutLibrary } from '@/hooks/useWorkoutLibrary'
 import { useAuth } from '@/contexts/auth-context'
 import { useWorkoutTypeLabels, autoWorkoutTitle } from '@/lib/workout-labels'
@@ -566,26 +566,16 @@ export function AthletePlanner({ athleteId }: Props) {
   /**
    * Season info for the week starting at `wkStart`: journey stage, countdown
    * to the goal race, down-week flag (every Nth week of the stage), and the
-   * week's target km (stage volume, reduced 30% on down weeks).
+   * week's target km (stage volume, reduced 30% on down weeks). The actual
+   * math is shared with the athlete's own view (lib/journey.ts's
+   * weekSeasonInfo) so both always agree on the same numbers — this just
+   * adds the coach-only STAGE_META styling on top.
    */
   const getWeekSeasonInfo = useCallback((wkStart: Date) => {
-    if (!activeJourney?.goalRaceDate) return null
-    const mid = addDays(wkStart, 3)
-    const race = new Date(activeJourney.goalRaceDate)
-    const weeksToRace = Math.ceil((race.getTime() - wkStart.getTime()) / (7 * 86400000))
-    const stage: JourneyStage | null = activeJourney.stages?.find(s =>
-      new Date(s.startDate) <= mid && new Date(s.endDate) >= mid
-    ) || null
-    let isDownWeek = false
-    if (stage) {
-      const offN = athlete?.offWeekInterval ?? 4
-      isDownWeek = isRestWeek(mid, offN, athlete?.offWeekAnchorDate, stage.startDate)
-    }
-    const baseTarget = stage?.weeklyVolumeKm
-      ?? (athlete?.weeklyKmRange ? Math.round((athlete.weeklyKmRange.min + athlete.weeklyKmRange.max) / 2) : null)
-    const targetKm = baseTarget != null ? (isDownWeek ? Math.round(baseTarget * 0.7) : baseTarget) : null
-    const meta = stage ? (STAGE_META[stage.type] || STAGE_META.custom) : null
-    return { stage, meta, weeksToRace, isDownWeek, targetKm }
+    const info = weekSeasonInfo(wkStart, activeJourney, athlete)
+    if (!info) return null
+    const meta = info.stage ? (STAGE_META[info.stage.type] || STAGE_META.custom) : null
+    return { ...info, meta }
   }, [activeJourney, athlete])
 
   /**
@@ -595,12 +585,8 @@ export function AthletePlanner({ athleteId }: Props) {
    * plan configured.
    */
   const getWeekTargetKm = useCallback((wkStart: Date): number | null => {
-    const info = getWeekSeasonInfo(wkStart)
-    if (info?.targetKm != null) return info.targetKm
-    return athlete?.weeklyKmRange
-      ? Math.round((athlete.weeklyKmRange.min + athlete.weeklyKmRange.max) / 2)
-      : null
-  }, [getWeekSeasonInfo, athlete])
+    return weekTargetKm(wkStart, activeJourney, athlete)
+  }, [activeJourney, athlete])
 
   /**
    * Moves the recurring rest-week cadence to re-anchor at `wkStart` —

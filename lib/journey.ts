@@ -570,6 +570,61 @@ export function isRestWeek(mid: Date, offN: number, anchorDate: string | undefin
   return weekInStage % offN === 0
 }
 
+export interface WeekSeasonInfo {
+  stage: JourneyStage | null
+  isDownWeek: boolean
+  weeksToRace: number
+  targetKm: number | null
+}
+
+type AthleteVolumeInput = {
+  weeklyKmRange?: { min: number; max: number } | null
+  offWeekInterval?: number
+  offWeekAnchorDate?: string
+} | null | undefined
+
+/**
+ * Season info for the week starting at `wkStart`: which journey stage it
+ * falls in, whether it's a scheduled down/recovery week, and the week's
+ * target km (stage volume, reduced 30% on down weeks). Shared by the
+ * coach's planner (components/coach/athlete-planner.tsx) and the athlete's
+ * own read-only view (components/athlete/athlete-planner-view.tsx) so both
+ * always compute the exact same down-week flag and target km — no
+ * separately hand-copied version to drift out of sync.
+ */
+export function weekSeasonInfo(wkStart: Date, activeJourney: JourneyDoc | null, athlete: AthleteVolumeInput): WeekSeasonInfo | null {
+  if (!activeJourney?.goalRaceDate) return null
+  const mid = new Date(wkStart.getTime() + 3 * 86400000)
+  const race = new Date(activeJourney.goalRaceDate)
+  const weeksToRace = Math.ceil((race.getTime() - wkStart.getTime()) / (7 * 86400000))
+  const stage: JourneyStage | null = activeJourney.stages?.find(s =>
+    new Date(s.startDate) <= mid && new Date(s.endDate) >= mid
+  ) || null
+  let isDownWeek = false
+  if (stage) {
+    const offN = athlete?.offWeekInterval ?? 4
+    isDownWeek = isRestWeek(mid, offN, athlete?.offWeekAnchorDate, stage.startDate)
+  }
+  const baseTarget = stage?.weeklyVolumeKm
+    ?? (athlete?.weeklyKmRange ? Math.round((athlete.weeklyKmRange.min + athlete.weeklyKmRange.max) / 2) : null)
+  const targetKm = baseTarget != null ? (isDownWeek ? Math.round(baseTarget * 0.7) : baseTarget) : null
+  return { stage, isDownWeek, weeksToRace, targetKm }
+}
+
+/**
+ * Weekly km target for coloring/labeling a week's KM total, even without
+ * an active journey — falls back to the athlete's plain weeklyKmRange
+ * average so every athlete gets on-track feedback, not just ones with a
+ * full season plan configured.
+ */
+export function weekTargetKm(wkStart: Date, activeJourney: JourneyDoc | null, athlete: AthleteVolumeInput): number | null {
+  const info = weekSeasonInfo(wkStart, activeJourney, athlete)
+  if (info?.targetKm != null) return info.targetKm
+  return athlete?.weeklyKmRange
+    ? Math.round((athlete.weeklyKmRange.min + athlete.weeklyKmRange.max) / 2)
+    : null
+}
+
 /** Percent of a single stage elapsed by `today`. */
 export function computeStageProgress(stage: JourneyStage, today: Date = new Date()): number {
   const a = new Date(stage.startDate).getTime()

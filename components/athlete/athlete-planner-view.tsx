@@ -16,9 +16,9 @@ import {
 import { cn, resolveText, isCoachMessageRecent } from '@/lib/utils'
 import { db } from '@/lib/firebase'
 import { collection, doc, getDoc, getDocs, query, where, updateDoc } from 'firebase/firestore'
-import type { AthleteProfile, AssignedWorkout, TrainingDayType } from '@/lib/types'
+import type { AthleteProfile, AssignedWorkout, TrainingDayType, JourneyDoc } from '@/lib/types'
 import { sortBySession, setRestAfter, setRestBetweenReps } from '@/lib/types'
-import { listJourneys, computeJourneyProgress, stageDisplayName, isRestWeek } from '@/lib/journey'
+import { listJourneys, computeJourneyProgress, stageDisplayName, isRestWeek, weekSeasonInfo, weekTargetKm } from '@/lib/journey'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
 import { useWorkoutTypeLabels } from '@/lib/workout-labels'
@@ -219,6 +219,10 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
   const [savingTargetOverride, setSavingTargetOverride] = useState(false)
   const [athlete, setAthlete] = useState<AthleteProfile | null>(null)
   const [journey, setJourney] = useState<JourneySummary | null>(null)
+  // The raw active journey doc (not just the display-ready JourneySummary
+  // above) — needed for weekSeasonInfo/weekTargetKm below, same as the
+  // coach's own activeJourney state.
+  const [activeJourneyDoc, setActiveJourneyDoc] = useState<JourneyDoc | null>(null)
   const [assignedWorkouts, setAssignedWorkouts] = useState<AssignedWorkout[]>([])
   const [weekLogs, setWeekLogs] = useState<WeekLog[]>([])
   const [addActivityOpen, setAddActivityOpen] = useState(false)
@@ -340,6 +344,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
             new Date(j.startDate) <= today && new Date(j.goalRaceDate) >= today
           ) || journeys[journeys.length - 1]
           if (active) {
+            setActiveJourneyDoc(active)
             const progress = computeJourneyProgress(active, today)
             const stage = progress.activeStage
             if (stage) {
@@ -2034,12 +2039,12 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
           {/* Icon-only, not a labeled button — small like a Google-Calendar-
               style top-right utility icon, not competing with the schedule. */}
           <button onClick={() => handleStravaSync(format(currentDate, 'yyyy-MM-dd'))} disabled={stravaSyncing}
-            className="w-10 h-10 rounded-2xl bg-[#FC4C02]/10 flex items-center justify-center active:scale-95 transition-all flex-shrink-0 disabled:opacity-50"
+            className="w-12 h-12 rounded-2xl bg-[#FC4C02]/10 flex items-center justify-center active:scale-95 transition-all flex-shrink-0 disabled:opacity-50"
             title={isRTL ? 'סנכרן Strava' : 'Sync Strava'}>
             {stravaSyncing ? (
-              <Loader2 className="h-4 w-4 animate-spin text-[#FC4C02]" />
+              <Loader2 className="h-5 w-5 animate-spin text-[#FC4C02]" />
             ) : (
-              <RefreshCw className="h-4 w-4 text-[#FC4C02]" />
+              <RefreshCw className="h-5 w-5 text-[#FC4C02]" />
             )}
           </button>
           {isCoachViewer && viewMode === 'day' && (
@@ -2150,7 +2155,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
             <div style={{ zoom: gridZoom, WebkitTextSizeAdjust: '100%', textSizeAdjust: '100%' } as CSSProperties}>
               <div className="grid gap-1.5 mb-1.5" style={{ gridTemplateColumns: 'repeat(7, minmax(230px, 1fr)) 34px' }}>
                 {dayLabelsRot.map((d,i) => <div key={i} className="text-center text-[10px] font-semibold text-gray-400 py-1">{d}</div>)}
-                <div className="text-center text-[7px] font-semibold text-gray-300 py-1">{isRTL ? 'קמ' : 'km'}</div>
+                <div className="sticky end-0 bg-white text-center text-[7px] font-semibold text-gray-300 py-1">{isRTL ? 'קמ' : 'km'}</div>
               </div>
               <div className="grid gap-1.5" style={{ gridTemplateColumns: 'repeat(7, minmax(230px, 1fr)) 34px' }}>
                 {weekDays.map((day, di) => {
@@ -2177,17 +2182,29 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                     </div>
                   )
                 })}
-                {/* Week KM cell */}
+                {/* Week KM cell — sticky so it stays visible while scrolling
+                    through the days, plus the down-week flag and goal km
+                    (same numbers as the coach's own km cell, via
+                    lib/journey.ts's weekSeasonInfo/weekTargetKm). */}
                 {(() => {
                   const weekPlanned = getWeekKm(weekDays)
                   const weekActual = Math.round(weekDays.reduce((s, d) => {
                     const dStr = format(d, 'yyyy-MM-dd')
                     return s + weekLogs.filter(l => l.date === dStr).reduce((a, l) => a + (l.actualDistance || 0), 0)
                   }, 0))
+                  const si = weekSeasonInfo(weekStart, activeJourneyDoc, athlete)
+                  const targetKm = weekTargetKm(weekStart, activeJourneyDoc, athlete)
                   return (
-                    <div className="flex flex-col items-center justify-center min-h-[140px] gap-0.5">
+                    <div className={cn('sticky end-0 flex flex-col items-center justify-center min-h-[140px] gap-0.5 rounded-lg',
+                      si?.isDownWeek ? 'bg-amber-100/80 ring-1 ring-amber-300' : 'bg-white')}>
+                      {si?.isDownWeek && (
+                        <span className="text-[7px] font-bold text-amber-700 leading-none">⬇ {isRTL ? 'ירידה' : 'down'}</span>
+                      )}
                       {weekPlanned > 0 ? <p className="text-[9px] font-bold text-[#0a1628]/60">{weekPlanned}</p> : <p className="text-[9px] text-gray-300">—</p>}
                       {weekActual > 0 && <p className="text-[8px] font-bold text-emerald-600">{weekActual}</p>}
+                      {targetKm != null && (
+                        <p className="text-[7px] text-gray-400 leading-none">{isRTL ? 'יעד' : 'goal'} {targetKm}</p>
+                      )}
                     </div>
                   )
                 })()}
@@ -2267,7 +2284,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                 {dayLabelsRot.map((d,i) => (
                   <div key={i} className="text-center text-[10px] font-semibold text-gray-400 py-1">{d}</div>
                 ))}
-                <div className="text-center text-[7px] font-semibold text-gray-300 py-1">{isRTL ? 'קמ' : 'km'}</div>
+                <div className="sticky end-0 bg-white text-center text-[7px] font-semibold text-gray-300 py-1">{isRTL ? 'קמ' : 'km'}</div>
               </div>
 
               <div className="space-y-1">
@@ -2278,6 +2295,8 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                     const dStr = format(d,'yyyy-MM-dd')
                     return s + weekLogs.filter(l=>l.date===dStr).reduce((a,l)=>a+(l.actualDistance||0),0)
                   },0))
+                  const si = weekSeasonInfo(weekStartDay, activeJourneyDoc, athlete)
+                  const wTargetKm = weekTargetKm(weekStartDay, activeJourneyDoc, athlete)
                   return (
                     <div key={wi} className="grid gap-1" style={{ gridTemplateColumns: 'repeat(7, minmax(210px, 1fr)) 30px' }}>
                       {days.map((day, di) => {
@@ -2320,10 +2339,18 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                           </div>
                         )
                       })}
-                      {/* Week KM cell */}
-                      <div className="flex flex-col items-center justify-center min-h-[110px] gap-0.5">
+                      {/* Week KM cell — sticky + down-week flag + goal km,
+                          same as the week view above. */}
+                      <div className={cn('sticky end-0 flex flex-col items-center justify-center min-h-[110px] gap-0.5 rounded-lg',
+                        si?.isDownWeek ? 'bg-amber-100/80 ring-1 ring-amber-300' : 'bg-white')}>
+                        {si?.isDownWeek && (
+                          <span className="text-[7px] font-bold text-amber-700 leading-none">⬇</span>
+                        )}
                         {wKm > 0 ? <p className="text-[9px] font-bold text-[#0a1628]/60">{wKm}</p> : <p className="text-[9px] text-gray-300">—</p>}
                         {wDone > 0 && <p className="text-[8px] font-bold text-emerald-600">{wDone}</p>}
+                        {wTargetKm != null && (
+                          <p className="text-[7px] text-gray-400 leading-none">{wTargetKm}</p>
+                        )}
                       </div>
                     </div>
                   )
