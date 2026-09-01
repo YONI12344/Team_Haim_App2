@@ -46,6 +46,7 @@ import { AthletePlannerView } from '@/components/athlete/athlete-planner-view'
 import { useLanguage } from '@/contexts/language-context'
 import { toast } from 'sonner'
 import { MarkDayOffDialog } from '@/components/shared/mark-day-off-dialog'
+import { GridWorkoutBox } from '@/components/shared/workout-grid-box'
 import { useDaysOff } from '@/hooks/useDaysOff'
 
 // Only ever mounted inside the (closed-by-default) builder Dialog below —
@@ -946,73 +947,6 @@ export function AthletePlanner({ athleteId }: Props) {
     bike: 'bg-slate-100 text-slate-600 border-slate-200',
     rest: 'bg-muted text-muted-foreground',
   }
-  // Same groups as TYPE_COLORS, reduced to a small solid dot — used on the
-  // dark-navy calendar cell badges (matching the athlete's own workout-card
-  // hero style) where a full pastel background would fight the dark bg
-  // instead of the type still needing to read at a glance.
-  const TYPE_DOT_COLORS: Record<string, string> = {
-    easy: 'bg-emerald-400', recovery: 'bg-emerald-400',
-    long_run: 'bg-orange-400',
-    tempo: 'bg-amber-400', intervals: 'bg-amber-400', hill_repeats: 'bg-amber-400', fartlek: 'bg-amber-400',
-    threshold: 'bg-pink-400',
-    race: 'bg-gold', time_trial: 'bg-gold',
-    strength: 'bg-slate-400', cross_training: 'bg-slate-400', swim: 'bg-slate-400', bike: 'bg-slate-400',
-    rest: 'bg-slate-500',
-  }
-
-  // Mirrors athlete-planner-view.tsx's renderWorkoutDetail structure and
-  // wording EXACTLY (set headers, intervals, both rest kinds, warmup/
-  // cooldown labels) — just shrunk to tiny font for the calendar badge,
-  // never reworded or restructured, so the coach reads the identical
-  // content the athlete will see, not a different summary of it. Always
-  // rtl — this app's workout content is Hebrew by default, and wrapping
-  // the whole block in ltr (the earlier bug) scrambled embedded Hebrew
-  // rest/warmup/cooldown text.
-  const renderCompactWorkoutDetail = (workout: any) => {
-    if (!workout) return null
-    return (
-      <div className="w-full min-w-0 space-y-0.5" dir="rtl">
-        {workout.description && (
-          <p className="opacity-90 font-medium text-[6px] leading-[1.15] break-words">{workout.description}</p>
-        )}
-        {workout.warmup && (
-          <p className="opacity-60 text-[6px] leading-[1.15] break-words">{t.warmupLabel}: {workout.warmup}</p>
-        )}
-        {workout.sets?.map((set: any, si: number) => {
-          const hasIntervals = set.intervals && set.intervals.length > 0
-          const isLastSet = si === workout.sets.length - 1
-          return (
-            <div key={set.id || si} className="space-y-0.5">
-              <p className="font-bold opacity-95 text-[6.5px] leading-[1.15] break-words">
-                {t.setLabelPrefix} {si + 1}
-                {set.reps > 1 && !hasIntervals && ` · ${set.reps}× ${set.distance || set.duration || ''}`}
-                {!hasIntervals && !(set.reps > 1) && (set.distance || set.duration) && ` · ${set.distance || set.duration}`}
-                {hasIntervals && set.reps > 1 && ` · ${set.reps}×`}
-                {set.pace && ` @ ${set.pace}`}
-              </p>
-              {hasIntervals && set.intervals.map((iv: any, ii: number) => (
-                <p key={iv.id || ii} className="opacity-80 text-[6px] leading-[1.15] break-words pr-1.5">
-                  {ii + 1}. {iv.distance || iv.duration}{iv.pace ? ` @ ${iv.pace}` : ''}{iv.rest ? ` — ${t.restPrefix} ${iv.rest}` : ''}
-                </p>
-              ))}
-              {(set.reps || 1) > 1 && set.restBetweenReps && (
-                <p className="opacity-50 text-[6px] leading-[1.15]">{t.restBetweenReps}: {set.restBetweenReps}</p>
-              )}
-              {!isLastSet && (
-                <p className="opacity-50 text-[6px] leading-[1.15]">{set.restAfterSet ? `${t.restBetweenSets}: ${set.restAfterSet}` : t.continueToNext}</p>
-              )}
-            </div>
-          )
-        })}
-        {!!workout.strengthBlocks?.length && workout.strengthBlocks.map((b: any) => (
-          <p key={b.id} className="opacity-90 font-medium text-[6px] leading-[1.15] break-words">{b.label}: {b.exercises.map((ex: any) => ex.name).join(', ')}</p>
-        ))}
-        {workout.cooldown && (
-          <p className="opacity-60 text-[6px] leading-[1.15] break-words">{t.cooldownLabel}: {workout.cooldown}</p>
-        )}
-      </div>
-    )
-  }
 
   // Quick-assign sheet: type picker order + emoji
   const QUICK_TYPES: WorkoutType[] = [
@@ -1694,29 +1628,15 @@ export function AthletePlanner({ athleteId }: Props) {
                               // to 400%) is how the coach reads it, same idea as a dense
                               // spreadsheet cell you zoom into rather than one that resizes
                               // itself to fit its own content.
-                              const metric = w.workout?.distance ? `${w.workout.distance}k` : w.workout?.duration ? `${w.workout.duration}'` : null
                               return (
-                                <button key={w.id}
-                                  dir="rtl"
+                                <GridWorkoutBox key={w.id}
+                                  workout={w.workout}
+                                  done={isCompleted}
+                                  suspicious={suspicious}
+                                  coachFeedback={(w as any).coachFeedback}
+                                  selected={selectedAssignedId === w.id}
                                   onClick={e => { e.stopPropagation(); setSelectedAssignedId(prev => prev === w.id ? null : w.id); setSelectedDate(day) }}
-                                  className={cn('w-full text-right rounded-lg px-1.5 py-1.5 transition-all hover:opacity-90 flex flex-col gap-0.5 overflow-hidden',
-                                    suspicious ? 'bg-gradient-to-br from-red-700 to-red-800 text-white' : 'bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 text-white',
-                                    selectedAssignedId === w.id ? 'ring-2 ring-gold' : ''
-                                  )}>
-                                  <div className="w-full min-w-0 flex items-center gap-1 text-[8px]">
-                                    <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', TYPE_DOT_COLORS[w.workout?.type as string] || TYPE_DOT_COLORS.easy)} />
-                                    {suspicious && <AlertTriangle className="h-2.5 w-2.5 shrink-0"/>}
-                                    {isCompleted && <span className="flex-shrink-0 text-emerald-400">✓</span>}
-                                    <span className="flex-1 min-w-0 truncate font-bold">{w.workout?.title}</span>
-                                    {metric && (
-                                      <span className="flex-shrink-0 text-[7px] font-bold bg-gold text-navy px-1.5 py-0.5 rounded-full">{metric}</span>
-                                    )}
-                                  </div>
-                                  {renderCompactWorkoutDetail(w.workout)}
-                                  {(w as any).coachFeedback && (
-                                    <p className="w-full min-w-0 opacity-60 text-[6px] leading-[1.15] break-words" dir="rtl">מאמן: {(w as any).coachFeedback}</p>
-                                  )}
-                                </button>
+                                />
                               )
                             })}
                             {copiedWorkout && dayWorkouts.length === 0 && (
@@ -1801,37 +1721,19 @@ export function AthletePlanner({ athleteId }: Props) {
                                     const isDone = w.status === 'completed' || !!mLog?.actualDistance
                                     const suspicious = isSuspiciousDistance(w.workout?.distance)
                                     // Same dark-navy hero style as the week view above.
-                                    const metric = w.workout?.distance ? `${w.workout.distance}k` : w.workout?.duration ? `${w.workout.duration}'` : null
                                     return (
-                                      <button key={w.id}
-                                        dir="rtl"
+                                      // Hebrew content needs dir="rtl" + text-right (handled
+                                      // inside GridWorkoutBox). Click still opens the full card
+                                      // below (setSelectedDate above), same "exactly like the
+                                      // athlete sees" panel as always.
+                                      <GridWorkoutBox key={w.id}
+                                        workout={w.workout}
+                                        done={isDone}
+                                        suspicious={suspicious}
+                                        coachFeedback={(w as any).coachFeedback}
+                                        selected={selectedAssignedId === w.id}
                                         onClick={e => { e.stopPropagation(); setSelectedAssignedId(prev => prev === w.id ? null : w.id); if (inMonth) setSelectedDate(day) }}
-                                        className={cn('w-full text-right rounded px-1.5 py-1.5 hover:opacity-90 flex flex-col gap-0.5 overflow-hidden',
-                                          suspicious ? 'bg-gradient-to-br from-red-700 to-red-800 text-white' : 'bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 text-white',
-                                          selectedAssignedId === w.id ? 'ring-1 ring-gold' : ''
-                                        )}>
-                                        {/* Hebrew content needs dir="rtl" + text-right — this
-                                            whole grid had neither before, so Hebrew text was
-                                            rendering/wrapping in the wrong direction. Click
-                                            still opens the full card below (setSelectedDate
-                                            above), same "exactly like the athlete sees" panel
-                                            as always. Full structure written out below the
-                                            title at tiny font — same zoom-to-read approach as
-                                            the week view. */}
-                                        <div className="w-full min-w-0 flex items-center gap-1 text-[8px]">
-                                          <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', TYPE_DOT_COLORS[w.workout?.type as string] || TYPE_DOT_COLORS.easy)} />
-                                          {suspicious && <AlertTriangle className="h-2 w-2 flex-shrink-0"/>}
-                                          {isDone && <span className="flex-shrink-0 text-emerald-400">✓</span>}
-                                          <span className="flex-1 min-w-0 truncate font-bold">{w.workout?.title}</span>
-                                          {metric && (
-                                            <span className="flex-shrink-0 text-[7px] font-bold bg-gold text-navy px-1 py-0.5 rounded-full">{metric}</span>
-                                          )}
-                                        </div>
-                                        {renderCompactWorkoutDetail(w.workout)}
-                                        {(w as any).coachFeedback && (
-                                          <p className="w-full min-w-0 opacity-60 text-[6px] leading-[1.15] break-words" dir="rtl">מאמן: {(w as any).coachFeedback}</p>
-                                        )}
-                                      </button>
+                                      />
                                     )
                                   })}
                                   {dayWorkouts.length > 3 && <p className="text-[8px] text-muted-foreground">+{dayWorkouts.length-3}</p>}

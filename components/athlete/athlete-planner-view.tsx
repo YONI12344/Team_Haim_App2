@@ -32,6 +32,7 @@ import { expectedRepMetersForWorkout, scoreActivityFitForReps, scoreActivityFitF
 import { SplitsTable } from '@/components/shared/splits-table'
 import { isCoachEmail } from '@/lib/constants'
 import { ManualLogCard } from '@/components/shared/manual-log-card'
+import { GridWorkoutBox } from '@/components/shared/workout-grid-box'
 import { useDaysOff } from '@/hooks/useDaysOff'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { AddActivityDialog } from '@/components/athlete/add-activity-dialog'
@@ -82,23 +83,6 @@ const TYPE_BORDER_COLORS: Record<string, string> = {
   cross_training: 'border-l-teal-500',
   swim: 'border-l-sky-500',
   bike: 'border-l-indigo-400',
-}
-
-const TYPE_DOT_COLORS: Record<string, string> = {
-  easy: 'bg-emerald-500',
-  long_run: 'bg-orange-500',
-  tempo: 'bg-purple-500',
-  intervals: 'bg-blue-500',
-  hill_repeats: 'bg-amber-500',
-  fartlek: 'bg-cyan-500',
-  recovery: 'bg-gray-400',
-  rest: 'bg-gray-300',
-  race: 'bg-red-500',
-  time_trial: 'bg-indigo-500',
-  strength: 'bg-rose-500',
-  cross_training: 'bg-teal-500',
-  swim: 'bg-sky-500',
-  bike: 'bg-indigo-400',
 }
 
 // Session labels for days with more than one workout (e.g. easy run AM, gym PM)
@@ -1676,59 +1660,6 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
     )
   }
 
-  // Tiny full-structure readout for a week/month grid cell — deliberately
-  // matches components/coach/athlete-planner.tsx's own renderCompactWorkoutDetail
-  // content 1:1 (description, warmup, every set/interval/rest, strength
-  // exercises, cooldown), just shrunk down. Read-only here — no edit/assign
-  // affordances like the coach's version has.
-  const renderCompactWorkoutDetail = (workout: any) => {
-    if (!workout) return null
-    return (
-      <div className="w-full min-w-0 space-y-1">
-        {workout.description && (
-          <p className="opacity-90 font-medium text-[8px] leading-[1.3] break-words">{workout.description}</p>
-        )}
-        {workout.warmup && (
-          <p className="opacity-60 text-[8px] leading-[1.3] break-words">{t.warmupLabel}: {workout.warmup}</p>
-        )}
-        {workout.sets?.map((set: any, si: number) => {
-          const hasIntervals = set.intervals && set.intervals.length > 0
-          const isLastSet = si === workout.sets.length - 1
-          const restBetweenReps = setRestBetweenReps(set)
-          const restAfterSet = setRestAfter(set)
-          return (
-            <div key={set.id || si} className="space-y-1">
-              <p className="font-bold opacity-95 text-[9px] leading-[1.3] break-words">
-                {t.setLabelPrefix} {si + 1}
-                {set.reps > 1 && !hasIntervals && ` · ${set.reps}× ${set.distance || set.duration || ''}`}
-                {!hasIntervals && !(set.reps > 1) && (set.distance || set.duration) && ` · ${set.distance || set.duration}`}
-                {hasIntervals && set.reps > 1 && ` · ${set.reps}×`}
-                {set.pace && ` @ ${set.pace}`}
-              </p>
-              {hasIntervals && set.intervals.map((iv: any, ii: number) => (
-                <p key={iv.id || ii} className="opacity-80 text-[8px] leading-[1.3] break-words pr-1.5">
-                  {ii + 1}. {iv.distance || iv.duration}{iv.pace ? ` @ ${iv.pace}` : ''}{iv.rest ? ` — ${t.restPrefix} ${iv.rest}` : ''}
-                </p>
-              ))}
-              {(set.reps || 1) > 1 && restBetweenReps && (
-                <p className="opacity-50 text-[8px] leading-[1.3]">{t.restBetweenReps}: {restBetweenReps}</p>
-              )}
-              {!isLastSet && (
-                <p className="opacity-50 text-[8px] leading-[1.3]">{restAfterSet ? `${t.restBetweenSets}: ${restAfterSet}` : t.continueToNext}</p>
-              )}
-            </div>
-          )
-        })}
-        {!!workout.strengthBlocks?.length && workout.strengthBlocks.map((b: any) => (
-          <p key={b.id} className="opacity-90 font-medium text-[8px] leading-[1.3] break-words">{b.label}: {b.exercises.map((ex: any) => ex.name).join(', ')}</p>
-        ))}
-        {workout.cooldown && (
-          <p className="opacity-60 text-[8px] leading-[1.3] break-words">{t.cooldownLabel}: {workout.cooldown}</p>
-        )}
-      </div>
-    )
-  }
-
   // ── Shared premium workout card renderer ────────────────────────────────────
   const renderWorkoutCard = (w: AssignedWorkout, cardIndex?: number) => {
     const effStatus = getEffectiveStatus(w)
@@ -2233,24 +2164,9 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                       <div className="p-2 space-y-1.5">
                         {isOff ? (
                           <p className="text-xs text-center text-gray-400">🩹</p>
-                        ) : dayWs.map(w => {
-                          const done = getEffectiveStatus(w) === 'completed'
-                          const metric = w.workout?.distance ? `${w.workout.distance}k` : w.workout?.duration ? `${w.workout.duration}'` : null
-                          return (
-                            <div key={w.id}
-                              className="w-full text-right rounded-md px-2 py-2 flex flex-col gap-1 overflow-hidden bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 text-white">
-                              <div className="w-full min-w-0 flex items-center gap-1 text-[10px]">
-                                <span className={cn('w-2 h-2 rounded-full flex-shrink-0', TYPE_DOT_COLORS[w.workout?.type as string] || TYPE_DOT_COLORS.easy)} />
-                                {done && <span className="flex-shrink-0 text-emerald-400">✓</span>}
-                                <span className="flex-1 min-w-0 truncate font-bold">{resolveText(language, w.workout.title, w.workout.titleEn)}</span>
-                                {metric && (
-                                  <span className="flex-shrink-0 text-[9px] font-bold bg-[#c9a84c] text-[#0a1628] px-1.5 py-0.5 rounded-full">{metric}</span>
-                                )}
-                              </div>
-                              {renderCompactWorkoutDetail(w.workout)}
-                            </div>
-                          )
-                        })}
+                        ) : dayWs.map(w => (
+                          <GridWorkoutBox key={w.id} workout={w.workout} done={getEffectiveStatus(w) === 'completed'} />
+                        ))}
                       </div>
                     </div>
                   )
@@ -2411,24 +2327,9 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                               {hasUnreadMsg && <span className="w-1 h-1 rounded-full bg-[#c9a84c]" />}
                             </div>
                             <div className="p-2 space-y-1.5">
-                              {dayWs.map(w => {
-                                const done = getEffectiveStatus(w) === 'completed'
-                                const metric = w.workout?.distance ? `${w.workout.distance}k` : w.workout?.duration ? `${w.workout.duration}'` : null
-                                return (
-                                  <div key={w.id}
-                                    className="w-full text-right rounded-md px-2 py-2 flex flex-col gap-1 overflow-hidden bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 text-white">
-                                    <div className="w-full min-w-0 flex items-center gap-1 text-[10px]">
-                                      <span className={cn('w-2 h-2 rounded-full flex-shrink-0', TYPE_DOT_COLORS[w.workout?.type as string] || TYPE_DOT_COLORS.easy)} />
-                                      {done && <span className="flex-shrink-0 text-emerald-400">✓</span>}
-                                      <span className="flex-1 min-w-0 truncate font-bold">{resolveText(language, w.workout.title, w.workout.titleEn)}</span>
-                                      {metric && (
-                                        <span className="flex-shrink-0 text-[9px] font-bold bg-[#c9a84c] text-[#0a1628] px-1.5 py-0.5 rounded-full">{metric}</span>
-                                      )}
-                                    </div>
-                                    {renderCompactWorkoutDetail(w.workout)}
-                                  </div>
-                                )
-                              })}
+                              {dayWs.map(w => (
+                                <GridWorkoutBox key={w.id} workout={w.workout} done={getEffectiveStatus(w) === 'completed'} />
+                              ))}
                               {/* Extra done activities beyond the plan */}
                               {dayWs.length === 0 && dayActivities.length > 0 && (
                                 <p className="text-xs text-center">
