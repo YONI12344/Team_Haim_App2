@@ -4,7 +4,7 @@ import {
   initializeFirestore,
   getFirestore,
   persistentLocalCache,
-  persistentMultipleTabManager,
+  persistentSingleTabManager,
 } from 'firebase/firestore'
 // Realtime Database and Storage are intentionally NOT imported here —
 // see lib/firebase-realtime.ts / lib/firebase-storage.ts. This file is
@@ -52,15 +52,22 @@ export const auth = getAuth(app)
 export const googleProvider = new GoogleAuthProvider()
 
 // Firestore (main database) — persistent IndexedDB cache means repeat reads
-// (revisiting a page, reloading, switching tabs across the app) are served
-// instantly from disk and only the delta syncs over the network, instead of
-// every navigation re-fetching everything from Firestore's servers.
+// (revisiting a page, reloading) are served instantly from disk and only
+// the delta syncs over the network, instead of every navigation
+// re-fetching everything from Firestore's servers.
+// Single-tab manager (not multi-tab): multi-tab persistence adds a
+// cross-tab "which tab owns the cache" lease negotiation over IndexedDB,
+// and that negotiation is a known hang risk on some mobile browsers
+// (iOS Safari especially) — it can deadlock without ever resolving OR
+// rejecting, which is what caused new athletes' sign-in to spin forever.
+// A phone is realistically single-tab anyway, so single-tab mode gets the
+// same repeat-visit caching benefit without that risk.
 // Falls back to the plain (memory-only) client if persistence can't init —
 // e.g. private/incognito browsing, or a browser without IndexedDB support.
 let firestoreDb
 try {
   firestoreDb = initializeFirestore(app, {
-    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    localCache: persistentLocalCache({ tabManager: persistentSingleTabManager({ forceOwnership: false }) }),
   })
 } catch (err) {
   console.error('Firestore persistent cache unavailable, falling back to memory cache:', err)

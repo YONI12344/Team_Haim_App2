@@ -26,6 +26,22 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 // 🔒 SECURITY: ONLY THIS EMAIL CAN BE A COACH
 const COACH_EMAIL = 'info.teamhaim@gmail.com'
 
+// Firestore's persistentMultipleTabManager (lib/firebase.ts) has a known
+// failure mode on some mobile browsers (especially iOS Safari) where the
+// "which tab owns the local cache" lease negotiation deadlocks — the
+// promise never resolves AND never rejects. Every page in this app routes
+// through the Firestore calls below before rendering anything, so that one
+// hang took the whole app down with it, silently, on every screen —
+// including a brand-new athlete's very first sign-in. Racing each call
+// against a timeout means a stuck read degrades to "sign-in still works,
+// falls back to basic data" instead of an infinite spinner.
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)),
+  ])
+}
+
 function getSafeName(fbUser: FirebaseUser): string {
   return fbUser.displayName || fbUser.email?.split('@')[0] || 'User'
 }
@@ -43,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           // Fetch or create user profile from Firestore
           const userRef = doc(db, 'users', fbUser.uid)
-          const userSnap = await getDoc(userRef)
+          const userSnap = await withTimeout(getDoc(userRef), 8000, 'Profile fetch')
           
           const safeName = getSafeName(fbUser)
 
@@ -79,8 +95,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             let leadPrefill: Record<string, unknown> = {}
             if (fbUser.email) {
               try {
-                const leadsSnap = await getDocs(
-                  query(collection(db, 'leads'), where('email', '==', fbUser.email.toLowerCase()), where('status', '==', 'accepted')),
+                const leadsSnap = await withTimeout(
+                  getDocs(
+                    query(collection(db, 'leads'), where('email', '==', fbUser.email.toLowerCase()), where('status', '==', 'accepted')),
+                  ),
+                  8000,
+                  'Lead prefill lookup',
                 )
                 const leadDoc = leadsSnap.docs[0]
                 if (leadDoc) {
@@ -132,7 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               }
             }
 
-            await setDoc(userRef, { ...newUser, ...leadPrefill })
+            await withTimeout(setDoc(userRef, { ...newUser, ...leadPrefill }), 8000, 'New profile creation')
             setUser({
               id: fbUser.uid,
               email: fbUser.email || '',
