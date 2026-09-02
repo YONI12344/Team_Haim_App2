@@ -2153,11 +2153,11 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
               drag/paste/assign like the coach's version has. */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-2 overflow-x-auto">
             <div style={{ zoom: gridZoom, WebkitTextSizeAdjust: '100%', textSizeAdjust: '100%' } as CSSProperties}>
-              <div className="grid gap-1.5 mb-1.5" style={{ gridTemplateColumns: 'repeat(7, minmax(230px, 1fr)) 34px' }}>
+              <div className="grid gap-1.5 mb-1.5" style={{ gridTemplateColumns: 'repeat(7, minmax(230px, 1fr)) 72px' }}>
                 {dayLabelsRot.map((d,i) => <div key={i} className="text-center text-[10px] font-semibold text-gray-400 py-1">{d}</div>)}
-                <div className="sticky end-0 bg-white text-center text-[7px] font-semibold text-gray-300 py-1">{isRTL ? 'קמ' : 'km'}</div>
+                <div className="text-center text-[10px] font-semibold text-gray-400 py-1">{isRTL ? 'קמ' : 'km'}</div>
               </div>
-              <div className="grid gap-1.5" style={{ gridTemplateColumns: 'repeat(7, minmax(230px, 1fr)) 34px' }}>
+              <div className="grid gap-1.5" style={{ gridTemplateColumns: 'repeat(7, minmax(230px, 1fr)) 72px' }}>
                 {weekDays.map((day, di) => {
                   const dateStr = format(day, 'yyyy-MM-dd')
                   const dayWs = getWorkoutsForDay(day)
@@ -2182,10 +2182,12 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                     </div>
                   )
                 })}
-                {/* Week KM cell — sticky so it stays visible while scrolling
-                    through the days, plus the down-week flag and goal km
-                    (same numbers as the coach's own km cell, via
-                    lib/journey.ts's weekSeasonInfo/weekTargetKm). */}
+                {/* Week KM cell — same styling as the coach's own km cell:
+                    stage-tinted background (or amber ring on a down week),
+                    a stage chip, and the km number colored by whether it's
+                    on track for the week's target (lib/journey.ts's
+                    weekSeasonInfo/weekTargetKm — same numbers the coach's
+                    calendar shows). */}
                 {(() => {
                   const weekPlanned = getWeekKm(weekDays)
                   const weekActual = Math.round(weekDays.reduce((s, d) => {
@@ -2194,16 +2196,21 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                   }, 0))
                   const si = weekSeasonInfo(weekStart, activeJourneyDoc, athlete)
                   const targetKm = weekTargetKm(weekStart, activeJourneyDoc, athlete)
+                  const kmOk = targetKm ? Math.abs(weekPlanned - targetKm) <= targetKm * 0.1 : null
                   return (
-                    <div className={cn('sticky end-0 flex flex-col items-center justify-center min-h-[140px] gap-0.5 rounded-lg',
-                      si?.isDownWeek ? 'bg-amber-100/80 ring-1 ring-amber-300' : 'bg-white')}>
-                      {si?.isDownWeek && (
-                        <span className="text-[7px] font-bold text-amber-700 leading-none">⬇ {isRTL ? 'ירידה' : 'down'}</span>
+                    <div className={cn('flex flex-col items-center justify-center gap-0.5 rounded-lg min-h-[140px]',
+                      si?.isDownWeek ? 'bg-amber-100/80 ring-1 ring-amber-300' : si?.meta ? si.meta.cell : 'bg-muted/30')}>
+                      {si?.meta && (
+                        <span className={cn('text-[8px] font-bold px-1.5 py-px rounded-full border leading-none', si.meta.chip)}>
+                          {si.isDownWeek ? `⬇ ${isRTL ? 'ירידה' : 'down'}` : si.meta.he}
+                        </span>
                       )}
-                      {weekPlanned > 0 ? <p className="text-[9px] font-bold text-[#0a1628]/60">{weekPlanned}</p> : <p className="text-[9px] text-gray-300">—</p>}
-                      {weekActual > 0 && <p className="text-[8px] font-bold text-emerald-600">{weekActual}</p>}
+                      {weekPlanned > 0
+                        ? <p className={cn('text-lg font-bold', kmOk == null ? 'text-navy' : kmOk ? 'text-emerald-700' : weekPlanned < (targetKm || 0) ? 'text-amber-700' : 'text-red-600')}>{weekPlanned}</p>
+                        : <p className="text-[10px] text-muted-foreground">—</p>}
+                      {weekActual > 0 && <p className="text-[9px] font-bold text-emerald-600">{isRTL ? 'בוצע' : 'done'} {weekActual}</p>}
                       {targetKm != null && (
-                        <p className="text-[7px] text-gray-400 leading-none">{isRTL ? 'יעד' : 'goal'} {targetKm}</p>
+                        <p className="text-[9px] text-muted-foreground leading-none">{isRTL ? 'יעד' : 'goal'} {targetKm}</p>
                       )}
                     </div>
                   )
@@ -2280,11 +2287,11 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-2 overflow-x-auto">
             <div style={{ zoom: gridZoom, WebkitTextSizeAdjust: '100%', textSizeAdjust: '100%' } as CSSProperties}>
               {/* Day headers */}
-              <div className="grid gap-1 mb-1" style={{ gridTemplateColumns: 'repeat(7, minmax(210px, 1fr)) 30px' }}>
+              <div className="grid gap-1 mb-1" style={{ gridTemplateColumns: 'repeat(7, minmax(210px, 1fr)) 64px' }}>
                 {dayLabelsRot.map((d,i) => (
                   <div key={i} className="text-center text-[10px] font-semibold text-gray-400 py-1">{d}</div>
                 ))}
-                <div className="sticky end-0 bg-white text-center text-[7px] font-semibold text-gray-300 py-1">{isRTL ? 'קמ' : 'km'}</div>
+                <div className="text-center text-[10px] font-semibold text-gray-400 py-1">{isRTL ? 'קמ' : 'km'}</div>
               </div>
 
               <div className="space-y-1">
@@ -2298,7 +2305,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                   const si = weekSeasonInfo(weekStartDay, activeJourneyDoc, athlete)
                   const wTargetKm = weekTargetKm(weekStartDay, activeJourneyDoc, athlete)
                   return (
-                    <div key={wi} className="grid gap-1" style={{ gridTemplateColumns: 'repeat(7, minmax(210px, 1fr)) 30px' }}>
+                    <div key={wi} className="grid gap-1" style={{ gridTemplateColumns: 'repeat(7, minmax(210px, 1fr)) 64px' }}>
                       {days.map((day, di) => {
                         const inMonth = isSameMonth(day, currentDate)
                         const dayWs = getWorkoutsForDay(day)
@@ -2339,19 +2346,28 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                           </div>
                         )
                       })}
-                      {/* Week KM cell — sticky + down-week flag + goal km,
-                          same as the week view above. */}
-                      <div className={cn('sticky end-0 flex flex-col items-center justify-center min-h-[110px] gap-0.5 rounded-lg',
-                        si?.isDownWeek ? 'bg-amber-100/80 ring-1 ring-amber-300' : 'bg-white')}>
-                        {si?.isDownWeek && (
-                          <span className="text-[7px] font-bold text-amber-700 leading-none">⬇</span>
-                        )}
-                        {wKm > 0 ? <p className="text-[9px] font-bold text-[#0a1628]/60">{wKm}</p> : <p className="text-[9px] text-gray-300">—</p>}
-                        {wDone > 0 && <p className="text-[8px] font-bold text-emerald-600">{wDone}</p>}
-                        {wTargetKm != null && (
-                          <p className="text-[7px] text-gray-400 leading-none">{wTargetKm}</p>
-                        )}
-                      </div>
+                      {/* Week KM cell — same styling as the week view above
+                          and the coach's own month grid. */}
+                      {(() => {
+                        const kmOk = wTargetKm ? Math.abs(wKm - wTargetKm) <= wTargetKm * 0.1 : null
+                        return (
+                          <div className={cn('flex flex-col items-center justify-center gap-0.5 rounded-lg min-h-[110px]',
+                            si?.isDownWeek ? 'bg-amber-100/80 ring-1 ring-amber-300' : si?.meta ? si.meta.cell : 'bg-muted/30')}>
+                            {si?.meta && (
+                              <span className={cn('text-[7px] font-bold px-1 py-px rounded-full border leading-none', si.meta.chip)}>
+                                {si.isDownWeek ? '⬇' : si.meta.he}
+                              </span>
+                            )}
+                            {wKm > 0
+                              ? <p className={cn('text-xs font-bold', kmOk == null ? 'text-navy' : kmOk ? 'text-emerald-700' : wKm < (wTargetKm || 0) ? 'text-amber-700' : 'text-red-600')}>{wKm}</p>
+                              : <p className="text-[9px] text-muted-foreground">—</p>}
+                            {wDone > 0 && <p className="text-[8px] font-bold text-emerald-600">{wDone}</p>}
+                            {wTargetKm != null && (
+                              <p className="text-[8px] text-muted-foreground leading-none">{wTargetKm}</p>
+                            )}
+                          </div>
+                        )
+                      })()}
                     </div>
                   )
                 })}

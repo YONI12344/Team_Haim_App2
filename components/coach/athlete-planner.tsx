@@ -542,41 +542,17 @@ export function AthletePlanner({ athleteId }: Props) {
   const kmWeekStartsOn: 0 | 1 = athlete?.kmWeekStartDay === 0 ? 0 : 1
 
   // ── Season-aware planning helpers ─────────────────────────────────────────
-  /** Visual + coaching meta per journey stage type */
-  const STAGE_META: Record<string, { he: string; chip: string; cell: string; guide: (weeksToRace: number | null, pace?: string | null) => string }> = {
-    base:      { he: 'בסיס',        chip: 'bg-emerald-100 text-emerald-700 border-emerald-200', cell: 'bg-emerald-50/60',
-                 guide: () => 'נפח אירובי — ריצות קלות, ריצה ארוכה בסוף השבוע, חיזוק. בלי איכות קשה.' },
-    build:     { he: 'בנייה',       chip: 'bg-blue-100 text-blue-700 border-blue-200', cell: 'bg-blue-50/60',
-                 guide: () => 'בנייה — סף/טמפו פעם בשבוע + אינטרוולים ארוכים (1000–1600). נפח גבוה, הארוכה נשארת.' },
-    peak:      { he: 'שיא',         chip: 'bg-purple-100 text-purple-700 border-purple-200', cell: 'bg-purple-50/60',
-                 guide: (_, pace) => `שיא — איכות בקצב תחרות${pace ? ` (${pace})` : ''}, סימולציות, הנפח מתחיל לרדת.` },
-    taper:     { he: 'חידוד',       chip: 'bg-amber-100 text-amber-800 border-amber-300', cell: 'bg-amber-50/70',
-                 guide: (w, pace) => `חידוד${w != null && w > 0 ? ` — ${w} שבועות לתחרות` : ''}: קטעים קצרים בקצב תחרות${pace ? ` (${pace})` : ''} ומהר ממנו, נפח יורד 20–40%, התאוששות מלאה בין קטעים.` },
-    race_week: { he: 'שבוע תחרות',  chip: 'bg-red-100 text-red-700 border-red-200', cell: 'bg-red-50/70',
-                 guide: () => 'שבוע תחרות — קל בלבד + פתיחות (strides) קצרות. שינה טובה, אמון בעבודה שנעשתה.' },
-    recovery:  { he: 'התאוששות',    chip: 'bg-teal-100 text-teal-700 border-teal-200', cell: 'bg-teal-50/60',
-                 guide: () => 'התאוששות — קל בלבד, נפח נמוך, בלי איכות.' },
-    custom:    { he: 'שלב',         chip: 'bg-gray-100 text-gray-600 border-gray-200', cell: 'bg-gray-50',
-                 guide: () => '' },
-  }
-
   /** Race-pace hint: athlete's target pace or the journey's goal time */
   const goalPaceHint = athlete?.targetPaceKm || activeJourney?.goalRaceTarget || null
 
   /**
    * Season info for the week starting at `wkStart`: journey stage, countdown
    * to the goal race, down-week flag (every Nth week of the stage), and the
-   * week's target km (stage volume, reduced 30% on down weeks). The actual
-   * math is shared with the athlete's own view (lib/journey.ts's
-   * weekSeasonInfo) so both always agree on the same numbers — this just
-   * adds the coach-only STAGE_META styling on top.
+   * week's target km (stage volume, reduced 30% on down weeks). Shared with
+   * the athlete's own view via lib/journey.ts's weekSeasonInfo, so both
+   * always agree on the same numbers and styling.
    */
-  const getWeekSeasonInfo = useCallback((wkStart: Date) => {
-    const info = weekSeasonInfo(wkStart, activeJourney, athlete)
-    if (!info) return null
-    const meta = info.stage ? (STAGE_META[info.stage.type] || STAGE_META.custom) : null
-    return { ...info, meta }
-  }, [activeJourney, athlete])
+  const getWeekSeasonInfo = useCallback((wkStart: Date) => weekSeasonInfo(wkStart, activeJourney, athlete), [activeJourney, athlete])
 
   /**
    * Weekly km target for coloring the KM total, even without an active

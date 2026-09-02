@@ -570,8 +570,29 @@ export function isRestWeek(mid: Date, offN: number, anchorDate: string | undefin
   return weekInStage % offN === 0
 }
 
+/** Visual + coaching meta per journey stage type — shared by the coach's
+ *  planner and the athlete's own view so a week's km cell is colored the
+ *  same way (by training phase) on both sides. */
+export const STAGE_META: Record<string, { he: string; chip: string; cell: string; guide: (weeksToRace: number | null, pace?: string | null) => string }> = {
+  base:      { he: 'בסיס',        chip: 'bg-emerald-100 text-emerald-700 border-emerald-200', cell: 'bg-emerald-50/60',
+               guide: () => 'נפח אירובי — ריצות קלות, ריצה ארוכה בסוף השבוע, חיזוק. בלי איכות קשה.' },
+  build:     { he: 'בנייה',       chip: 'bg-blue-100 text-blue-700 border-blue-200', cell: 'bg-blue-50/60',
+               guide: () => 'בנייה — סף/טמפו פעם בשבוע + אינטרוולים ארוכים (1000–1600). נפח גבוה, הארוכה נשארת.' },
+  peak:      { he: 'שיא',         chip: 'bg-purple-100 text-purple-700 border-purple-200', cell: 'bg-purple-50/60',
+               guide: (_, pace) => `שיא — איכות בקצב תחרות${pace ? ` (${pace})` : ''}, סימולציות, הנפח מתחיל לרדת.` },
+  taper:     { he: 'חידוד',       chip: 'bg-amber-100 text-amber-800 border-amber-300', cell: 'bg-amber-50/70',
+               guide: (w, pace) => `חידוד${w != null && w > 0 ? ` — ${w} שבועות לתחרות` : ''}: קטעים קצרים בקצב תחרות${pace ? ` (${pace})` : ''} ומהר ממנו, נפח יורד 20–40%, התאוששות מלאה בין קטעים.` },
+  race_week: { he: 'שבוע תחרות',  chip: 'bg-red-100 text-red-700 border-red-200', cell: 'bg-red-50/70',
+               guide: () => 'שבוע תחרות — קל בלבד + פתיחות (strides) קצרות. שינה טובה, אמון בעבודה שנעשתה.' },
+  recovery:  { he: 'התאוששות',    chip: 'bg-teal-100 text-teal-700 border-teal-200', cell: 'bg-teal-50/60',
+               guide: () => 'התאוששות — קל בלבד, נפח נמוך, בלי איכות.' },
+  custom:    { he: 'שלב',         chip: 'bg-gray-100 text-gray-600 border-gray-200', cell: 'bg-gray-50',
+               guide: () => '' },
+}
+
 export interface WeekSeasonInfo {
   stage: JourneyStage | null
+  meta: typeof STAGE_META[string] | null
   isDownWeek: boolean
   weeksToRace: number
   targetKm: number | null
@@ -608,7 +629,8 @@ export function weekSeasonInfo(wkStart: Date, activeJourney: JourneyDoc | null, 
   const baseTarget = stage?.weeklyVolumeKm
     ?? (athlete?.weeklyKmRange ? Math.round((athlete.weeklyKmRange.min + athlete.weeklyKmRange.max) / 2) : null)
   const targetKm = baseTarget != null ? (isDownWeek ? Math.round(baseTarget * 0.7) : baseTarget) : null
-  return { stage, isDownWeek, weeksToRace, targetKm }
+  const meta = stage ? (STAGE_META[stage.type] || STAGE_META.custom) : null
+  return { stage, meta, isDownWeek, weeksToRace, targetKm }
 }
 
 /**
