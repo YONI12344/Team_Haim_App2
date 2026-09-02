@@ -1570,7 +1570,7 @@ export function AthletePlanner({ athleteId }: Props) {
                           }}
                           onDragOver={(e) => e.preventDefault()}
                           onDrop={(e) => handleDayDrop(e, dateStr)}
-                          className={cn('min-h-[70px] min-w-0 rounded-xl border transition-all cursor-pointer',
+                          className={cn('min-h-[70px] min-w-0 rounded-[6px] border transition-all cursor-pointer',
                             todayFlag ? 'border-gold bg-gold/5' : 'border-border hover:border-gold/40',
                             (copiedWorkout || armedBankWorkout) ? 'hover:border-gold hover:bg-gold/5' : ''
                           )}>
@@ -1615,7 +1615,7 @@ export function AthletePlanner({ athleteId }: Props) {
                       const targetKm = getWeekTargetKm(weekStart)
                       const kmOk = targetKm ? Math.abs(wkKm - targetKm) <= targetKm * 0.1 : null
                       return (
-                        <div className="flex flex-col items-center justify-center rounded-xl bg-muted/30 border border-border/30 min-h-[70px]">
+                        <div className="flex flex-col items-center justify-center rounded-[6px] bg-muted/30 border border-border/30 min-h-[70px]">
                           <p className={cn('text-lg font-bold',
                             kmOk == null ? 'text-navy' : kmOk ? 'text-emerald-700' : wkKm < (targetKm || 0) ? 'text-amber-700' : 'text-red-600')}>
                             {wkKm}
@@ -1671,7 +1671,7 @@ export function AthletePlanner({ athleteId }: Props) {
                                 }}
                                 onDragOver={(e) => { if (inMonth) e.preventDefault() }}
                                 onDrop={(e) => { if (inMonth) handleDayDrop(e, dateStr) }}
-                                className={cn('min-h-[70px] min-w-0 rounded-lg p-1 border transition-all',
+                                className={cn('min-h-[70px] min-w-0 rounded-[6px] p-1 border transition-all',
                                   !inMonth ? 'opacity-20 border-transparent' : 'border-border',
                                   todayFlag ? 'border-gold/60 bg-gold/5' : '',
                                   (copiedWorkout || armedBankWorkout) && inMonth ? 'cursor-pointer hover:border-gold' : ''
@@ -1708,7 +1708,7 @@ export function AthletePlanner({ athleteId }: Props) {
                             const targetKm = getWeekTargetKm(weekStartDay)
                             const kmOk = targetKm ? Math.abs(wKm - targetKm) <= targetKm * 0.1 : null
                             return (
-                          <div className={cn('flex flex-col items-center justify-center gap-0.5 rounded-lg py-1',
+                          <div className={cn('flex flex-col items-center justify-center gap-0.5 rounded-[6px] py-1',
                             si?.isDownWeek ? 'bg-amber-100/80 ring-1 ring-amber-300' : si?.meta ? si.meta.cell : 'bg-muted/30')}>
                             {si?.meta && (
                               <span className={cn('text-[8px] font-bold px-1 py-px rounded-full border leading-none', si.meta.chip)}>

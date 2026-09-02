@@ -102,7 +102,7 @@ export function GridWorkoutBox({ workout, done, suspicious, coachFeedback, onCli
     <Tag
       dir="rtl"
       onClick={onClick}
-      className={cn('w-full text-right rounded-lg px-1.5 py-1.5 flex flex-col gap-1 overflow-hidden',
+      className={cn('w-full text-right rounded-[6px] px-1.5 py-1.5 flex flex-col gap-1 overflow-hidden',
         onClick ? 'transition-all hover:opacity-90' : '',
         suspicious ? 'bg-gradient-to-br from-red-700 to-red-800 text-white' : 'bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 text-white',
         selected ? 'ring-2 ring-gold' : ''

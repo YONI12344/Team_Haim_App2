@@ -2167,7 +2167,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                   return (
                     <div key={di}
                       onClick={() => { setSelectedWeekDay(day); setSelectedWorkoutId(null) }}
-                      className={cn('min-h-[140px] min-w-0 rounded-lg border transition-all cursor-pointer',
+                      className={cn('min-h-[140px] min-w-0 rounded-[6px] border transition-all cursor-pointer',
                         isSelDay ? 'border-[#c9a84c] bg-[#c9a84c]/5' : todayFlag ? 'border-[#0a1628]/25 bg-[#0a1628]/5' : 'border-gray-100 hover:border-gray-200')}>
                       <div className="p-2 border-b border-gray-100 text-center">
                         <p className={cn('text-sm font-bold', isSelDay ? 'text-[#c9a84c]' : todayFlag ? 'text-[#0a1628]' : 'text-[#0a1628]/60')}>{format(day,'d')}</p>
@@ -2198,7 +2198,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                   const targetKm = weekTargetKm(weekStart, activeJourneyDoc, athlete)
                   const kmOk = targetKm ? Math.abs(weekPlanned - targetKm) <= targetKm * 0.1 : null
                   return (
-                    <div className={cn('flex flex-col items-center justify-center gap-0.5 rounded-lg min-h-[140px]',
+                    <div className={cn('flex flex-col items-center justify-center gap-0.5 rounded-[6px] min-h-[140px]',
                       si?.isDownWeek ? 'bg-amber-100/80 ring-1 ring-amber-300' : si?.meta ? si.meta.cell : 'bg-muted/30')}>
                       {si?.meta && (
                         <span className={cn('text-[8px] font-bold px-1.5 py-px rounded-full border leading-none', si.meta.chip)}>
@@ -2322,7 +2322,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                               if (!clickable) return
                               setSelectedMonthDay(prev => prev && isSameDay(prev, day) ? null : day)
                             }}
-                            className={cn('min-h-[110px] min-w-0 rounded-lg border transition-all',
+                            className={cn('min-h-[110px] min-w-0 rounded-[6px] border transition-all',
                               !inMonth ? 'opacity-15 pointer-events-none border-transparent' : 'border-gray-100',
                               todayFlag ? 'border-[#0a1628]/25 bg-[#0a1628]/5' : '',
                               selectedInDay ? 'border-[#c9a84c] bg-[#c9a84c]/5' : '',
@@ -2351,7 +2351,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                       {(() => {
                         const kmOk = wTargetKm ? Math.abs(wKm - wTargetKm) <= wTargetKm * 0.1 : null
                         return (
-                          <div className={cn('flex flex-col items-center justify-center gap-0.5 rounded-lg min-h-[110px]',
+                          <div className={cn('flex flex-col items-center justify-center gap-0.5 rounded-[6px] min-h-[110px]',
                             si?.isDownWeek ? 'bg-amber-100/80 ring-1 ring-amber-300' : si?.meta ? si.meta.cell : 'bg-muted/30')}>
                             {si?.meta && (
                               <span className={cn('text-[7px] font-bold px-1 py-px rounded-full border leading-none', si.meta.chip)}>
