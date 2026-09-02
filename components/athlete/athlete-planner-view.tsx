@@ -249,12 +249,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
     }
     return new Date()
   })
-  // Month is the default — a full calendar the athlete lands on and can
-  // scan at a glance, like the coach's own planner, instead of a single
-  // day that hides everything else. Except the coach's own single-day
-  // preview embed (autoExpandWorkouts, in athlete-planner.tsx's selected-
-  // day card), which still wants to open straight on that one day.
-  const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>(autoExpandWorkouts ? 'day' : 'month')
+  const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day')
   // Zoom for the week/month dense grid below — same substitute for
   // pinch-to-zoom on a horizontal-scroll grid as the coach's own
   // week/month view (components/coach/athlete-planner.tsx).
