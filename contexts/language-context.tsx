@@ -912,6 +912,42 @@ export interface Translations {
   dayOffUndoBtn: string
   dayOffToastAdded: string
   dayOffToastRemoved: string
+  // Coach's Leads page (components/coach/leads-list.tsx) — was entirely
+  // hardcoded in English with no useLanguage() at all before this.
+  leadsHeading: string
+  leadsDesc: string
+  leadsEmpty: string
+  leadsLoadFailed: string
+  leadsAcceptedToast: string
+  leadsUpdatedToast: string
+  leadsUpdateFailed: string
+  leadsEmailCopied: string
+  leadsCopyEmailBtn: string
+  leadsAcceptBtn: string
+  leadsDeclineBtn: string
+  leadExperienceLabel: string
+  leadTrainingSeriouslyLabel: string
+  leadWeeklyKmLabel: string
+  leadDaysPerWeekLabel: string
+  leadHeightLabel: string
+  leadWeightLabel: string
+  leadCityLabel: string
+  leadDobLabel: string
+  leadPreferredDaysLabel: string
+  leadRecentRaceLabel: string
+  leadGoalLabel: string
+  leadGoalTargetPrefix: string
+  leadFacilitiesLabel: string
+  leadDevicesLabel: string
+  leadTypicalWeekLabel: string
+  leadPrimaryGoalLabel: string
+  leadLongTermGoalLabel: string
+  leadShoesLabel: string
+  leadLifestyleLabel: string
+  leadCurrentInjuryLabel: string
+  leadInjuryHistoryLabel: string
+  leadMedicalNotesLabel: string
+  leadAdditionalNotesLabel: string
 }
 
 const translations: Record<Language, Translations> = {
@@ -1775,6 +1811,40 @@ const translations: Record<Language, Translations> = {
     dayOffUndoBtn: 'Undo',
     dayOffToastAdded: 'Marked as a day off',
     dayOffToastRemoved: 'Day off removed',
+    leadsHeading: 'Leads',
+    leadsDesc: "Applications from the public /apply page. Accept one and its info auto-fills the athlete's profile the moment they sign up with the same email — no re-typing.",
+    leadsEmpty: 'No applications yet.',
+    leadsLoadFailed: 'Failed to load leads',
+    leadsAcceptedToast: 'Accepted — auto-fills their profile once they sign up with this email',
+    leadsUpdatedToast: 'Updated',
+    leadsUpdateFailed: 'Failed to update',
+    leadsEmailCopied: 'Email copied',
+    leadsCopyEmailBtn: 'Copy email',
+    leadsAcceptBtn: 'Accept',
+    leadsDeclineBtn: 'Decline',
+    leadExperienceLabel: 'Experience',
+    leadTrainingSeriouslyLabel: 'Training seriously',
+    leadWeeklyKmLabel: 'Weekly km',
+    leadDaysPerWeekLabel: 'Days/week',
+    leadHeightLabel: 'Height',
+    leadWeightLabel: 'Weight',
+    leadCityLabel: 'City',
+    leadDobLabel: 'DOB',
+    leadPreferredDaysLabel: 'Preferred days',
+    leadRecentRaceLabel: 'Recent race',
+    leadGoalLabel: 'Goal',
+    leadGoalTargetPrefix: 'target',
+    leadFacilitiesLabel: 'Facilities',
+    leadDevicesLabel: 'Devices',
+    leadTypicalWeekLabel: 'Typical week (last 3 weeks)',
+    leadPrimaryGoalLabel: 'Primary goal',
+    leadLongTermGoalLabel: 'Long-term goal',
+    leadShoesLabel: 'Shoes',
+    leadLifestyleLabel: 'Lifestyle / sleep',
+    leadCurrentInjuryLabel: 'Current injury/pain',
+    leadInjuryHistoryLabel: 'Injury history',
+    leadMedicalNotesLabel: 'Medical notes',
+    leadAdditionalNotesLabel: 'Notes',
   },
   he: {
     teamHaim: 'Team Haim',
@@ -2631,6 +2701,40 @@ const translations: Record<Language, Translations> = {
     dayOffUndoBtn: 'ביטול',
     dayOffToastAdded: 'סומן כיום חופש',
     dayOffToastRemoved: 'יום החופש הוסר',
+    leadsHeading: 'לידים',
+    leadsDesc: 'בקשות הצטרפות מעמוד ה-/apply הציבורי. קבלה של ליד ממלאת אוטומטית את הפרופיל של הספורטאי ברגע שהוא נרשם עם אותו אימייל — בלי להקליד שוב.',
+    leadsEmpty: 'אין עדיין בקשות הצטרפות.',
+    leadsLoadFailed: 'טעינת הלידים נכשלה',
+    leadsAcceptedToast: 'התקבל — הפרופיל יתמלא אוטומטית ברגע שהוא יירשם עם אימייל זה',
+    leadsUpdatedToast: 'עודכן',
+    leadsUpdateFailed: 'העדכון נכשל',
+    leadsEmailCopied: 'האימייל הועתק',
+    leadsCopyEmailBtn: 'העתק אימייל',
+    leadsAcceptBtn: 'אשר',
+    leadsDeclineBtn: 'דחה',
+    leadExperienceLabel: 'ניסיון',
+    leadTrainingSeriouslyLabel: 'מתאמן ברצינות',
+    leadWeeklyKmLabel: 'ק"מ שבועי',
+    leadDaysPerWeekLabel: 'ימים בשבוע',
+    leadHeightLabel: 'גובה',
+    leadWeightLabel: 'משקל',
+    leadCityLabel: 'עיר',
+    leadDobLabel: 'תאריך לידה',
+    leadPreferredDaysLabel: 'ימים מועדפים',
+    leadRecentRaceLabel: 'מירוץ אחרון',
+    leadGoalLabel: 'מטרה',
+    leadGoalTargetPrefix: 'יעד',
+    leadFacilitiesLabel: 'מתקנים',
+    leadDevicesLabel: 'מכשירים',
+    leadTypicalWeekLabel: 'שבוע טיפוסי (3 השבועות האחרונים)',
+    leadPrimaryGoalLabel: 'מטרה עיקרית',
+    leadLongTermGoalLabel: 'מטרה ארוכת טווח',
+    leadShoesLabel: 'נעליים',
+    leadLifestyleLabel: 'אורח חיים / שינה',
+    leadCurrentInjuryLabel: 'פציעה/כאב נוכחי',
+    leadInjuryHistoryLabel: 'היסטוריית פציעות',
+    leadMedicalNotesLabel: 'הערות רפואיות',
+    leadAdditionalNotesLabel: 'הערות נוספות',
   },
 }
 

@@ -8,8 +8,9 @@ import { Calendar, Flag, MapPin, Target, Trophy } from 'lucide-react'
 import { format, isValid, parseISO } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { computeJourneyProgress, computeStageProgress, journeyDisplayTitle, stageDisplayName } from '@/lib/journey'
-import type { JourneyDoc, JourneyStage, JourneyStageType } from '@/lib/types'
+import type { JourneyDoc, JourneyStage, JourneyStageType, WorkoutType } from '@/lib/types'
 import { useLanguage } from '@/contexts/language-context'
+import { useWorkoutTypeLabels } from '@/lib/workout-labels'
 
 const stageColors: Record<JourneyStageType, string> = {
   base: 'bg-emerald-100 text-emerald-700 border-emerald-200',
@@ -35,6 +36,7 @@ interface Props {
 
 export function JourneyTimeline({ journey, renderStageActions, className }: Props) {
   const { t, language, isRTL } = useLanguage()
+  const workoutTypeLabels = useWorkoutTypeLabels()
   const progress = useMemo(() => computeJourneyProgress(journey), [journey])
   const stageTypeLabel: Record<JourneyStageType, string> = language === 'he'
     ? {
@@ -180,7 +182,7 @@ export function JourneyTimeline({ journey, renderStageActions, className }: Prop
                           {stage.keyWorkouts.map((k, idx) => (
                             <li key={idx}>
                               <Badge variant="secondary" className="bg-navy-tint text-navy">
-                                {k}
+                                {workoutTypeLabels[k as WorkoutType] || k}
                               </Badge>
                             </li>
                           ))}

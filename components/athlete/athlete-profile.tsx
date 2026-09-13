@@ -47,7 +47,6 @@ import { storage } from '@/lib/firebase-storage'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
 import { toast } from 'sonner'
-import { useStravaSync } from '@/hooks/useStravaSync'
 import type {
   AthleteProfile as AthleteProfileType,
   Discipline,
@@ -146,13 +145,6 @@ export function AthleteProfile() {
   const [stravaConnecting, setStravaConnecting] = useState(false)
   const [stravaConnected, setStravaConnected] = useState(false)
   const [lastSync, setLastSync] = useState<string | null>(null)
-  // Shared with the Dashboard/Schedule pages' own sync buttons
-  // (hooks/useStravaSync.ts) — this page used to carry its own third copy
-  // of the fetch+match logic, which never wrote assignedWorkoutId or
-  // marked anything completed, so a sync done from here could never
-  // actually land in the athlete's matched workout tab even though the
-  // raw activity was saved.
-  const { syncing: stravaSyncing, sync: handleStravaSync } = useStravaSync(user?.id || '')
 
   const handleStravaConnect = () => {
     setStravaConnecting(true)
@@ -600,11 +592,10 @@ export function AthleteProfile() {
             >
               {stravaConnecting ? t.stravaConnectingBtn : stravaConnected ? t.stravaReconnectBtn : t.stravaConnectBtn}
             </Button>
-            {stravaConnected && (
-              <Button onClick={() => handleStravaSync()} disabled={stravaSyncing} className="bg-[#c9a84c] hover:bg-[#c9a84c]/90 text-[#0a1628] font-semibold">
-                {stravaSyncing ? t.stravaSyncingBtn : t.stravaSyncBtn}
-              </Button>
-            )}
+            {/* "Sync now" lives on the Dashboard's hero card as the one
+                canonical place for that action (see athlete-dashboard.tsx) —
+                a second copy here was pure duplication, not a different use
+                case, so it's cut rather than kept "just in case". */}
             {/* Language switcher */}
             <div className="flex rounded-xl border border-gray-200 overflow-hidden">
               <button
@@ -633,13 +624,6 @@ export function AthleteProfile() {
           </div>
         ) : null}
       </div>
-
-      {!hasProfile && !editing && (
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 border-l-4 border-l-[#c9a84c] p-5">
-          <p className="text-[#0a1628] font-medium">{t.completeYourProfile}</p>
-          <p className="text-gray-500 text-sm mt-1">{t.completeYourProfileDesc}</p>
-        </div>
-      )}
 
       {/* Profile Card */}
       <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">

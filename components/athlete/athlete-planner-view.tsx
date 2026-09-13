@@ -1242,16 +1242,19 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
       <>
         <DetailsModal />
         <div className="rounded-3xl bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 overflow-hidden" dir="rtl">
-          {/* Identity row: source + kind on one side, icon-only actions on the other */}
+          {/* Identity row: one badge for source+kind (was a separate icon
+              box AND a pill saying almost the same thing — merged into one
+              so the eye has a single thing to read here, not two), icon-only
+              actions on the other side. */}
           <div className="px-4 pt-4 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className={cn('h-7 w-7 rounded-lg flex items-center justify-center flex-shrink-0',
-                isManual ? 'bg-white/10' : 'bg-[#FC4C02]')}>
-                {isManual ? <span className="text-[13px]">{kindInfo.emoji}</span> : <span className="text-[11px] font-black text-white">S</span>}
-              </div>
-              <span className="bg-white/15 text-white/90 text-[10px] font-bold px-2 py-0.5 rounded-full truncate">
-                {kindInfo.emoji} {activityLabel(kindInfo.kind, isRTL)}
+            <div className="flex items-center gap-1.5 min-w-0 bg-white/10 rounded-full pl-2.5 pr-1.5 py-1">
+              <span className="text-xs leading-none">{kindInfo.emoji}</span>
+              <span className="text-white/90 text-[10px] font-bold truncate">
+                {activityLabel(kindInfo.kind, isRTL)}
               </span>
+              {!isManual && (
+                <span className="bg-[#FC4C02] text-white text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none">S</span>
+              )}
             </div>
             <div className="flex items-center gap-1 flex-shrink-0">
               <button onClick={() => setShowForm(true)} title={t.editActivityBtn} aria-label={t.editActivityBtn}
@@ -1315,19 +1318,19 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
               )}
               {displayHr && (
                 <div className="rounded-2xl bg-white/10 p-2.5 text-center">
-                  <p className="text-lg font-black text-rose-300 leading-tight">{displayHr}</p>
+                  <p className="text-lg font-black text-white leading-tight">{displayHr}</p>
                   <p className="text-[9px] text-white/50 mt-0.5">{t.heartRateLabel}</p>
                 </div>
               )}
               {log.elevationGain && (
                 <div className="rounded-2xl bg-white/10 p-2.5 text-center">
-                  <p className="text-lg font-black text-emerald-300 leading-tight">{log.elevationGain}m</p>
+                  <p className="text-lg font-black text-white leading-tight">{log.elevationGain}m</p>
                   <p className="text-[9px] text-white/50 mt-0.5">{t.elevationShort}</p>
                 </div>
               )}
               {log.effort && (
                 <div className="rounded-2xl bg-white/10 p-2.5 text-center">
-                  <p className="text-lg font-black text-amber-300 leading-tight">{log.effort}/10</p>
+                  <p className="text-lg font-black text-white leading-tight">{log.effort}/10</p>
                   <p className="text-[9px] text-white/50 mt-0.5">{t.effortValueLabel}</p>
                 </div>
               )}
@@ -2063,7 +2066,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
           coach's own grid uses, instead of fighting page pinch-zoom on a
           nested horizontal-scroll container. */}
       {(viewMode === 'week' || viewMode === 'month') && (
-        <div className="flex items-center justify-center gap-1">
+        <div className={cn('items-center justify-center gap-1', isCoachViewer ? 'flex' : 'hidden md:flex')}>
           <button onClick={() => setGridZoom(z => Math.max(0.35, Math.round((z - 0.15) * 100) / 100))}
             disabled={gridZoom <= 0.35}
             className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 disabled:opacity-30 active:scale-90 transition-all">
@@ -2152,7 +2155,15 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
               a KM column, zoom to read it. Read-only here — tapping a day
               just selects it (same as the old pill strip did), no
               drag/paste/assign like the coach's version has. */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-2 overflow-x-auto">
+          {/* This dense grid's cells need real width to show the "full
+              workout structure written out tiny" (see comment above) — even
+              at max zoom-out that's wider than a phone screen, so it's
+              desktop/tablet-only for the athlete. Mobile gets its own
+              compact day-strip below instead of a shrunk version of the
+              same thing. The coach always gets the full grid regardless of
+              screen width — they need the density more than the athlete
+              does, and can live with the horizontal scroll on mobile. */}
+          <div className={cn('bg-white rounded-2xl shadow-sm border border-gray-100 p-2 overflow-x-auto', isCoachViewer ? 'block' : 'hidden md:block')}>
             <div style={{ zoom: gridZoom, WebkitTextSizeAdjust: '100%', textSizeAdjust: '100%' } as CSSProperties}>
               <div className="grid gap-1.5 mb-1.5" style={{ gridTemplateColumns: 'repeat(7, minmax(230px, 1fr)) 72px' }}>
                 {dayLabelsRot.map((d,i) => <div key={i} className="text-center text-[10px] font-semibold text-gray-400 py-1">{d}</div>)}
@@ -2220,6 +2231,62 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
             </div>
           </div>
 
+          {/* Mobile week-at-a-glance (athlete only — see coach note above) —
+              a compact 7-chip day strip instead of the desktop grid above.
+              Tap a day to select it; its full workout detail renders below
+              exactly like Day view already does (same selectedWeekDay
+              state, same renderNavyWorkoutBlock/StravaCard), so nothing
+              about that part changes on mobile. */}
+          <div className={cn('bg-white rounded-2xl shadow-sm border border-gray-100 p-3 space-y-3', isCoachViewer ? 'hidden' : 'md:hidden')}>
+            <div className="grid grid-cols-7 gap-1">
+              {weekDays.map((day, di) => {
+                const dateStr = format(day, 'yyyy-MM-dd')
+                const dayWs = getWorkoutsForDay(day)
+                const todayFlag = isToday(day)
+                const isSelDay = isSameDay(day, selectedWeekDay)
+                const isOff = !!dayOffFor(dateStr)
+                const allDone = dayWs.length > 0 && dayWs.every(w => getEffectiveStatus(w) === 'completed')
+                return (
+                  <button key={di} type="button"
+                    onClick={() => { setSelectedWeekDay(day); setSelectedWorkoutId(null) }}
+                    className={cn('flex flex-col items-center gap-1 rounded-2xl py-2 transition-all active:scale-95',
+                      isSelDay ? 'bg-[#c9a84c]/15 ring-1 ring-[#c9a84c]' : todayFlag ? 'bg-[#0a1628]/5' : 'hover:bg-gray-50')}>
+                    <span className={cn('text-[10px] font-semibold', isSelDay ? 'text-[#c9a84c]' : 'text-gray-400')}>{dayLabelsRot[di]}</span>
+                    <span className={cn('text-sm font-bold', isSelDay ? 'text-[#c9a84c]' : todayFlag ? 'text-[#0a1628]' : 'text-[#0a1628]/70')}>{format(day,'d')}</span>
+                    {isOff ? (
+                      <span className="text-[10px]">🩹</span>
+                    ) : (
+                      <span className={cn('h-1.5 w-1.5 rounded-full', dayWs.length === 0 ? 'bg-gray-200' : allDone ? 'bg-emerald-500' : 'bg-[#c9a84c]')} />
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+            {/* Same km numbers as the desktop grid's km column, one line instead of a cell */}
+            {(() => {
+              const weekPlanned = getWeekKm(weekDays)
+              const weekActual = Math.round(weekDays.reduce((s, d) => {
+                const dStr = format(d, 'yyyy-MM-dd')
+                return s + weekLogs.filter(l => l.date === dStr).reduce((a, l) => a + (l.actualDistance || 0), 0)
+              }, 0))
+              const targetKm = weekTargetKm(weekStart, activeJourneyDoc, athlete)
+              if (!weekPlanned && !weekActual) return null
+              return (
+                <div className="flex items-center justify-center gap-3 text-xs text-gray-500 border-t border-gray-100 pt-2.5">
+                  <span>{isRTL ? 'מתוכנן' : 'planned'} <b className="text-[#0a1628]">{weekPlanned}</b> {isRTL ? 'קמ' : 'km'}</span>
+                  <span className="text-gray-300">·</span>
+                  <span>{isRTL ? 'בוצע' : 'done'} <b className="text-emerald-600">{weekActual}</b> {isRTL ? 'קמ' : 'km'}</span>
+                  {targetKm != null && (
+                    <>
+                      <span className="text-gray-300">·</span>
+                      <span>{isRTL ? 'יעד' : 'goal'} {targetKm}</span>
+                    </>
+                  )}
+                </div>
+              )
+            })()}
+          </div>
+
           {/* Selected day's workouts */}
           {(() => {
             const dayWs = getWorkoutsForDay(selectedWeekDay)
@@ -2285,7 +2352,12 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
               structure written out tiny, a KM column, zoom to read it.
               Read-only here — tapping a day just selects it below, no
               drag/paste/assign/delete-week like the coach's version. */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-2 overflow-x-auto">
+          {/* Desktop/tablet only for the athlete — same reasoning as the
+              Week view's grid above: these cells need real width for their
+              tiny written-out workout text, wider than a phone even at max
+              zoom-out. The coach always gets the full grid (see Week view's
+              coach note above). */}
+          <div className={cn('bg-white rounded-2xl shadow-sm border border-gray-100 p-2 overflow-x-auto', isCoachViewer ? 'block' : 'hidden md:block')}>
             <div style={{ zoom: gridZoom, WebkitTextSizeAdjust: '100%', textSizeAdjust: '100%' } as CSSProperties}>
               {/* Day headers */}
               <div className="grid gap-1 mb-1" style={{ gridTemplateColumns: 'repeat(7, minmax(210px, 1fr)) 64px' }}>
@@ -2373,6 +2445,54 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                   )
                 })}
               </div>
+            </div>
+          </div>
+
+          {/* Mobile month grid (athlete only) — a real 7-column calendar
+              sized for a phone (date number + a status dot per day) instead
+              of the desktop grid's tiny written-out workout text. Tap a day
+              to select it; the same "Selected day" block below already
+              handles rendering full detail regardless of which grid set
+              selectedMonthDay. */}
+          <div className={cn('bg-white rounded-2xl shadow-sm border border-gray-100 p-2', isCoachViewer ? 'hidden' : 'md:hidden')}>
+            <div className="grid grid-cols-7 gap-y-1 mb-1">
+              {dayLabelsRot.map((d,i) => (
+                <div key={i} className="text-center text-[10px] font-semibold text-gray-400 py-1">{d}</div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-y-1">
+              {monthWeeks.flatMap((weekStartDay) =>
+                eachDayOfInterval({ start: weekStartDay, end: endOfWeek(weekStartDay, { weekStartsOn: calWeekStartsOn }) })
+              ).map((day, di) => {
+                const inMonth = isSameMonth(day, currentDate)
+                const dayWs = getWorkoutsForDay(day)
+                const dStr = format(day, 'yyyy-MM-dd')
+                const dayActivities = weekLogs.filter(l => l.date === dStr && isActivityLog(l))
+                const todayFlag = isToday(day)
+                const selectedInDay = !!selectedMonthDay && isSameDay(day, selectedMonthDay)
+                const hasUnreadMsg = dayWs.some(w => coachMessages.some(m => m.assignedWorkoutId === w.id && !m.read))
+                const clickable = inMonth && (dayWs.length > 0 || dayActivities.length > 0)
+                const allDone = dayWs.length > 0 && dayWs.every(w => getEffectiveStatus(w) === 'completed')
+                return (
+                  <button key={di} type="button" disabled={!clickable}
+                    onClick={() => setSelectedMonthDay(prev => prev && isSameDay(prev, day) ? null : day)}
+                    className={cn('flex flex-col items-center gap-1 py-1.5 rounded-2xl transition-all',
+                      !inMonth ? 'opacity-20 pointer-events-none' : clickable ? 'active:scale-95 hover:bg-gray-50' : '',
+                      selectedInDay ? 'bg-[#c9a84c]/15 ring-1 ring-[#c9a84c]' : todayFlag ? 'bg-[#0a1628]/5' : '')}>
+                    <span className="relative">
+                      <span className={cn('text-sm font-bold', selectedInDay ? 'text-[#c9a84c]' : todayFlag ? 'text-[#0a1628]' : inMonth ? 'text-[#0a1628]/70' : 'text-gray-300')}>{format(day,'d')}</span>
+                      {hasUnreadMsg && <span className="absolute -top-0.5 -right-1.5 w-1 h-1 rounded-full bg-[#c9a84c]" />}
+                    </span>
+                    {dayWs.length > 0 ? (
+                      <span className={cn('h-1.5 w-1.5 rounded-full', allDone ? 'bg-emerald-500' : 'bg-[#c9a84c]')} />
+                    ) : dayActivities.length > 0 ? (
+                      <span className="text-[10px] leading-none">{getActivityInfo(dayActivities[0]).emoji}</span>
+                    ) : (
+                      <span className="h-1.5 w-1.5 rounded-full bg-transparent" />
+                    )}
+                  </button>
+                )
+              })}
             </div>
           </div>
 
