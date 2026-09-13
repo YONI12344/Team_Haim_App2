@@ -10,7 +10,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
-  addMonths, subMonths, addWeeks, subWeeks, eachDayOfInterval, isSameMonth,
+  addMonths, subMonths, addWeeks, subWeeks, addDays, eachDayOfInterval, isSameMonth,
   isSameDay, isToday, parseISO, eachWeekOfInterval,
 } from 'date-fns'
 import { cn, resolveText, isCoachMessageRecent } from '@/lib/utils'
@@ -44,6 +44,17 @@ import {
 } from '@/lib/activity-types'
 
 const WEEKDAY_KEYS = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'] as const
+
+// assignedWorkouts/logs queries used to pull an athlete's ENTIRE lifetime
+// history unbounded on every single visit to this page — each
+// assignedWorkouts doc embeds the full workout (title, description, every
+// exercise, video URLs), so a season or more of training meant re-downloading
+// megabytes of data on every navigation. Bounding to a year back stops that
+// unbounded growth while still covering any realistic within-season lookback
+// (the forward/future side is left unbounded — it's naturally small, and the
+// coach view relies on seeing the full future plan regardless).
+const HISTORY_CUTOFF_DAYS = 365
+const historyCutoffStr = () => format(addDays(new Date(), -HISTORY_CUTOFF_DAYS), 'yyyy-MM-dd')
 
 const TYPE_COLORS: Record<string, string> = {
   easy: 'bg-emerald-100 text-emerald-800 border-emerald-200',
@@ -267,9 +278,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
   // there's exactly one copy of the activity-to-workout matching logic.
   const { syncing: stravaSyncing, sync: handleStravaSync } = useStravaSync(athleteId, {
     onSynced: async () => {
-      const { collection, getDocs, query, where } = await import('firebase/firestore')
-      const { db } = await import('@/lib/firebase')
-      const logsSnap = await getDocs(query(collection(db, 'logs'), where('athleteId', '==', athleteId)))
+      const logsSnap = await getDocs(query(collection(db, 'logs'), where('athleteId', '==', athleteId), where('date', '>=', historyCutoffStr())))
       setWeekLogs(logsSnap.docs.map(mapLogDoc))
     },
     onAssignedWorkoutStatusChange: (id, patch) => {
@@ -389,7 +398,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
 
   useEffect(() => {
     if (!athleteId) return
-    getDocs(query(collection(db, 'assignedWorkouts'), where('athleteId', '==', athleteId)))
+    getDocs(query(collection(db, 'assignedWorkouts'), where('athleteId', '==', athleteId), where('scheduledDate', '>=', historyCutoffStr())))
       .then(async snap => {
         // Rolling visibility window: athlete sees only N weeks ahead
         // (rolls every Saturday; coach sets N per athlete, 0 = unlimited).
@@ -419,10 +428,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
             .map(d => ({ ...(d.data() as AssignedWorkout), id: d.id }))
             .filter(w => !cutoffStr || w.scheduledDate < cutoffStr || bypassesWindow(w))
         )
-        const { getDocs: gd, query: q, collection: col, where: wh } = await import('firebase/firestore')
-        const from = format(startOfWeek(new Date(),{weekStartsOn:1}), 'yyyy-MM-dd')
-        const to = format(endOfWeek(new Date(),{weekStartsOn:1}), 'yyyy-MM-dd')
-        const logsSnap = await gd(q(col(db, 'logs'), wh('athleteId', '==', athleteId)))
+        const logsSnap = await getDocs(query(collection(db, 'logs'), where('athleteId', '==', athleteId), where('date', '>=', historyCutoffStr())))
         setWeekLogs(logsSnap.docs.map(mapLogDoc))
       })
       .catch(err => console.error(err))
@@ -2452,7 +2458,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
           setWeekLogs(prev => [...prev, log])
           // Refresh assigned workouts — auto-complete may have marked one done
           try {
-            const snap = await getDocs(query(collection(db, 'assignedWorkouts'), where('athleteId', '==', athleteId)))
+            const snap = await getDocs(query(collection(db, 'assignedWorkouts'), where('athleteId', '==', athleteId), where('scheduledDate', '>=', historyCutoffStr())))
             setAssignedWorkouts(snap.docs.map(d => ({ ...(d.data() as AssignedWorkout), id: d.id })))
           } catch {}
         }}

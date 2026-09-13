@@ -73,6 +73,14 @@ const WEEKDAY_KEYS = [
 const SUSPICIOUS_DISTANCE_KM = 60
 const isSuspiciousDistance = (d?: number | null) => d != null && d > SUSPICIOUS_DISTANCE_KM
 
+// assignedWorkouts/logs here used to pull this athlete's ENTIRE lifetime
+// history unbounded on every load — see the matching fix + rationale in
+// components/athlete/athlete-planner-view.tsx (HISTORY_CUTOFF_DAYS). Same
+// bound applied here since this is the coach's equivalent of that same
+// Schedule view for a single athlete.
+const HISTORY_CUTOFF_DAYS = 365
+const historyCutoffStr = () => format(addDays(new Date(), -HISTORY_CUTOFF_DAYS), 'yyyy-MM-dd')
+
 interface JourneySummary {
   stageName: string
   weekInStage: number
@@ -508,8 +516,9 @@ export function AthletePlanner({ athleteId }: Props) {
           getDocs(query(
             collection(db, 'assignedWorkouts'),
             where('athleteId', '==', athleteId),
+            where('scheduledDate', '>=', historyCutoffStr()),
           )),
-          getDocs(query(collection(db, 'logs'), where('athleteId', '==', athleteId))),
+          getDocs(query(collection(db, 'logs'), where('athleteId', '==', athleteId), where('date', '>=', historyCutoffStr()))),
         ])
         setAssignedWorkouts(snap.docs.map(d => ({ ...(d.data() as AssignedWorkout), id: d.id })))
         setLogs(logsSnap.docs.map(d => {
@@ -813,7 +822,7 @@ export function AthletePlanner({ athleteId }: Props) {
       await batch.commit()
       // Refresh from Firestore rather than reconstructing locally — simplest
       // way to get real ids/timestamps for the newly written docs.
-      const snap = await getDocs(query(collection(db, 'assignedWorkouts'), where('athleteId', '==', athleteId)))
+      const snap = await getDocs(query(collection(db, 'assignedWorkouts'), where('athleteId', '==', athleteId), where('scheduledDate', '>=', historyCutoffStr())))
       setAssignedWorkouts(snap.docs.map(d => ({ id: d.id, ...d.data() } as AssignedWorkout)))
       toast.success(`נוספו ${count} מופעים חוזרים`)
       setShowRepeatPanel(false)
