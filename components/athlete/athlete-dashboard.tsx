@@ -264,18 +264,31 @@ export function AthleteDashboard() {
       setCoachMessages(recent)
     }).catch(() => {})
 
-    // Real-time listener for assigned workouts — last 14 days + all future
+    // Real-time listener for assigned workouts — last 14 days + all future.
+    // The whole dashboard used to sit behind a full-page spinner until THIS
+    // one listener's first snapshot came back — on a slow connection or a
+    // cold Firestore "listen" handshake that could take several seconds,
+    // even though every other section (profile, notes, messages) had
+    // nothing to do with this query and could render immediately. Capping
+    // the wait means the page never blocks longer than this regardless of
+    // network conditions — the hero/weekly-progress sections just render
+    // with whatever's in `assigned` so far (empty, most likely) and update
+    // in place the moment the real snapshot arrives, same as always.
+    const LOADING_GATE_CAP_MS = 800
+    let gateOpened = false
+    const openGate = () => { if (!gateOpened) { gateOpened = true; setLoading(false) } }
+    const gateTimer = setTimeout(openGate, LOADING_GATE_CAP_MS)
     const thirtyDaysAgo = format(addDays(new Date(), -14), 'yyyy-MM-dd')
     unsubAssigned = onSnapshot(
       query(collection(db, 'assignedWorkouts'), where('athleteId', '==', user.id), where('scheduledDate', '>=', thirtyDaysAgo)),
       (snap) => {
         setAssigned(snap.docs.map(mapAssignedWorkout))
-        setLoading(false)
+        openGate()
       },
       (err) => {
         console.error('Error loading assigned workouts:', err)
         setAssigned([])
-        setLoading(false)
+        openGate()
       }
     )
 
@@ -308,6 +321,7 @@ export function AthleteDashboard() {
     )
 
     return () => {
+      clearTimeout(gateTimer)
       unsubAssigned?.()
       unsubLogs?.()
     }
