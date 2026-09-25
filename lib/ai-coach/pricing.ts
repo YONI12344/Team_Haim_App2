@@ -22,6 +22,8 @@ interface ModelRate {
 const RATES: Record<string, ModelRate> = {
   'claude-sonnet-5': { input: 2.0, output: 10.0 },
   'claude-opus-5': { input: 5.0, output: 25.0 },
+  // Assumed same as Opus 5 — confirm against the Anthropic pricing page.
+  'claude-opus-5-5': { input: 5.0, output: 25.0 },
   'claude-haiku-4-5': { input: 1.0, output: 5.0 },
 }
 const DEFAULT_RATE: ModelRate = RATES['claude-sonnet-5']

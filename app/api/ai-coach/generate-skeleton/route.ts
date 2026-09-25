@@ -11,7 +11,7 @@ import { requireCoach } from '@/lib/ai-coach/verify-coach'
 
 export const maxDuration = 300
 
-const MODEL = process.env.CLAUDE_MODEL ?? 'claude-sonnet-5'
+const MODEL = process.env.CLAUDE_COACH_MODEL ?? 'claude-opus-5-5'
 const MAX_TOKENS = Number(process.env.CLAUDE_MAX_TOKENS_SKELETON ?? 4096)
 
 // One-shot season skeleton (phases, weeks, volume ramp) from the 18-chapter

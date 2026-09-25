@@ -13,7 +13,7 @@ import { requireCoach } from '@/lib/ai-coach/verify-coach'
 
 export const maxDuration = 300
 
-const MODEL = process.env.CLAUDE_MODEL ?? 'claude-sonnet-5'
+const MODEL = process.env.CLAUDE_COACH_MODEL ?? 'claude-opus-5-5'
 const MAX_TOKENS = 16000
 const MAX_MESSAGES = 200
 
