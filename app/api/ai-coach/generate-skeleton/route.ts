@@ -37,7 +37,8 @@ export async function POST(req: NextRequest) {
     const response = await client.messages.create({
       model: MODEL,
       max_tokens: MAX_TOKENS,
-      system: [{ type: 'text', text: buildSkeletonSystemPrompt(), cache_control: { type: 'ephemeral' } }],
+      // 1h TTL — see the matching comment in generate-plan/route.ts.
+      system: [{ type: 'text', text: buildSkeletonSystemPrompt(), cache_control: { type: 'ephemeral', ttl: '1h' } }],
       tools: [tool],
       tool_choice: { type: 'tool', name: tool.name },
       messages: [{ role: 'user', content: buildSkeletonUserMessage(athlete, skeleton) }],

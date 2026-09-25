@@ -41,7 +41,12 @@ export async function POST(req: NextRequest) {
     const response = await client.messages.create({
       model: MODEL,
       max_tokens: MAX_TOKENS,
-      system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
+      // 1h TTL, not the 5-minute default: a season's blocks are generated in
+      // one loop (well within either window), but a coach re-running or
+      // extending a season minutes-to-an-hour later — or the chat agent
+      // touching the same athlete right after — should still hit the cache
+      // instead of paying full price for the brain again.
+      system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral', ttl: '1h' } }],
       tools: [tool],
       tool_choice: { type: 'tool', name: tool.name },
       messages: [{ role: 'user', content: buildBlockUserMessage(athlete, block) }],
