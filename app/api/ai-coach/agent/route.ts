@@ -78,6 +78,7 @@ export async function POST(req: NextRequest) {
       content: response.content,
       stop_reason: response.stop_reason,
       usage: u,
+      model: MODEL,
     })
   } catch (err) {
     if (err instanceof Anthropic.RateLimitError) {

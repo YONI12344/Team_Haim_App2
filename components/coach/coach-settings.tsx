@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label'
 import { Loader2, Check, Save, RefreshCw, Copy, Bot, ArrowUpRight } from 'lucide-react'
 import { useLanguage } from '@/contexts/language-context'
 import { getFunctions, httpsCallable } from 'firebase/functions'
+import { AiUsageCard } from '@/components/coach/ai-usage-card'
 
 const SETTINGS_DOC_PATH = 'settings/googleSheets'
 const SERVICE_ACCOUNT_EMAIL = 'team-haim-sheets@teamhaim.iam.gserviceaccount.com'
@@ -71,6 +72,8 @@ export function CoachSettings() {
   return (
     <div className="space-y-6 max-w-3xl">
       <h1 className="text-2xl md:text-3xl font-serif font-semibold text-navy">{c.title}</h1>
+
+      <AiUsageCard />
 
       <Card className="rounded-2xl">
         <CardContent className="flex items-start gap-3 p-4">

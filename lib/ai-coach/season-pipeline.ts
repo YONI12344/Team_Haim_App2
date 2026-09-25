@@ -55,6 +55,7 @@ import {
   applyCutbackWeekAdjustments,
 } from '@/lib/ai-coach-brain/backstops'
 import { aiCoachFetch } from '@/lib/ai-coach/client'
+import { logAiUsage } from '@/lib/ai-coach/usage-log'
 
 export const AI_SOURCE = 'bakken' as const
 export const AI_JOURNEY_ID = 'bakken_season'
@@ -489,6 +490,7 @@ export async function runSeasonPipeline(opts: SeasonPipelineOptions): Promise<Se
     }
     progress(t.designingSkeleton)
     const skeletonData = await aiCoachFetch('/api/ai-coach/generate-skeleton', { athlete: athleteContext, skeleton: skeletonReq })
+    if (skeletonData.usage) logAiUsage({ route: 'generate-skeleton', model: skeletonData.model, athleteId, coachId, usage: skeletonData.usage })
     if (skeletonData.error || !Array.isArray(skeletonData.skeleton?.stages) || skeletonData.skeleton.stages.length === 0) {
       return { ok: false, error: t.skeletonFailed(skeletonData.error || 'malformed response'), written: 0 }
     }
@@ -618,6 +620,7 @@ export async function runSeasonPipeline(opts: SeasonPipelineOptions): Promise<Se
         previousBlockTail,
       },
     })
+    if (data.usage) logAiUsage({ route: 'generate-plan', model: data.model, athleteId, coachId, usage: data.usage })
     if (data.error || !Array.isArray(data.plan?.workouts)) {
       warning = t.blockFailed(i + 1, data.error || 'malformed response', totalWritten)
       break
