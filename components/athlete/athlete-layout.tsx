@@ -29,8 +29,8 @@ export function AthleteLayout({ children, hideNav }: { children: ReactNode; hide
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-gold" />
+      <div className="poster-world min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-ochre" />
       </div>
     )
   }
@@ -39,13 +39,14 @@ export function AthleteLayout({ children, hideNav }: { children: ReactNode; hide
     return null
   }
 
+  // .poster-world scopes the athlete app's WPA-poster look (globals.css).
   return (
-    <div className="min-h-screen bg-background">
+    <div className="poster-world min-h-screen">
       {!hideNav && <AthleteNav />}
-      {/* Bottom nav is a fixed h-16 bar (mobile only, md:hidden) — without
-          matching bottom padding here it covers the last ~4rem of every
+      {/* Bottom nav is a fixed bar (mobile only, md:hidden) — without
+          matching bottom padding here it covers the last ~5rem of every
           page's content instead of just sitting below it. */}
-      <main className={hideNav ? "min-h-screen bg-background" : "container mx-auto px-4 pt-4 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pt-6 md:pb-6"}>
+      <main className={hideNav ? "min-h-screen" : "container mx-auto px-4 pt-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pt-6 md:pb-10"}>
         {children}
       </main>
       {!hideNav && <AthleteBottomNav />}

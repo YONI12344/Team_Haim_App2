@@ -624,9 +624,7 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
           <TabsTrigger value="paces">{t.pacesTab}</TabsTrigger>
           <TabsTrigger value="goals">Goals</TabsTrigger>
           <TabsTrigger value="progress">{t.progressTab}</TabsTrigger>
-          <TabsTrigger value="documents">📄 מסמכים</TabsTrigger>
-          <TabsTrigger value="injuries">🩹 פציעות</TabsTrigger>
-        </TabsList>
+          <TabsTrigger value="documents">📄 מסמכים</TabsTrigger>        </TabsList>
 
         {/* Schedule Tab → redirect to new Training Planner */}
         <TabsContent value="schedule" className="space-y-4">
@@ -978,14 +976,6 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
         <TabsContent value="documents">
             <iframe
               src={`/coach/athletes/${athleteId}/documents`}
-              className="w-full rounded-xl border border-border"
-              style={{ height: '70vh', minHeight: 500 }}
-            />
-          </TabsContent>
-
-          <TabsContent value="injuries">
-            <iframe
-              src={`/coach/athletes/${athleteId}/injuries`}
               className="w-full rounded-xl border border-border"
               style={{ height: '70vh', minHeight: 500 }}
             />

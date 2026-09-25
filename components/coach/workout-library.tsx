@@ -88,7 +88,7 @@ export function WorkoutLibrary() {
 
   // Every workouts/{id} doc referenced by an assignedWorkouts doc with
   // source:'bakken' — Bakken generates its own standalone library entry
-  // for every day it creates (bakken-plan-panel.tsx), alongside the
+  // for every day it creates (lib/ai-coach/season-pipeline.ts), alongside the
   // assignedWorkouts copy, so those library entries need their own
   // classification since there's no explicit source field on older docs.
   const [bakkenWorkoutIds, setBakkenWorkoutIds] = useState<Set<string>>(new Set())

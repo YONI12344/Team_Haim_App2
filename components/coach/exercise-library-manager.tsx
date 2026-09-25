@@ -19,7 +19,6 @@ import { useAuth } from '@/contexts/auth-context'
 import { isCoachEmail } from '@/lib/constants'
 import type { ExerciseLibraryItem } from '@/lib/types'
 import { listExercises, deleteExercise, backfillExerciseTranslations } from '@/lib/exercise-library'
-import { BODY_ZONES } from '@/lib/injury-data'
 import { seedRunningStrengthProgram } from '@/lib/seed-running-strength-program'
 import { seedRunnerStretchProgram } from '@/lib/seed-runner-stretch-program'
 import { seedStrapStretchProgram } from '@/lib/seed-strap-stretch-program'
@@ -319,15 +318,6 @@ export function ExerciseLibraryManager() {
                     <p className="text-xs text-muted-foreground">{ex.defaultSets ? `${ex.defaultSets} סטים` : ''}{ex.defaultSets && ex.defaultReps ? ' · ' : ''}{ex.defaultReps || ''}</p>
                   )}
                   {ex.instructions && <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{ex.instructions}</p>}
-                  {!!ex.injuryZones?.length && (
-                    <div className="flex flex-wrap gap-1 mt-1.5">
-                      {ex.injuryZones.map((zoneId) => (
-                        <span key={zoneId} className="text-[10px] font-semibold text-[#0a1628] bg-[#0a1628]/5 rounded-full px-2 py-0.5">
-                          {BODY_ZONES[zoneId]?.he || zoneId}
-                        </span>
-                      ))}
-                    </div>
-                  )}
                 </div>
                 <div className="flex gap-1.5">
                   <Button variant="outline" size="sm" className="h-7 text-xs flex-1" onClick={() => openEdit(ex)}>
