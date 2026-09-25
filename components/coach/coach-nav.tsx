@@ -8,7 +8,6 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { LanguageToggle } from '@/components/language-toggle'
-import { AiBudgetPill } from '@/components/coach/ai-budget-pill'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -108,7 +107,6 @@ export function CoachNav() {
 
         {/* User Menu */}
         <div className="flex items-center gap-2 sm:gap-3">
-          <AiBudgetPill />
           <div className="hidden sm:block">
             <LanguageToggle />
           </div>

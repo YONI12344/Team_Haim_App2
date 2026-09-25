@@ -128,8 +128,7 @@ export interface AthleteProfile {
   // Athlete's own self-report of where they're at right now — a Bakken AI
   // input signal alongside (not instead of) their logged training history.
   currentShape?: 'just_starting' | 'returning' | 'consistent' | 'peak_fitness'
-  // Extended intake from the 18-chapter brain (athlete-onboarding.tsx).
-  // Read by the AI coach (lib/ai-coach/season-pipeline.ts buildPlanAthleteContext).
+  // Extended intake (athlete-onboarding.tsx).
   weeklyTrainingHours?: number
   muscleFiberLeaning?: 'fast_explosive' | 'endurance' | 'in_between'
   occupationalPhysicalDemand?: 'sedentary' | 'on_feet' | 'physically_demanding'
@@ -213,7 +212,7 @@ export interface AthleteProfile {
   }>
   // Cutback/down-week overrides for base/build/peak stages — the automatic
   // default is every 3rd week (beginner) or 4th week (everyone else) at
-  // 75% volume (lib/ai-coach-brain/safety-rules.json). These let the coach
+  // 75% volume. These let the coach
   // customize WHEN it happens and what it actually changes beyond volume.
   cutbackIntervalWeeks?: number // e.g. 3 = a down week every 3rd week, overriding the automatic default
   cutbackFewerDays?: boolean // on a cutback week, also drop one easy day entirely to full rest
@@ -379,8 +378,8 @@ export interface Workout {
   // lactate-specific grouping above.
   comparisonGroup?: string
   // Who/what created this library entry — 'bakken' for every standalone
-  // workouts/{id} doc the Bakken AI generator writes (one per day, see
-  // lib/ai-coach/season-pipeline.ts), unset/'coach' for anything the coach built by
+  // workouts/{id} doc the (removed) AI generator wrote, one per day,
+  // unset/'coach' for anything the coach built by
   // hand. Lets workout-library.tsx separate/bulk-clean Bakken's own
   // one-off library clutter from real reusable coach-authored workouts.
   // Older docs predating this field fall back to a live cross-reference
