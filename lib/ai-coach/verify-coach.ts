@@ -1,17 +1,20 @@
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
-import { initializeApp, getApps } from 'firebase-admin/app'
-import { getAuth } from 'firebase-admin/auth'
+import { jwtVerify, createRemoteJWKSet } from 'jose'
 import { COACH_EMAIL } from '@/lib/constants'
 
-// ID-token verification only needs the project id (Google's public signing
-// keys are fetched over HTTPS), not a service-account credential — so this
-// works the same locally and on Vercel with no extra secrets. Uses its own
-// named app so it never collides with any other firebase-admin usage.
-const APP_NAME = 'ai-coach-verify'
-const verifyApp =
-  getApps().find((a) => a.name === APP_NAME) ??
-  initializeApp({ projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'team-haim' }, APP_NAME)
+// Verifies a Firebase Auth ID token by hand, with the `jose` library, rather
+// than `firebase-admin`: firebase-admin pulls in grpc/protobuf native
+// dependencies that Vercel's serverless bundler has repeatedly failed to
+// trace correctly for this project (it worked under `next dev` but crashed
+// every request in production with a bare 500 — no service-account
+// credential is even needed for this, since verifying an ID token's
+// signature only needs Google's public keys, fetched over HTTPS).
+const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'team-haim'
+const ISSUER = `https://securetoken.google.com/${PROJECT_ID}`
+const JWKS = createRemoteJWKSet(
+  new URL('https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com'),
+)
 
 /**
  * Gate for every /api/ai-coach/* route: the AI coach is coach-only. Returns
@@ -23,8 +26,9 @@ export async function requireCoach(req: NextRequest): Promise<NextResponse | nul
   const idToken = header.startsWith('Bearer ') ? header.slice(7) : null
   if (!idToken) return NextResponse.json({ error: 'Missing Authorization bearer token' }, { status: 401 })
   try {
-    const decoded = await getAuth(verifyApp).verifyIdToken(idToken)
-    if (decoded.email?.toLowerCase() !== COACH_EMAIL.toLowerCase() || decoded.email_verified === false) {
+    const { payload } = await jwtVerify(idToken, JWKS, { issuer: ISSUER, audience: PROJECT_ID })
+    const email = typeof payload.email === 'string' ? payload.email : undefined
+    if (email?.toLowerCase() !== COACH_EMAIL.toLowerCase() || payload.email_verified === false) {
       return NextResponse.json({ error: 'The AI coach is only available to the coach account' }, { status: 403 })
     }
     return null
