@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
 import { Loader2, ChevronRight, ChevronLeft, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { PosterScene } from '@/components/athlete/poster-scene'
 
 /**
  * Athlete onboarding. Collects the profile the coach and the AI coach plan
@@ -199,16 +200,16 @@ const EMPTY: OnboardingForm = {
 const oneOf = <T extends string>(v: unknown, opts: readonly T[]): T | '' => (opts.includes(v as T) ? (v as T) : '')
 const listOf = <T extends string>(v: unknown, opts: readonly T[]): T[] => (Array.isArray(v) ? v.filter((x) => opts.includes(x)) : [])
 
-const inputCls = 'w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-[15px] text-foreground placeholder:text-muted-foreground/60 transition-colors duration-150 focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/25'
+const inputCls = 'w-full rounded-md border-2 border-ink/25 bg-white/70 px-3 py-2.5 text-[15px] text-ink placeholder:text-ink/40 transition-colors focus:border-ink focus:outline-none'
 
 function Field({ label, hint, optional, children }: { label: string; hint?: string; optional?: string; children: ReactNode }) {
   return (
     <div>
-      <p className="mb-2 text-sm font-semibold text-navy">
+      <p className="mb-2 text-[15px] font-semibold text-ink">
         {label}
-        {optional && <span className="ms-1.5 text-xs font-normal text-muted-foreground">({optional})</span>}
+        {optional && <span className="ms-1.5 text-xs font-normal text-ink/50">({optional})</span>}
       </p>
-      {hint && <p className="-mt-1 mb-2 text-xs text-muted-foreground">{hint}</p>}
+      {hint && <p className="-mt-1 mb-2 text-xs text-ink/60">{hint}</p>}
       {children}
     </div>
   )
@@ -241,8 +242,8 @@ function Chips<T extends string>({ options, labels, value, onChange, multi, colu
           aria-checked={selected(o)}
           onClick={() => toggle(o)}
           className={cn(
-            'min-h-10 rounded-xl border px-3 py-2 text-sm font-medium transition-[transform,background-color,border-color,color] duration-150 ease-out active:scale-[0.97]',
-            selected(o) ? 'border-navy bg-navy text-white' : 'border-border text-foreground hover:border-navy/40',
+            'min-h-10 rounded-md border-2 px-3 py-2 text-sm font-medium transition-colors duration-150',
+            selected(o) ? 'border-ink bg-ink text-stock' : 'border-ink/25 text-ink hover:border-ink/60',
           )}
         >
           {labels[o]}
@@ -407,34 +408,34 @@ export function AthleteOnboarding() {
   const formStep = step >= 2 && step <= 6
 
   return (
-    <div className="min-h-screen bg-background" dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className="poster-world min-h-screen" dir={isRTL ? 'rtl' : 'ltr'}>
       <div className="mx-auto flex min-h-screen max-w-lg flex-col px-4 pb-10 pt-6">
         <header className="mb-5 flex items-center justify-between">
-          <span className="font-display text-xl font-semibold text-navy" dir="ltr">Team Haim</span>
+          <span className="poster-caps text-[26px]" dir="ltr">Team Haim</span>
           {formStep && (
-            <span className="text-sm font-medium tabular-nums text-muted-foreground">{step - 1} / 5</span>
+            <span className="poster-caps tabular text-[18px] text-ink/60">{step - 1} / 5</span>
           )}
         </header>
 
         {formStep && (
           <ol className="mb-6 grid grid-cols-5 gap-1.5" aria-hidden>
             {[2, 3, 4, 5, 6].map((i) => (
-              <li key={i} className={cn('h-1.5 rounded-full transition-colors duration-300', i <= step ? 'bg-gold' : 'bg-border')} />
+              <li key={i} className={cn('h-1.5 rounded-full transition-colors duration-300', i <= step ? 'bg-ink' : 'bg-ink/15')} />
             ))}
           </ol>
         )}
 
         {/* ── 0. Language ── */}
         {step === 0 && (
-          <div className="flex flex-1 flex-col justify-center gap-3 step-enter" key="step-0">
-            <h1 className="mb-2 text-center font-display text-2xl font-semibold text-navy">בחר/י שפה · Language</h1>
+          <div className="flex flex-1 flex-col justify-center gap-4">
+            <h1 className="poster-caps text-center text-[48px] text-ink">בחר/י שפה · Language</h1>
             {(['he', 'en'] as const).map((l) => (
               <button
                 key={l}
                 onClick={() => { setLanguage(l); setStep(1) }}
                 className={cn(
-                  'h-14 rounded-2xl border text-lg font-semibold transition-[transform,background-color,border-color,color] duration-150 ease-out active:scale-[0.98]',
-                  lang === l ? 'border-navy bg-navy text-white' : 'border-border text-navy hover:border-navy/40',
+                  'poster-caps h-16 rounded-md border-2 text-[30px] transition-colors',
+                  lang === l ? 'border-ink bg-ink text-stock' : 'border-ink text-ink hover:bg-stock-deep',
                 )}
               >
                 {l === 'he' ? 'עברית' : 'English'}
@@ -443,16 +444,16 @@ export function AthleteOnboarding() {
           </div>
         )}
 
-        {/* ── 1. Welcome ── */}
+        {/* ── 1. Welcome poster ── */}
         {step === 1 && (
-          <section className="relative overflow-hidden rounded-2xl bg-navy p-6 text-white shadow-sm step-enter" key="step-1">
-            <div className="pointer-events-none absolute -end-16 -top-16 h-56 w-56 rounded-full bg-gold/25 blur-3xl" aria-hidden />
-            <div className="relative">
-              <h1 className="text-balance font-display text-3xl font-semibold">{c.welcomeTitle}</h1>
-              <p className="mt-3 text-[15px] leading-relaxed text-white/75">{c.welcomeBody}</p>
+          <section className="overflow-hidden rounded-md border-2 border-ink">
+            <PosterScene time="dawn" className="h-64" />
+            <div className="bg-ink p-5 text-stock">
+              <h1 className="poster-caps text-balance text-[48px] text-stock">{c.welcomeTitle}</h1>
+              <p className="mt-3 text-[15px] leading-relaxed text-stock/80">{c.welcomeBody}</p>
               <button
                 onClick={() => setStep(2)}
-                className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gold text-base font-semibold text-navy transition-transform duration-150 ease-out active:scale-[0.97]"
+                className="poster-caps mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-md bg-pine text-[24px] text-stock transition-transform active:scale-[0.98]"
               >
                 {c.start} <Forward className="h-5 w-5" />
               </button>
@@ -462,8 +463,8 @@ export function AthleteOnboarding() {
 
         {formStep && (
           <>
-            <h1 className="mb-5 font-display text-2xl font-semibold text-navy">{c.steps[step]}</h1>
-            <div className="space-y-6 step-enter" key={`step-${step}`}>
+            <h1 className="poster-caps mb-5 text-[44px] text-ink">{c.steps[step]}</h1>
+            <div className="space-y-6">
               {/* ── 2. About you ── */}
               {step === 2 && (<>
                 <Field label={c.name}>
@@ -500,8 +501,8 @@ export function AthleteOnboarding() {
                   <div className="mb-2 flex flex-wrap gap-2">
                     {MILEAGE_PRESETS.map(km => (
                       <button key={km} type="button" onClick={() => set('weeklyMileage', String(km))}
-                        className={cn('tabular-nums min-h-10 min-w-12 rounded-xl border px-3 text-sm font-semibold transition-[transform,background-color,border-color,color] duration-150 ease-out active:scale-[0.97]',
-                          form.weeklyMileage === String(km) ? 'border-navy bg-navy text-white' : 'border-border hover:border-navy/40')}>
+                        className={cn('tabular min-h-10 min-w-12 rounded-md border-2 px-3 text-sm font-semibold transition-colors',
+                          form.weeklyMileage === String(km) ? 'border-ink bg-ink text-stock' : 'border-ink/25 hover:border-ink/60')}>
                         {km}
                       </button>
                     ))}
@@ -513,8 +514,8 @@ export function AthleteOnboarding() {
                   <div className="flex flex-wrap gap-2">
                     {HOURS_PRESETS.map(h => (
                       <button key={h} type="button" onClick={() => set('weeklyTrainingHours', form.weeklyTrainingHours === String(h) ? '' : String(h))}
-                        className={cn('tabular-nums min-h-10 min-w-12 rounded-xl border px-3 text-sm font-semibold transition-[transform,background-color,border-color,color] duration-150 ease-out active:scale-[0.97]',
-                          form.weeklyTrainingHours === String(h) ? 'border-navy bg-navy text-white' : 'border-border hover:border-navy/40')}>
+                        className={cn('tabular min-h-10 min-w-12 rounded-md border-2 px-3 text-sm font-semibold transition-colors',
+                          form.weeklyTrainingHours === String(h) ? 'border-ink bg-ink text-stock' : 'border-ink/25 hover:border-ink/60')}>
                         {h}
                       </button>
                     ))}
@@ -524,16 +525,16 @@ export function AthleteOnboarding() {
                   <div className="space-y-1.5">
                     {DAY_ORDER.map(day => (
                       <div key={day} className="flex items-center gap-2">
-                        <span className="w-9 shrink-0 text-xs font-semibold text-muted-foreground">{c.dayLabels[day]}</span>
+                        <span className="poster-caps w-9 shrink-0 text-[18px] text-ink/70">{c.dayLabels[day]}</span>
                         <div className="grid flex-1 grid-cols-3 gap-1.5">
                           {DAY_TYPES.map(type => (
                             <button key={type} type="button"
                               aria-pressed={form.weekSchedule[day] === type}
                               onClick={() => setForm(f => ({ ...f, weekSchedule: { ...f.weekSchedule, [day]: type } }))}
-                              className={cn('h-9 rounded-lg border text-xs font-semibold transition-[transform,background-color,border-color,color] duration-150 ease-out active:scale-[0.97]',
+                              className={cn('h-9 rounded-md border-2 text-xs font-semibold transition-colors',
                                 form.weekSchedule[day] === type
-                                  ? type === 'workout' ? 'border-pine bg-pine text-white' : 'border-navy bg-navy text-white'
-                                  : 'border-border text-muted-foreground hover:border-navy/30')}>
+                                  ? type === 'workout' ? 'border-pine bg-pine text-stock' : 'border-ink bg-ink text-stock'
+                                  : 'border-ink/20 text-ink/70 hover:border-ink/50')}>
                               {c.dayTypes[type]}
                             </button>
                           ))}
@@ -560,7 +561,7 @@ export function AthleteOnboarding() {
                     <input type="number" inputMode="numeric" className={inputCls} value={form.maxHR} onChange={e => set('maxHR', e.target.value)} placeholder="185" dir="ltr" />
                   </Field>
                 </div>
-                <p className="-mt-3 text-xs text-muted-foreground">{c.hrHint}</p>
+                <p className="-mt-3 text-xs text-ink/60">{c.hrHint}</p>
                 <Field label={c.injuries} optional={c.optional}>
                   <textarea className={cn(inputCls, 'min-h-20')} rows={3} value={form.injuryHistory} onChange={e => set('injuryHistory', e.target.value)} placeholder={c.injuriesPh} />
                 </Field>
@@ -595,7 +596,7 @@ export function AthleteOnboarding() {
 
               {/* ── 5. Testing ── */}
               {step === 5 && (<>
-                <p className="text-[15px] leading-relaxed text-foreground/80">{c.testingIntro}</p>
+                <p className="text-[15px] leading-relaxed text-ink/80">{c.testingIntro}</p>
                 <Field label={c.threshold}>
                   <Chips options={['lactate_meter', 'recent_race', 'max_hr_talk_test', 'not_sure'] as const} labels={c.thresholds} value={form.thresholdTestingMethod} onChange={v => set('thresholdTestingMethod', v)} columns={2} />
                 </Field>
@@ -633,8 +634,8 @@ export function AthleteOnboarding() {
                     <div className="mt-2 flex flex-wrap gap-1.5" dir="ltr">
                       {GOAL_TIME_PRESETS[form.goalRaceDistance].map(tm => (
                         <button key={tm} type="button" onClick={() => set('goalRaceTarget', tm)}
-                          className={cn('tabular-nums rounded-full border px-2.5 py-1 text-xs font-semibold transition-[transform,background-color,border-color,color] duration-150 ease-out active:scale-[0.97]',
-                            form.goalRaceTarget === tm ? 'border-navy bg-navy text-white' : 'border-border text-muted-foreground hover:border-navy/40')}>
+                          className={cn('tabular rounded-full border-2 px-2.5 py-1 text-xs font-semibold transition-colors',
+                            form.goalRaceTarget === tm ? 'border-ink bg-ink text-stock' : 'border-ink/25 text-ink/70 hover:border-ink/60')}>
                           {tm}
                         </button>
                       ))}
@@ -642,25 +643,25 @@ export function AthleteOnboarding() {
                   )}
                 </Field>
 
-                <div className="border-t border-border" />
+                <div className="poster-rule"><i /></div>
 
                 <Field label={c.recentRace} hint={c.recentRaceHint} optional={c.optional}>
                   <Chips options={RACE_DISTANCES} labels={c.distances} value={form.recentRaceDistance} onChange={v => set('recentRaceDistance', v)} columns={4} />
-                  <p className="mb-1.5 mt-3 text-xs font-semibold text-muted-foreground">{c.finishTime}</p>
+                  <p className="mb-1.5 mt-3 text-xs font-semibold text-ink/70">{c.finishTime}</p>
                   <div className={cn('grid gap-2', showRaceHours ? 'grid-cols-3' : 'grid-cols-2')} dir="ltr">
                     {showRaceHours && (
-                      <label className="text-[11px] text-muted-foreground">
+                      <label className="text-[11px] text-ink/60">
                         <input type="number" min={0} max={23} className={inputCls} value={form.recentRaceHours}
                           onChange={e => set('recentRaceHours', e.target.value === '' ? 0 : Number(e.target.value))} />
                         {c.hoursU}
                       </label>
                     )}
-                    <label className="text-[11px] text-muted-foreground">
+                    <label className="text-[11px] text-ink/60">
                       <input type="number" min={0} max={59} className={inputCls} value={form.recentRaceMinutes}
                         onChange={e => set('recentRaceMinutes', e.target.value === '' ? '' : Number(e.target.value))} />
                       {c.minutesU}
                     </label>
-                    <label className="text-[11px] text-muted-foreground">
+                    <label className="text-[11px] text-ink/60">
                       <input type="number" min={0} max={59} className={inputCls} value={form.recentRaceSeconds}
                         onChange={e => set('recentRaceSeconds', e.target.value === '' ? '' : Number(e.target.value))} />
                       {c.secondsU}
@@ -671,17 +672,17 @@ export function AthleteOnboarding() {
               </>)}
             </div>
 
-            {error && <p role="alert" className="mt-5 rounded-xl bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">{error}</p>}
+            {error && <p role="alert" className="mt-5 rounded-md bg-rust/10 px-3 py-2 text-sm font-medium text-rust">{error}</p>}
 
             {/* Fixed, not sticky: html/body overflow-x:hidden (globals.css) breaks sticky. */}
             <div className="h-24" aria-hidden />
-            <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+            <div className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-ink bg-stock">
               <div className="mx-auto flex max-w-lg gap-3 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3">
-              <button onClick={back} className="flex h-12 items-center gap-1 rounded-xl border border-border px-4 text-sm font-semibold text-navy transition-[transform,background-color] duration-150 ease-out active:scale-[0.97] hover:bg-navy-tint">
-                <Backward className="h-4 w-4" /> {c.back}
+              <button onClick={back} className="poster-caps flex h-12 items-center gap-1 rounded-md border-2 border-ink px-4 text-[20px] transition-colors hover:bg-stock-deep">
+                <Backward className="h-5 w-5" /> {c.back}
               </button>
               <button onClick={next} disabled={saving}
-                className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-navy text-base font-semibold text-white transition-transform duration-150 ease-out active:scale-[0.97] disabled:opacity-60 hover:bg-navy-light">
+                className="poster-caps flex h-12 flex-1 items-center justify-center gap-2 rounded-md bg-pine text-[22px] text-stock transition-transform active:scale-[0.98] disabled:opacity-60">
                 {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : step === 6 ? c.finish : <>{c.next} <Forward className="h-5 w-5" /></>}
               </button>
               </div>
@@ -691,33 +692,34 @@ export function AthleteOnboarding() {
 
         {/* ── 7. Done ── */}
         {step === 7 && (
-          <section className="relative overflow-hidden rounded-2xl bg-navy p-6 text-white shadow-sm step-enter" key="step-7">
-            <div className="pointer-events-none absolute -end-16 -top-16 h-56 w-56 rounded-full bg-gold/25 blur-3xl" aria-hidden />
-            <div className="relative space-y-5">
-              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-gold text-navy">
-                <Check className="h-7 w-7" />
+          <section className="overflow-hidden rounded-md border-2 border-ink">
+            <PosterScene time="golden" className="h-56">
+              <span className="absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-4 border-stock bg-pine">
+                <Check className="h-8 w-8 text-stock" />
               </span>
+            </PosterScene>
+            <div className="space-y-4 bg-ink p-5 text-stock">
               <div>
-                <h1 className="font-display text-3xl font-semibold">{c.doneTitle}</h1>
-                <p className="mt-2 text-[15px] text-white/75">{c.doneBody}</p>
+                <h1 className="poster-caps text-[48px] text-stock">{c.doneTitle}</h1>
+                <p className="mt-2 text-[15px] text-stock/80">{c.doneBody}</p>
               </div>
-              <div className="rounded-xl border border-white/15 p-4">
+              <div className="rounded-md border-2 border-stock/25 p-4">
                 <p className="text-[15px] font-semibold">{c.strava}</p>
-                <p className="mt-0.5 text-xs text-white/60">{c.stravaBody}</p>
+                <p className="mt-0.5 text-xs text-stock/70">{c.stravaBody}</p>
                 <button
                   onClick={handleStravaConnect}
                   disabled={stravaConnecting}
-                  className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#FC4C02] text-sm font-semibold text-white transition-transform duration-150 ease-out active:scale-[0.97] disabled:opacity-60"
+                  className="poster-caps mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-md bg-[#FC4C02] text-[20px] text-white transition-transform active:scale-[0.98] disabled:opacity-60"
                 >
                   {stravaConnecting && <Loader2 className="h-4 w-4 animate-spin" />}
                   {c.strava}
                 </button>
               </div>
               <button onClick={() => router.replace('/athlete')}
-                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gold text-base font-semibold text-navy transition-transform duration-150 ease-out active:scale-[0.97]">
+                className="poster-caps flex h-12 w-full items-center justify-center gap-2 rounded-md bg-stock text-[22px] text-ink transition-transform active:scale-[0.98]">
                 {c.toHome} <Forward className="h-5 w-5" />
               </button>
-              <p className="text-center text-xs text-white/50">{c.later}</p>
+              <p className="text-center text-xs text-stock/60">{c.later}</p>
             </div>
           </section>
         )}

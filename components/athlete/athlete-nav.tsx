@@ -59,23 +59,21 @@ export function AthleteNav() {
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-navy/10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70">
-      <div className="h-1 bg-navy-gradient" aria-hidden />
-      <div className="container flex h-16 items-center justify-between px-4">
-        <Link href="/athlete" className="flex items-center gap-3">
-          <span className="block w-10 h-10">
+    <header className="sticky top-0 z-50 w-full bg-stock border-b-2 border-ink">
+      <div className="container flex h-14 items-center justify-between px-4">
+        {/* Masthead: TH monogram + wordmark in poster caps */}
+        <Link href="/athlete" className="flex items-center gap-2.5">
+          <span className="block w-9 h-9">
             {/* To change the in-app logo, replace /public/team-haim-logo.png */}
             <img
               src="/team-haim-logo.png?v=3"
-              alt={t.teamHaim}
-              width={40}
-              height={40}
-              className="w-10 h-10 object-contain"
+              alt=""
+              width={36}
+              height={36}
+              className="w-9 h-9 object-contain"
             />
           </span>
-          <span className="hidden sm:block font-display-serif font-semibold text-navy text-lg">
-            {t.teamHaim}
-          </span>
+          <span className="poster-caps text-[26px] text-ink" dir="ltr">Team Haim</span>
         </Link>
 
         {/* Desktop Navigation */}
@@ -88,10 +86,10 @@ export function AthleteNav() {
                 href={item.href}
                 aria-current={isActive ? 'page' : undefined}
                 className={cn(
-                  'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-150',
+                  'flex items-center gap-2 px-3 py-1.5 rounded-md poster-caps text-[18px] transition-colors duration-200',
                   isActive
-                    ? 'bg-navy text-white shadow-sm'
-                    : 'text-navy-light hover:text-navy hover:bg-navy-tint'
+                    ? 'bg-ink text-stock'
+                    : 'text-ink/70 hover:text-ink hover:bg-stock-deep'
                 )}
               >
                 <item.icon className="h-4 w-4" />
@@ -110,9 +108,9 @@ export function AthleteNav() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="flex items-center gap-2 px-2">
-                <Avatar className="h-8 w-8">
+                <Avatar className="h-8 w-8 ring-2 ring-ink">
                   <AvatarImage src={user?.photoURL} alt={user?.name} />
-                  <AvatarFallback className="bg-navy/10 text-navy text-sm font-semibold">
+                  <AvatarFallback className="bg-ink text-stock text-sm font-semibold">
                     {getInitials(user?.name)}
                   </AvatarFallback>
                 </Avatar>
