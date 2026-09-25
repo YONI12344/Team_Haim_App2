@@ -23,10 +23,12 @@ import {
   X,
   CheckCircle2,
   FlaskConical,
-  HeartPulse,
   RefreshCw,
+  ChevronLeft,
 } from 'lucide-react'
 import Link from 'next/link'
+import { PosterScene, sceneTimeForStage } from '@/components/athlete/poster-scene'
+import { listJourneys, stageDisplayName } from '@/lib/journey'
 import { cn, isCoachMessageRecent } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
@@ -45,11 +47,13 @@ import { db } from '@/lib/firebase'
 import { realtimeDb } from '@/lib/firebase-realtime'
 import { ref, push, onValue, query as rtQuery, orderByChild, limitToLast } from 'firebase/database'
 import { getCoachInfo, conversationId } from '@/lib/coach'
+import { isCoachEmail } from '@/lib/constants'
 import { useStravaSync } from '@/hooks/useStravaSync'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
 import { useWorkoutTypeLabels, workoutTypeColors } from '@/lib/workout-labels'
 import type {
+  JourneyDoc,
   AssignedWorkout,
   AthleteProfile,
   Workout,
@@ -166,6 +170,23 @@ export function AthleteDashboard() {
   const [allUnreadNotes, setAllUnreadNotes] = useState<any[]>([])
   const [isDismissingNote, setIsDismissingNote] = useState(false)
   const [coachMessages, setCoachMessages] = useState<any[]>([])
+  // The athlete's current season (journey) — its phase inks the home poster.
+  const [season, setSeason] = useState<JourneyDoc | null>(null)
+
+  useEffect(() => {
+    if (!user?.id) return
+    let cancelled = false
+    listJourneys(user.id)
+      .then((journeys) => {
+        if (cancelled || journeys.length === 0) return
+        const today = format(new Date(), 'yyyy-MM-dd')
+        const active = journeys.find((j) => j.startDate <= today && j.goalRaceDate >= today)
+          || [...journeys].sort((a, b) => (b.goalRaceDate || '').localeCompare(a.goalRaceDate || ''))[0]
+        setSeason(active)
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [user?.id])
 
   useEffect(() => {
     if (!user?.id) return
@@ -225,7 +246,6 @@ export function AthleteDashboard() {
             visibleWeeksAhead: typeof data.visibleWeeksAhead === 'number' ? data.visibleWeeksAhead : 2,
             labVisibleToAthlete: data.labVisibleToAthlete === true,
             strengthToolsVisibleToAthlete: data.strengthToolsVisibleToAthlete === true,
-            injuryToolsVisibleToAthlete: data.injuryToolsVisibleToAthlete === true,
           })
         } else {
           setProfile({ name: user.name, events: [], personalRecords: [], goals: [] })
@@ -329,8 +349,9 @@ export function AthleteDashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-gold" />
+      <div className="mx-auto max-w-xl space-y-4" aria-busy>
+        <div className="h-[46vh] max-h-[340px] rounded-md bg-stock-deep animate-pulse" />
+        <div className="h-24 rounded-md bg-stock-deep animate-pulse" />
       </div>
     )
   }
@@ -342,10 +363,7 @@ export function AthleteDashboard() {
     : null
   const bypassesVisWindow = (w: AssignedWorkout) =>
     w.showAheadOverride || w.workout?.type === 'race' || w.workout?.type === 'time_trial'
-  const upcomingWorkouts = assigned
-    .filter((w) => w.status === 'scheduled' && (!visCutoff || w.scheduledDate < visCutoff || bypassesVisWindow(w)))
-    .sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate))
-    .slice(0, 5)
+  const isVisible = (w: AssignedWorkout) => !visCutoff || w.scheduledDate < visCutoff || bypassesVisWindow(w)
 
   const todayWorkouts = assigned.filter(
     (w) => w.scheduledDate && isToday(parseISO(w.scheduledDate)),
@@ -362,9 +380,6 @@ export function AthleteDashboard() {
   })
   const completedThisWeek = thisWeekWorkouts.filter((w) => w.status === 'completed').length
   const totalThisWeek = thisWeekWorkouts.length
-  const weeklyProgress = totalThisWeek
-    ? (completedThisWeek / totalThisWeek) * 100
-    : 0
 
   // Aggregate weekly stats from logs
   const startOfThisWeekStr = format(startOfThisWeek, 'yyyy-MM-dd')
@@ -376,17 +391,23 @@ export function AthleteDashboard() {
   const avgEffortNumeric = effortCount
     ? logs.reduce((s, l) => s + legacyEffortToNumber(l.effort), 0) / effortCount
     : 0
-  const totalDurationMin = assigned
-    .filter((w) => w.status === 'completed')
-    .reduce((s, w) => s + (w.actualDuration || w.workout?.duration || 0), 0)
 
   const profileName = profile?.name || user?.name || t.athleteFallback
-  const events = profile?.events || []
-  const prs = profile?.personalRecords || []
-  const goals = profile?.goals || []
-  const isNewAthlete = !loading && profile !== null && !profile?.onboardingComplete
-
+  // The coach previewing the athlete app is never sent through athlete onboarding.
+  const isNewAthlete = !loading && profile !== null && !profile?.onboardingComplete && !isCoachEmail(user?.email)
   const unreadCoachMessages = coachMessages.filter(m => !m.read)
+  const L = HOME_COPY[isRTL ? 'he' : 'en']
+
+  // Season: which phase today falls in drives the poster's time of day.
+  const todayStr = format(new Date(), 'yyyy-MM-dd')
+  const activeStage = season?.stages?.find((s) => todayStr >= s.startDate && todayStr <= s.endDate)
+  const sceneTime = sceneTimeForStage(activeStage?.type)
+  const weeksToRace = season?.goalRaceDate
+    ? Math.max(0, Math.ceil((parseISO(season.goalRaceDate).getTime() - Date.now()) / (7 * 86400000)))
+    : null
+
+  const allDoneToday = todayWorkouts.length > 0 && todayWorkouts.every(w => w.status === 'completed')
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(startOfThisWeek, i))
 
   // Dismiss weekly summary: hide immediately, mark ALL unread notes as read in Firestore,
   // then write only the newest one to the chat thread (no duplicates, no re-appearing card).
@@ -399,9 +420,6 @@ export function AthleteDashboard() {
     setAllUnreadNotes([])
     ;(async () => {
       try {
-        // Step 1: Mark ALL unread weekly notes as read at once.
-        // This prevents older notes from re-appearing on the next refresh.
-        // Check newest note first to skip chat write if already processed.
         const noteSnap = await getDoc(doc(db, 'weeklyNotes', note.id))
         const alreadyRead = noteSnap.exists() && noteSnap.data()?.readByAthlete === true
 
@@ -409,7 +427,7 @@ export function AthleteDashboard() {
           toMark.map(n => updateDoc(doc(db, 'weeklyNotes', n.id), { readByAthlete: true }))
         )
 
-        // Step 2: Write the newest note to chat — only once (idempotent guard).
+        // Write the newest note to chat — only once (idempotent guard).
         if (!alreadyRead) {
           try {
             const coachInfo = await getCoachInfo()
@@ -444,33 +462,33 @@ export function AthleteDashboard() {
     })()
   }
 
-  return (
-    <div className="space-y-4 pb-24" dir={isRTL ? 'rtl' : 'ltr'}>
+  const Chevron = isRTL ? ChevronLeft : ChevronRight
 
-      {/* Notification permission — full banner until dismissed/answered, then
-          shrinks to a small persistent pill (never fully disappears) so
-          there's always a way to recover if the token/permission is lost. */}
+  return (
+    <div className="mx-auto max-w-xl space-y-5" dir={isRTL ? 'rtl' : 'ltr'}>
+      {isNewAthlete && <NewAthleteRedirect />}
+
+      {/* Notification permission — full plate until dismissed/answered, then a
+          small persistent pill so there's always a way to recover. */}
       {permission !== 'granted' && (
         (notifBannerDismissed || permission === 'denied') ? (
           <button
             onClick={() => permission === 'denied' ? toast.error(t.notificationsDeniedHint) : enableNotifications()}
-            className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-navy bg-white border border-border rounded-full px-3 py-1.5 w-fit"
+            className="flex items-center gap-1.5 rounded-full border-2 border-ink/80 px-3 py-1 text-xs font-semibold text-ink/80 transition-colors hover:bg-stock-deep"
           >
             <Bell className="h-3.5 w-3.5" />
             {t.notificationsPillLabel}
           </button>
         ) : (
-          <div className="bg-white rounded-2xl border border-[#c9a84c]/30 shadow-sm p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#c9a84c]/10 flex items-center justify-center flex-shrink-0">
-              <Bell className="h-5 w-5 text-[#c9a84c]" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-[#0a1628] leading-tight">{t.notificationsTitle}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{t.notificationsDesc}</p>
+          <div className="poster-plate flex items-center gap-3 p-3.5">
+            <Bell className="h-5 w-5 shrink-0 text-ochre" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold leading-tight">{t.notificationsTitle}</p>
+              <p className="mt-0.5 text-xs text-ink/70">{t.notificationsDesc}</p>
             </div>
             <button
               onClick={enableNotifications}
-              className="bg-[#0a1628] text-white rounded-xl px-4 h-9 text-sm font-semibold flex-shrink-0 active:scale-95 transition-transform"
+              className="poster-caps h-9 shrink-0 rounded-md bg-ink px-3.5 text-[17px] text-stock transition-transform active:scale-95"
             >
               {t.enableBtn}
             </button>
@@ -479,7 +497,7 @@ export function AthleteDashboard() {
                 localStorage.setItem('notifBannerDismissed', '1')
                 setNotifBannerDismissed(true)
               }}
-              className="text-gray-400 hover:text-gray-600 flex-shrink-0"
+              className="shrink-0 text-ink/50 hover:text-ink"
               aria-label={t.close}
             >
               <X className="h-4 w-4" />
@@ -488,289 +506,284 @@ export function AthleteDashboard() {
         )
       )}
 
-      {/* Hero Section — navy gradient (green when done), greeting + today workout */}
-      {(() => {
-        const allDone = todayWorkouts.length > 0 && todayWorkouts.every(w => w.status === 'completed')
-        return (
-          <div className={cn('rounded-3xl p-6 transition-all',
-            allDone
-              ? 'bg-gradient-to-br from-emerald-700 to-emerald-800'
-              : 'bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85'
-          )}>
-            <div className="flex items-start justify-between mb-3">
-              <p className="text-xl font-bold text-white">{t.helloGreeting}, {profileName.split(' ')[0]}</p>
-              <div className="flex items-center gap-3">
-                {/* One-tap Strava sync — top of the hero card since this is
-                    the single most-used action on this screen. Styled like
-                    the app's own on-navy buttons (translucent white, e.g.
-                    the "Open Workout" button below) rather than Strava's
-                    own loud brand orange, which read as out of place next
-                    to the rest of this card — the orange icon alone is
-                    enough to identify it. */}
-                <button
-                  onClick={() => syncStrava()}
-                  disabled={stravaSyncing}
-                  title={stravaSyncing ? t.stravaSyncingBtn : t.stravaSyncBtn}
-                  className="flex items-center gap-1.5 h-9 px-3.5 rounded-full bg-white/15 hover:bg-white/20 active:scale-95 transition-all disabled:opacity-50"
-                >
-                  {stravaSyncing ? (
-                    <Loader2 className="h-4 w-4 text-[#FC4C02] animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-4 w-4 text-[#FC4C02]" />
-                  )}
-                  <span className="text-xs font-bold text-white">Strava</span>
-                </button>
-                <p className="text-xs text-white/40">{format(new Date(), 'd MMM')}</p>
-              </div>
-            </div>
-
-            {todayWorkouts.length > 0 ? (
-              <>
-                {todayWorkouts.map((tw, i) => (
-                  <div key={tw.id} className={i > 0 ? 'mt-4 pt-4 border-t border-white/10' : undefined}>
-                    <p className="text-2xl font-bold text-white leading-tight mt-2 mb-3">{tw.workout.title}</p>
-                    <div className="flex items-center gap-2 flex-wrap mb-4">
-                      <span className={cn('rounded-full px-3 py-1 text-xs font-bold',
-                        allDone ? 'bg-white/20 text-white' : 'bg-[#c9a84c] text-[#0a1628]')}>
-                        {workoutTypeLabels[tw.workout.type as WorkoutType] || tw.workout.type}
-                      </span>
-                      {tw.workout.distance && <span className="text-sm text-white/70">{tw.workout.distance} {t.km}</span>}
-                      {tw.workout.duration && <span className="text-sm text-white/70">{tw.workout.duration} {t.min}</span>}
-                    </div>
-                    <Link href={`/athlete/schedule?date=${tw.scheduledDate}&workoutId=${tw.id}`}>
-                      <button className="w-full h-12 rounded-2xl font-bold text-sm active:scale-95 transition-all bg-white/20 text-white hover:bg-white/25">
-                        {tw.status === 'completed' ? t.workoutDoneDetails : t.openWorkoutBtn}
-                      </button>
-                    </Link>
-                  </div>
-                ))}
-              </>
-            ) : (
-              <div className="mt-2">
-                <p className="text-xl font-bold text-white">{t.restDayLabel}</p>
-                <p className="text-sm text-white/50 mt-1">{t.restDaySubtitle}</p>
-              </div>
-            )}
+      {/* ── Today's poster: the scene above, the caption bar below ── */}
+      <section className="overflow-hidden rounded-md border-2 border-ink" aria-label={L.today}>
+        <PosterScene time={sceneTime} className="h-[42vh] min-h-[220px] max-h-[330px]">
+          <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
+            <span className="poster-caps rounded-sm bg-stock px-2 py-1 text-[17px] text-ink">
+              {weeksToRace != null && season
+                ? L.raceIn(weeksToRace, season.goalRaceEvent)
+                : format(new Date(), 'd.M')}
+            </span>
+            <button
+              onClick={() => syncStrava()}
+              disabled={stravaSyncing}
+              className="flex h-8 items-center gap-1.5 rounded-sm bg-stock px-2.5 text-ink transition-transform active:scale-95 disabled:opacity-60"
+            >
+              {stravaSyncing
+                ? <Loader2 className="h-3.5 w-3.5 animate-spin text-[#FC4C02]" />
+                : <RefreshCw className="h-3.5 w-3.5 text-[#FC4C02]" />}
+              <span className="poster-caps text-[16px]">{stravaSyncing ? t.stravaSyncingBtn : 'Strava'}</span>
+            </button>
           </div>
-        )
-      })()}
+        </PosterScene>
 
-      {/* New athlete onboarding */}
-      {isNewAthlete && <NewAthleteRedirect />}
+        <div className="bg-ink px-4 pb-4 pt-3.5 text-stock">
+          <p className="text-[13px] text-stock/70">
+            {t.helloGreeting}, {profileName.split(' ')[0]}
+            {activeStage && <> · <span className="text-ochre">{stageDisplayName(activeStage, isRTL)}</span></>}
+          </p>
 
-      {/* Coach messages — gold left-border cards */}
+          {todayWorkouts.length > 0 ? (
+            todayWorkouts.map((tw, i) => {
+              const done = tw.status === 'completed'
+              const meta = [
+                workoutTypeLabels[tw.workout.type as WorkoutType] || tw.workout.type,
+                tw.workout.distance ? `${tw.workout.distance} ${t.km}` : null,
+                tw.workout.duration ? `${tw.workout.duration} ${t.min}` : null,
+              ].filter(Boolean).join(' · ')
+              return (
+                <div key={tw.id} className={cn(i > 0 && 'mt-4 border-t border-stock/20 pt-4')}>
+                  <div className="mt-1 flex items-start justify-between gap-3">
+                    <h1 className="poster-caps text-balance text-[44px] text-stock">{tw.workout.title}</h1>
+                    {done && (
+                      <span className="poster-caps mt-1 shrink-0 -rotate-6 rounded-sm border-2 border-ochre px-2 py-0.5 text-[20px] text-ochre">
+                        {L.done}
+                      </span>
+                    )}
+                  </div>
+                  <p className="tabular mt-1.5 text-sm text-stock/80">{meta}</p>
+                  <Link
+                    href={`/athlete/schedule?date=${tw.scheduledDate}&workoutId=${tw.id}`}
+                    className={cn(
+                      'poster-caps mt-4 flex h-12 items-center justify-center gap-2 rounded-md text-[22px] transition-transform active:scale-[0.98]',
+                      done ? 'border-2 border-stock/60 text-stock' : 'bg-pine text-stock',
+                    )}
+                  >
+                    {done ? t.workoutDoneDetails : t.openWorkoutBtn}
+                    <Chevron className="h-5 w-5" />
+                  </Link>
+                </div>
+              )
+            })
+          ) : (
+            <div className="mt-1">
+              <h1 className="poster-caps text-[44px] text-stock">{t.restDayLabel}</h1>
+              <p className="mt-1.5 text-sm text-stock/75">{t.restDaySubtitle}</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ── This week as a strip of seven stamps ── */}
+      <section aria-label={t.yourWeekLabel}>
+        <div className="poster-rule mb-3">
+          <span className="poster-caps text-[20px]">{t.yourWeekLabel}</span>
+          <i />
+        </div>
+        <ol className="grid grid-cols-7 gap-1.5">
+          {weekDays.map((d) => {
+            const ds = format(d, 'yyyy-MM-dd')
+            const dayWorkouts = thisWeekWorkouts.filter(w => w.scheduledDate === ds && isVisible(w))
+            const state = dayWorkouts.length === 0
+              ? 'rest'
+              : dayWorkouts.every(w => w.status === 'completed')
+                ? 'done'
+                : dayWorkouts.some(w => w.status === 'skipped') ? 'skipped' : 'planned'
+            const today = ds === todayStr
+            return (
+              <li key={ds}>
+                <Link
+                  href={`/athlete/schedule?date=${ds}`}
+                  aria-label={`${format(d, 'd.M')} ${L.dayState[state]}`}
+                  className={cn(
+                    'flex h-[68px] flex-col items-center justify-between rounded-md border-2 py-1.5 transition-colors',
+                    today ? 'border-ink bg-ink text-stock' : 'border-ink/25 text-ink hover:border-ink/60',
+                  )}
+                >
+                  <span className="poster-caps text-[15px] opacity-80">{L.dayLetters[d.getDay()]}</span>
+                  <span className="tabular text-[15px] font-semibold leading-none">{format(d, 'd')}</span>
+                  <span
+                    aria-hidden
+                    className={cn(
+                      'h-2.5 w-2.5 rounded-full',
+                      state === 'done' && (today ? 'bg-ochre' : 'bg-pine'),
+                      state === 'planned' && (today ? 'border-2 border-ochre' : 'border-2 border-ink/70'),
+                      state === 'skipped' && 'bg-rust',
+                      state === 'rest' && 'bg-transparent',
+                    )}
+                  />
+                </Link>
+              </li>
+            )
+          })}
+        </ol>
+
+        <dl className="poster-plate mt-3 grid grid-cols-3">
+          {[
+            { v: totalDistance.toFixed(0), l: t.weekKmDoneLabel },
+            { v: `${completedThisWeek}/${totalThisWeek}`, l: t.workoutsStatLabel },
+            { v: effortCount > 0 ? avgEffortNumeric.toFixed(1) : '—', l: t.averageEffortShort },
+          ].map((s, i) => (
+            <div key={s.l} className={cn('px-2 py-3 text-center', i > 0 && 'border-s-2 border-ink/15')}>
+              <dd className="poster-caps tabular text-[36px] text-ink">{s.v}</dd>
+              <dt className="mt-1 text-[12px] text-ink/70">{s.l}</dt>
+            </div>
+          ))}
+        </dl>
+      </section>
+
+      {/* ── From the coach: direct messages ── */}
       {unreadCoachMessages.length > 0 && (
-        <div className="space-y-3">
+        <section className="space-y-3" aria-label={t.messageFromCoach}>
           {unreadCoachMessages.map(msg => (
-            <div key={msg.id} className="bg-white rounded-3xl shadow-sm border border-gray-100 border-l-4 border-l-[#c9a84c] p-5">
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-[#c9a84c] mb-2">{t.messageFromCoach}</p>
-              {msg.workoutTitle && <p className="text-xs text-gray-400 mb-2">{msg.workoutTitle}</p>}
-              <p className="text-sm text-[#0a1628] leading-relaxed">{msg.message}</p>
-              <div className="flex items-center justify-between mt-3">
+            <article key={msg.id} className="poster-plate p-4">
+              <div className="poster-rule mb-2.5 text-pine">
+                <span className="poster-caps text-[19px]">{t.messageFromCoach}</span>
+                <i />
+              </div>
+              {msg.workoutTitle && <p className="mb-1.5 text-xs text-ink/60">{msg.workoutTitle}</p>}
+              <p className="text-[15px] leading-relaxed">{msg.message}</p>
+              <div className="mt-3 flex items-center justify-between">
                 {msg.createdAt?.seconds && (
-                  <p className="text-xs text-gray-400">{format(new Date(msg.createdAt.seconds * 1000), 'd/M/yyyy HH:mm')}</p>
+                  <p className="tabular text-xs text-ink/55">{format(new Date(msg.createdAt.seconds * 1000), 'd/M/yyyy HH:mm')}</p>
                 )}
                 <button
                   onClick={() => {
                     setCoachMessages(prev => prev.filter(m => m.id !== msg.id)) // instant hide
                     updateDoc(doc(db, 'coachMessages', msg.id), { read: true, readAt: Date.now() }).catch(() => {})
                   }}
-                  className="flex items-center gap-1.5 bg-[#c9a84c] hover:bg-[#b8962e] text-white text-xs font-semibold px-3 py-1.5 rounded-full transition-colors active:scale-95"
+                  className="poster-caps flex h-8 items-center gap-1.5 rounded-md bg-pine px-3 text-[16px] text-stock transition-transform active:scale-95"
                 >
                   <CheckCircle2 className="h-3.5 w-3.5" />
                   {t.markedAsReadBtn}
                 </button>
               </div>
-            </div>
+            </article>
           ))}
-        </div>
+        </section>
       )}
 
-      {/* Pending Strava Feedback — one card per workout */}
+      {/* ── Strava runs waiting for the athlete's feedback ── */}
       {pendingFeedbackLogs.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 px-1">
-            {pendingFeedbackLogs.length} {t.pendingFeedbackSuffix}
-          </p>
-          {pendingFeedbackLogs
-            .sort((a: any, b: any) => b.date.localeCompare(a.date))
-            .slice(0, 5)
-            .map((log: any) => (
-              <Link key={log.id} href={`/athlete/schedule?date=${log.date}`}>
-                <div className="bg-white rounded-2xl shadow-sm border border-[#FC4C02]/20 p-4 flex items-center justify-between gap-4 active:scale-[0.98] transition-transform">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-[#FC4C02]/10 flex items-center justify-center flex-shrink-0">
-                      <TrendingUp className="h-4 w-4 text-[#FC4C02]" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-[#0a1628] leading-tight">
-                        {log.stravaName || t.pendingFeedbackSuffix}
-                      </p>
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        {log.date} {log.actualDistance ? `· ${log.actualDistance} km` : ''}
+        <section aria-label={t.pendingFeedbackSuffix}>
+          <div className="poster-rule mb-2">
+            <span className="poster-caps text-[19px]">{pendingFeedbackLogs.length} {t.pendingFeedbackSuffix}</span>
+            <i />
+          </div>
+          <ul className="poster-plate divide-y-2 divide-ink/10">
+            {pendingFeedbackLogs
+              .sort((a: any, b: any) => b.date.localeCompare(a.date))
+              .slice(0, 5)
+              .map((log: any) => (
+                <li key={log.id}>
+                  <Link href={`/athlete/schedule?date=${log.date}`} className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-stock-deep/60">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold">{log.stravaName || t.pendingFeedbackSuffix}</p>
+                      <p className="tabular mt-0.5 text-xs text-ink/60">
+                        {log.date}{log.actualDistance ? ` · ${log.actualDistance} ${t.km}` : ''}
                       </p>
                     </div>
-                  </div>
-                  <ArrowUpRight className="h-4 w-4 text-[#FC4C02] flex-shrink-0" />
-                </div>
-              </Link>
-            ))}
-          {pendingFeedbackLogs.length > 5 && (
-            <Link href="/athlete/schedule">
-              <p className="text-xs text-center text-gray-400 pt-1">
-                +{pendingFeedbackLogs.length - 5} more
-              </p>
-            </Link>
-          )}
-        </div>
+                    <ArrowUpRight className="h-4 w-4 shrink-0 text-[#FC4C02]" />
+                  </Link>
+                </li>
+              ))}
+            {pendingFeedbackLogs.length > 5 && (
+              <li>
+                <Link href="/athlete/schedule" className="block px-4 py-2.5 text-center text-xs text-ink/60">
+                  +{pendingFeedbackLogs.length - 5} {L.more}
+                </Link>
+              </li>
+            )}
+          </ul>
+        </section>
       )}
 
-      {/* Weekly Progress Card */}
-      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
-        <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-4">{t.yourWeekLabel}</p>
-        <div className="w-full bg-gray-100 rounded-full h-2 mb-3">
-          <div
-            className="bg-[#0a1628] rounded-full h-2 transition-all duration-500"
-            style={{ width: `${weeklyProgress}%` }}
-          />
-        </div>
-        <p className="text-sm text-gray-500 mb-4">{completedThisWeek} {t.ofPlannedLabel} {totalThisWeek} {t.workoutsCompletedLabel}</p>
-        <div className="grid grid-cols-3 gap-4 border-t border-gray-50 pt-4">
-          <div className="text-center">
-            <p className="text-3xl font-black text-[#0a1628] leading-none">{totalDistance.toFixed(0)}</p>
-            <p className="text-xs text-gray-400 mt-1.5">{t.weekKmDoneLabel}</p>
-          </div>
-          <div className="text-center border-x border-gray-100">
-            <p className="text-3xl font-black text-[#0a1628] leading-none">
-              {effortCount > 0 ? avgEffortNumeric.toFixed(1) : '—'}
-            </p>
-            <p className="text-xs text-gray-400 mt-1.5">{t.averageEffortShort}</p>
-          </div>
-          <div className="text-center">
-            <p className="text-3xl font-black text-[#0a1628] leading-none">{completedThisWeek}</p>
-            <p className="text-xs text-gray-400 mt-1.5">{t.workoutsStatLabel}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Coach Note */}
+      {/* ── Coach's weekly note ── */}
       {latestCoachNote && (
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 border-l-4 border-l-[#0a1628] p-5">
+        <article className="rounded-md bg-pine p-4 text-stock">
           {latestCoachNote.nextWeekFocus && (
             <>
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-2">{t.nextWeekFocusLabel}</p>
-              <p className="text-sm text-[#0a1628] leading-relaxed mb-4">{latestCoachNote.nextWeekFocus}</p>
-              <div className="border-t border-gray-100 mb-4" />
+              <p className="poster-caps text-[19px] text-ochre">{t.nextWeekFocusLabel}</p>
+              <p className="mt-1.5 text-[15px] leading-relaxed">{latestCoachNote.nextWeekFocus}</p>
             </>
           )}
           {latestCoachNote.coachNote && (
             <>
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-2">{t.coachNoteHeading}</p>
-              <p className="text-base text-[#0a1628] font-medium leading-relaxed italic">{latestCoachNote.coachNote}</p>
+              <p className={cn('poster-caps text-[19px] text-ochre', latestCoachNote.nextWeekFocus && 'mt-4')}>{t.coachNoteHeading}</p>
+              <p className="mt-1.5 text-base font-medium leading-relaxed">{latestCoachNote.coachNote}</p>
             </>
           )}
-          <div className="flex items-center justify-between mt-4">
+          <div className="mt-4 flex items-center justify-between">
             {latestCoachNote.weekStart && (
-              <p className="text-xs text-gray-400">{latestCoachNote.weekStart} – {latestCoachNote.weekEnd}</p>
+              <p className="tabular text-xs text-stock/65">{latestCoachNote.weekStart} – {latestCoachNote.weekEnd}</p>
             )}
             <button
               onClick={handleDismissWeeklySummary}
               disabled={isDismissingNote}
-              className="flex items-center gap-1.5 bg-[#0a1628] hover:bg-[#0a1628]/90 text-white text-xs font-semibold px-3 py-1.5 rounded-full transition-colors active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="poster-caps flex h-8 items-center gap-1.5 rounded-md bg-stock px-3 text-[16px] text-ink transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <CheckCircle2 className="h-3.5 w-3.5" />
               {t.markedAsReadBtn}
             </button>
           </div>
-        </div>
+        </article>
       )}
 
-      {/* Chat with Coach */}
-      <Link href="/athlete/chat" className="block">
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex items-center justify-between active:scale-[0.98] transition-transform">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-[#0a1628] flex items-center justify-center relative flex-shrink-0">
-              <MessageCircle className="h-6 w-6 text-white" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                  {unreadCount > 9 ? '9+' : unreadCount}
+      {/* ── Everything else, as one printed index ── */}
+      <nav aria-label={L.more} className="poster-plate divide-y-2 divide-ink/10">
+        {[
+          {
+            href: '/athlete/chat',
+            icon: MessageCircle,
+            label: t.chatWithCoachLabel,
+            sub: unreadCount > 0 ? `${unreadCount} ${t.newMessagesSuffix}` : t.messageYourCoach,
+            badge: unreadCount > 0 ? (unreadCount > 9 ? '9+' : String(unreadCount)) : null,
+            show: true,
+          },
+          { href: '/athlete/progress', icon: TrendingUp, label: L.strengthTitle, sub: L.strengthSub, badge: null, show: !!profile?.strengthToolsVisibleToAthlete },
+          { href: '/athlete/lab', icon: FlaskConical, label: t.labLabel, sub: t.labDesc, badge: null, show: !!profile?.labVisibleToAthlete },
+        ].filter(r => r.show).map((r) => (
+          <Link key={r.href} href={r.href} className="flex items-center gap-3.5 px-4 py-3.5 transition-colors hover:bg-stock-deep/60">
+            <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-ink text-stock">
+              <r.icon className="h-5 w-5" />
+              {r.badge && (
+                <span className="absolute -top-1.5 -end-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-rust px-1 text-[10px] font-bold text-stock">
+                  {r.badge}
                 </span>
               )}
-            </div>
-            <div dir={isRTL ? 'rtl' : 'ltr'}>
-              <p className="font-bold text-[#0a1628] text-base leading-tight">{t.chatWithCoachLabel}</p>
-              {unreadCount > 0 ? (
-                <p className="text-sm text-[#c9a84c] font-semibold mt-0.5">
-                  {unreadCount} {t.newMessagesSuffix}
-                </p>
-              ) : (
-                <p className="text-xs text-gray-400 mt-0.5">{t.messageYourCoach}</p>
-              )}
-            </div>
-          </div>
-          <ChevronRight className={cn('h-5 w-5 text-gray-300 flex-shrink-0', isRTL && 'rotate-180')} />
-        </div>
-      </Link>
-
-      {/* Strength/stretch platform — Exercise Library workouts, Lift Mode,
-          progress. Coach-gated per athlete while the feature is still being
-          tested (users.strengthToolsVisibleToAthlete) — separate switch
-          from injury prevention below, on purpose. */}
-      {profile?.strengthToolsVisibleToAthlete && (
-      <Link href="/athlete/progress" className="block">
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex items-center justify-between active:scale-[0.98] transition-transform">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-[#0a1628] flex items-center justify-center flex-shrink-0">
-              <TrendingUp className="h-6 w-6 text-white" />
-            </div>
-            <div dir={isRTL ? 'rtl' : 'ltr'}>
-              <p className="font-bold text-[#0a1628] text-base leading-tight">התקדמות בכוח</p>
-              <p className="text-xs text-gray-400 mt-0.5">משקלים והתקדמות לפי תרגיל</p>
-            </div>
-          </div>
-          <ChevronRight className={cn('h-5 w-5 text-gray-300 flex-shrink-0', isRTL && 'rotate-180')} />
-        </div>
-      </Link>
-      )}
-
-      {/* Injury prevention — its own gate (users.injuryToolsVisibleToAthlete),
-          independent from strength/stretch above. */}
-      {profile?.injuryToolsVisibleToAthlete && (
-      <Link href="/athlete/injury" className="block">
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex items-center justify-between active:scale-[0.98] transition-transform">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-[#0a1628] flex items-center justify-center flex-shrink-0">
-              <HeartPulse className="h-6 w-6 text-white" />
-            </div>
-            <div dir={isRTL ? 'rtl' : 'ltr'}>
-              <p className="font-bold text-[#0a1628] text-base leading-tight">מניעת פציעות</p>
-              <p className="text-xs text-gray-400 mt-0.5">פציעות נפוצות ותרגילי מניעה לפי אזור</p>
-            </div>
-          </div>
-          <ChevronRight className={cn('h-5 w-5 text-gray-300 flex-shrink-0', isRTL && 'rotate-180')} />
-        </div>
-      </Link>
-      )}
-
-      {/* Lab — lactate tests, thresholds, derived paces; coach-gated per athlete */}
-      {profile?.labVisibleToAthlete && (
-        <Link href="/athlete/lab" className="block">
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex items-center justify-between active:scale-[0.98] transition-transform">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-[#0a1628] flex items-center justify-center flex-shrink-0">
-                <FlaskConical className="h-6 w-6 text-white" />
-              </div>
-              <div dir={isRTL ? 'rtl' : 'ltr'}>
-                <p className="font-bold text-[#0a1628] text-base leading-tight">{t.labLabel}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{t.labDesc}</p>
-              </div>
-            </div>
-            <ChevronRight className={cn('h-5 w-5 text-gray-300 flex-shrink-0', isRTL && 'rotate-180')} />
-          </div>
-        </Link>
-      )}
-
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] font-semibold leading-tight">{r.label}</span>
+              <span className={cn('mt-0.5 block text-xs', r.badge ? 'font-semibold text-rust' : 'text-ink/60')}>{r.sub}</span>
+            </span>
+            <Chevron className="h-5 w-5 shrink-0 text-ink/40" />
+          </Link>
+        ))}
+      </nav>
     </div>
   )
 }
 
+const HOME_COPY = {
+  en: {
+    today: 'Today',
+    done: 'Done',
+    more: 'more',
+    raceIn: (weeks: number, race?: string) => weeks === 0 ? `Race week${race ? ` · ${race}` : ''}` : `${weeks} weeks to ${race || 'race day'}`,
+    dayLetters: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
+    dayState: { done: 'done', planned: 'planned', skipped: 'skipped', rest: 'rest day' },
+    strengthTitle: 'Strength progress',
+    strengthSub: 'Weights and progress by exercise',
+  },
+  he: {
+    today: 'היום',
+    done: 'בוצע',
+    more: 'עוד',
+    raceIn: (weeks: number, race?: string) => weeks === 0 ? `שבוע המירוץ${race ? ` · ${race}` : ''}` : `עוד ${weeks} שבועות ל${race ? `-${race}` : 'מירוץ'}`,
+    dayLetters: ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'],
+    dayState: { done: 'בוצע', planned: 'מתוכנן', skipped: 'דולג', rest: 'מנוחה' },
+    strengthTitle: 'התקדמות בכוח',
+    strengthSub: 'משקלים והתקדמות לפי תרגיל',
+  },
+} as const

@@ -204,7 +204,7 @@ const LEVEL_WEIGHT: Record<ExperienceLevel, number> = { beginner: 1, intermediat
 export const LEVEL_LABEL_HE: Record<ExperienceLevel, string> = {
   beginner: 'מתחילים', intermediate: 'בינוני', advanced: 'מתקדם', professional: 'עילית',
 }
-// Verbatim from lib/bakken/coach-voice.json's warmup_patterns/cooldown_patterns
+// Verbatim from the former coach-voice.json's warmup_patterns/cooldown_patterns
 // (real recurring structures this coach actually uses) — not generated text.
 const WARMUP_BY_LEVEL: Record<ExperienceLevel, string> = {
   beginner: 'מתיחות דינמיות, 3 ד׳ הליכה מהירה + 2 ד׳ ריצה קלה',

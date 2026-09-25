@@ -73,14 +73,8 @@ export interface AthleteProfile {
   // platform (Exercise Library workouts, Lift Mode, /athlete/progress) —
   // still being tested, off by default. Checked directly on each of those
   // athlete-facing surfaces, not just used to hide entry points, same
-  // defense-in-depth spirit as labVisibleToAthlete. Deliberately separate
-  // from injuryToolsVisibleToAthlete below — the coach wants to be able to
-  // turn strength/stretch on for an athlete without also exposing the
-  // (separately unfinished) injury tool, and vice versa.
+  // defense-in-depth spirit as labVisibleToAthlete.
   strengthToolsVisibleToAthlete?: boolean
-  // Same gating mechanism as strengthToolsVisibleToAthlete, but just for
-  // /athlete/injury — independent switch, on purpose (see above).
-  injuryToolsVisibleToAthlete?: boolean
   // Coach-set default routine links (same shape as Workout.linkedRoutines)
   // for THIS athlete — auto-applied to a workout when it's assigned to
   // them and doesn't already carry its own linkedRoutines (e.g. a specific
@@ -134,6 +128,17 @@ export interface AthleteProfile {
   // Athlete's own self-report of where they're at right now — a Bakken AI
   // input signal alongside (not instead of) their logged training history.
   currentShape?: 'just_starting' | 'returning' | 'consistent' | 'peak_fitness'
+  // Extended intake from the 18-chapter brain (athlete-onboarding.tsx).
+  // Read by the AI coach (lib/ai-coach/season-pipeline.ts buildPlanAthleteContext).
+  weeklyTrainingHours?: number
+  muscleFiberLeaning?: 'fast_explosive' | 'endurance' | 'in_between'
+  occupationalPhysicalDemand?: 'sedentary' | 'on_feet' | 'physically_demanding'
+  injuryHistoryDetail?: Array<'none' | 'recurring_asymmetric' | 'stress_fracture_history' | 'low_bone_density' | 'currently_nursing'>
+  accessToLactateMeter?: 'have_one' | 'considering' | 'not_planning'
+  thresholdTestingMethod?: 'lactate_meter' | 'recent_race' | 'max_hr_talk_test' | 'not_sure'
+  priorTrainingInterruptions?: 'no' | 'once' | 'multiple_times'
+  labMarkersKnown?: Array<'ferritin' | 'vitamin_d' | 'b12' | 'none_checked' | 'not_sure'>
+  menstrualCycleTracking?: 'yes' | 'no' | 'not_applicable'
   // Coach-set cap on long-run duration in minutes, used by the Bakken AI
   // plan generator.
   longRunMinutes?: number
@@ -208,7 +213,7 @@ export interface AthleteProfile {
   }>
   // Cutback/down-week overrides for base/build/peak stages — the automatic
   // default is every 3rd week (beginner) or 4th week (everyone else) at
-  // 75% volume (lib/bakken/safety-rules.json). These let the coach
+  // 75% volume (lib/ai-coach-brain/safety-rules.json). These let the coach
   // customize WHEN it happens and what it actually changes beyond volume.
   cutbackIntervalWeeks?: number // e.g. 3 = a down week every 3rd week, overriding the automatic default
   cutbackFewerDays?: boolean // on a cutback week, also drop one easy day entirely to full rest
@@ -373,7 +378,7 @@ export interface Workout {
   comparisonGroup?: string
   // Who/what created this library entry — 'bakken' for every standalone
   // workouts/{id} doc the Bakken AI generator writes (one per day, see
-  // bakken-plan-panel.tsx), unset/'coach' for anything the coach built by
+  // lib/ai-coach/season-pipeline.ts), unset/'coach' for anything the coach built by
   // hand. Lets workout-library.tsx separate/bulk-clean Bakken's own
   // one-off library clutter from real reusable coach-authored workouts.
   // Older docs predating this field fall back to a live cross-reference
@@ -668,29 +673,6 @@ export interface ExerciseLogEntry {
   sets: Array<{ weightKg?: number | null; durationSec?: number | null; completed: boolean }>
   maxWeightKg?: number | null // derived at write time, for quick PB display
   maxDurationSec?: number | null // derived at write time, for timed exercises
-  createdAt: Date
-  updatedAt: Date
-}
-
-// A coach-diagnosed injury for one athlete, tied to a body zone (lib/injury-
-// data.ts BODY_ZONES key). Coach-write only; visible to the athlete on
-// their own /athlete/injury page only once visibleToAthlete is set — same
-// gating spirit as users.labVisibleToAthlete for the Lab page, but per
-// record instead of one global flag. rehabWorkoutId optionally points at
-// an existing strength assignedWorkouts/{id} (built/assigned the normal
-// way) that becomes this injury's "start rehab session" button, launching
-// Lift Mode so the session logs into the athlete's regular exerciseLogs
-// progress history like any other strength workout.
-export interface AthleteInjury {
-  id: string
-  athleteId: string
-  zoneId: string
-  title: string
-  description?: string
-  status: 'active' | 'recovered'
-  visibleToAthlete: boolean
-  rehabWorkoutId?: string
-  createdBy: string
   createdAt: Date
   updatedAt: Date
 }

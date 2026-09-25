@@ -22,11 +22,33 @@ service cloud.firestore {
       // Athletes can no longer self-write `physiology` (T1/T2/T3 source of
       // truth) either — Lab editing is coach-only; maxHR/restingHR and
       // every other self-writable field are unaffected.
+      // Also blocked from self-write: the coach-controlled visibility flags
+      // (labVisibleToAthlete, strengthToolsVisibleToAthlete) — previously these were only enforced client-side
+      // (defense-in-depth UI checks), meaning a spoofed client could
+      // self-grant any of them directly against Firestore. Only the coach
+      // can flip these now, matching how `role`/`physiology` already work.
       allow write: if isCoach()
         || (isSelf(userId) && request.resource.data.role != 'coach'
             && (resource == null
-                || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['physiology'])));
+                || !request.resource.data.diff(resource.data).affectedKeys()
+                     .hasAny(['physiology', 'labVisibleToAthlete',
+                              'strengthToolsVisibleToAthlete'])));
       match /journey/{journeyId} {
+        allow read, write: if isSelf(userId) || isCoach();
+      }
+
+      // Standalone Expo "AI Coach" app dashboard collections -- self-only,
+      // same isSelf(userId) shape as journey above. Deliberately scoped
+      // under users/{userId} (not a top-level collection) so they're
+      // invisible/harmless to every athlete except whichever ones the Expo
+      // app is actually used by; the coach can still read for support.
+      match /dailyCheckins/{date} {
+        allow read, write: if isSelf(userId) || isCoach();
+      }
+      match /transitions/{docId} {
+        allow read, write: if isSelf(userId) || isCoach();
+      }
+      match /healthLabs/{docId} {
         allow read, write: if isSelf(userId) || isCoach();
       }
     }
@@ -34,6 +56,18 @@ service cloud.firestore {
     match /workouts/{workoutId} {
       allow read: if request.auth != null;
       allow write: if isCoach();
+    }
+
+    // The coach's AI assistant conversations, one thread per athlete
+    // (lib/ai-coach/thread-store.ts). Coach-only in both directions: the
+    // athlete it's about can never read it — it holds the coach's private
+    // reasoning about them. Kept out of users/{userId}, which any signed-in
+    // user can read.
+    match /aiCoachThreads/{athleteId} {
+      allow read, write: if isCoach();
+      match /messages/{messageId} {
+        allow read, write: if isCoach();
+      }
     }
 
     match /assignedWorkouts/{docId} {

@@ -43,6 +43,7 @@ import { secToPace } from '@/lib/physiology'
 import dynamic from 'next/dynamic'
 import { LinkedRoutinesEditor, type LinkedRoutine } from '@/components/coach/linked-routines-editor'
 import { AthletePlannerView } from '@/components/athlete/athlete-planner-view'
+import { AI_SCHEDULE_CHANGED_EVENT } from '@/lib/ai-coach/client'
 import { useLanguage } from '@/contexts/language-context'
 import { toast } from 'sonner'
 import { MarkDayOffDialog } from '@/components/shared/mark-day-off-dialog'
@@ -287,11 +288,6 @@ export function AthletePlanner({ athleteId }: Props) {
   const [repeatSkipDownWeeks, setRepeatSkipDownWeeks] = useState(true)
   const [repeatSaving, setRepeatSaving] = useState(false)
 
-  // AI coaching report — collapsed by default to keep the screen clean
-  const [aiReport, setAiReport] = useState<any>(null)
-  const [aiReportLoading, setAiReportLoading] = useState(false)
-  const [showAiSection, setShowAiSection] = useState(false)
-
   // Original application ("apply" form) data — only lives in the `leads`
   // collection; auth-context.tsx only copies a handful of structured
   // fields onto the athlete's own profile on conversion; everything else
@@ -415,13 +411,6 @@ export function AthletePlanner({ athleteId }: Props) {
   const [dayMessageText, setDayMessageText] = useState('')
   const [sendingDayMessage, setSendingDayMessage] = useState(false)
 
-  // Weekly summary
-  const [showWeeklySummary, setShowWeeklySummary] = useState(false)
-  const [weeklySummaryLoading, setWeeklySummaryLoading] = useState(false)
-  const [weeklySummary, setWeeklySummary] = useState<any>(null)
-  const [weeklyCoachNote, setWeeklyCoachNote] = useState('')
-  const [savingWeeklySummary, setSavingWeeklySummary] = useState(false)
-
   // ── Load athlete + journey + workout library ──────────────────────────────
   useEffect(() => {
     const load = async () => {
@@ -455,7 +444,6 @@ export function AthletePlanner({ athleteId }: Props) {
             physiology: d.physiology,
             labVisibleToAthlete: d.labVisibleToAthlete === true,
             strengthToolsVisibleToAthlete: d.strengthToolsVisibleToAthlete === true,
-            injuryToolsVisibleToAthlete: d.injuryToolsVisibleToAthlete === true,
             defaultLinkedRoutines: Array.isArray(d.defaultLinkedRoutines) ? d.defaultLinkedRoutines : [],
             defaultLinkedRoutinesByType: Array.isArray(d.defaultLinkedRoutinesByType) ? d.defaultLinkedRoutinesByType : [],
             coachPrivateNotes: d.coachPrivateNotes || '',
@@ -503,6 +491,17 @@ export function AthletePlanner({ athleteId }: Props) {
     load()
   }, [athleteId])
 
+  // The AI coach panel (components/coach/ai-coach-agent.tsx) and its plan
+  // settings write workouts directly — refetch when they report a change.
+  const [scheduleVersion, setScheduleVersion] = useState(0)
+  useEffect(() => {
+    const onChange = (e: Event) => {
+      if ((e as CustomEvent).detail?.athleteId === athleteId) setScheduleVersion(v => v + 1)
+    }
+    window.addEventListener(AI_SCHEDULE_CHANGED_EVENT, onChange)
+    return () => window.removeEventListener(AI_SCHEDULE_CHANGED_EVENT, onChange)
+  }, [athleteId])
+
   // ── Load assigned workouts + logs ─────────────────────────────────────────
   // Neither query is actually scoped to a month (both pull this athlete's
   // full history), so this only needs to run once per athlete — it used to
@@ -542,7 +541,7 @@ export function AthletePlanner({ athleteId }: Props) {
       }
     }
     load()
-  }, [athleteId])
+  }, [athleteId, scheduleVersion])
 
   // ── Per-athlete week settings ─────────────────────────────────────────────
   // Calendar week start (0 = Sunday default, 1 = Monday)
@@ -1104,80 +1103,6 @@ export function AthletePlanner({ athleteId }: Props) {
     return { recent, totalPlanned: totalPlanned.toFixed(1), totalDone: totalDone.toFixed(1), avgEffort }
   }, [assignedWorkouts, logs])
 
-  const handleGenerateReport = async () => {
-    if (!athlete) return
-    setAiReportLoading(true)
-    setAiReport(null)
-    try {
-      const cutoff = format(addDays(new Date(), -21), 'yyyy-MM-dd')
-      const todayStr = format(new Date(), 'yyyy-MM-dd')
-
-      const sortedWorkouts = assignedWorkouts
-        .filter(w => w.scheduledDate >= cutoff && w.scheduledDate <= todayStr)
-        .sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate))
-
-      const last3WeeksWorkouts = sortedWorkouts.map(w => {
-        const log = logs.find(l => l.assignedWorkoutId === w.id || (l.workoutId === w.workoutId && l.date === w.scheduledDate))
-        return {
-          date: w.scheduledDate,
-          title: w.workout?.title || 'אימון',
-          type: w.workout?.type || 'easy',
-          plannedKm: w.workout?.distance || 0,
-          status: w.status,
-          actualKm: (log as any)?.actualDistance ?? null,
-          effort: log?.effort ?? null,
-          athleteComment: log?.comment || null,
-          wasSkipped: w.status === 'skipped',
-        }
-      })
-
-      const buildWeekSummary = (weekOffset: number) => {
-        const wStart = format(addDays(new Date(), -7 * (weekOffset + 1)), 'yyyy-MM-dd')
-        const wEnd = format(addDays(new Date(), -7 * weekOffset), 'yyyy-MM-dd')
-        const wws = last3WeeksWorkouts.filter(w => w.date >= wStart && w.date <= wEnd)
-        const comp = wws.filter(w => w.status === 'completed')
-        const skip = wws.filter(w => w.status === 'skipped')
-        const efforts = comp.filter(w => w.effort != null).map(w => w.effort as number)
-        return {
-          totalPlanned: wws.reduce((s, w) => s + (w.plannedKm || 0), 0).toFixed(1),
-          totalActual: comp.reduce((s, w) => s + (w.actualKm || w.plannedKm || 0), 0).toFixed(1),
-          completed: comp.length,
-          skipped: skip.length,
-          avgEffort: efforts.length > 0 ? (efforts.reduce((a, b) => a + b, 0) / efforts.length).toFixed(1) : null,
-        }
-      }
-
-      const weeksToRace = journey?.goalRaceDate
-        ? Math.ceil((new Date(journey.goalRaceDate).getTime() - new Date().getTime()) / (7 * 86400000))
-        : null
-
-      const res = await fetch('/api/coaching-assistant', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          athleteName: athlete.name,
-          athleteId,
-          goalRace: journey?.goalRaceEvent || athlete.goals?.find((g: any) => g.status === 'active')?.title || null,
-          goalRaceDate: journey?.goalRaceDate || null,
-          weeksToRace,
-          weeklyKmTarget: athlete.weeklyKmRange ? `${athlete.weeklyKmRange.min}-${athlete.weeklyKmRange.max}` : null,
-          personalRecords: athlete.personalRecords || [],
-          last3WeeksWorkouts,
-          week1Summary: buildWeekSummary(2),
-          week2Summary: buildWeekSummary(1),
-          week3Summary: buildWeekSummary(0),
-        }),
-      })
-      const data = await res.json()
-      if (data.error) throw new Error(data.error)
-      setAiReport(data.report)
-    } catch (err) {
-      toast.error(t.tryAgainLaterText)
-    } finally {
-      setAiReportLoading(false)
-    }
-  }
-
   /** Shared send — used by both the workout-detail composer and the
    *  embedded athlete-view composer below the calendar. */
   const sendCoachMessage = async (text: string, workout?: AssignedWorkout | null) => {
@@ -1229,84 +1154,6 @@ export function AthletePlanner({ athleteId }: Props) {
       toast.error(t.tryAgainLaterText)
     } finally {
       setSendingDayMessage(false)
-    }
-  }
-
-  const handleWeeklySummary = async () => {
-    if (!athlete) return
-    setWeeklySummaryLoading(true)
-    setWeeklySummary(null)
-    try {
-      const weekStart = format(startOfWeek(new Date(), { weekStartsOn: kmWeekStartsOn }), 'yyyy-MM-dd')
-      const weekEnd = format(endOfWeek(new Date(), { weekStartsOn: kmWeekStartsOn }), 'yyyy-MM-dd')
-      const weekWorkouts = assignedWorkouts.filter(w => w.scheduledDate >= weekStart && w.scheduledDate <= weekEnd)
-
-      const enrichedWorkouts = weekWorkouts.map(w => {
-        const log = logs.find(l => l.assignedWorkoutId === w.id)
-        return {
-          scheduledDate: w.scheduledDate,
-          status: w.status,
-          title: w.workout?.title || 'אימון',
-          distance: w.workout?.distance || 0,
-          actualDistance: log?.actualDistance ?? null,
-          effort: log?.effort ?? null,
-          comment: log?.comment || null,
-        }
-      })
-
-      const nextWeekWorkouts = assignedWorkouts
-        .filter(w => w.scheduledDate > weekEnd && w.scheduledDate <= format(addDays(new Date(weekEnd), 7), 'yyyy-MM-dd'))
-        .sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate))
-        .map(w => ({ scheduledDate: w.scheduledDate, title: w.workout?.title || 'אימון', distance: w.workout?.distance || 0 }))
-
-      const res = await fetch('/api/weekly-summary', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          athleteName: athlete.name,
-          athleteId,
-          weekStartDate: weekStart,
-          weekEndDate: weekEnd,
-          weekWorkouts: enrichedWorkouts,
-          nextWeekWorkouts,
-          coachNotes: weeklyCoachNote,
-        }),
-      })
-      const data = await res.json()
-      if (data.error) throw new Error(data.error)
-      setWeeklySummary(data.summary)
-      setWeeklyCoachNote(data.summary?.coachNote || '')
-      setShowWeeklySummary(true)
-    } catch (err) {
-      toast.error('שגיאה בסיכום: ' + String(err))
-    } finally {
-      setWeeklySummaryLoading(false)
-    }
-  }
-
-  const handleApproveWeeklySummary = async () => {
-    if (!weeklySummary) return
-    setSavingWeeklySummary(true)
-    try {
-      const weekStart = format(startOfWeek(new Date(), { weekStartsOn: kmWeekStartsOn }), 'yyyy-MM-dd')
-      const weekEnd = format(endOfWeek(new Date(), { weekStartsOn: kmWeekStartsOn }), 'yyyy-MM-dd')
-      await addDoc(collection(db, 'weeklyNotes'), {
-        athleteId, weekStart, weekEnd,
-        summary: weeklySummary.weekSummary,
-        achievements: weeklySummary.achievements,
-        improvements: weeklySummary.improvements,
-        nextWeekFocus: weeklySummary.nextWeekFocus,
-        coachNote: weeklyCoachNote,
-        approved: true,
-        createdAt: serverTimestamp(),
-      })
-      toast.success(t.toastUpdated)
-      setShowWeeklySummary(false)
-      setWeeklySummary(null)
-    } catch (err) {
-      toast.error(t.tryAgainLaterText)
-    } finally {
-      setSavingWeeklySummary(false)
     }
   }
 
@@ -1389,11 +1236,6 @@ export function AthletePlanner({ athleteId }: Props) {
             <option value="advanced">מתקדם</option>
             <option value="professional">עילית</option>
           </select>
-          <Button size="sm" variant="outline" className="h-8 text-xs border-gold/40 text-gold hover:bg-gold/10 ml-auto flex-shrink-0"
-            onClick={handleWeeklySummary} disabled={weeklySummaryLoading}>
-            {weeklySummaryLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1"/> : <BarChart2 className="h-3.5 w-3.5 mr-1"/>}
-            סיכום שבועי 📊
-          </Button>
         </div>
 
         {/* Season panel — goal race countdown + stage guidance for planning */}
@@ -2044,189 +1886,6 @@ export function AthletePlanner({ athleteId }: Props) {
         </Card>
         )}
 
-        {/* AI Coaching Report — collapsed by default, opens on demand */}
-        <Card>
-          <CardHeader className="pb-2 pt-4 px-4 cursor-pointer" onClick={() => setShowAiSection(p => !p)}>
-            <CardTitle className="text-sm flex items-center justify-between gap-2">
-              <span className="flex items-center gap-2 text-muted-foreground">
-                <Sparkles className="h-4 w-4 text-gold/60"/>
-                דוח ניתוח AI
-              </span>
-              <ChevronLeft className={cn('h-4 w-4 text-muted-foreground transition-transform', showAiSection && '-rotate-90')}/>
-            </CardTitle>
-          </CardHeader>
-          {showAiSection && (
-          <CardContent className="px-4 pb-4 space-y-3">
-            <Button
-              onClick={handleGenerateReport}
-              disabled={aiReportLoading}
-              className="w-full bg-gold hover:bg-gold/90 text-navy font-bold h-10"
-            >
-              {aiReportLoading
-                ? <><Loader2 className="h-4 w-4 animate-spin mr-2"/>מנתח 3 שבועות של נתונים...</>
-                : <><Sparkles className="h-4 w-4 mr-2"/>צור דוח ניתוח AI</>}
-            </Button>
-
-            {aiReport && (
-              <div className="space-y-4" dir="rtl">
-                {/* Week type + fitness status */}
-                <div className="flex items-start gap-2 flex-wrap">
-                  <Badge className={cn('text-xs border flex-shrink-0',
-                    aiReport.weekType === 'down_week' ? 'bg-amber-100 text-amber-800 border-amber-200' :
-                    aiReport.weekType === 'build_week' ? 'bg-blue-100 text-blue-800 border-blue-200' :
-                    aiReport.weekType === 'recovery_week' ? 'bg-purple-100 text-purple-800 border-purple-200' :
-                    'bg-emerald-100 text-emerald-800 border-emerald-200'
-                  )}>
-                    {aiReport.weekType === 'down_week' ? 'שבוע ירידה' :
-                     aiReport.weekType === 'build_week' ? 'שבוע בנייה' :
-                     aiReport.weekType === 'recovery_week' ? 'שבוע התאוששות' : 'שבוע רגיל'}
-                  </Badge>
-                  <p className="text-xs text-muted-foreground flex-1 min-w-0">{aiReport.weekTypeReason}</p>
-                </div>
-                {aiReport.fitnessStatus && (
-                  <div className="rounded-lg bg-navy/5 border border-navy/10 p-3">
-                    <p className="text-[10px] font-bold text-navy mb-1">מצב כושר נוכחי</p>
-                    <p className="text-xs text-navy leading-relaxed">{aiReport.fitnessStatus}</p>
-                  </div>
-                )}
-
-                {/* 3-week analysis cards */}
-                {(aiReport.week1Analysis || aiReport.week2Analysis || aiReport.week3Analysis) && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-semibold text-navy border-b pb-1">ניתוח שלושת השבועות האחרונים</p>
-                    <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
-                      {[
-                        { label: `${t.week} 1`, text: aiReport.week1Analysis },
-                        { label: `${t.week} 2`, text: aiReport.week2Analysis },
-                        { label: `${t.week} 3`, text: aiReport.week3Analysis },
-                      ].map((wk, i) => wk.text ? (
-                        <div key={i} className="rounded-lg bg-muted/30 border border-border/40 p-2.5">
-                          <p className="text-[10px] font-bold text-navy mb-1">{wk.label}</p>
-                          <p className="text-[11px] text-muted-foreground leading-relaxed">{wk.text}</p>
-                        </div>
-                      ) : null)}
-                    </div>
-                  </div>
-                )}
-
-                {/* Strengths + Struggles */}
-                {(aiReport.strengths || aiReport.struggles) && (
-                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                    {aiReport.strengths && (
-                      <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3">
-                        <p className="text-[10px] font-bold text-emerald-700 mb-1">חוזקות</p>
-                        <p className="text-xs text-emerald-800 leading-relaxed">{aiReport.strengths}</p>
-                      </div>
-                    )}
-                    {aiReport.struggles && (
-                      <div className="rounded-lg bg-amber-50 border border-amber-200 p-3">
-                        <p className="text-[10px] font-bold text-amber-700 mb-1">נקודות לשיפור</p>
-                        <p className="text-xs text-amber-800 leading-relaxed">{aiReport.struggles}</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Load + Goal analysis */}
-                {(aiReport.loadAnalysis || aiReport.goalProgressAnalysis) && (
-                  <div className="rounded-xl bg-navy p-3 space-y-2">
-                    {aiReport.loadAnalysis && (
-                      <div>
-                        <p className="text-[10px] font-bold text-gold mb-1">ניתוח עומס</p>
-                        <p className="text-xs text-white leading-relaxed">{aiReport.loadAnalysis}</p>
-                      </div>
-                    )}
-                    {aiReport.goalProgressAnalysis && (
-                      <div>
-                        <p className="text-[10px] font-bold text-gold mb-1">התקדמות לקראת המטרה</p>
-                        <p className="text-xs text-white leading-relaxed">{aiReport.goalProgressAnalysis}</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Key observations */}
-                {aiReport.keyObservations?.length > 0 && (
-                  <div className="space-y-1">
-                    <p className="text-xs font-semibold text-navy border-b pb-1">תצפיות מרכזיות</p>
-                    {aiReport.keyObservations.map((obs: string, i: number) => (
-                      <div key={i} className="flex items-start gap-2 py-1">
-                        <span className="w-5 h-5 rounded-full bg-navy text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">{i+1}</span>
-                        <p className="text-xs text-navy leading-relaxed">{obs}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Coach recommendations */}
-                {aiReport.coachRecommendations && (
-                  <div className="rounded-xl border-2 border-gold/40 bg-gold/5 p-3">
-                    <p className="text-[10px] font-bold text-navy mb-1">המלצות למאמן לשבוע הקרוב</p>
-                    <p className="text-xs text-navy leading-relaxed">{aiReport.coachRecommendations}</p>
-                  </div>
-                )}
-
-                {/* Risk flags */}
-                {aiReport.riskFlags?.length > 0 && (
-                  <div className="space-y-1">
-                    {aiReport.riskFlags.map((flag: string, i: number) => (
-                      <div key={i} className="rounded-lg bg-red-50 border border-red-200 px-3 py-2">
-                        <p className="text-xs text-red-700 font-semibold">{flag}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </CardContent>
-          )}
-        </Card>
-
-      {/* Weekly Summary Dialog */}
-      <Dialog open={showWeeklySummary} onOpenChange={setShowWeeklySummary}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" dir="rtl">
-          <DialogHeader>
-            <DialogTitle className="text-right">סיכום שבועי 📊 — {athlete?.name}</DialogTitle>
-          </DialogHeader>
-          {weeklySummary && (
-            <div className="space-y-4">
-              <div className="rounded-xl bg-navy p-4 space-y-3">
-                <div>
-                  <p className="text-xs font-bold text-gold mb-1">סיכום השבוע</p>
-                  <p className="text-xs text-white leading-relaxed">{weeklySummary.weekSummary}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-gold mb-1">הישגים</p>
-                  <p className="text-xs text-white leading-relaxed">{weeklySummary.achievements}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-gold mb-1">נקודות לשיפור</p>
-                  <p className="text-xs text-white leading-relaxed">{weeklySummary.improvements}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-gold mb-1">פוקוס שבוע הבא</p>
-                  <p className="text-xs text-white leading-relaxed">{weeklySummary.nextWeekFocus}</p>
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">{t.coachNotesLabel}</Label>
-                <Textarea
-                  value={weeklyCoachNote}
-                  onChange={e => setWeeklyCoachNote(e.target.value)}
-                  className="text-xs min-h-[80px]"
-                  placeholder={t.typeMessage}
-                  dir="rtl"
-                />
-              </div>
-              <Button onClick={handleApproveWeeklySummary} disabled={savingWeeklySummary} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold">
-                {savingWeeklySummary && <Loader2 className="h-4 w-4 animate-spin mr-2"/>}
-                אשר ושלח לספורטאי ✅
-              </Button>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
         {/* Lab summary — thresholds at a glance; full test entry lives in the Lab tab */}
         <Card>
           <CardHeader className="pb-2 pt-4 px-4">
@@ -2306,30 +1965,6 @@ export function AthletePlanner({ athleteId }: Props) {
                   setAthlete(prev => prev ? { ...prev, strengthToolsVisibleToAthlete: checked } : prev)
                   const { updateDoc: ud, doc: dc } = await import('firebase/firestore')
                   await ud(dc(db, 'users', athleteId), { strengthToolsVisibleToAthlete: checked })
-                }}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Injury prevention (/athlete/injury) — separate switch from
-            strength/stretch on purpose, still being fixed up later. */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm">מניעת פציעות</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground mb-3">
-              עמוד מניעת פציעות של הספורטאי (אזורי גוף, תרגילים, תוכנית שיקום) — עדיין בבנייה, כבוי כברירת מחדל.
-            </p>
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs text-muted-foreground">גלוי לספורטאי</span>
-              <Switch
-                checked={!!athlete?.injuryToolsVisibleToAthlete}
-                onCheckedChange={async (checked) => {
-                  setAthlete(prev => prev ? { ...prev, injuryToolsVisibleToAthlete: checked } : prev)
-                  const { updateDoc: ud, doc: dc } = await import('firebase/firestore')
-                  await ud(dc(db, 'users', athleteId), { injuryToolsVisibleToAthlete: checked })
                 }}
               />
             </div>

@@ -13,7 +13,6 @@ import { useAuth } from '@/contexts/auth-context'
 import type { ExerciseLibraryItem } from '@/lib/types'
 import { getExercise, saveExercise, uploadExerciseVideo, deleteExerciseVideoFile } from '@/lib/exercise-library'
 import { translateTexts } from '@/lib/translate'
-import { BODY_ZONES, ZONE_IDS } from '@/lib/injury-data'
 import { cn } from '@/lib/utils'
 
 const emptyForm = {
@@ -291,35 +290,6 @@ export function ExerciseEditDialog({
                 <Input value={form.defaultReps} onChange={(e) => setForm({ ...form, defaultReps: e.target.value })} placeholder="8-12" dir="rtl" />
               </div>
             )}
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold">אזורי פציעה רלוונטיים (אופציונלי)</Label>
-            <p className="text-[11px] text-muted-foreground">
-              תרגיל זה יופיע לספורטאי בעמוד מניעת פציעות עבור האזורים שסומנו
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {ZONE_IDS.map((zoneId) => {
-                const active = form.injuryZones.includes(zoneId)
-                return (
-                  <button
-                    key={zoneId}
-                    type="button"
-                    onClick={() => setForm((prev) => ({
-                      ...prev,
-                      injuryZones: active
-                        ? prev.injuryZones.filter((z) => z !== zoneId)
-                        : [...prev.injuryZones, zoneId],
-                    }))}
-                    className={cn(
-                      'px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-colors',
-                      active ? 'bg-[#0a1628] text-white border-[#0a1628]' : 'bg-white text-gray-500 border-gray-200',
-                    )}
-                  >
-                    {BODY_ZONES[zoneId].he}
-                  </button>
-                )
-              })}
-            </div>
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold">הוראות ביצוע</Label>
