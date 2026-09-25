@@ -75,7 +75,7 @@ export default function LoginPage() {
 
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-12">
         <div className="mb-12 text-center">
-          <div className="inline-flex items-center justify-center w-24 h-24 mb-6 rounded-2xl bg-white shadow-md ring-1 ring-navy/10">
+          <div className="inline-flex items-center justify-center w-24 h-24 mb-6 rounded-2xl bg-card shadow-md ring-1 ring-navy/10">
             <img
               src="/team-haim-logo.png?v=3"
               alt={t.teamHaim}
@@ -94,7 +94,7 @@ export default function LoginPage() {
         </div>
 
         {!showRoleSelection ? (
-          <Card className="w-full max-w-md border-navy/15 shadow-lg bg-white">
+          <Card className="w-full max-w-md border-navy/15 shadow-lg bg-card">
             <CardHeader className="text-center pb-2">
               <CardTitle className="font-display text-2xl text-navy">{t.welcome}</CardTitle>
               <CardDescription className="text-muted-foreground">
@@ -124,8 +124,8 @@ export default function LoginPage() {
 
 
               {error && (
-                <div className="p-3 rounded-lg bg-red-50 border border-red-200">
-                  <p className="text-sm text-red-700">{error}</p>
+                <div className="p-3 rounded-lg bg-rust/10 border border-rust/25">
+                  <p className="text-sm text-rust-deep">{error}</p>
                 </div>
               )}
 
@@ -137,7 +137,7 @@ export default function LoginPage() {
             </CardContent>
           </Card>
         ) : (
-          <Card className="w-full max-w-md border-navy/15 shadow-lg bg-white">
+          <Card className="w-full max-w-md border-navy/15 shadow-lg bg-card">
             <CardHeader className="text-center pb-2">
               <CardTitle className="font-display text-2xl text-navy">{t.selectYourRole}</CardTitle>
               <CardDescription className="text-muted-foreground">
@@ -146,8 +146,8 @@ export default function LoginPage() {
             </CardHeader>
             <CardContent className="pt-6 space-y-4">
               {error && (
-                <div className="p-3 rounded-lg bg-red-50 border border-red-200">
-                  <p className="text-sm text-red-700">{error}</p>
+                <div className="p-3 rounded-lg bg-rust/10 border border-rust/25">
+                  <p className="text-sm text-rust-deep">{error}</p>
                 </div>
               )}
 
@@ -174,23 +174,23 @@ export default function LoginPage() {
                 disabled={selectedRole !== null || !canBeCoach}
                 className={`w-full p-6 rounded-lg border-2 transition-luxury text-start group ${
                   !canBeCoach
-                    ? 'border-gray-200 opacity-50 cursor-not-allowed'
+                    ? 'border-border opacity-50 cursor-not-allowed'
                     : 'border-border hover:border-navy hover:bg-navy-tint'
                 }`}
               >
                 <div className="flex items-center gap-4">
                   <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-luxury ${
-                    !canBeCoach ? 'bg-gray-100' : 'bg-navy/10 group-hover:bg-navy/20'
+                    !canBeCoach ? 'bg-muted' : 'bg-navy/10 group-hover:bg-navy/20'
                   }`}>
-                    <svg className={`w-6 h-6 ${!canBeCoach ? 'text-gray-400' : 'text-navy'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className={`w-6 h-6 ${!canBeCoach ? 'text-muted-foreground' : 'text-navy'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
                   </div>
                   <div>
-                    <h3 className={`font-display font-semibold text-lg ${!canBeCoach ? 'text-gray-400' : 'text-navy'}`}>
+                    <h3 className={`font-display font-semibold text-lg ${!canBeCoach ? 'text-muted-foreground' : 'text-navy'}`}>
                       {t.coach}
                     </h3>
-                    <p className={`text-sm ${!canBeCoach ? 'text-gray-400' : 'text-muted-foreground'}`}>
+                    <p className={`text-sm ${!canBeCoach ? 'text-muted-foreground' : 'text-muted-foreground'}`}>
                       {!canBeCoach ? '🔒 Coach access restricted' : t.coachRoleDesc}
                     </p>
                   </div>

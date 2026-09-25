@@ -119,11 +119,11 @@ export function RestoreAssignedWorkouts() {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border-2 border-red-200 bg-red-50 px-4 py-3 flex items-start gap-2">
-        <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+      <div className="rounded-xl border-2 border-rust/25 bg-rust/10 px-4 py-3 flex items-start gap-2">
+        <AlertTriangle className="h-5 w-5 text-rust-deep flex-shrink-0 mt-0.5" />
         <div>
-          <p className="text-sm font-bold text-red-800">שחזור אימונים שנמחקו מהספרייה</p>
-          <p className="text-xs text-red-700 mt-1">
+          <p className="text-sm font-bold text-rust-deep">שחזור אימונים שנמחקו מהספרייה</p>
+          <p className="text-xs text-rust-deep mt-1">
             נסרקו {scannedCount} שיבוצים אצל ספורטאים. הימים עצמם בלוח הזמנים של הספורטאים <b>לא נפגעו</b> — כל שיבוץ שומר עותק מלא של האימון בתוכו.
             הבעיה היא רק שהאימון נמחק מהספרייה/הבנק, כך שלא ניתן יותר לבחור אותו מחדש, ועריכת השיבוץ הספציפי הזה עלולה להיכשל.
             הרשימה למטה היא כל האימונים החסרים שעדיין בשימוש אצל ספורטאים — סמנו ולחצו שחזור כדי להחזיר אותם לספרייה.

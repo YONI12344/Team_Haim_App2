@@ -493,7 +493,7 @@ export function LactateMultiCurveChart({
           ] as const).map(([m, label]) => (
             <button key={m} onClick={() => setMetricDisplay(m)}
               className={cn('text-[10px] px-2 py-1 rounded-lg font-semibold transition-all whitespace-nowrap',
-                metricDisplay === m ? 'bg-white text-navy shadow-sm' : 'text-muted-foreground')}>
+                metricDisplay === m ? 'bg-card text-navy shadow-sm' : 'text-muted-foreground')}>
               {label}
             </button>
           ))}
@@ -512,7 +512,7 @@ export function LactateMultiCurveChart({
             if (!lvl) return <span className="text-muted-foreground">—</span>
             const trend = metricDisplay !== 'hr' && prevT ? paceDelta(lvl.paceSecPerKm, prevT.paceSecPerKm) : null
             const trendChip = trend && (
-              <span className={cn('text-[9px] font-bold', trend.improved ? 'text-green-600' : 'text-red-500')}>
+              <span className={cn('text-[9px] font-bold', trend.improved ? 'text-pine' : 'text-rust-deep')}>
                 {trend.improved ? '▲' : '▼'}{trend.label}
               </span>
             )
@@ -561,7 +561,7 @@ export function LactateMultiCurveChart({
                     onClick={(e) => { e.stopPropagation(); if (confirm(t.labConfirmDeleteSession)) onDeleteSession(c.id) }}
                     disabled={deletingId === c.id}
                     aria-label={t.labDeleteSessionBtn}
-                    className="p-1 text-muted-foreground hover:text-red-500 disabled:opacity-40">
+                    className="p-1 text-muted-foreground hover:text-rust-deep disabled:opacity-40">
                     {deletingId === c.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                   </button>
                 )}
@@ -584,18 +584,18 @@ export function LactateMultiCurveChart({
                           reads consistently with HR/lactate below it (low =
                           least effort, high = most effort) instead of by
                           raw magnitude. */}
-                      <div className="bg-white px-1.5 py-1 text-navy">{t.labPaceUnit}</div>
-                      <div className="bg-white px-1.5 py-1 font-mono text-navy" dir="ltr">{s.paceSec ? secToPace(s.paceSec.max) : '—'}</div>
-                      <div className="bg-white px-1.5 py-1 font-mono text-navy" dir="ltr">{s.paceSec ? secToPace(s.paceSec.avg) : '—'}</div>
-                      <div className="bg-white px-1.5 py-1 font-mono text-navy" dir="ltr">{s.paceSec ? secToPace(s.paceSec.min) : '—'}</div>
-                      <div className="bg-white px-1.5 py-1 text-navy">{t.labHrLabel}</div>
-                      <div className="bg-white px-1.5 py-1 font-mono text-navy">{s.hr?.min ?? '—'}</div>
-                      <div className="bg-white px-1.5 py-1 font-mono text-navy">{s.hr ? Math.round(s.hr.avg) : '—'}</div>
-                      <div className="bg-white px-1.5 py-1 font-mono text-navy">{s.hr?.max ?? '—'}</div>
-                      <div className="bg-white px-1.5 py-1 text-navy">{t.labLactateLabel}</div>
-                      <div className="bg-white px-1.5 py-1 font-mono font-bold text-navy">{s.lactate?.min ?? '—'}</div>
-                      <div className="bg-white px-1.5 py-1 font-mono font-bold text-navy">{s.lactate?.avg ?? '—'}</div>
-                      <div className="bg-white px-1.5 py-1 font-mono font-bold text-navy">{s.lactate?.max ?? '—'}</div>
+                      <div className="bg-card px-1.5 py-1 text-navy">{t.labPaceUnit}</div>
+                      <div className="bg-card px-1.5 py-1 font-mono text-navy" dir="ltr">{s.paceSec ? secToPace(s.paceSec.max) : '—'}</div>
+                      <div className="bg-card px-1.5 py-1 font-mono text-navy" dir="ltr">{s.paceSec ? secToPace(s.paceSec.avg) : '—'}</div>
+                      <div className="bg-card px-1.5 py-1 font-mono text-navy" dir="ltr">{s.paceSec ? secToPace(s.paceSec.min) : '—'}</div>
+                      <div className="bg-card px-1.5 py-1 text-navy">{t.labHrLabel}</div>
+                      <div className="bg-card px-1.5 py-1 font-mono text-navy">{s.hr?.min ?? '—'}</div>
+                      <div className="bg-card px-1.5 py-1 font-mono text-navy">{s.hr ? Math.round(s.hr.avg) : '—'}</div>
+                      <div className="bg-card px-1.5 py-1 font-mono text-navy">{s.hr?.max ?? '—'}</div>
+                      <div className="bg-card px-1.5 py-1 text-navy">{t.labLactateLabel}</div>
+                      <div className="bg-card px-1.5 py-1 font-mono font-bold text-navy">{s.lactate?.min ?? '—'}</div>
+                      <div className="bg-card px-1.5 py-1 font-mono font-bold text-navy">{s.lactate?.avg ?? '—'}</div>
+                      <div className="bg-card px-1.5 py-1 font-mono font-bold text-navy">{s.lactate?.max ?? '—'}</div>
                     </div>
                   )}
                   <div className="grid grid-cols-3 gap-px bg-border text-[10px] font-bold text-navy text-center mt-1.5">
@@ -604,9 +604,9 @@ export function LactateMultiCurveChart({
                   <div className="grid grid-cols-3 gap-px bg-border text-[11px] text-center text-navy">
                     {c.points.map((p, i) => (
                       <Fragment key={i}>
-                        <div className={cn('px-1.5 py-1 font-mono', i % 2 ? 'bg-navy/[0.03]' : 'bg-white')} dir="ltr">{p.pace || '—'}</div>
-                        <div className={cn('px-1.5 py-1', i % 2 ? 'bg-navy/[0.03]' : 'bg-white')}>{p.hr ?? '—'}</div>
-                        <div className={cn('px-1.5 py-1 font-bold', i % 2 ? 'bg-navy/[0.03]' : 'bg-white')}>{p.lactate || '—'}</div>
+                        <div className={cn('px-1.5 py-1 font-mono', i % 2 ? 'bg-navy/[0.03]' : 'bg-card')} dir="ltr">{p.pace || '—'}</div>
+                        <div className={cn('px-1.5 py-1', i % 2 ? 'bg-navy/[0.03]' : 'bg-card')}>{p.hr ?? '—'}</div>
+                        <div className={cn('px-1.5 py-1 font-bold', i % 2 ? 'bg-navy/[0.03]' : 'bg-card')}>{p.lactate || '—'}</div>
                       </Fragment>
                     ))}
                   </div>

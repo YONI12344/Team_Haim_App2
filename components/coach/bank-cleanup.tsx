@@ -243,7 +243,7 @@ export function BankCleanup() {
       {/* Section 1: data bugs */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-600" />בעיות נתונים ({badDurations.length + badReps.length + stubs.length})</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-ochre-deep" />בעיות נתונים ({badDurations.length + badReps.length + stubs.length})</CardTitle>
           <CardDescription>משכי זמן/חזרות לא סבירים, ואימונים ריקים לגמרי</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -281,7 +281,7 @@ export function BankCleanup() {
                   const w = workoutById.get(f.workoutId)
                   if (!w) return null
                   return (
-                    <div key={f.workoutId + f.detail} className="flex items-center gap-2 text-xs rounded-md bg-amber-50 p-2">
+                    <div key={f.workoutId + f.detail} className="flex items-center gap-2 text-xs rounded-md bg-ochre/10 p-2">
                       <span className="flex-1 truncate">{w.title} <span className="text-muted-foreground">({f.detail}) — לתקן ידנית בעריכת האימון</span></span>
                     </div>
                   )
@@ -370,7 +370,7 @@ export function BankCleanup() {
       {/* Section 4: bank level inference */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2"><FolderTree className="h-4 w-4 text-emerald-600" />שיוך לרמת בנק ({levelProposals.filter((p) => p.proposedLevel).length}/{workouts.length})</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2"><FolderTree className="h-4 w-4 text-pine" />שיוך לרמת בנק ({levelProposals.filter((p) => p.proposedLevel).length}/{workouts.length})</CardTitle>
           <CardDescription>הצעת רמה לפי משך זמן וסוג האימון — בדקו לפני אישור, זה ניחוש גס</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

@@ -189,12 +189,12 @@ export function AthleteStats() {
   if (loading) {
     return (
       <div className="space-y-4 pb-24 animate-pulse" dir="rtl">
-        <div className="h-8 w-40 bg-gray-200 rounded-xl" />
+        <div className="h-8 w-40 bg-muted rounded-xl" />
         <div className="grid grid-cols-2 gap-3">
-          {[1,2,3,4].map(i => <div key={i} className="bg-gray-100 rounded-2xl h-24" />)}
+          {[1,2,3,4].map(i => <div key={i} className="bg-muted rounded-2xl h-24" />)}
         </div>
-        <div className="bg-gray-100 rounded-3xl h-64" />
-        <div className="bg-gray-100 rounded-3xl h-48" />
+        <div className="bg-muted rounded-3xl h-64" />
+        <div className="bg-muted rounded-3xl h-48" />
       </div>
     )
   }
@@ -203,60 +203,60 @@ export function AthleteStats() {
     <div className="space-y-4 pb-24" dir="rtl">
       {/* Header */}
       <div>
-        <h1 className="text-2xl md:text-3xl font-serif font-bold text-[#0a1628]">{t.statisticsTitle}</h1>
-        <p className="text-gray-500 text-sm">{t.statisticsSubtitle}</p>
+        <h1 className="text-2xl md:text-3xl font-serif font-bold text-navy">{t.statisticsTitle}</h1>
+        <p className="text-muted-foreground text-sm">{t.statisticsSubtitle}</p>
       </div>
 
       {/* Summary Cards 2×2 */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-          <div className="w-9 h-9 rounded-xl bg-[#0a1628]/5 flex items-center justify-center mb-3">
-            <Activity className="h-4 w-4 text-[#0a1628]" />
+        <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
+          <div className="w-9 h-9 rounded-xl bg-navy/5 flex items-center justify-center mb-3">
+            <Activity className="h-4 w-4 text-navy" />
           </div>
-          <p className="text-3xl font-black text-[#0a1628] leading-none">{totalDistance.toFixed(0)}</p>
-          <p className="text-xs text-gray-400 mt-1.5">{t.totalKm}</p>
+          <p className="text-3xl font-black text-navy leading-none">{totalDistance.toFixed(0)}</p>
+          <p className="text-xs text-muted-foreground mt-1.5">{t.totalKm}</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-          <div className="w-9 h-9 rounded-xl bg-[#c9a84c]/10 flex items-center justify-center mb-3">
-            <Clock className="h-4 w-4 text-[#c9a84c]" />
+        <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
+          <div className="w-9 h-9 rounded-xl bg-gold/10 flex items-center justify-center mb-3">
+            <Clock className="h-4 w-4 text-gold" />
           </div>
-          <p className="text-3xl font-black text-[#c9a84c] leading-none font-mono">{avgPace}</p>
-          <p className="text-xs text-gray-400 mt-1.5">טמפו ממוצע /ק"מ</p>
+          <p className="text-3xl font-black text-gold leading-none font-mono">{avgPace}</p>
+          <p className="text-xs text-muted-foreground mt-1.5">טמפו ממוצע /ק"מ</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-          <div className="w-9 h-9 rounded-xl bg-[#0a1628]/5 flex items-center justify-center mb-3">
-            <Flame className="h-4 w-4 text-[#0a1628]" />
+        <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
+          <div className="w-9 h-9 rounded-xl bg-navy/5 flex items-center justify-center mb-3">
+            <Flame className="h-4 w-4 text-navy" />
           </div>
-          <p className="text-3xl font-black text-[#0a1628] leading-none">{avgEffort.toFixed(1)}</p>
-          <p className="text-xs text-gray-400 mt-1.5">{t.avgEffortStat}</p>
+          <p className="text-3xl font-black text-navy leading-none">{avgEffort.toFixed(1)}</p>
+          <p className="text-xs text-muted-foreground mt-1.5">{t.avgEffortStat}</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-          <div className="w-9 h-9 rounded-xl bg-[#0a1628]/5 flex items-center justify-center mb-3">
-            <Trophy className="h-4 w-4 text-[#c9a84c]" />
+        <div className="bg-card rounded-2xl shadow-sm border border-border p-4">
+          <div className="w-9 h-9 rounded-xl bg-navy/5 flex items-center justify-center mb-3">
+            <Trophy className="h-4 w-4 text-gold" />
           </div>
-          <p className="text-3xl font-black text-[#0a1628] leading-none">{totalWorkouts}</p>
-          <p className="text-xs text-gray-400 mt-1.5">{t.workoutsLoggedStat}</p>
+          <p className="text-3xl font-black text-navy leading-none">{totalWorkouts}</p>
+          <p className="text-xs text-muted-foreground mt-1.5">{t.workoutsLoggedStat}</p>
         </div>
       </div>
 
       {/* Charts */}
       {logs.length === 0 && prs.length === 0 ? (
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-12 text-center">
-          <p className="text-gray-400">{t.logToSeeCharts}</p>
+        <div className="bg-card rounded-3xl shadow-sm border border-border p-12 text-center">
+          <p className="text-muted-foreground">{t.logToSeeCharts}</p>
         </div>
       ) : (
         <Tabs defaultValue="weekly" className="space-y-4">
-          <TabsList className="bg-white border border-gray-100 rounded-2xl p-1 w-full grid grid-cols-2 shadow-sm h-auto">
-            <TabsTrigger value="weekly" className="rounded-xl data-[state=active]:bg-[#0a1628] data-[state=active]:text-white data-[state=active]:shadow-none text-gray-500 font-semibold py-2.5">{t.weeklyTab}</TabsTrigger>
-            <TabsTrigger value="monthly" className="rounded-xl data-[state=active]:bg-[#0a1628] data-[state=active]:text-white data-[state=active]:shadow-none text-gray-500 font-semibold py-2.5">{t.monthlyTab}</TabsTrigger>
+          <TabsList className="bg-card border border-border rounded-2xl p-1 w-full grid grid-cols-2 shadow-sm h-auto">
+            <TabsTrigger value="weekly" className="rounded-xl data-[state=active]:bg-navy data-[state=active]:text-white data-[state=active]:shadow-none text-muted-foreground font-semibold py-2.5">{t.weeklyTab}</TabsTrigger>
+            <TabsTrigger value="monthly" className="rounded-xl data-[state=active]:bg-navy data-[state=active]:text-white data-[state=active]:shadow-none text-muted-foreground font-semibold py-2.5">{t.monthlyTab}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="weekly" className="space-y-4">
-            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
-              <p className="text-sm font-bold text-[#0a1628] mb-4">{t.weeklyDistance}</p>
+            <div className="bg-card rounded-3xl shadow-sm border border-border p-5">
+              <p className="text-sm font-bold text-navy mb-4">{t.weeklyDistance}</p>
               <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={weeklyStats}>
@@ -270,8 +270,8 @@ export function AthleteStats() {
               </div>
             </div>
 
-            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
-              <p className="text-sm font-bold text-[#0a1628] mb-4">{t.averageEffortLevel}</p>
+            <div className="bg-card rounded-3xl shadow-sm border border-border p-5">
+              <p className="text-sm font-bold text-navy mb-4">{t.averageEffortLevel}</p>
               <div className="h-[250px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={weeklyStats}>
@@ -287,8 +287,8 @@ export function AthleteStats() {
           </TabsContent>
 
           <TabsContent value="monthly" className="space-y-4">
-            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
-              <p className="text-sm font-bold text-[#0a1628] mb-4">{t.monthlyDistance}</p>
+            <div className="bg-card rounded-3xl shadow-sm border border-border p-5">
+              <p className="text-sm font-bold text-navy mb-4">{t.monthlyDistance}</p>
               <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={monthlyStats}>
@@ -302,8 +302,8 @@ export function AthleteStats() {
               </div>
             </div>
 
-            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
-              <p className="text-sm font-bold text-[#0a1628] mb-4">{t.prsAchievedChart}</p>
+            <div className="bg-card rounded-3xl shadow-sm border border-border p-5">
+              <p className="text-sm font-bold text-navy mb-4">{t.prsAchievedChart}</p>
               <div className="h-[250px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={monthlyStats}>
@@ -322,20 +322,20 @@ export function AthleteStats() {
 
       {/* PR Timeline */}
       {prs.length > 0 && (
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
-          <p className="text-sm font-bold text-[#0a1628] mb-4">{t.recentPersonalRecords}</p>
+        <div className="bg-card rounded-3xl shadow-sm border border-border p-5">
+          <p className="text-sm font-bold text-navy mb-4">{t.recentPersonalRecords}</p>
           <div className="space-y-3">
             {prs.slice(0, 4).map((pr, index) => (
-              <div key={pr.id} className="flex items-center gap-4 py-3 border-b border-gray-50 last:border-0">
-                <div className="w-8 h-8 rounded-full bg-[#c9a84c]/10 flex items-center justify-center text-sm font-black text-[#c9a84c] flex-shrink-0">
+              <div key={pr.id} className="flex items-center gap-4 py-3 border-b border-border last:border-0">
+                <div className="w-8 h-8 rounded-full bg-gold/10 flex items-center justify-center text-sm font-black text-gold flex-shrink-0">
                   {index + 1}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-bold text-[#0a1628] text-sm">{pr.event}</span>
-                    <span className="font-mono font-black text-[#0a1628]">{pr.time}</span>
+                    <span className="font-bold text-navy text-sm">{pr.event}</span>
+                    <span className="font-mono font-black text-navy">{pr.time}</span>
                   </div>
-                  <p className="text-xs text-gray-400 mt-0.5 truncate">
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">
                     {pr.competition || pr.location} · {new Date(pr.date).toLocaleDateString()}
                   </p>
                 </div>

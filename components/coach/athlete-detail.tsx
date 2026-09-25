@@ -450,7 +450,7 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
 
   const goalStatusColors: Record<Goal['status'], string> = {
     active: 'bg-gold/10 text-gold border-gold/30',
-    achieved: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+    achieved: 'bg-pine/15 text-pine border-pine/25',
     archived: 'bg-muted text-muted-foreground',
   }
 
@@ -539,7 +539,7 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
                   {athlete.stravaConnected && (
                     <Button
                       variant="outline"
-                      className="border-red-300 text-red-500 hover:bg-red-50"
+                      className="border-rust/50 text-rust-deep hover:bg-rust/10"
                       onClick={async () => {
                         if (!confirm('לנתק את Strava של הספורטאי? פעולה זו תמחק את החיבור.')) return
                         try {
@@ -685,7 +685,7 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
                         const colorMap: Record<string, string> = {
                           rest: 'bg-muted text-muted-foreground',
                           off: 'bg-muted text-muted-foreground',
-                          easy: 'bg-emerald-100 text-emerald-700',
+                          easy: 'bg-pine/15 text-pine',
                           workout: 'bg-blue-100 text-blue-700',
                           long_run: 'bg-orange-100 text-orange-700',
                         }
@@ -911,7 +911,7 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
               ) : (
                 <div className="space-y-3">
                   {goals.map((goal) => (
-                    <div key={goal.id} className={cn('p-4 rounded-lg border', goal.status === 'active' ? 'border-gold/30 bg-gold/5' : goal.status === 'achieved' ? 'border-emerald-200 bg-emerald-50' : 'border-border bg-muted/30')}>
+                    <div key={goal.id} className={cn('p-4 rounded-lg border', goal.status === 'active' ? 'border-gold/30 bg-gold/5' : goal.status === 'achieved' ? 'border-pine/25 bg-pine/10' : 'border-border bg-muted/30')}>
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
@@ -927,7 +927,7 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
                           {goal.status !== 'achieved' && (
-                            <Button type="button" variant="ghost" size="sm" className="h-7 text-xs text-emerald-600 hover:text-emerald-700" onClick={() => updateGoalStatus(goal.id, 'achieved')}>
+                            <Button type="button" variant="ghost" size="sm" className="h-7 text-xs text-pine hover:text-pine" onClick={() => updateGoalStatus(goal.id, 'achieved')}>
                               <Check className="h-3 w-3 mr-1" />Done
                             </Button>
                           )}

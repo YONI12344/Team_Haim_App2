@@ -77,7 +77,7 @@ function DeltaBadge({ first, last, unit, lowerIsBetter, vsFirstLabel }: {
   return (
     <span className={cn(
       'inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full',
-      improved ? 'bg-emerald-500/15 text-emerald-700' : 'bg-rose-500/15 text-rose-700',
+      improved ? 'bg-emerald-500/15 text-pine' : 'bg-rose-500/15 text-rust-deep',
     )}>
       {improved ? '▼' : '▲'} {magnitude} <span className="font-medium opacity-70">{vsFirstLabel}</span>
     </span>

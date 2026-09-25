@@ -1,14 +1,14 @@
 'use client'
 
-import { useId } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { cn } from '@/lib/utils'
 
 /**
  * The athlete app's signature: one flat silkscreen landscape (sky, sun, sea,
- * hills, cypress row, a road running to the horizon) re-inked per training
- * phase, so the season visibly moves from dawn (base) to the night before
- * the race. Pure SVG, four-to-six flat inks per phase, a halftone plane and
- * a print grain — no raster assets.
+ * hills, cypress row, a road running to the horizon) re-inked for the time
+ * of day — dawn, midday, golden hour, dusk, night with stars. Pure SVG,
+ * four-to-six flat inks per scene, a halftone plane and a print grain — no
+ * raster assets.
  */
 
 export type SceneTime = 'dawn' | 'midday' | 'golden' | 'dusk' | 'night'
@@ -32,16 +32,24 @@ const INKS: Record<SceneTime, Inks> = {
   night:  { sky: '#16223A', sun: '#EFE6D2', far: '#223350', sea: '#1A2944', near: '#2C3B58', trees: '#0E1724', road: '#C9962C', roadEdge: '#0E1724' },
 }
 
-/** Training phase (JourneyStage.type) → time of day in the scene. */
-export function sceneTimeForStage(stageType?: string | null): SceneTime {
-  switch (stageType) {
-    case 'base': return 'dawn'
-    case 'build': return 'midday'
-    case 'peak': return 'golden'
-    case 'taper': return 'dusk'
-    case 'race_week': return 'night'
-    default: return 'midday'
-  }
+/** The athlete's local clock → time of day in the scene. */
+export function sceneTimeForClock(now: Date): SceneTime {
+  const h = now.getHours() + now.getMinutes() / 60
+  if (h >= 5 && h < 9) return 'dawn'
+  if (h >= 9 && h < 16) return 'midday'
+  if (h >= 16 && h < 18) return 'golden'
+  if (h >= 18 && h < 20) return 'dusk'
+  return 'night'
+}
+
+/** Current scene time, re-checked every few minutes so an open app follows the day. */
+export function useSceneTimeNow(): SceneTime {
+  const [time, setTime] = useState<SceneTime>(() => sceneTimeForClock(new Date()))
+  useEffect(() => {
+    const id = setInterval(() => setTime(sceneTimeForClock(new Date())), 5 * 60 * 1000)
+    return () => clearInterval(id)
+  }, [])
+  return time
 }
 
 // Deterministic star field for the night scene.

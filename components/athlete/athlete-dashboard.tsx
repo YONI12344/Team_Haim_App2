@@ -27,7 +27,7 @@ import {
   ChevronLeft,
 } from 'lucide-react'
 import Link from 'next/link'
-import { PosterScene, sceneTimeForStage } from '@/components/athlete/poster-scene'
+import { PosterScene, useSceneTimeNow } from '@/components/athlete/poster-scene'
 import { listJourneys, stageDisplayName } from '@/lib/journey'
 import { cn, isCoachMessageRecent } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -98,6 +98,7 @@ export function AthleteDashboard() {
   const { user } = useAuth()
   const { permission, enableNotifications } = useNotifications()
   const [notifBannerDismissed, setNotifBannerDismissed] = useState(false)
+  const sceneTime = useSceneTimeNow()
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -398,10 +399,8 @@ export function AthleteDashboard() {
   const unreadCoachMessages = coachMessages.filter(m => !m.read)
   const L = HOME_COPY[isRTL ? 'he' : 'en']
 
-  // Season: which phase today falls in drives the poster's time of day.
   const todayStr = format(new Date(), 'yyyy-MM-dd')
   const activeStage = season?.stages?.find((s) => todayStr >= s.startDate && todayStr <= s.endDate)
-  const sceneTime = sceneTimeForStage(activeStage?.type)
   const weeksToRace = season?.goalRaceDate
     ? Math.max(0, Math.ceil((parseISO(season.goalRaceDate).getTime() - Date.now()) / (7 * 86400000)))
     : null

@@ -315,7 +315,7 @@ export function CoachDashboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#c9a84c]" />
+        <Loader2 className="h-8 w-8 animate-spin text-gold" />
       </div>
     )
   }
@@ -330,23 +330,23 @@ export function CoachDashboard() {
         (notifBannerDismissed || permission === 'denied') ? (
           <button
             onClick={() => permission === 'denied' ? toast.error(t.notificationsDeniedHint) : enableNotifications()}
-            className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-navy bg-white border border-border rounded-full px-3 py-1.5 w-fit"
+            className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-navy bg-card border border-border rounded-full px-3 py-1.5 w-fit"
           >
             <Bell className="h-3.5 w-3.5" />
             {t.notificationsPillLabel}
           </button>
         ) : (
-          <div className="bg-white rounded-2xl border border-[#c9a84c]/30 shadow-sm p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#c9a84c]/10 flex items-center justify-center flex-shrink-0">
-              <Bell className="h-5 w-5 text-[#c9a84c]" />
+          <div className="bg-card rounded-2xl border border-gold/30 shadow-sm p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gold/10 flex items-center justify-center flex-shrink-0">
+              <Bell className="h-5 w-5 text-gold" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-[#0a1628] leading-tight">{t.notificationsTitle}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{t.notificationsDesc}</p>
+              <p className="text-sm font-semibold text-navy leading-tight">{t.notificationsTitle}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{t.notificationsDesc}</p>
             </div>
             <button
               onClick={enableNotifications}
-              className="bg-[#0a1628] text-white rounded-xl px-4 h-9 text-sm font-semibold flex-shrink-0 active:scale-95 transition-transform"
+              className="bg-navy text-white rounded-xl px-4 h-9 text-sm font-semibold flex-shrink-0 active:scale-95 transition-transform"
             >
               {t.enableBtn}
             </button>
@@ -355,7 +355,7 @@ export function CoachDashboard() {
                 localStorage.setItem('coachNotifBannerDismissed', '1')
                 setNotifBannerDismissed(true)
               }}
-              className="text-gray-400 hover:text-gray-600 flex-shrink-0"
+              className="text-muted-foreground hover:text-foreground/80 flex-shrink-0"
               aria-label="סגור"
             >
               <X className="h-4 w-4" />
@@ -366,7 +366,7 @@ export function CoachDashboard() {
 
       {/* Page header */}
       <div className="pt-1">
-        <h1 className="text-2xl font-serif font-bold text-[#0a1628]">לוח בקרה</h1>
+        <h1 className="text-2xl font-serif font-bold text-navy">לוח בקרה</h1>
         <p className="text-sm text-muted-foreground">
           {new Date().toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}
         </p>
@@ -374,21 +374,21 @@ export function CoachDashboard() {
 
       {/* Daily summary strip */}
       <div className="grid grid-cols-4 gap-2">
-        <div className="bg-emerald-600 rounded-2xl p-3 text-center">
+        <div className="bg-pine rounded-2xl p-3 text-center">
           <p className="text-xl font-black text-white leading-none">{summary.trained}</p>
           <p className="text-[10px] text-white/80 mt-1">התאמנו היום</p>
         </div>
-        <div className={cn('rounded-2xl p-3 text-center', summary.pending > 0 ? 'bg-[#c9a84c]' : 'bg-white border border-gray-100')}>
-          <p className={cn('text-xl font-black leading-none', summary.pending > 0 ? 'text-[#0a1628]' : 'text-gray-300')}>{summary.pending}</p>
-          <p className={cn('text-[10px] mt-1', summary.pending > 0 ? 'text-[#0a1628]/70' : 'text-gray-400')}>ממתין למשוב</p>
+        <div className={cn('rounded-2xl p-3 text-center', summary.pending > 0 ? 'bg-gold' : 'bg-card border border-border')}>
+          <p className={cn('text-xl font-black leading-none', summary.pending > 0 ? 'text-navy' : 'text-muted-foreground')}>{summary.pending}</p>
+          <p className={cn('text-[10px] mt-1', summary.pending > 0 ? 'text-navy/70' : 'text-muted-foreground')}>ממתין למשוב</p>
         </div>
-        <div className="bg-white rounded-2xl border border-gray-100 p-3 text-center">
-          <p className="text-xl font-black text-[#0a1628] leading-none">{summary.scheduled}</p>
-          <p className="text-[10px] text-gray-400 mt-1">מתוכנן היום</p>
+        <div className="bg-card rounded-2xl border border-border p-3 text-center">
+          <p className="text-xl font-black text-navy leading-none">{summary.scheduled}</p>
+          <p className="text-[10px] text-muted-foreground mt-1">מתוכנן היום</p>
         </div>
-        <div className={cn('rounded-2xl p-3 text-center', summary.needPlan > 0 ? 'bg-red-500' : 'bg-white border border-gray-100')}>
-          <p className={cn('text-xl font-black leading-none', summary.needPlan > 0 ? 'text-white' : 'text-gray-300')}>{summary.needPlan}</p>
-          <p className={cn('text-[10px] mt-1', summary.needPlan > 0 ? 'text-white/85' : 'text-gray-400')}>צריך תכנית</p>
+        <div className={cn('rounded-2xl p-3 text-center', summary.needPlan > 0 ? 'bg-rust' : 'bg-card border border-border')}>
+          <p className={cn('text-xl font-black leading-none', summary.needPlan > 0 ? 'text-white' : 'text-muted-foreground')}>{summary.needPlan}</p>
+          <p className={cn('text-[10px] mt-1', summary.needPlan > 0 ? 'text-white/85' : 'text-muted-foreground')}>צריך תכנית</p>
         </div>
       </div>
 
@@ -414,7 +414,7 @@ export function CoachDashboard() {
                 'rounded-3xl bg-card overflow-hidden shadow-sm border transition-all',
                 needsNewPlan
                   ? 'border-amber-300/70'
-                  : 'border-border/20 hover:border-[#c9a84c]/30 hover:shadow-md'
+                  : 'border-border/20 hover:border-gold/30 hover:shadow-md'
               )}
             >
               {/* ── HEADER ── */}
@@ -423,9 +423,9 @@ export function CoachDashboard() {
                   {/* Avatar */}
                   <Link href={`/coach/athletes/${athlete.id}/planner`} className="flex-shrink-0 mt-0.5">
                     <div className="relative">
-                      <Avatar className="h-12 w-12 ring-2 ring-[#c9a84c]/20">
+                      <Avatar className="h-12 w-12 ring-2 ring-gold/20">
                         <AvatarImage src={athlete.photoURL} alt={athlete.name} />
-                        <AvatarFallback className="bg-[#0a1628] text-[#c9a84c] text-sm font-black">
+                        <AvatarFallback className="bg-navy text-gold text-sm font-black">
                           {getInitials(athlete.name)}
                         </AvatarFallback>
                       </Avatar>
@@ -438,16 +438,16 @@ export function CoachDashboard() {
                   {/* Name + plan end */}
                   <div className="flex-1 min-w-0">
                     <Link href={`/coach/athletes/${athlete.id}/planner`}>
-                      <p className="font-bold text-[#0a1628] text-lg leading-tight hover:text-[#c9a84c] transition-colors truncate">
+                      <p className="font-bold text-navy text-lg leading-tight hover:text-gold transition-colors truncate">
                         {athlete.name}
                       </p>
                     </Link>
                     <span className={cn(
                       'mt-1 inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full border',
                       !lastFutureDate
-                        ? 'bg-red-50 text-red-600 border-red-200'
+                        ? 'bg-rust/10 text-rust-deep border-rust/25'
                         : needsNewPlan
-                        ? 'bg-amber-50 text-amber-700 border-amber-200'
+                        ? 'bg-ochre/10 text-ochre-deep border-ochre/25'
                         : 'bg-muted/60 text-muted-foreground border-border/40'
                     )}>
                       {planEndDisplay}
@@ -457,22 +457,22 @@ export function CoachDashboard() {
                   {/* Today status badge */}
                   <div className="flex-shrink-0 mt-0.5">
                     {todayStatus === 'done' && (
-                      <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded-full">
+                      <span className="flex items-center gap-1 text-[11px] font-bold text-pine bg-pine/10 border border-pine/25 px-2.5 py-1.5 rounded-full">
                         <Check className="h-3 w-3" />{t.completedBadge}
                       </span>
                     )}
                     {todayStatus === 'strava-pending' && (
-                      <span className="text-[11px] font-bold text-[#c9a84c] bg-[#c9a84c]/10 border border-[#c9a84c]/30 px-2.5 py-1.5 rounded-full">
+                      <span className="text-[11px] font-bold text-gold bg-gold/10 border border-gold/30 px-2.5 py-1.5 rounded-full">
                         {t.pendingBadge}
                       </span>
                     )}
                     {todayStatus === 'scheduled' && (
-                      <span className="flex items-center gap-1 text-[11px] font-bold text-gray-500 bg-gray-50 border border-gray-200 px-2.5 py-1.5 rounded-full">
+                      <span className="flex items-center gap-1 text-[11px] font-bold text-muted-foreground bg-muted border border-border px-2.5 py-1.5 rounded-full">
                         <Clock className="h-3 w-3" />{t.scheduledBadge}
                       </span>
                     )}
                     {todayStatus === 'skipped' && (
-                      <span className="text-[11px] font-bold text-red-600 bg-red-50 border border-red-200 px-2.5 py-1.5 rounded-full">
+                      <span className="text-[11px] font-bold text-rust-deep bg-rust/10 border border-rust/25 px-2.5 py-1.5 rounded-full">
                         {t.skippedBadge}
                       </span>
                     )}
@@ -486,13 +486,13 @@ export function CoachDashboard() {
 
                 {/* Low-plan warning */}
                 {needsNewPlan && (
-                  <div className="flex items-center gap-2 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2">
-                    <AlertTriangle className="h-3.5 w-3.5 text-amber-600 flex-shrink-0" />
-                    <p className="text-xs font-bold text-amber-800 flex-1">
+                  <div className="flex items-center gap-2 rounded-xl bg-ochre/10 border border-ochre/25 px-3 py-2">
+                    <AlertTriangle className="h-3.5 w-3.5 text-ochre-deep flex-shrink-0" />
+                    <p className="text-xs font-bold text-ochre-deep flex-1">
                       {lastFutureDate ? 'נדרשת תכנית חדשה — פחות משבוע נותר' : 'נדרשת תכנית חדשה — אין אימונים מתוכננים'}
                     </p>
                     <Link href={`/coach/athletes/${athlete.id}/planner`}>
-                      <Button size="sm" className="h-6 px-2.5 text-[10px] bg-amber-600 hover:bg-amber-700 text-white rounded-lg">
+                      <Button size="sm" className="h-6 px-2.5 text-[10px] bg-ochre hover:bg-ochre text-white rounded-lg">
                         תכנן
                       </Button>
                     </Link>
@@ -501,9 +501,9 @@ export function CoachDashboard() {
 
                 {/* Yesterday missed */}
                 {yesterdayMissed && (
-                  <div className="flex items-center gap-2 rounded-xl bg-red-50 border border-red-200/70 px-3 py-2">
-                    <AlertTriangle className="h-3.5 w-3.5 text-red-500 flex-shrink-0" />
-                    <p className="text-xs font-semibold text-red-700">
+                  <div className="flex items-center gap-2 rounded-xl bg-rust/10 border border-red-200/70 px-3 py-2">
+                    <AlertTriangle className="h-3.5 w-3.5 text-rust-deep flex-shrink-0" />
+                    <p className="text-xs font-semibold text-rust-deep">
                       לא סיים אימון אתמול: {yesterdayMissed.workout?.title}
                     </p>
                   </div>
@@ -558,34 +558,34 @@ export function CoachDashboard() {
                         <div className={cn(
                           'rounded-2xl space-y-2 transition-all',
                           compact ? 'p-2.5' : 'p-3.5',
-                          isExpanded ? 'ring-2 ring-[#c9a84c]/40' : '',
+                          isExpanded ? 'ring-2 ring-gold/40' : '',
                           wStatus === 'done'           ? 'bg-emerald-50/70 border border-emerald-200/60' :
                           wStatus === 'strava-pending' ? 'bg-amber-50/50 border border-amber-200/50' :
                           wStatus === 'skipped'        ? 'bg-red-50/50 border border-red-200/50' :
-                                                         'bg-[#0a1628]/[0.03] border border-[#0a1628]/10'
+                                                         'bg-navy/[0.03] border border-navy/10'
                         )}>
                           {/* Title + chevron */}
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0 flex-1 text-right">
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 {todayTiles.length > 1 && (
-                                  <span className="w-4 h-4 rounded-full bg-[#0a1628]/10 text-[9px] font-black text-[#0a1628] flex items-center justify-center flex-shrink-0">
+                                  <span className="w-4 h-4 rounded-full bg-navy/10 text-[9px] font-black text-navy flex items-center justify-center flex-shrink-0">
                                     {tileIdx + 1}
                                   </span>
                                 )}
                                 {sessionInfo && (
-                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-white border border-gray-200 flex-shrink-0">
+                                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-card border border-border flex-shrink-0">
                                     {sessionInfo.emoji} {sessionInfo.label}
                                   </span>
                                 )}
-                                <p className={cn('font-bold text-[#0a1628]', compact ? 'text-xs' : 'text-sm')}>
+                                <p className={cn('font-bold text-navy', compact ? 'text-xs' : 'text-sm')}>
                                   {w.workout?.title || 'אימון'}
                                 </p>
                               </div>
                               <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                                 {w.workout?.type && (
                                   <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full border',
-                                    workoutTypeColors[w.workout.type] || 'bg-gray-100 text-gray-600 border-gray-200')}>
+                                    workoutTypeColors[w.workout.type] || 'bg-muted text-foreground/80 border-border')}>
                                     {typeLabels[w.workout.type] || w.workout.type}
                                   </span>
                                 )}
@@ -604,7 +604,7 @@ export function CoachDashboard() {
                             <div className="flex items-center gap-1.5 flex-shrink-0">
                               {todayStravaLog && (
                                 isManualAct ? (
-                                  <span className="flex items-center gap-1 text-[10px] font-bold text-[#0a1628] bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">
+                                  <span className="flex items-center gap-1 text-[10px] font-bold text-navy bg-muted border border-border px-2 py-0.5 rounded-full">
                                     {actInfo?.emoji} {t.manualActivityTag}
                                   </span>
                                 ) : (
@@ -624,37 +624,37 @@ export function CoachDashboard() {
                           {effectiveLog && (wStatus === 'done' || wStatus === 'strava-pending') && (
                             <div className="flex flex-wrap gap-1.5">
                               {actInfo && !actInfo.hasDistance && actDuration && (
-                                <span className="text-[11px] font-semibold bg-white border border-gray-200 px-2.5 py-1 rounded-full">
+                                <span className="text-[11px] font-semibold bg-card border border-border px-2.5 py-1 rounded-full">
                                   {actInfo.emoji} {actDuration}
                                 </span>
                               )}
                               {effectiveLog.actualDistance && (
-                                <span className="text-[11px] font-semibold bg-white border border-gray-200 px-2.5 py-1 rounded-full">
+                                <span className="text-[11px] font-semibold bg-card border border-border px-2.5 py-1 rounded-full">
                                   {effectiveLog.actualDistance} ק"מ
                                 </span>
                               )}
                               {effectiveLog.actualPace && (
-                                <span className="text-[11px] font-semibold bg-white border border-gray-200 px-2.5 py-1 rounded-full">
+                                <span className="text-[11px] font-semibold bg-card border border-border px-2.5 py-1 rounded-full">
                                   {effectiveLog.actualPace}
                                 </span>
                               )}
                               {effectiveLog.effort != null && (
                                 <span className={cn(
                                   'text-[11px] font-semibold border px-2.5 py-1 rounded-full',
-                                  effectiveLog.effort >= 8 ? 'bg-red-50 text-red-700 border-red-200' :
+                                  effectiveLog.effort >= 8 ? 'bg-rust/10 text-rust-deep border-rust/25' :
                                   effectiveLog.effort >= 6 ? 'bg-orange-50 text-orange-700 border-orange-200' :
-                                  'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  'bg-pine/10 text-pine border-pine/25'
                                 )}>
                                   מאמץ {effectiveLog.effort}/10
                                 </span>
                               )}
                               {todayStravaLog?.averageHeartRate && (
-                                <span className="text-[11px] font-semibold bg-red-50 text-red-600 border border-red-200 px-2.5 py-1 rounded-full">
+                                <span className="text-[11px] font-semibold bg-rust/10 text-rust-deep border border-rust/25 px-2.5 py-1 rounded-full">
                                   ♥ {todayStravaLog.averageHeartRate} bpm
                                 </span>
                               )}
                               {todayStravaLog?.elevationGain != null && todayStravaLog.elevationGain > 0 && (
-                                <span className="text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full">
+                                <span className="text-[11px] font-semibold bg-pine/10 text-pine border border-pine/25 px-2.5 py-1 rounded-full">
                                   ↑ {todayStravaLog.elevationGain}m
                                 </span>
                               )}
@@ -662,7 +662,7 @@ export function CoachDashboard() {
                           )}
 
                           {!isExpanded && effectiveLog?.comment && (
-                            <p className="text-[11px] text-gray-500 italic truncate">
+                            <p className="text-[11px] text-muted-foreground italic truncate">
                               "{effectiveLog.comment}"
                             </p>
                           )}
@@ -679,7 +679,7 @@ export function CoachDashboard() {
 
                       {/* Expanded detail for this specific workout tile */}
                       {isExpanded && (
-                        <div className="mt-2 rounded-2xl border border-border/20 bg-[#0a1628]/[0.015] overflow-hidden">
+                        <div className="mt-2 rounded-2xl border border-border/20 bg-navy/[0.015] overflow-hidden">
 
                           {/* Full Strava card */}
                           {todayStravaLog && (
@@ -688,11 +688,11 @@ export function CoachDashboard() {
                                 {isManualAct ? 'פרטי פעילות' : 'פרטי Strava'}
                               </p>
 
-                              <div className="rounded-2xl border border-border overflow-hidden bg-white shadow-sm" dir="rtl">
+                              <div className="rounded-2xl border border-border overflow-hidden bg-card shadow-sm" dir="rtl">
                                 <div className={cn('px-4 py-3 flex items-center gap-3 border-b border-border/50',
-                                  isManualAct ? 'bg-[#0a1628]/5' : 'bg-[#FC4C02]/5')}>
+                                  isManualAct ? 'bg-navy/5' : 'bg-[#FC4C02]/5')}>
                                   <div className={cn('h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0',
-                                    isManualAct ? 'bg-[#0a1628]' : 'bg-[#FC4C02]')}>
+                                    isManualAct ? 'bg-navy' : 'bg-[#FC4C02]')}>
                                     {isManualAct
                                       ? <span className="text-lg">{actInfo?.emoji}</span>
                                       : <Activity className="h-5 w-5 text-white" />}
@@ -704,7 +704,7 @@ export function CoachDashboard() {
                                           {activityLabel(actInfo.kind, true)}
                                         </span>
                                       )}
-                                      <p className="text-sm font-bold text-[#0a1628] truncate">{actName}</p>
+                                      <p className="text-sm font-bold text-navy truncate">{actName}</p>
                                     </div>
                                     <p className="text-[11px] text-muted-foreground">
                                       {todayStravaLog.feedbackStatus === 'pending'
@@ -718,31 +718,31 @@ export function CoachDashboard() {
                                   {actDuration && (
                                     <div>
                                       <p className="text-[10px] text-muted-foreground mb-0.5">משך</p>
-                                      <p className="text-xl font-black text-[#0a1628]">{actDuration}</p>
+                                      <p className="text-xl font-black text-navy">{actDuration}</p>
                                     </div>
                                   )}
                                   {todayStravaLog.actualDistance != null && todayStravaLog.actualDistance !== 0 && (
                                     <div>
                                       <p className="text-[10px] text-muted-foreground mb-0.5">מרחק</p>
-                                      <p className="text-xl font-black text-[#0a1628]">{todayStravaLog.actualDistance} ק"מ</p>
+                                      <p className="text-xl font-black text-navy">{todayStravaLog.actualDistance} ק"מ</p>
                                     </div>
                                   )}
                                   {todayStravaLog.actualPace && (
                                     <div>
                                       <p className="text-[10px] text-muted-foreground mb-0.5">טמפו</p>
-                                      <p className="text-xl font-black text-[#0a1628]">{todayStravaLog.actualPace}</p>
+                                      <p className="text-xl font-black text-navy">{todayStravaLog.actualPace}</p>
                                     </div>
                                   )}
                                   {todayStravaLog.averageHeartRate && (
                                     <div>
                                       <p className="text-[10px] text-muted-foreground mb-0.5">דופק ממוצע</p>
-                                      <p className="text-xl font-black text-red-500">{todayStravaLog.averageHeartRate} <span className="text-sm font-semibold">bpm</span></p>
+                                      <p className="text-xl font-black text-rust-deep">{todayStravaLog.averageHeartRate} <span className="text-sm font-semibold">bpm</span></p>
                                     </div>
                                   )}
                                   {todayStravaLog.elevationGain != null && todayStravaLog.elevationGain > 0 && (
                                     <div>
                                       <p className="text-[10px] text-muted-foreground mb-0.5">עלייה</p>
-                                      <p className="text-xl font-black text-emerald-600">+{todayStravaLog.elevationGain}<span className="text-sm font-semibold">m</span></p>
+                                      <p className="text-xl font-black text-pine">+{todayStravaLog.elevationGain}<span className="text-sm font-semibold">m</span></p>
                                     </div>
                                   )}
                                 </div>
@@ -762,27 +762,27 @@ export function CoachDashboard() {
                                           key={i}
                                           className={cn(
                                             'px-4 py-2.5 grid grid-cols-[2.5rem_1fr_1fr_1fr_1fr] gap-x-2 items-center text-xs',
-                                            i % 2 === 0 ? 'bg-white' : 'bg-muted/10'
+                                            i % 2 === 0 ? 'bg-card' : 'bg-muted/10'
                                           )}
                                         >
-                                          <span className="w-7 h-7 rounded-full bg-[#0a1628]/8 flex items-center justify-center text-[11px] font-black text-[#0a1628]">
+                                          <span className="w-7 h-7 rounded-full bg-navy/8 flex items-center justify-center text-[11px] font-black text-navy">
                                             {split.lapIndex || i + 1}
                                           </span>
-                                          <span className="font-bold text-[#0a1628]">
+                                          <span className="font-bold text-navy">
                                             {split.pace || '—'}
                                           </span>
                                           <span className="text-muted-foreground">
                                             {split.time || '—'}
                                           </span>
-                                          <span className={split.heartRate ? 'font-semibold text-red-500' : 'text-muted-foreground/40'}>
+                                          <span className={split.heartRate ? 'font-semibold text-rust-deep' : 'text-muted-foreground/40'}>
                                             {split.heartRate ? `${split.heartRate}` : '—'}
                                           </span>
                                           <span className={
                                             split.elevationDiff == null || split.elevationDiff === 0
                                               ? 'text-muted-foreground/40'
                                               : split.elevationDiff > 0
-                                              ? 'font-semibold text-emerald-600'
-                                              : 'font-semibold text-red-400'
+                                              ? 'font-semibold text-pine'
+                                              : 'font-semibold text-rust-deep'
                                           }>
                                             {split.elevationDiff != null && split.elevationDiff !== 0
                                               ? `${split.elevationDiff > 0 ? '+' : ''}${split.elevationDiff}m`
@@ -801,15 +801,15 @@ export function CoachDashboard() {
                                       <div className="flex items-center gap-2">
                                         <span className={cn(
                                           'w-2.5 h-2.5 rounded-full flex-shrink-0',
-                                          effectiveLog.effort <= 4 ? 'bg-emerald-400' :
-                                          effectiveLog.effort <= 6 ? 'bg-amber-400' :
-                                          effectiveLog.effort <= 7 ? 'bg-orange-400' : 'bg-red-400'
+                                          effectiveLog.effort <= 4 ? 'bg-pine' :
+                                          effectiveLog.effort <= 6 ? 'bg-ochre' :
+                                          effectiveLog.effort <= 7 ? 'bg-orange-400' : 'bg-rust'
                                         )} />
-                                        <p className="text-sm font-bold text-[#0a1628]">מאמץ {effectiveLog.effort}/10</p>
+                                        <p className="text-sm font-bold text-navy">מאמץ {effectiveLog.effort}/10</p>
                                       </div>
                                     )}
                                     {effectiveLog.comment && (
-                                      <p className="text-sm text-gray-600 italic leading-snug">
+                                      <p className="text-sm text-foreground/80 italic leading-snug">
                                         "{effectiveLog.comment}"
                                       </p>
                                     )}
@@ -825,10 +825,10 @@ export function CoachDashboard() {
                               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
                                 מבנה האימון
                               </p>
-                              <div className="rounded-2xl border border-border bg-white overflow-hidden">
+                              <div className="rounded-2xl border border-border bg-card overflow-hidden">
                                 {w.workout?.description && (
                                   <div className="px-4 py-3 border-b border-border/40">
-                                    <p className="text-sm text-gray-700 leading-relaxed">
+                                    <p className="text-sm text-foreground/80 leading-relaxed">
                                       {w.workout.description}
                                     </p>
                                   </div>
@@ -836,7 +836,7 @@ export function CoachDashboard() {
                                 {w.workout?.warmup && (
                                   <div className="px-4 py-2 border-b border-border/30 flex gap-3">
                                     <span className="text-[10px] font-semibold text-muted-foreground uppercase w-14 flex-shrink-0 mt-0.5">חימום</span>
-                                    <p className="text-xs text-gray-700">{w.workout.warmup}</p>
+                                    <p className="text-xs text-foreground/80">{w.workout.warmup}</p>
                                   </div>
                                 )}
                                 {workoutSets.length > 0 && workoutSets.map((set: any, si: number) => {
@@ -845,7 +845,7 @@ export function CoachDashboard() {
                                   return (
                                   <div key={set.id || si} className="px-4 py-2.5 border-b border-border/30 last:border-0">
                                     <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
-                                      <span className="text-xs font-bold text-[#0a1628]">
+                                      <span className="text-xs font-bold text-navy">
                                         {t.setLabelPrefix} {si + 1}
                                         {set.reps > 1 ? ` · ${set.reps}×` : ''}
                                         {set.distance ? ` ${set.distance}` : ''}
@@ -868,13 +868,13 @@ export function CoachDashboard() {
                                       <p className="text-[11px] text-muted-foreground">{t.tempoLabel}: {set.pace}</p>
                                     )}
                                     {set.notes && (
-                                      <p className="text-[11px] text-gray-500 italic">{set.notes}</p>
+                                      <p className="text-[11px] text-muted-foreground italic">{set.notes}</p>
                                     )}
                                     {set.intervals && set.intervals.length > 0 && (
                                       <div className="mt-1.5 space-y-1">
                                         {set.intervals.map((interval: any, ii: number) => (
-                                          <div key={interval.id || ii} className="flex items-center gap-2 text-[11px] text-gray-600">
-                                            <span className="w-5 h-5 rounded-full bg-[#0a1628]/10 flex items-center justify-center text-[9px] font-bold text-[#0a1628] flex-shrink-0">
+                                          <div key={interval.id || ii} className="flex items-center gap-2 text-[11px] text-foreground/80">
+                                            <span className="w-5 h-5 rounded-full bg-navy/10 flex items-center justify-center text-[9px] font-bold text-navy flex-shrink-0">
                                               {ii + 1}
                                             </span>
                                             <span>{interval.distance || interval.duration || ''}</span>
@@ -890,7 +890,7 @@ export function CoachDashboard() {
                                 {w.workout?.cooldown && (
                                   <div className="px-4 py-2 flex gap-3 border-t border-border/30">
                                     <span className="text-[10px] font-semibold text-muted-foreground uppercase w-14 flex-shrink-0 mt-0.5">שחרור</span>
-                                    <p className="text-xs text-gray-700">{w.workout.cooldown}</p>
+                                    <p className="text-xs text-foreground/80">{w.workout.cooldown}</p>
                                   </div>
                                 )}
                               </div>
@@ -918,7 +918,7 @@ export function CoachDashboard() {
                             >
                               <Button
                                 size="sm"
-                                className="w-full h-9 text-xs bg-[#0a1628] text-white hover:bg-[#0a1628]/90 gap-1.5"
+                                className="w-full h-9 text-xs bg-navy text-white hover:bg-navy/90 gap-1.5"
                               >
                                 <ExternalLink className="h-3.5 w-3.5" />
                                 תצוגת ספורטאי מלאה
@@ -929,7 +929,7 @@ export function CoachDashboard() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  className="h-9 px-3 text-xs border-[#0a1628]/20 hover:border-[#0a1628]/50 gap-1.5"
+                                  className="h-9 px-3 text-xs border-navy/20 hover:border-navy/50 gap-1.5"
                                 >
                                   <Edit3 className="h-3.5 w-3.5" />
                                   ערוך אימון
@@ -959,7 +959,7 @@ export function CoachDashboard() {
                       >
                         <div className={cn(
                           'rounded-2xl p-3 bg-amber-50/50 border border-amber-200/50 space-y-2 transition-all',
-                          isExpanded && 'ring-2 ring-[#c9a84c]/40'
+                          isExpanded && 'ring-2 ring-gold/40'
                         )}>
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2 flex-1 flex-wrap">
@@ -969,11 +969,11 @@ export function CoachDashboard() {
                               <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full border', exInfo.badgeClass)}>
                                 {activityLabel(exInfo.kind, true)}
                               </span>
-                              <p className="text-sm font-bold text-[#0a1628] truncate">
+                              <p className="text-sm font-bold text-navy truncate">
                                 {log.stravaName || activityLabel(exInfo.kind, true)}
                               </p>
                               {exManual && (
-                                <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">
+                                <span className="text-[10px] font-semibold text-muted-foreground bg-muted border border-border px-2 py-0.5 rounded-full">
                                   {t.manualActivityTag}
                                 </span>
                               )}
@@ -986,26 +986,26 @@ export function CoachDashboard() {
                           {!isExpanded && (
                             <div className="flex flex-wrap gap-1.5">
                               {exInfo && !exInfo.hasDistance && exDur ? (
-                                <span className="text-[11px] font-semibold bg-white border border-gray-200 px-2.5 py-1 rounded-full">{exDur}</span>
+                                <span className="text-[11px] font-semibold bg-card border border-border px-2.5 py-1 rounded-full">{exDur}</span>
                               ) : null}
                               {log.actualDistance ? (
-                                <span className="text-[11px] font-semibold bg-white border border-gray-200 px-2.5 py-1 rounded-full">{log.actualDistance} ק"מ</span>
+                                <span className="text-[11px] font-semibold bg-card border border-border px-2.5 py-1 rounded-full">{log.actualDistance} ק"מ</span>
                               ) : null}
                               {log.actualPace ? (
-                                <span className="text-[11px] font-semibold bg-white border border-gray-200 px-2.5 py-1 rounded-full">{log.actualPace}</span>
+                                <span className="text-[11px] font-semibold bg-card border border-border px-2.5 py-1 rounded-full">{log.actualPace}</span>
                               ) : null}
                             </div>
                           )}
                         </div>
                       </button>
                       {isExpanded && (
-                        <div className="mt-2 rounded-2xl border border-border overflow-hidden bg-white shadow-sm" dir="rtl">
-                          <div className={cn('px-4 py-3 flex items-center gap-3 border-b border-border/50', exManual ? 'bg-[#0a1628]/5' : 'bg-[#FC4C02]/5')}>
-                            <div className={cn('h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0', exManual ? 'bg-[#0a1628]' : 'bg-[#FC4C02]')}>
+                        <div className="mt-2 rounded-2xl border border-border overflow-hidden bg-card shadow-sm" dir="rtl">
+                          <div className={cn('px-4 py-3 flex items-center gap-3 border-b border-border/50', exManual ? 'bg-navy/5' : 'bg-[#FC4C02]/5')}>
+                            <div className={cn('h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0', exManual ? 'bg-navy' : 'bg-[#FC4C02]')}>
                               {exManual ? <span className="text-lg">{exInfo.emoji}</span> : <Activity className="h-5 w-5 text-white" />}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-bold text-[#0a1628] truncate">{log.stravaName || activityLabel(exInfo.kind, true)}</p>
+                              <p className="text-sm font-bold text-navy truncate">{log.stravaName || activityLabel(exInfo.kind, true)}</p>
                               <p className="text-[11px] text-muted-foreground">
                                 {log.feedbackStatus === 'pending' ? t.pendingBadge : exManual ? t.manualActivityTag : 'Strava ✓'}
                               </p>
@@ -1015,32 +1015,32 @@ export function CoachDashboard() {
                             {exDur && (
                               <div>
                                 <p className="text-[10px] text-muted-foreground mb-0.5">משך</p>
-                                <p className="text-xl font-black text-[#0a1628]">{exDur}</p>
+                                <p className="text-xl font-black text-navy">{exDur}</p>
                               </div>
                             )}
                             {log.actualDistance != null && log.actualDistance !== 0 && (
                               <div>
                                 <p className="text-[10px] text-muted-foreground mb-0.5">מרחק</p>
-                                <p className="text-xl font-black text-[#0a1628]">{log.actualDistance} ק"מ</p>
+                                <p className="text-xl font-black text-navy">{log.actualDistance} ק"מ</p>
                               </div>
                             )}
                             {log.actualPace && (
                               <div>
                                 <p className="text-[10px] text-muted-foreground mb-0.5">טמפו</p>
-                                <p className="text-xl font-black text-[#0a1628]">{log.actualPace}</p>
+                                <p className="text-xl font-black text-navy">{log.actualPace}</p>
                               </div>
                             )}
                             {log.averageHeartRate && (
                               <div>
                                 <p className="text-[10px] text-muted-foreground mb-0.5">דופק ממוצע</p>
-                                <p className="text-xl font-black text-red-500">{log.averageHeartRate} <span className="text-sm font-semibold">bpm</span></p>
+                                <p className="text-xl font-black text-rust-deep">{log.averageHeartRate} <span className="text-sm font-semibold">bpm</span></p>
                               </div>
                             )}
                           </div>
                           {log.effort != null && (
                             <div className="border-t border-border/30 px-4 py-3">
-                              <p className="text-sm font-bold text-[#0a1628]">מאמץ {log.effort}/10</p>
-                              {log.comment && <p className="text-sm text-gray-600 italic leading-snug mt-1">"{log.comment}"</p>}
+                              <p className="text-sm font-bold text-navy">מאמץ {log.effort}/10</p>
+                              {log.comment && <p className="text-sm text-foreground/80 italic leading-snug mt-1">"{log.comment}"</p>}
                             </div>
                           )}
                         </div>
@@ -1056,8 +1056,8 @@ export function CoachDashboard() {
               {/* ── INLINE MESSAGE COMPOSER ── */}
               <div className="px-4 py-3">
                 {isSent ? (
-                  <div className="rounded-2xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-center">
-                    <p className="text-sm font-semibold text-emerald-700">ההודעה נשלחה! ✓</p>
+                  <div className="rounded-2xl bg-pine/10 border border-pine/25 px-4 py-3 text-center">
+                    <p className="text-sm font-semibold text-pine">ההודעה נשלחה! ✓</p>
                   </div>
                 ) : (
                   <div className="flex gap-2 items-end">
@@ -1069,7 +1069,7 @@ export function CoachDashboard() {
                           ? `כתוב הערה על "${firstTodayWorkout.workout?.title || 'האימון'}"...`
                           : 'שלח הודעה לספורטאי...'
                       }
-                      className="text-xs min-h-[44px] max-h-[88px] bg-white border-border/50 resize-none flex-1 rounded-2xl"
+                      className="text-xs min-h-[44px] max-h-[88px] bg-card border-border/50 resize-none flex-1 rounded-2xl"
                       dir="rtl"
                       onKeyDown={e => {
                         if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
@@ -1080,7 +1080,7 @@ export function CoachDashboard() {
                     />
                     <Button
                       size="sm"
-                      className="h-11 w-11 p-0 bg-[#0a1628] text-white hover:bg-[#0a1628]/90 rounded-2xl flex-shrink-0"
+                      className="h-11 w-11 p-0 bg-navy text-white hover:bg-navy/90 rounded-2xl flex-shrink-0"
                       onClick={() => handleSendMessage(athlete.id, firstTodayWorkout?.id)}
                       disabled={!!isSending || !composerText[athlete.id]?.trim()}
                     >

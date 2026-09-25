@@ -169,23 +169,23 @@ export function ChatRoom({
   })
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-muted">
       {/* Header */}
-      <div className="flex items-center gap-4 p-4 border-b border-[#0a1628]/10 bg-white">
+      <div className="flex items-center gap-4 p-4 border-b border-navy/10 bg-card">
         <Link href={backLink}>
-          <Button variant="ghost" size="icon" className="text-[#0a1628]/60 hover:text-[#0a1628] hover:bg-[#0a1628]/5 rounded-xl">
+          <Button variant="ghost" size="icon" className="text-navy/60 hover:text-navy hover:bg-navy/5 rounded-xl">
             <ArrowLeft className="h-5 w-5" />
           </Button>
         </Link>
-        <Avatar className="h-10 w-10 ring-2 ring-[#c9a84c]/30">
+        <Avatar className="h-10 w-10 ring-2 ring-gold/30">
           <AvatarImage src={otherUserAvatar} />
-          <AvatarFallback className="bg-[#0a1628]/10 text-[#0a1628] font-semibold">
+          <AvatarFallback className="bg-navy/10 text-navy font-semibold">
             {otherUserName.split(" ").map(n => n[0]).join("")}
           </AvatarFallback>
         </Avatar>
         <div>
-          <h2 className="font-semibold text-[#0a1628]">{otherUserName}</h2>
-          <p className="text-xs text-gray-400">{t.directMessage}</p>
+          <h2 className="font-semibold text-navy">{otherUserName}</h2>
+          <p className="text-xs text-muted-foreground">{t.directMessage}</p>
         </div>
       </div>
 
@@ -193,15 +193,15 @@ export function ChatRoom({
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
-            <div className="animate-pulse text-gray-400">{t.loadingMessages}</div>
+            <div className="animate-pulse text-muted-foreground">{t.loadingMessages}</div>
           </div>
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
-            <div className="w-16 h-16 rounded-full bg-[#0a1628]/10 flex items-center justify-center mb-4">
-              <Send className="h-8 w-8 text-[#0a1628]" />
+            <div className="w-16 h-16 rounded-full bg-navy/10 flex items-center justify-center mb-4">
+              <Send className="h-8 w-8 text-navy" />
             </div>
-            <h3 className="font-semibold text-[#0a1628] mb-1">{t.startConversation}</h3>
-            <p className="text-sm text-gray-400">
+            <h3 className="font-semibold text-navy mb-1">{t.startConversation}</h3>
+            <p className="text-sm text-muted-foreground">
               {t.sendMessageTo} {otherUserName}
             </p>
           </div>
@@ -209,7 +209,7 @@ export function ChatRoom({
           groupedMessages.map((group, groupIndex) => (
             <div key={groupIndex}>
               <div className="flex items-center justify-center mb-4">
-                <span className="px-3 py-1 text-xs font-medium text-gray-400 bg-white border border-gray-100 rounded-full shadow-sm">
+                <span className="px-3 py-1 text-xs font-medium text-muted-foreground bg-card border border-border rounded-full shadow-sm">
                   {group.date}
                 </span>
               </div>
@@ -231,7 +231,7 @@ export function ChatRoom({
                       {!isOwn && (
                         <Avatar className="h-8 w-8">
                           <AvatarImage src={message.senderAvatar} />
-                          <AvatarFallback className="bg-[#c9a84c]/20 text-[#0a1628] text-xs font-semibold">
+                          <AvatarFallback className="bg-gold/20 text-navy text-xs font-semibold">
                             {message.senderName.split(" ").map(n => n[0]).join("")}
                           </AvatarFallback>
                         </Avatar>
@@ -240,14 +240,14 @@ export function ChatRoom({
                         className={cn(
                           "max-w-[80%] rounded-2xl overflow-hidden",
                           isOwn
-                            ? "bg-[#0a1628] text-white rounded-br-md"
-                            : "bg-white border border-gray-100 text-[#0a1628] rounded-bl-md shadow-sm"
+                            ? "bg-navy text-white rounded-br-md"
+                            : "bg-card border border-border text-navy rounded-bl-md shadow-sm"
                         )}
                       >
                         {/* Weekly summary header */}
                         {isWeeklySummary && wp && (
-                          <div className="bg-[#0a1628] px-4 pt-3 pb-2" dir="rtl">
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-[#c9a84c]">{t.weeklySummaryLabel}</p>
+                          <div className="bg-navy px-4 pt-3 pb-2" dir="rtl">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-gold">{t.weeklySummaryLabel}</p>
                             {wp.weekStart && (
                               <p className="text-xs text-white/70 mt-0.5">{wp.weekStart} – {wp.weekEnd}</p>
                             )}
@@ -259,27 +259,27 @@ export function ChatRoom({
                           {isCoachMsg && cp && cp.workoutTitle && (
                             <div className={cn(
                               "mt-2.5 rounded-xl p-3 border",
-                              isOwn ? "border-white/20 bg-white/10" : "border-[#c9a84c]/30 bg-[#c9a84c]/5"
+                              isOwn ? "border-white/20 bg-white/10" : "border-gold/30 bg-gold/5"
                             )} dir="rtl">
-                              <p className={cn("text-xs font-bold leading-tight", isOwn ? "text-white" : "text-[#0a1628]")}>
+                              <p className={cn("text-xs font-bold leading-tight", isOwn ? "text-white" : "text-navy")}>
                                 {cp.workoutTitle}
                               </p>
                               <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
                                 {cp.workoutType && (
-                                  <span className={cn("text-[10px]", isOwn ? "text-white/60" : "text-gray-400")}>{cp.workoutType}</span>
+                                  <span className={cn("text-[10px]", isOwn ? "text-white/60" : "text-muted-foreground")}>{cp.workoutType}</span>
                                 )}
                                 {cp.distance && (
-                                  <span className={cn("text-[10px]", isOwn ? "text-white/60" : "text-gray-400")}>{cp.distance} {t.km}</span>
+                                  <span className={cn("text-[10px]", isOwn ? "text-white/60" : "text-muted-foreground")}>{cp.distance} {t.km}</span>
                                 )}
                                 {cp.duration && (
-                                  <span className={cn("text-[10px]", isOwn ? "text-white/60" : "text-gray-400")}>{cp.duration} {t.min}</span>
+                                  <span className={cn("text-[10px]", isOwn ? "text-white/60" : "text-muted-foreground")}>{cp.duration} {t.min}</span>
                                 )}
                                 {cp.scheduledDate && (
-                                  <span className={cn("text-[10px]", isOwn ? "text-white/60" : "text-gray-400")}>{cp.scheduledDate}</span>
+                                  <span className={cn("text-[10px]", isOwn ? "text-white/60" : "text-muted-foreground")}>{cp.scheduledDate}</span>
                                 )}
                               </div>
                               {cp.sets && cp.sets.length > 0 && (
-                                <p className={cn("text-[10px] mt-1", isOwn ? "text-white/60" : "text-gray-400")}>
+                                <p className={cn("text-[10px] mt-1", isOwn ? "text-white/60" : "text-muted-foreground")}>
                                   {cp.sets.length} {t.setsCountSuffix}
                                   {cp.sets[0]?.distance || cp.sets[0]?.duration ? ` · ${cp.sets[0].distance || cp.sets[0].duration}` : ''}
                                   {cp.sets[0]?.pace ? ` @ ${cp.sets[0].pace}` : ''}
@@ -287,7 +287,7 @@ export function ChatRoom({
                               )}
                             </div>
                           )}
-                          <p className={cn("text-[10px] mt-1.5", isOwn ? "text-white/60" : "text-gray-400")}>
+                          <p className={cn("text-[10px] mt-1.5", isOwn ? "text-white/60" : "text-muted-foreground")}>
                             {formatTime(message.timestamp)}
                           </p>
                         </div>
@@ -295,7 +295,7 @@ export function ChatRoom({
                       {isOwn && (
                         <Avatar className="h-8 w-8">
                           <AvatarImage src={currentUserAvatar} />
-                          <AvatarFallback className="bg-[#0a1628] text-white text-xs">
+                          <AvatarFallback className="bg-navy text-white text-xs">
                             {currentUserName.split(" ").map(n => n[0]).join("")}
                           </AvatarFallback>
                         </Avatar>
@@ -311,19 +311,19 @@ export function ChatRoom({
       </div>
 
       {/* Input */}
-      <div className="p-4 border-t border-gray-100 bg-white">
+      <div className="p-4 border-t border-border bg-card">
         <div className="flex items-center gap-3">
           <Input
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder={t.typeMessage}
-            className="flex-1 h-12 bg-gray-50 border-gray-200 rounded-2xl focus:border-[#0a1628]/30 focus:ring-[#0a1628]/10"
+            className="flex-1 h-12 bg-muted border-border rounded-2xl focus:border-navy/30 focus:ring-navy/10"
           />
           <Button
             onClick={sendMessage}
             disabled={!newMessage.trim()}
-            className="h-12 w-12 bg-[#0a1628] hover:bg-[#0a1628]/90 text-white rounded-2xl flex-shrink-0 disabled:opacity-40 p-0"
+            className="h-12 w-12 bg-navy hover:bg-navy/90 text-white rounded-2xl flex-shrink-0 disabled:opacity-40 p-0"
           >
             <Send className="h-4 w-4" />
           </Button>
