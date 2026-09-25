@@ -496,20 +496,42 @@ export async function runSeasonPipeline(opts: SeasonPipelineOptions): Promise<Se
     }
     const skeletonOut: SkeletonOut = skeletonData.skeleton
 
-    // The model can be off by a week or two; the last stage absorbs the
-    // remainder so the season lands exactly on goalRaceDate.
+    // The model's own periodization framework (base+build+peak+taper) can
+    // legitimately sum to well more or less than totalWeeksAvailable for a
+    // real goal-race distance — not just "off by a week or two". Scale
+    // EVERY stage proportionally (not only the last one): fixing only the
+    // last stage's week count left every earlier stage's cumulative dates
+    // free to run past the goal race entirely, which produced a season
+    // whose final stage's start date was AFTER its own end date, and left
+    // later blocks matching no stage at all (see stagesForBlock's overlaps()
+    // below) — so the model generated those blocks with zero phase
+    // guidance and defaulted to bland easy runs. Caught in production on a
+    // real 18-week-over-budget marathon skeleton (2026-09-25).
     const rawStages = skeletonOut.stages.filter((s) => s.weeks > 0)
     const weekSum = rawStages.reduce((s, st) => s + st.weeks, 0)
-    if (weekSum !== totalWeeksAvailable && rawStages.length > 0) {
-      const diff = totalWeeksAvailable - weekSum
+    if (weekSum !== totalWeeksAvailable && rawStages.length > 0 && weekSum > 0) {
+      const scale = totalWeeksAvailable / weekSum
+      for (const s of rawStages) s.weeks = Math.max(1, Math.round(s.weeks * scale))
+      // Rounding can still leave the sum a week or two off — the last stage
+      // (already close after scaling) absorbs that small remainder.
+      const scaledSum = rawStages.reduce((s, st) => s + st.weeks, 0)
+      const diff = totalWeeksAvailable - scaledSum
       rawStages[rawStages.length - 1].weeks = Math.max(1, rawStages[rawStages.length - 1].weeks + diff)
     }
 
     let dateCursor = startDateStr
-    const stages: JourneyStage[] = rawStages.map((s, i) => {
+    const stages: JourneyStage[] = []
+    for (let i = 0; i < rawStages.length; i++) {
+      // Even proportional scaling can't fully rule out cumulative drift
+      // past the goal race (rounding, or a stage's own 1-week floor) —
+      // never emit a stage whose start date is past the goal race, and
+      // never let the true last stage's end date be anything but the
+      // goal race date, so every stage stays a valid (start <= end) range.
+      if (dateCursor > profile.goalRaceDate) break
+      const s = rawStages[i]
       const isLast = i === rawStages.length - 1
-      const stageEnd = isLast ? profile.goalRaceDate : addDaysStr(dateCursor, s.weeks * 7 - 1)
-      const stage: JourneyStage = {
+      const stageEnd = isLast ? profile.goalRaceDate : dateMin(addDaysStr(dateCursor, s.weeks * 7 - 1), profile.goalRaceDate)
+      stages.push({
         id: localId('stage'),
         name: s.name,
         type: s.type,
@@ -519,10 +541,14 @@ export async function runSeasonPipeline(opts: SeasonPipelineOptions): Promise<Se
         weeklyVolumeKm: s.weeklyVolumeKm,
         keyWorkouts: s.keyWorkouts,
         milestones: s.milestones,
-      }
+      })
       dateCursor = addDaysStr(stageEnd, 1)
-      return stage
-    })
+    }
+    // The clamp above can end the loop before a stage explicitly reaching
+    // goalRaceDate (e.g. every stage got cut short) — force it here so the
+    // season's own bookkeeping (canContinue, seasonAlreadyComplete) still
+    // sees a season that actually reaches the goal race.
+    if (stages.length > 0) stages[stages.length - 1].endDate = profile.goalRaceDate
 
     journeyDoc = {
       // Stable id — every rebuild overwrites the same journey doc.
