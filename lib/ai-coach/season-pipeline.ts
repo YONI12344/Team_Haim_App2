@@ -55,6 +55,7 @@ import {
   applyCutbackWeekAdjustments,
 } from '@/lib/ai-coach-brain/backstops'
 import { aiCoachFetch } from '@/lib/ai-coach/client'
+import { loadCoachFeedbackForPrompt } from '@/lib/ai-coach/feedback-store'
 import { logAiUsage } from '@/lib/ai-coach/usage-log'
 
 export const AI_SOURCE = 'bakken' as const
@@ -295,9 +296,10 @@ export async function buildPlanAthleteContext(
   labSteps: LactateStep[] | null,
 ): Promise<{ context: PlanAthleteContext; assigned: any[]; actualAvgWeeklyKm: number | null }> {
   const today = new Date()
-  const [assignedSnap, logsSnap] = await Promise.all([
+  const [assignedSnap, logsSnap, coachFeedback] = await Promise.all([
     getDocs(query(collection(db, 'assignedWorkouts'), where('athleteId', '==', athleteId))),
     getDocs(query(collection(db, 'logs'), where('athleteId', '==', athleteId))),
+    loadCoachFeedbackForPrompt(),
   ])
   const assigned = assignedSnap.docs.map((d) => ({ id: d.id, ...d.data() } as any))
   const logs = logsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as any))
@@ -343,6 +345,7 @@ export async function buildPlanAthleteContext(
     longRunMinutes: profile.longRunMinutes,
     longRunDay: profile.longRunDay,
     coachNotes: profile.coachPrivateNotes,
+    coachFeedback: coachFeedback.length > 0 ? coachFeedback : undefined,
     goalRaceEvent: profile.goalRaceEvent || 'Goal Race',
     goalRaceDistance: profile.goalRaceDistance,
     goalRaceDate: profile.goalRaceDate,

@@ -29,9 +29,11 @@ export async function POST(req: NextRequest) {
   if (!apiKey) return NextResponse.json({ error: 'No ANTHROPIC_API_KEY set' }, { status: 500 })
 
   let messages: Anthropic.MessageParam[]
+  let coachFeedback: string[] = []
   try {
     const body = await req.json()
     messages = body.messages
+    coachFeedback = Array.isArray(body.coachFeedback) ? body.coachFeedback : []
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
@@ -56,7 +58,12 @@ export async function POST(req: NextRequest) {
         // hour so switching between athletes' threads keeps hitting it.
         { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral', ttl: '1h' } },
         // Volatile, tiny, after the breakpoint.
-        { type: 'text', text: `Today is ${format(new Date(), 'EEEE yyyy-MM-dd')}.` },
+        {
+          type: 'text',
+          text: coachFeedback.length > 0
+            ? `Today is ${format(new Date(), 'EEEE yyyy-MM-dd')}.\n\nCOACH-TAUGHT LESSONS (standing instructions from Yoni himself, from him correcting or approving real past output -- treat these as binding, they override this prompt's own defaults wherever they conflict):\n${coachFeedback.map((f) => `- ${f}`).join('\n')}`
+            : `Today is ${format(new Date(), 'EEEE yyyy-MM-dd')}.`,
+        },
       ],
       // Also cache the conversation so far, so each follow-up turn only pays
       // full price for what's new.

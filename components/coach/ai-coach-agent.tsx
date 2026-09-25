@@ -7,11 +7,13 @@ import {
   AlertTriangle,
   ArrowUp,
   Check,
+  GraduationCap,
   Loader2,
   MoreHorizontal,
   RotateCcw,
   SlidersHorizontal,
   Square,
+  Trash2,
   X,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
@@ -22,6 +24,13 @@ import { logAiUsage } from '@/lib/ai-coach/usage-log'
 import { runAgentTool } from '@/lib/ai-coach/agent-executors'
 import { SCHEDULE_WRITING_TOOLS, type AgentToolName } from '@/lib/ai-coach/agent-tools'
 import { appendMessage, clearThread, loadThread, type StoredMessage } from '@/lib/ai-coach/thread-store'
+import {
+  addCoachFeedback,
+  deleteCoachFeedback,
+  loadCoachFeedback,
+  loadCoachFeedbackForPrompt,
+  type CoachFeedbackEntry,
+} from '@/lib/ai-coach/feedback-store'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -61,6 +70,13 @@ const UI = {
     retry: 'Retry',
     settingsTitle: 'Plan settings',
     close: 'Close',
+    teach: 'Teach the AI',
+    teachTitle: 'Teach the AI',
+    teachBody: "Tell it what was good or bad about a workout or a plan it made, in plain words. It doesn't retrain itself from usage — this is what actually changes its output over time: every lesson here is sent on every future generation, for every athlete.",
+    teachPlaceholder: 'e.g. "Yuli\'s easy weeks should be simpler, not just easy runs" or "always keep strides after easy days"',
+    teachAdd: 'Add lesson',
+    teachEmpty: 'No lessons taught yet.',
+    teachDeleteConfirm: 'Remove this lesson?',
   },
   he: {
     title: 'מאמן AI',
@@ -86,6 +102,13 @@ const UI = {
     retry: 'נסה שוב',
     settingsTitle: 'הגדרות תוכנית',
     close: 'סגור',
+    teach: 'למד את ה-AI',
+    teachTitle: 'למד את ה-AI',
+    teachBody: 'תגיד לו מה היה טוב או לא טוב באימון או בתוכנית שהוא יצר, במילים פשוטות. הוא לא לומד לבד מהשימוש - זה מה שבאמת משנה את הפלט שלו לאורך זמן: כל שיעור כאן נשלח בכל יצירה עתידית, לכל ספורטאי.',
+    teachPlaceholder: 'לדוגמה: "השבועות הקלים של יולי צריכים להיות פשוטים יותר" או "תמיד תשמור סטרייד אחרי ריצות קלות"',
+    teachAdd: 'הוסף שיעור',
+    teachEmpty: 'עדיין לא לימדת שום דבר.',
+    teachDeleteConfirm: 'להסיר את השיעור הזה?',
   },
 } as const
 
@@ -223,6 +246,11 @@ export function AiCoachAgent({ athleteId, athleteName, className, onClose }: {
   const [progress, setProgress] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [teachOpen, setTeachOpen] = useState(false)
+  const [teachEntries, setTeachEntries] = useState<CoachFeedbackEntry[]>([])
+  const [teachLoading, setTeachLoading] = useState(false)
+  const [teachInput, setTeachInput] = useState('')
+  const [teachSaving, setTeachSaving] = useState(false)
   const stopRef = useRef(false)
   const messagesRef = useRef<StoredMessage[]>([])
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -281,7 +309,8 @@ export function AiCoachAgent({ athleteId, athleteName, className, onClose }: {
 
       for (let step = 0; step < MAX_STEPS; step++) {
         if (stopRef.current) { setError(t.stopped); return }
-        const res = await aiCoachFetch('/api/ai-coach/agent', { messages: messagesRef.current.map((m) => m.message) })
+        const coachFeedback = await loadCoachFeedbackForPrompt()
+        const res = await aiCoachFetch('/api/ai-coach/agent', { messages: messagesRef.current.map((m) => m.message), coachFeedback })
         if (res.error) { setError(res.error); return }
         if (res.usage) logAiUsage({ route: 'agent', model: res.model, athleteId, coachId: user.id, usage: res.usage })
 
@@ -324,6 +353,43 @@ export function AiCoachAgent({ athleteId, athleteName, className, onClose }: {
     }
   }
 
+  const openTeach = async () => {
+    setTeachOpen(true)
+    setTeachLoading(true)
+    try {
+      setTeachEntries(await loadCoachFeedback())
+    } catch {
+      toast.error(t.loadFailed)
+    } finally {
+      setTeachLoading(false)
+    }
+  }
+
+  const addLesson = async () => {
+    const text = teachInput.trim()
+    if (!text || teachSaving) return
+    setTeachSaving(true)
+    try {
+      await addCoachFeedback(text)
+      setTeachInput('')
+      setTeachEntries(await loadCoachFeedback())
+    } catch {
+      toast.error(t.loadFailed)
+    } finally {
+      setTeachSaving(false)
+    }
+  }
+
+  const removeLesson = async (id: string) => {
+    if (!confirm(t.teachDeleteConfirm)) return
+    try {
+      await deleteCoachFeedback(id)
+      setTeachEntries((prev) => prev.filter((e) => e.id !== id))
+    } catch {
+      toast.error(t.loadFailed)
+    }
+  }
+
   const clear = async () => {
     if (!confirm(t.confirmClear)) return
     try {
@@ -357,6 +423,10 @@ export function AiCoachAgent({ athleteId, athleteName, className, onClose }: {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={openTeach}>
+                <GraduationCap className="h-3.5 w-3.5 me-2" />
+                {t.teach}
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={clear} disabled={running || messages.length === 0}>
                 <RotateCcw className="h-3.5 w-3.5 me-2" />
                 {t.newConversation}
@@ -486,6 +556,49 @@ export function AiCoachAgent({ athleteId, athleteName, className, onClose }: {
           </SheetHeader>
           <div className="p-4 pt-2">
             <AiPlanSettings athleteId={athleteId} />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={teachOpen} onOpenChange={setTeachOpen}>
+        <SheetContent side={lang === 'he' ? 'left' : 'right'} className="w-full sm:max-w-xl overflow-y-auto p-0">
+          <SheetHeader className="pl-4 pr-12 pt-4">
+            <SheetTitle>{t.teachTitle}</SheetTitle>
+          </SheetHeader>
+          <div className="space-y-4 p-4 pt-2">
+            <p dir="auto" className="text-sm leading-relaxed text-muted-foreground">{t.teachBody}</p>
+            <div className="flex flex-col gap-2">
+              <Textarea
+                dir="auto"
+                value={teachInput}
+                onChange={(e) => setTeachInput(e.target.value)}
+                placeholder={t.teachPlaceholder}
+                rows={3}
+                className="resize-none text-sm"
+              />
+              <Button size="sm" className="self-end" onClick={addLesson} disabled={!teachInput.trim() || teachSaving}>
+                {teachSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t.teachAdd}
+              </Button>
+            </div>
+            {teachLoading ? (
+              <div className="space-y-2" aria-hidden>
+                <div className="h-8 rounded bg-muted animate-pulse" />
+                <div className="h-8 rounded bg-muted animate-pulse" />
+              </div>
+            ) : teachEntries.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t.teachEmpty}</p>
+            ) : (
+              <ul className="space-y-2">
+                {teachEntries.map((entry) => (
+                  <li key={entry.id} dir="auto" className="flex items-start justify-between gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
+                    <span className="min-w-0 flex-1">{entry.text}</span>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => removeLesson(entry.id)} aria-label={t.teachDeleteConfirm}>
+                      <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </SheetContent>
       </Sheet>

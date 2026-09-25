@@ -26,6 +26,13 @@ export interface PlanAthleteContext {
   // know about this specific athlete that doesn't fit another field:
   // schedule quirks, gear, personality, race history detail, etc.
   coachNotes?: string
+  // Standing lessons the coach has explicitly taught the AI over time (see
+  // lib/ai-coach/feedback-store.ts) -- newest first, capped. Not specific to
+  // this one athlete; this is how the coach's own real feedback ("good"/
+  // "bad" on what it generated) actually changes future output, since the
+  // model itself never retrains. Treat these as binding coaching preference,
+  // second only to hard safety/scheduling rules.
+  coachFeedback?: string[]
   goalRaceEvent?: string
   goalRaceDistance?: '1500m' | 'mile' | '3000m' | '5k' | '10k' | '15k' | 'half_marathon' | 'marathon'
   goalRaceDate?: string
