@@ -126,7 +126,7 @@ export function WorkoutComparisonGallery({ athleteId }: { athleteId: string }) {
 
       <div className="space-y-2">
         {orderedFolders.map(folder => (
-          <div key={folder.key} className="rounded-2xl bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 overflow-hidden">
+          <div key={folder.key} className="rounded-2xl bg-gradient-to-br from-navy to-navy/85 overflow-hidden">
             <button onClick={() => setOpenFolder(p => p === folder.key ? null : folder.key)}
               className="w-full px-3 py-2.5 flex items-center justify-between bg-white/5 hover:bg-white/10">
               <span className="text-xs font-bold text-white flex items-center gap-1.5">
@@ -173,7 +173,7 @@ export function WorkoutComparisonGallery({ athleteId }: { athleteId: string }) {
           <div className="px-3 pb-3 space-y-3">
             {/* The recharts trend chart keeps its light-theme colors — it
                 sits on its own white tile inside the dark card. */}
-            <div className="rounded-xl bg-white p-2">
+            <div className="rounded-xl bg-card p-2">
               <WorkoutComparisonChart points={points} kind={kind} />
             </div>
             {renderSessionList(kind, points, card.color)}
@@ -205,7 +205,7 @@ export function WorkoutComparisonGallery({ athleteId }: { athleteId: string }) {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
             <div className={darkStatTile}>
               <p className="text-[9px] text-white/50">{t.labStatAvgRepPace}</p>
-              <p className="text-sm font-black text-[#c9a84c]" dir="ltr">{repPace ?? '—'}</p>
+              <p className="text-sm font-black text-gold" dir="ltr">{repPace ?? '—'}</p>
             </div>
             <div className={darkStatTile}>
               <p className="text-[9px] text-white/50">{t.labStatRepCount}</p>
@@ -230,7 +230,7 @@ export function WorkoutComparisonGallery({ athleteId }: { athleteId: string }) {
     const distanceTile = (big: boolean) => (
       <div className={darkStatTile} key="dist">
         <p className="text-[9px] text-white/50">{t.labStatDistance}</p>
-        <p className={cn('font-black', big ? 'text-xl text-[#c9a84c]' : 'text-sm text-white')} dir="ltr">
+        <p className={cn('font-black', big ? 'text-xl text-gold' : 'text-sm text-white')} dir="ltr">
           {latest.distance != null ? `${latest.distance}` : '—'}
           <span className="text-[9px] font-semibold text-white/50"> {isRTL ? 'ק"מ' : 'km'}</span>
         </p>
@@ -239,7 +239,7 @@ export function WorkoutComparisonGallery({ athleteId }: { athleteId: string }) {
     const paceTile = (
       <div className={darkStatTile} key="pace">
         <p className="text-[9px] text-white/50">{t.labStatAvgPace}</p>
-        <p className={cn('font-black text-sm', kind === 'fartlek' ? 'text-[#c9a84c]' : 'text-white')} dir="ltr">{latest.pace ?? '—'}</p>
+        <p className={cn('font-black text-sm', kind === 'fartlek' ? 'text-gold' : 'text-white')} dir="ltr">{latest.pace ?? '—'}</p>
       </div>
     )
     const hrTile = (
@@ -296,10 +296,10 @@ export function WorkoutComparisonGallery({ athleteId }: { athleteId: string }) {
               <div key={p.logId} className="rounded-xl bg-white/[0.04] border-t-2 overflow-hidden" style={{ borderColor: groupColor }}>
                 <div className="px-2.5 pt-2 flex items-center justify-between">
                   <span className="text-[11px] font-bold text-white">{format(new Date(p.date), 'd/M/yy')}</span>
-                  {isLatest && <span className="text-[8.5px] font-bold text-[#c9a84c]">{t.labLatestSession}</span>}
+                  {isLatest && <span className="text-[8.5px] font-bold text-gold">{t.labLatestSession}</span>}
                 </div>
                 <div className="p-2 grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                  {stat(t.labStatAvgRepPace, p.avgRepPace ?? p.pace, { color: 'text-[#c9a84c]', ltr: true })}
+                  {stat(t.labStatAvgRepPace, p.avgRepPace ?? p.pace, { color: 'text-gold', ltr: true })}
                   {stat(t.labStatRepCount, p.repCount)}
                   {stat(t.labTrendTableRest, rest, { ltr: true, changed: restChanged })}
                   {stat(t.labTrendTableHr, p.avgRepHr ?? p.hr, { color: hrColor(p.avgRepHr ?? p.hr) })}
@@ -320,10 +320,10 @@ export function WorkoutComparisonGallery({ athleteId }: { athleteId: string }) {
             <div key={p.logId} className="rounded-xl bg-white/[0.04] border-t-2 overflow-hidden" style={{ borderColor: groupColor }}>
               <div className="px-2.5 pt-2 flex items-center justify-between">
                 <span className="text-[11px] font-bold text-white">{format(new Date(p.date), 'd/M/yy')}</span>
-                {isLatest && <span className="text-[8.5px] font-bold text-[#c9a84c]">{t.labLatestSession}</span>}
+                {isLatest && <span className="text-[8.5px] font-bold text-gold">{t.labLatestSession}</span>}
               </div>
               <div className="p-2 grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                {stat(t.labTrendTableDistance, p.distance != null ? `${p.distance} ${isRTL ? 'ק"מ' : 'km'}` : null, { color: 'text-[#c9a84c]' })}
+                {stat(t.labTrendTableDistance, p.distance != null ? `${p.distance} ${isRTL ? 'ק"מ' : 'km'}` : null, { color: 'text-gold' })}
                 {stat(t.labTrendTablePace, p.pace, { ltr: true })}
                 {stat(t.labTrendTableHr, p.hr, { color: hrColor(p.hr) })}
                 {hasRest

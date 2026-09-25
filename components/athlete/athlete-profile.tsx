@@ -72,10 +72,10 @@ import { PaceEditor, RecordEditor } from './profile-editors'
 import { AthleteDocumentsView } from './athlete-documents-view'
 
 const paceTypeColors: Record<string, string> = {
-  easy: 'bg-emerald-100 text-emerald-700',
-  tempo: 'bg-amber-100 text-amber-700',
+  easy: 'bg-pine/15 text-pine',
+  tempo: 'bg-ochre/15 text-ochre-deep',
   threshold: 'bg-orange-100 text-orange-700',
-  interval: 'bg-red-100 text-red-700',
+  interval: 'bg-rust/15 text-rust-deep',
   repetition: 'bg-purple-100 text-purple-700',
   race: 'bg-gold/20 text-gold',
 }
@@ -557,10 +557,10 @@ export function AthleteProfile() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
         <div>
-          <h1 className="font-serif text-2xl md:text-3xl font-semibold text-[#0a1628]">
+          <h1 className="font-serif text-2xl md:text-3xl font-semibold text-navy">
             {t.myProfile}
           </h1>
-          <p className="text-gray-500 text-sm">
+          <p className="text-muted-foreground text-sm">
             {t.yourAthleticProfile}
           </p>
         </div>
@@ -588,7 +588,7 @@ export function AthleteProfile() {
             <Button
               onClick={handleStravaConnect}
               disabled={stravaConnecting}
-              className="bg-[#0a1628] hover:bg-[#0a1628]/90 text-white"
+              className="bg-navy hover:bg-navy/90 text-white"
             >
               {stravaConnecting ? t.stravaConnectingBtn : stravaConnected ? t.stravaReconnectBtn : t.stravaConnectBtn}
             </Button>
@@ -597,14 +597,14 @@ export function AthleteProfile() {
                 a second copy here was pure duplication, not a different use
                 case, so it's cut rather than kept "just in case". */}
             {/* Language switcher */}
-            <div className="flex rounded-xl border border-gray-200 overflow-hidden">
+            <div className="flex rounded-xl border border-border overflow-hidden">
               <button
                 onClick={() => handleSetLanguage('he')}
                 className={cn(
                   'px-3 py-1.5 text-sm font-semibold transition-colors',
                   language === 'he'
-                    ? 'bg-[#0a1628] text-white'
-                    : 'bg-white text-gray-500 hover:bg-gray-50'
+                    ? 'bg-navy text-white'
+                    : 'bg-card text-muted-foreground hover:bg-muted'
                 )}
               >
                 עברית
@@ -614,8 +614,8 @@ export function AthleteProfile() {
                 className={cn(
                   'px-3 py-1.5 text-sm font-semibold transition-colors',
                   language === 'en'
-                    ? 'bg-[#0a1628] text-white'
-                    : 'bg-white text-gray-500 hover:bg-gray-50'
+                    ? 'bg-navy text-white'
+                    : 'bg-card text-muted-foreground hover:bg-muted'
                 )}
               >
                 English
@@ -626,7 +626,7 @@ export function AthleteProfile() {
       </div>
 
       {/* Profile Card */}
-      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
+      <div className="bg-card rounded-3xl shadow-sm border border-border p-6">
         <div>
           <div className="flex flex-col md:flex-row items-start gap-6">
             <div className="relative">
@@ -1017,14 +1017,14 @@ export function AthleteProfile() {
       />
 
       {/* Documents from coach */}
-      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
+      <div className="bg-card rounded-3xl shadow-sm border border-border p-5">
         <div className="flex items-center gap-2 mb-4">
-          <div className="w-8 h-8 rounded-xl bg-[#c9a84c]/10 flex items-center justify-center">
-            <FileText className="h-4 w-4 text-[#c9a84c]" />
+          <div className="w-8 h-8 rounded-xl bg-gold/10 flex items-center justify-center">
+            <FileText className="h-4 w-4 text-gold" />
           </div>
           <div>
-            <p className="font-bold text-[#0a1628] text-sm leading-tight">קבצים ומסמכים</p>
-            <p className="text-xs text-gray-400 leading-tight mt-0.5">תכניות אימון וקבצים מהמאמן</p>
+            <p className="font-bold text-navy text-sm leading-tight">קבצים ומסמכים</p>
+            <p className="text-xs text-muted-foreground leading-tight mt-0.5">תכניות אימון וקבצים מהמאמן</p>
           </div>
         </div>
         <AthleteDocumentsView compact />
@@ -1032,19 +1032,19 @@ export function AthleteProfile() {
 
       {/* Tabs */}
       <Tabs defaultValue="prs" className="space-y-6">
-        <TabsList className="bg-white border border-gray-100 rounded-2xl p-1 w-full grid grid-cols-4 shadow-sm h-auto">
-          <TabsTrigger value="prs" className="rounded-xl data-[state=active]:bg-[#0a1628] data-[state=active]:text-white data-[state=active]:shadow-none text-gray-500 text-xs font-semibold py-2">{t.tabPRs}</TabsTrigger>
-          <TabsTrigger value="season" className="rounded-xl data-[state=active]:bg-[#0a1628] data-[state=active]:text-white data-[state=active]:shadow-none text-gray-500 text-xs font-semibold py-2">{t.tabSeasonBest}</TabsTrigger>
-          <TabsTrigger value="paces" className="rounded-xl data-[state=active]:bg-[#0a1628] data-[state=active]:text-white data-[state=active]:shadow-none text-gray-500 text-xs font-semibold py-2">{t.tabPaces}</TabsTrigger>
-          <TabsTrigger value="goals" className="rounded-xl data-[state=active]:bg-[#0a1628] data-[state=active]:text-white data-[state=active]:shadow-none text-gray-500 text-xs font-semibold py-2">{t.tabGoals}</TabsTrigger>
+        <TabsList className="bg-card border border-border rounded-2xl p-1 w-full grid grid-cols-4 shadow-sm h-auto">
+          <TabsTrigger value="prs" className="rounded-xl data-[state=active]:bg-navy data-[state=active]:text-white data-[state=active]:shadow-none text-muted-foreground text-xs font-semibold py-2">{t.tabPRs}</TabsTrigger>
+          <TabsTrigger value="season" className="rounded-xl data-[state=active]:bg-navy data-[state=active]:text-white data-[state=active]:shadow-none text-muted-foreground text-xs font-semibold py-2">{t.tabSeasonBest}</TabsTrigger>
+          <TabsTrigger value="paces" className="rounded-xl data-[state=active]:bg-navy data-[state=active]:text-white data-[state=active]:shadow-none text-muted-foreground text-xs font-semibold py-2">{t.tabPaces}</TabsTrigger>
+          <TabsTrigger value="goals" className="rounded-xl data-[state=active]:bg-navy data-[state=active]:text-white data-[state=active]:shadow-none text-muted-foreground text-xs font-semibold py-2">{t.tabGoals}</TabsTrigger>
         </TabsList>
 
         {/* Personal Records */}
         <TabsContent value="prs" className="space-y-4">
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
+          <div className="bg-card rounded-3xl shadow-sm border border-border p-5">
             <div className="flex items-center gap-2 mb-5">
-              <Trophy className="h-5 w-5 text-[#c9a84c]" />
-              <p className="font-bold text-[#0a1628]">{t.personalRecordsTitle}</p>
+              <Trophy className="h-5 w-5 text-gold" />
+              <p className="font-bold text-navy">{t.personalRecordsTitle}</p>
             </div>
             <div className="space-y-5">
               <RecordEditor
@@ -1096,10 +1096,10 @@ export function AthleteProfile() {
 
         {/* Season Bests */}
         <TabsContent value="season" className="space-y-4">
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
+          <div className="bg-card rounded-3xl shadow-sm border border-border p-5">
             <div className="flex items-center gap-2 mb-5">
-              <Target className="h-5 w-5 text-[#c9a84c]" />
-              <p className="font-bold text-[#0a1628]">{new Date().getFullYear()} {t.seasonBestsTitle}</p>
+              <Target className="h-5 w-5 text-gold" />
+              <p className="font-bold text-navy">{new Date().getFullYear()} {t.seasonBestsTitle}</p>
             </div>
             <div className="space-y-5">
               <RecordEditor
@@ -1132,7 +1132,7 @@ export function AthleteProfile() {
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-400 text-center py-8">
+                <p className="text-muted-foreground text-center py-8">
                   {t.noSeasonBestsYet}
                 </p>
               )}
@@ -1142,10 +1142,10 @@ export function AthleteProfile() {
 
         {/* Training Paces */}
         <TabsContent value="paces" className="space-y-4">
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
+          <div className="bg-card rounded-3xl shadow-sm border border-border p-5">
             <div className="flex items-center gap-2 mb-5">
-              <Clock className="h-5 w-5 text-[#c9a84c]" />
-              <p className="font-bold text-[#0a1628]">{t.trainingPacesTitle}</p>
+              <Clock className="h-5 w-5 text-gold" />
+              <p className="font-bold text-navy">{t.trainingPacesTitle}</p>
             </div>
             <div className="space-y-5">
               <PaceEditor
@@ -1197,10 +1197,10 @@ export function AthleteProfile() {
 
         {/* Goals */}
         <TabsContent value="goals" id="goals" className="space-y-4">
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
+          <div className="bg-card rounded-3xl shadow-sm border border-border p-5">
             <div className="flex items-center gap-2 mb-5">
-              <Target className="h-5 w-5 text-[#c9a84c]" />
-              <p className="font-bold text-[#0a1628]">{t.goalsTitle}</p>
+              <Target className="h-5 w-5 text-gold" />
+              <p className="font-bold text-navy">{t.goalsTitle}</p>
             </div>
             <div>
               {goals.length === 0 ? (
@@ -1215,7 +1215,7 @@ export function AthleteProfile() {
                         goal.status === 'active'
                           ? 'border-gold/30 bg-gold/5'
                           : goal.status === 'achieved'
-                          ? 'border-emerald-200 bg-emerald-50'
+                          ? 'border-pine/25 bg-pine/10'
                           : 'border-border bg-muted/30',
                       )}
                     >
@@ -1227,7 +1227,7 @@ export function AthleteProfile() {
                               variant="outline"
                               className={cn(
                                 goal.status === 'active' && 'bg-gold/10 text-gold border-gold/30',
-                                goal.status === 'achieved' && 'bg-emerald-100 text-emerald-700 border-emerald-200',
+                                goal.status === 'achieved' && 'bg-pine/15 text-pine border-pine/25',
                                 goal.status === 'archived' && 'bg-muted text-muted-foreground',
                               )}
                             >

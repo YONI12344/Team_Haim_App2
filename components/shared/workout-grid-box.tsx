@@ -14,9 +14,9 @@ import { AlertTriangle } from 'lucide-react'
 // side got a tweak the other didn't; importing the same component instead
 // makes that impossible — there is only one implementation to change.
 export const GRID_TYPE_DOT_COLORS: Record<string, string> = {
-  easy: 'bg-emerald-400', recovery: 'bg-emerald-400',
+  easy: 'bg-pine', recovery: 'bg-pine',
   long_run: 'bg-orange-400',
-  tempo: 'bg-amber-400', intervals: 'bg-amber-400', hill_repeats: 'bg-amber-400', fartlek: 'bg-amber-400',
+  tempo: 'bg-ochre', intervals: 'bg-ochre', hill_repeats: 'bg-ochre', fartlek: 'bg-ochre',
   threshold: 'bg-pink-400',
   race: 'bg-gold', time_trial: 'bg-gold',
   strength: 'bg-slate-400', cross_training: 'bg-slate-400', swim: 'bg-slate-400', bike: 'bg-slate-400',
@@ -104,16 +104,16 @@ export function GridWorkoutBox({ workout, done, suspicious, coachFeedback, onCli
       onClick={onClick}
       className={cn('w-full text-right rounded-[6px] px-1.5 py-1.5 flex flex-col gap-1 overflow-hidden',
         onClick ? 'transition-all hover:opacity-90' : '',
-        suspicious ? 'bg-gradient-to-br from-red-700 to-red-800 text-white' : 'bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 text-white',
+        suspicious ? 'bg-gradient-to-br from-rust to-rust text-white' : 'bg-gradient-to-br from-navy to-navy/85 text-white',
         selected ? 'ring-2 ring-gold' : ''
       )}>
       <div className="w-full min-w-0 flex items-center gap-1 text-[10px]">
         <span className={cn('w-2 h-2 rounded-full flex-shrink-0', GRID_TYPE_DOT_COLORS[workout.type as string] || GRID_TYPE_DOT_COLORS.easy)} />
         {suspicious && <AlertTriangle className="h-2.5 w-2.5 shrink-0" />}
-        {done && <span className="flex-shrink-0 text-emerald-400">✓</span>}
+        {done && <span className="flex-shrink-0 text-pine">✓</span>}
         <span className="flex-1 min-w-0 truncate font-bold">{resolveText(language, workout.title, workout.titleEn)}</span>
         {metric && (
-          <span className="flex-shrink-0 text-[9px] font-bold bg-[#c9a84c] text-[#0a1628] px-1.5 py-0.5 rounded-full">{metric}</span>
+          <span className="flex-shrink-0 text-[9px] font-bold bg-gold text-navy px-1.5 py-0.5 rounded-full">{metric}</span>
         )}
       </div>
       <GridWorkoutDetail workout={workout} />

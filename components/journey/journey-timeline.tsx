@@ -13,9 +13,9 @@ import { useLanguage } from '@/contexts/language-context'
 import { useWorkoutTypeLabels } from '@/lib/workout-labels'
 
 const stageColors: Record<JourneyStageType, string> = {
-  base: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  base: 'bg-pine/15 text-pine border-pine/25',
   build: 'bg-blue-100 text-blue-700 border-blue-200',
-  peak: 'bg-amber-100 text-amber-700 border-amber-200',
+  peak: 'bg-ochre/15 text-ochre-deep border-ochre/25',
   taper: 'bg-purple-100 text-purple-700 border-purple-200',
   race_week: 'bg-coral-light text-coral border-coral/40',
   recovery: 'bg-teal-100 text-teal-700 border-teal-200',

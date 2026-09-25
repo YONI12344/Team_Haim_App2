@@ -889,14 +889,14 @@ export function AthletePlanner({ athleteId }: Props) {
   // easy & recovery = calm green, long run = orange, hard efforts = amber,
   // race day = brand gold, everything supplementary = neutral slate.
   const TYPE_COLORS: Record<string, string> = {
-    easy: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-    recovery: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+    easy: 'bg-pine/15 text-pine border-pine/25',
+    recovery: 'bg-pine/15 text-pine border-pine/25',
     long_run: 'bg-orange-100 text-orange-700 border-orange-200',
-    tempo: 'bg-amber-100 text-amber-700 border-amber-200',
+    tempo: 'bg-ochre/15 text-ochre-deep border-ochre/25',
     threshold: 'bg-pink-100 text-pink-700 border-pink-200',
-    intervals: 'bg-amber-100 text-amber-700 border-amber-200',
-    hill_repeats: 'bg-amber-100 text-amber-700 border-amber-200',
-    fartlek: 'bg-amber-100 text-amber-700 border-amber-200',
+    intervals: 'bg-ochre/15 text-ochre-deep border-ochre/25',
+    hill_repeats: 'bg-ochre/15 text-ochre-deep border-ochre/25',
+    fartlek: 'bg-ochre/15 text-ochre-deep border-ochre/25',
     race: 'bg-gold/15 text-navy border-gold/40',
     time_trial: 'bg-gold/15 text-navy border-gold/40',
     strength: 'bg-slate-100 text-slate-600 border-slate-200',
@@ -1196,7 +1196,7 @@ export function AthletePlanner({ athleteId }: Props) {
                 <select
                   value={athleteId}
                   onChange={e => { if (e.target.value !== athleteId) router.push(`/coach/athletes/${e.target.value}/planner`) }}
-                  className="h-7 text-xs rounded-lg border border-border bg-white px-1.5 text-navy font-semibold cursor-pointer hover:border-gold/50 transition-colors"
+                  className="h-7 text-xs rounded-lg border border-border bg-card px-1.5 text-navy font-semibold cursor-pointer hover:border-gold/50 transition-colors"
                   title="מעבר מהיר לספורטאי אחר"
                 >
                   {allAthletes.map(a => (
@@ -1207,7 +1207,7 @@ export function AthletePlanner({ athleteId }: Props) {
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               {journey && <Badge className="bg-navy/10 text-navy border-navy/20 text-xs">{journey.stageName} · שבוע {journey.weekInStage}/{journey.totalWeeksInStage}</Badge>}
-              {journey && <Badge variant="outline" className={cn('text-xs', journey.isOffWeek ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-emerald-100 text-emerald-700 border-emerald-200')}>{journey.isOffWeek ? t.offWeekLabel : t.trainingWeekLabel}</Badge>}
+              {journey && <Badge variant="outline" className={cn('text-xs', journey.isOffWeek ? 'bg-ochre/15 text-ochre-deep border-ochre/25' : 'bg-pine/15 text-pine border-pine/25')}>{journey.isOffWeek ? t.offWeekLabel : t.trainingWeekLabel}</Badge>}
               {athlete?.weeklyKmRange && <span className="text-xs text-muted-foreground">{athlete.weeklyKmRange.min}–{athlete.weeklyKmRange.max} {t.km}</span>}
             </div>
           </div>
@@ -1215,7 +1215,7 @@ export function AthletePlanner({ athleteId }: Props) {
           <select
             value={athlete?.experienceLevel || ''}
             onChange={(e) => e.target.value && setAthleteLevel(e.target.value as ExperienceLevel)}
-            className="h-8 text-xs rounded-lg border border-border bg-white px-2 text-navy font-semibold cursor-pointer hover:border-gold/50 transition-colors flex-shrink-0"
+            className="h-8 text-xs rounded-lg border border-border bg-card px-2 text-navy font-semibold cursor-pointer hover:border-gold/50 transition-colors flex-shrink-0"
             title="רמת הספורטאי — קובעת איזה תיקייה בבנק האימונים מוצגת"
           >
             <option value="">רמה: לא נבחרה</option>
@@ -1248,7 +1248,7 @@ export function AthletePlanner({ athleteId }: Props) {
                   </span>
                 )}
                 {todayInfo?.isDownWeek && (
-                  <span className="text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300 px-2.5 py-0.5 rounded-full">
+                  <span className="text-xs font-bold bg-ochre/15 text-ochre-deep border border-ochre/50 px-2.5 py-0.5 rounded-full">
                     שבוע ירידה
                   </span>
                 )}
@@ -1267,15 +1267,15 @@ export function AthletePlanner({ athleteId }: Props) {
 
         {/* Copy-week banner — choose a target week */}
         {copiedWeekStart && (
-          <div className="rounded-xl border-2 border-emerald-500 bg-emerald-50 px-4 py-2 flex items-center justify-between flex-wrap gap-2">
+          <div className="rounded-xl border-2 border-pine bg-pine/10 px-4 py-2 flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2">
-              <Copy className="h-4 w-4 text-emerald-600"/>
+              <Copy className="h-4 w-4 text-pine"/>
               <p className="text-sm font-medium text-navy">
-                שבוע <span className="font-bold text-emerald-700">{format(copiedWeekStart, 'd/M')}</span> הועתק — בחר שבוע להדבקה
+                שבוע <span className="font-bold text-pine">{format(copiedWeekStart, 'd/M')}</span> הועתק — בחר שבוע להדבקה
               </p>
             </div>
             <div className="flex items-center gap-1.5">
-              <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+              <Button size="sm" className="h-7 text-xs bg-pine hover:bg-pine text-white"
                 onClick={() => copyWeekTo(copiedWeekStart, addWeeks(copiedWeekStart, 1))}>
                 לשבוע הבא
               </Button>
@@ -1322,8 +1322,8 @@ export function AthletePlanner({ athleteId }: Props) {
                   {viewMode==='week' ? `${format(weekStart,'d MMM')} – ${format(weekEnd,'d MMM yyyy')}` : format(currentDate,'MMMM yyyy')}
                 </p>
                 <div className="flex gap-1 bg-muted rounded-full p-0.5">
-                  <button onClick={() => setViewMode('week')} className={cn('text-[11px] px-3 py-0.5 rounded-full transition-all', viewMode==='week' ? 'bg-white text-navy font-semibold shadow-sm' : 'text-muted-foreground')}>שבוע</button>
-                  <button onClick={() => setViewMode('month')} className={cn('text-[11px] px-3 py-0.5 rounded-full transition-all', viewMode==='month' ? 'bg-white text-navy font-semibold shadow-sm' : 'text-muted-foreground')}>חודש</button>
+                  <button onClick={() => setViewMode('week')} className={cn('text-[11px] px-3 py-0.5 rounded-full transition-all', viewMode==='week' ? 'bg-card text-navy font-semibold shadow-sm' : 'text-muted-foreground')}>שבוע</button>
+                  <button onClick={() => setViewMode('month')} className={cn('text-[11px] px-3 py-0.5 rounded-full transition-all', viewMode==='month' ? 'bg-card text-navy font-semibold shadow-sm' : 'text-muted-foreground')}>חודש</button>
                 </div>
               </div>
               <Button variant="ghost" size="icon" onClick={() => setCurrentDate(d => viewMode==='week' ? addWeeks(d,1) : addMonths(d,1))}><ChevronRight className="h-4 w-4"/></Button>
@@ -1333,20 +1333,20 @@ export function AthletePlanner({ athleteId }: Props) {
                 </Button>
               )}
               {viewMode === 'week' && !copiedWeekStart && (
-                <Button variant="outline" size="sm" className="h-7 text-xs border-red-200 text-red-500 hover:bg-red-50 hover:text-red-600"
+                <Button variant="outline" size="sm" className="h-7 text-xs border-rust/25 text-rust-deep hover:bg-rust/10 hover:text-rust-deep"
                   onClick={() => handleDeleteWeek(weekStart)}>
                   <Trash2 className="h-3 w-3 mr-1"/>מחק שבוע
                 </Button>
               )}
               {viewMode === 'week' && copiedWeekStart && !isSameDay(weekStart, copiedWeekStart) && (
-                <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                <Button size="sm" className="h-7 text-xs bg-pine hover:bg-pine text-white"
                   onClick={() => copyWeekTo(copiedWeekStart, weekStart)}>
                   <ClipboardPaste className="h-3 w-3 mr-1"/>הדבק לשבוע זה
                 </Button>
               )}
               {viewMode === 'week' && (
                 athlete?.offWeekAnchorDate === format(weekStart, 'yyyy-MM-dd') ? (
-                  <span className="text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300 px-2.5 py-1 rounded-full">
+                  <span className="text-xs font-bold bg-ochre/15 text-ochre-deep border border-ochre/50 px-2.5 py-1 rounded-full">
                     🛌 שבוע המנוחה
                   </span>
                 ) : (
@@ -1456,7 +1456,7 @@ export function AthletePlanner({ athleteId }: Props) {
                       return (
                         <div className="flex flex-col items-center justify-center rounded-[6px] bg-muted/30 border border-border/30 min-h-[70px]">
                           <p className={cn('text-lg font-bold',
-                            kmOk == null ? 'text-navy' : kmOk ? 'text-emerald-700' : wkKm < (targetKm || 0) ? 'text-amber-700' : 'text-red-600')}>
+                            kmOk == null ? 'text-navy' : kmOk ? 'text-pine' : wkKm < (targetKm || 0) ? 'text-ochre-deep' : 'text-rust-deep')}>
                             {wkKm}
                           </p>
                           <p className="text-[10px] text-muted-foreground">ק"מ</p>
@@ -1548,13 +1548,13 @@ export function AthletePlanner({ athleteId }: Props) {
                             const kmOk = targetKm ? Math.abs(wKm - targetKm) <= targetKm * 0.1 : null
                             return (
                           <div className={cn('flex flex-col items-center justify-center gap-0.5 rounded-[6px] py-1',
-                            si?.isDownWeek ? 'bg-amber-100/80 ring-1 ring-amber-300' : si?.meta ? si.meta.cell : 'bg-muted/30')}>
+                            si?.isDownWeek ? 'bg-amber-100/80 ring-1 ring-ochre/50' : si?.meta ? si.meta.cell : 'bg-muted/30')}>
                             {si?.meta && (
                               <span className={cn('text-[8px] font-bold px-1 py-px rounded-full border leading-none', si.meta.chip)}>
                                 {si.isDownWeek ? '⬇ ירידה' : si.meta.he}{si.weeksToRace != null && si.weeksToRace >= 0 ? ` · ‑${si.weeksToRace}` : ''}
                               </span>
                             )}
-                            {wKm > 0 ? <><p className={cn('text-xs font-bold', kmOk == null ? 'text-navy' : kmOk ? 'text-emerald-700' : wKm < (targetKm || 0) ? 'text-amber-700' : 'text-red-600')}>{wKm}</p></> : <p className="text-[9px] text-muted-foreground">—</p>}
+                            {wKm > 0 ? <><p className={cn('text-xs font-bold', kmOk == null ? 'text-navy' : kmOk ? 'text-pine' : wKm < (targetKm || 0) ? 'text-ochre-deep' : 'text-rust-deep')}>{wKm}</p></> : <p className="text-[9px] text-muted-foreground">—</p>}
                             {targetKm != null && (
                               <p className="text-[8px] text-muted-foreground leading-none">יעד {targetKm}</p>
                             )}
@@ -1563,14 +1563,14 @@ export function AthletePlanner({ athleteId }: Props) {
                               <button
                                 onClick={() => copyWeekTo(copiedWeekStart, weekStartDay)}
                                 title={`הדבק לשבוע ${format(weekStartDay, 'd/M')}`}
-                                className="w-6 h-6 rounded-md bg-emerald-600 text-white flex items-center justify-center active:scale-90 transition-all">
+                                className="w-6 h-6 rounded-md bg-pine text-white flex items-center justify-center active:scale-90 transition-all">
                                 <ClipboardPaste className="h-3 w-3"/>
                               </button>
                             ) : !copiedWeekStart ? (
                               <button
                                 onClick={() => setCopiedWeekStart(weekStartDay)}
                                 title={`העתק שבוע ${format(weekStartDay, 'd/M')}`}
-                                className="w-6 h-6 rounded-md border border-border bg-white text-muted-foreground hover:text-navy hover:border-gold/50 flex items-center justify-center active:scale-90 transition-all">
+                                className="w-6 h-6 rounded-md border border-border bg-card text-muted-foreground hover:text-navy hover:border-gold/50 flex items-center justify-center active:scale-90 transition-all">
                                 <Copy className="h-3 w-3"/>
                               </button>
                             ) : null}
@@ -1579,7 +1579,7 @@ export function AthletePlanner({ athleteId }: Props) {
                               <button
                                 onClick={() => handleDeleteWeek(weekStartDay)}
                                 title={`מחק שבוע ${format(weekStartDay, 'd/M')}`}
-                                className="w-6 h-6 rounded-md border border-red-200 bg-white text-red-400 hover:text-red-600 hover:border-red-400 flex items-center justify-center active:scale-90 transition-all">
+                                className="w-6 h-6 rounded-md border border-rust/25 bg-card text-rust-deep hover:text-rust-deep hover:border-rust/50 flex items-center justify-center active:scale-90 transition-all">
                                 <Trash2 className="h-3 w-3"/>
                               </button>
                             )}
@@ -1629,11 +1629,11 @@ export function AthletePlanner({ athleteId }: Props) {
                   loaded for the calendar above. */}
               <div className="flex gap-1 bg-muted rounded-lg p-0.5 w-fit">
                 <button type="button" onClick={() => setBankSource('level')}
-                  className={cn('text-[10px] px-2.5 py-1 rounded-md font-semibold transition-all', bankSource === 'level' ? 'bg-white text-navy shadow-sm' : 'text-muted-foreground')}>
+                  className={cn('text-[10px] px-2.5 py-1 rounded-md font-semibold transition-all', bankSource === 'level' ? 'bg-card text-navy shadow-sm' : 'text-muted-foreground')}>
                   לפי רמה
                 </button>
                 <button type="button" onClick={() => setBankSource('history')}
-                  className={cn('text-[10px] px-2.5 py-1 rounded-md font-semibold transition-all', bankSource === 'history' ? 'bg-white text-navy shadow-sm' : 'text-muted-foreground')}>
+                  className={cn('text-[10px] px-2.5 py-1 rounded-md font-semibold transition-all', bankSource === 'history' ? 'bg-card text-navy shadow-sm' : 'text-muted-foreground')}>
                   היסטוריית ספורטאי
                 </button>
               </div>
@@ -1652,7 +1652,7 @@ export function AthletePlanner({ athleteId }: Props) {
                       <button
                         type="button"
                         onClick={() => setOpenBankFolders(p => ({ ...p, [type]: !p[type] }))}
-                        className="w-full flex items-center justify-between px-2.5 py-2 text-xs font-semibold text-navy bg-white hover:bg-gold/5 transition-colors"
+                        className="w-full flex items-center justify-between px-2.5 py-2 text-xs font-semibold text-navy bg-card hover:bg-gold/5 transition-colors"
                       >
                         <span className="flex items-center gap-1.5">
                           <Folder className="h-3.5 w-3.5 text-gold"/>
@@ -1669,7 +1669,7 @@ export function AthletePlanner({ athleteId }: Props) {
                               draggable
                               onDragStart={(e) => handleBankDragStart(e, w)}
                               onClick={() => setArmedBankWorkout(prev => prev?.id === w.id ? null : w)}
-                              className={cn('rounded-md border bg-white px-2.5 py-1.5 text-xs cursor-pointer transition-colors',
+                              className={cn('rounded-md border bg-card px-2.5 py-1.5 text-xs cursor-pointer transition-colors',
                                 armedBankWorkout?.id === w.id ? 'border-gold ring-1 ring-gold' : 'border-border hover:border-gold/50'
                               )}
                               title="לחצו לבחירה ואז על יום ביומן לשיבוץ, או גררו ישירות ליום"
@@ -1739,7 +1739,7 @@ export function AthletePlanner({ athleteId }: Props) {
                     <select
                       value={repeatFrequency}
                       onChange={(e) => setRepeatFrequency(e.target.value as RepeatFrequency)}
-                      className="h-7 text-xs rounded-md border border-border bg-white px-1.5"
+                      className="h-7 text-xs rounded-md border border-border bg-card px-1.5"
                     >
                       <option value="weekly">כל שבוע</option>
                       <option value="biweekly">כל שבועיים</option>
@@ -1752,7 +1752,7 @@ export function AthletePlanner({ athleteId }: Props) {
                       value={repeatUntil}
                       onChange={(e) => setRepeatUntil(e.target.value)}
                       min={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : undefined}
-                      className="h-7 text-xs rounded-md border border-border bg-white px-1.5"
+                      className="h-7 text-xs rounded-md border border-border bg-card px-1.5"
                     />
                   </div>
                   <label className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1 cursor-pointer">
@@ -1777,7 +1777,7 @@ export function AthletePlanner({ athleteId }: Props) {
                       await updateDoc(doc(db, 'assignedWorkouts', selectedAW.id), { showAheadOverride: false })
                       setAssignedWorkouts(prev => prev.map(w => w.id === selectedAW.id ? { ...w, showAheadOverride: false } : w))
                     }}
-                    className="mt-1.5 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-1 w-fit">
+                    className="mt-1.5 text-[10px] font-semibold text-pine bg-pine/10 border border-pine/25 rounded-full px-2.5 py-1 w-fit">
                     ✓ גלוי לספורטאי מראש — לחץ להסתרה
                   </button>
                 ) : null
@@ -1788,7 +1788,7 @@ export function AthletePlanner({ athleteId }: Props) {
                       setAssignedWorkouts(prev => prev.map(w => w.id === selectedAW.id ? { ...w, showAheadOverride: true } : w))
                       toast.success('הספורטאי יראה את האימון הזה כבר עכשיו')
                     }}
-                    className="mt-1.5 flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1 w-fit">
+                    className="mt-1.5 flex items-center gap-1 text-[10px] font-semibold text-ochre-deep bg-ochre/10 border border-ochre/25 rounded-full px-2.5 py-1 w-fit">
                     <Eye className="h-3 w-3"/>
                     מעבר לחלון הרגיל — הצג לספורטאי מראש
                   </button>
@@ -1894,13 +1894,13 @@ export function AthletePlanner({ athleteId }: Props) {
             {athlete?.physiology?.lt2PaceSec ? (
               <>
                 <div className="grid grid-cols-3 gap-2">
-                  <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-2.5 text-center">
+                  <div className="rounded-xl bg-pine/10 border border-pine/25 p-2.5 text-center">
                     <p className="text-[10px] text-muted-foreground mb-0.5">T1 · אירובי</p>
-                    <p className="text-lg font-black text-emerald-700" dir="ltr">{secToPace(athlete.physiology.lt1PaceSec)}</p>
+                    <p className="text-lg font-black text-pine" dir="ltr">{secToPace(athlete.physiology.lt1PaceSec)}</p>
                   </div>
-                  <div className="rounded-xl bg-amber-50 border border-amber-100 p-2.5 text-center">
+                  <div className="rounded-xl bg-ochre/10 border border-ochre/25 p-2.5 text-center">
                     <p className="text-[10px] text-muted-foreground mb-0.5">T2 · אנאירובי</p>
-                    <p className="text-lg font-black text-amber-700" dir="ltr">{secToPace(athlete.physiology.lt2PaceSec)}</p>
+                    <p className="text-lg font-black text-ochre-deep" dir="ltr">{secToPace(athlete.physiology.lt2PaceSec)}</p>
                   </div>
                   <div className="rounded-xl bg-navy/5 border border-navy/10 p-2.5 text-center">
                     <p className="text-[10px] text-muted-foreground mb-0.5">VO2max</p>
@@ -1996,7 +1996,7 @@ export function AthletePlanner({ athleteId }: Props) {
                               : r)))}
                             className={cn(
                               'px-2 py-1 rounded-full text-[11px] font-semibold border transition-colors',
-                              active ? 'bg-[#0a1628] text-white border-[#0a1628]' : 'bg-white text-gray-500 border-gray-200',
+                              active ? 'bg-navy text-white border-navy' : 'bg-card text-muted-foreground border-border',
                             )}
                           >
                             {workoutTypeLabels[wt]}
@@ -2063,7 +2063,7 @@ export function AthletePlanner({ athleteId }: Props) {
                       const { updateDoc: ud, doc: dc } = await import('firebase/firestore')
                       await ud(dc(db, 'users', athleteId), { weekStartDay: v })
                     }}
-                    className="h-8 text-xs rounded-lg border border-border bg-white px-1.5 font-semibold text-navy">
+                    className="h-8 text-xs rounded-lg border border-border bg-card px-1.5 font-semibold text-navy">
                     <option value={0}>ראשון</option>
                     <option value={1}>שני</option>
                   </select>
@@ -2079,7 +2079,7 @@ export function AthletePlanner({ athleteId }: Props) {
                       await ud(dc(db, 'users', athleteId), { visibleWeeksAhead: v })
                       toast.success(v === 0 ? 'הספורטאי רואה את כל התכנית' : `הספורטאי רואה ${v} שבועות קדימה (מתגלגל בשבת)`)
                     }}
-                    className="h-8 text-xs rounded-lg border border-border bg-white px-1.5 font-semibold text-navy">
+                    className="h-8 text-xs rounded-lg border border-border bg-card px-1.5 font-semibold text-navy">
                     <option value={2}>2 שבועות</option>
                     <option value={3}>3 שבועות</option>
                     <option value={4}>4 שבועות</option>
@@ -2096,7 +2096,7 @@ export function AthletePlanner({ athleteId }: Props) {
                       const { updateDoc: ud, doc: dc } = await import('firebase/firestore')
                       await ud(dc(db, 'users', athleteId), { kmWeekStartDay: v })
                     }}
-                    className="h-8 text-xs rounded-lg border border-border bg-white px-1.5 font-semibold text-navy">
+                    className="h-8 text-xs rounded-lg border border-border bg-card px-1.5 font-semibold text-navy">
                     <option value={0}>ראשון</option>
                     <option value={1}>שני</option>
                   </select>
@@ -2150,7 +2150,7 @@ export function AthletePlanner({ athleteId }: Props) {
                   />
                 </div>
                 {!activeJourney && (
-                  <p className="text-[10px] text-amber-600">אין מסע פעיל — צור אחד בעריכת מסע מלאה</p>
+                  <p className="text-[10px] text-ochre-deep">אין מסע פעיל — צור אחד בעריכת מסע מלאה</p>
                 )}
                 {/* Weekly km range */}
                 <div className="flex items-center justify-between gap-2">
@@ -2190,7 +2190,7 @@ export function AthletePlanner({ athleteId }: Props) {
                       const { updateDoc: ud, doc: dc } = await import('firebase/firestore')
                       await ud(dc(db, 'users', athleteId), { offWeekInterval: v })
                     }}
-                    className="h-8 text-xs rounded-lg border border-border bg-white px-1.5 font-semibold text-navy">
+                    className="h-8 text-xs rounded-lg border border-border bg-card px-1.5 font-semibold text-navy">
                     <option value={2}>2 שבועות</option>
                     <option value={3}>3 שבועות</option>
                     <option value={4}>4 שבועות</option>
@@ -2340,7 +2340,7 @@ export function AthletePlanner({ athleteId }: Props) {
                 {existingWs.length > 0 && (
                   <div className="space-y-1.5">
                     {existingWs.length > 1 && (
-                      <p className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
+                      <p className="text-[11px] font-semibold text-ochre-deep bg-ochre/10 border border-ochre/25 rounded-lg px-2 py-1">
                         יש כבר {existingWs.length} אימונים ביום זה — ודא שלכל אחד סימון בוקר/ערב נכון כדי ש-Strava ידע להתאים נכון
                       </p>
                     )}
@@ -2349,7 +2349,7 @@ export function AthletePlanner({ athleteId }: Props) {
                       const suspicious = isSuspiciousDistance(w.workout?.distance)
                       return (
                         <div key={w.id} className={cn('rounded-xl border px-3 py-2 flex items-center gap-2',
-                          suspicious ? 'bg-red-100 text-red-700 border-red-300' : (TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy))}>
+                          suspicious ? 'bg-rust/15 text-rust-deep border-rust/50' : (TYPE_COLORS[w.workout?.type] || TYPE_COLORS.easy))}>
                           <span className="text-sm">{TYPE_EMOJI[w.workout?.type] || '🏃'}</span>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5">
@@ -2389,7 +2389,7 @@ export function AthletePlanner({ athleteId }: Props) {
                             {t.editBtn}
                           </button>
                           <button onClick={() => handleRemove(w.id)}
-                            className="w-6 h-6 rounded-full hover:bg-red-100 text-red-400 flex items-center justify-center text-xs flex-shrink-0">✕</button>
+                            className="w-6 h-6 rounded-full hover:bg-rust/15 text-rust-deep flex items-center justify-center text-xs flex-shrink-0">✕</button>
                         </div>
                       )
                     })}
@@ -2405,7 +2405,7 @@ export function AthletePlanner({ athleteId }: Props) {
                       {(['am', 'pm', 'other'] as const).map(s => (
                         <button key={s} onClick={() => setQaSession(s)}
                           className={cn('flex-1 text-xs font-semibold px-2 py-1.5 rounded-xl border transition-all active:scale-95',
-                            qaSession === s ? 'bg-navy text-white border-navy' : 'bg-white text-gray-500 border-border')}>
+                            qaSession === s ? 'bg-navy text-white border-navy' : 'bg-card text-muted-foreground border-border')}>
                           {SESSION_LABELS[s].emoji} {SESSION_LABELS[s].label}
                         </button>
                       ))}
@@ -2445,18 +2445,18 @@ export function AthletePlanner({ athleteId }: Props) {
                                     setQuickAssignDate(null); resetQuickAssign()
                                   } catch { toast.error(t.tryAgainLaterText) }
                                 }}
-                                className="flex-1 min-w-0 text-right rounded-xl border border-border hover:border-gold/60 bg-white px-3 py-2.5 transition-all active:scale-[0.99]">
+                                className="flex-1 min-w-0 text-right rounded-xl border border-border hover:border-gold/60 bg-card px-3 py-2.5 transition-all active:scale-[0.99]">
                                 <div className="flex items-center gap-2">
                                   <p className="text-sm font-bold text-navy truncate flex-1">{w.title}</p>
                                   {w.distance ? <span className="text-[11px] text-muted-foreground flex-shrink-0">{w.distance} ק"מ</span> : null}
                                   {w.duration ? <span className="text-[11px] text-muted-foreground flex-shrink-0">{w.duration}'</span> : null}
                                 </div>
-                                {w.description ? <p className="text-[11px] text-gray-400 truncate mt-0.5">{w.description}</p> : null}
+                                {w.description ? <p className="text-[11px] text-muted-foreground truncate mt-0.5">{w.description}</p> : null}
                               </button>
                               <button
                                 onClick={() => handleDeleteLibraryWorkout(w)}
                                 title="מחק מהספרייה"
-                                className="w-7 h-7 rounded-full flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 flex-shrink-0 text-sm">✕</button>
+                                className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-rust-deep hover:bg-rust/10 flex-shrink-0 text-sm">✕</button>
                             </div>
                           ))}
                         </div>
@@ -2477,21 +2477,21 @@ export function AthletePlanner({ athleteId }: Props) {
                               <label className="text-[10px] text-muted-foreground block mb-1">ק"מ</label>
                               <Input type="number" step="0.5" min="0" inputMode="decimal" value={qaDistance}
                                 onChange={e => setQaDistance(e.target.value)}
-                                className="h-11 text-base text-center font-bold rounded-xl bg-white" placeholder="10"/>
+                                className="h-11 text-base text-center font-bold rounded-xl bg-card" placeholder="10"/>
                             </div>
                             <div>
                               <label className="text-[10px] text-muted-foreground block mb-1">{t.durationMinLabel}</label>
                               <Input type="number" min="0" inputMode="numeric" value={qaDuration}
                                 onChange={e => setQaDuration(e.target.value)}
-                                className="h-11 text-base text-center font-bold rounded-xl bg-white" placeholder="60"/>
+                                className="h-11 text-base text-center font-bold rounded-xl bg-card" placeholder="60"/>
                             </div>
                           </div>
                           <Input value={qaTitle} onChange={e => setQaTitle(e.target.value)}
                             placeholder={`שם (לא חובה) — "${autoWorkoutTitle(workoutTypeLabels, qaType, { distance: qaDistance, duration: qaDuration })}"`}
-                            className="h-10 text-sm rounded-xl bg-white" dir="rtl"/>
+                            className="h-10 text-sm rounded-xl bg-card" dir="rtl"/>
                           <Textarea value={qaDesc} onChange={e => setQaDesc(e.target.value)}
                             placeholder="הוראות לספורטאי (לא חובה)" dir="rtl"
-                            className="text-sm rounded-xl bg-white resize-none h-16"/>
+                            className="text-sm rounded-xl bg-card resize-none h-16"/>
                           <Button onClick={handleQuickCreateAssign} disabled={qaSaving}
                             className="w-full h-12 bg-navy hover:bg-navy/90 text-white font-bold rounded-xl text-base">
                             {qaSaving ? <Loader2 className="h-4 w-4 animate-spin"/> : `שבץ ל-${format(quickAssignDate, 'd/M')} ✓`}

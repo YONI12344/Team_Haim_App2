@@ -185,7 +185,7 @@ export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }
                   type="button"
                   onClick={() => setSubcategoryFilter(null)}
                   className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-colors ${
-                    !subcategoryFilter ? 'bg-[#0a1628] text-white border-[#0a1628]' : 'bg-white text-gray-500 border-gray-200'
+                    !subcategoryFilter ? 'bg-navy text-white border-navy' : 'bg-card text-muted-foreground border-border'
                   }`}
                 >
                   הכל
@@ -196,7 +196,7 @@ export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }
                     type="button"
                     onClick={() => setSubcategoryFilter(s)}
                     className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-colors ${
-                      subcategoryFilter === s ? 'bg-[#0a1628] text-white border-[#0a1628]' : 'bg-white text-gray-500 border-gray-200'
+                      subcategoryFilter === s ? 'bg-navy text-white border-navy' : 'bg-card text-muted-foreground border-border'
                     }`}
                   >
                     {s}

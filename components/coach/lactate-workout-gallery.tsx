@@ -279,7 +279,7 @@ export function LactateWorkoutGallery({ athleteId, readOnly }: { athleteId: stri
               <ChevronDown className={cn('h-4 w-4 text-muted-foreground transition-transform', openFolder === folder.key && 'rotate-180')} />
             </button>
             {openFolder === folder.key && (
-              <div className="p-2 space-y-2 bg-white">
+              <div className="p-2 space-y-2 bg-card">
                 {folder.cards.map(card => renderCard(card))}
               </div>
             )}
@@ -304,7 +304,7 @@ export function LactateWorkoutGallery({ athleteId, readOnly }: { athleteId: stri
               <span className="text-xs font-bold text-navy whitespace-nowrap">{card.title}</span>
               {card.trend ? (
                 <span className={cn('text-[9px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap',
-                  card.trend.improved ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500')}>
+                  card.trend.improved ? 'bg-pine/10 text-pine' : 'bg-rust/10 text-rust-deep')}>
                   {card.trend.improved ? '▲' : '▼'}{card.trend.label}
                 </span>
               ) : card.id !== 'baseline' && (card.sessionCount ?? 0) < 2 && (
@@ -325,9 +325,9 @@ export function LactateWorkoutGallery({ athleteId, readOnly }: { athleteId: stri
             <div className={cn('grid gap-1.5 mt-2', card.rest ? 'grid-cols-4' : 'grid-cols-3')}>
               {(['T1', 'T2', 'T3'] as const).map(level => {
                 const r = card.thresholds?.[level] ?? null
-                const colors = level === 'T1' ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
-                  : level === 'T2' ? 'bg-amber-50 border-amber-100 text-amber-700'
-                  : 'bg-rose-50 border-rose-100 text-rose-700'
+                const colors = level === 'T1' ? 'bg-pine/10 border-pine/25 text-pine'
+                  : level === 'T2' ? 'bg-ochre/10 border-ochre/25 text-ochre-deep'
+                  : 'bg-rust/10 border-rust/25 text-rust-deep'
                 return (
                   <div key={level} className={cn('rounded-lg border px-2 py-1.5 text-center', r ? colors : 'border-dashed border-border/50')}>
                     <p className={cn('text-[9px] font-semibold', r ? 'opacity-70' : 'text-muted-foreground')}>
@@ -388,7 +388,7 @@ export function LactateWorkoutGallery({ athleteId, readOnly }: { athleteId: stri
                   </thead>
                   <tbody>
                     {card.rawLogs.map((log) => (
-                      <tr key={log.id} className={cn('border-t border-border/50', log.athleteId !== athleteId && 'bg-red-100 text-red-700 font-bold')}>
+                      <tr key={log.id} className={cn('border-t border-border/50', log.athleteId !== athleteId && 'bg-rust/15 text-rust-deep font-bold')}>
                         <td className="px-1.5 py-1 whitespace-nowrap">{log.date}</td>
                         <td className="px-1.5 py-1 whitespace-nowrap">{log.athleteId}{log.athleteId !== athleteId ? ' ⚠️ MISMATCH' : ''}</td>
                         <td className="px-1.5 py-1 whitespace-nowrap">{log.id}</td>
@@ -433,7 +433,7 @@ export function LactateWorkoutGallery({ athleteId, readOnly }: { athleteId: stri
                     {AXIS_OPTIONS.map(([m, label]) => (
                       <button key={m} onClick={() => setAxisModeById(prev => ({ ...prev, [card.id]: m }))}
                         className={cn('text-[10px] px-2 py-1 rounded-lg font-semibold transition-all',
-                          axisMode === m ? 'bg-white text-navy shadow-sm' : 'text-muted-foreground')}>
+                          axisMode === m ? 'bg-card text-navy shadow-sm' : 'text-muted-foreground')}>
                         {label}
                       </button>
                     ))}

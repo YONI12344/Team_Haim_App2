@@ -64,7 +64,7 @@ export function MarkDayOffDialog({ open, onOpenChange, defaultDate, onSubmit }: 
           {REASONS.map(r => (
             <button key={r.key} type="button" onClick={() => setReason(r.key)}
               className={cn('flex-1 rounded-2xl border px-2 py-2.5 text-xs font-bold transition-all active:scale-[0.98] flex flex-col items-center gap-1',
-                reason === r.key ? 'border-[#c9a84c] bg-[#c9a84c]/10 text-[#0a1628]' : 'border-border bg-white text-muted-foreground hover:bg-muted/30')}>
+                reason === r.key ? 'border-gold bg-gold/10 text-navy' : 'border-border bg-card text-muted-foreground hover:bg-muted/30')}>
               <span className="text-xl">{r.emoji}</span>
               {r.label}
             </button>
@@ -89,7 +89,7 @@ export function MarkDayOffDialog({ open, onOpenChange, defaultDate, onSubmit }: 
           className="w-full rounded-xl border border-border px-3 py-2 text-sm resize-none" dir="auto" />
 
         <button onClick={handleSubmit} disabled={saving}
-          className="w-full h-12 rounded-2xl bg-[#0a1628] hover:bg-[#0a1628]/90 disabled:opacity-40 text-white text-base font-bold transition-all flex items-center justify-center gap-2">
+          className="w-full h-12 rounded-2xl bg-navy hover:bg-navy/90 disabled:opacity-40 text-white text-base font-bold transition-all flex items-center justify-center gap-2">
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}
           {saving ? t.savingDots : t.markDayOffSubmit}
         </button>

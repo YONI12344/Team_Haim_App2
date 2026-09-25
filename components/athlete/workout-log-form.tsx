@@ -503,7 +503,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
           {stravaSource ? t.howDidYouFeelStrava : t.workoutLogHeading}
         </h4>
         {saved && (
-          <div className="flex items-center gap-1.5 text-emerald-600 text-sm font-semibold">
+          <div className="flex items-center gap-1.5 text-pine text-sm font-semibold">
             <CheckCircle2 className="h-4 w-4" />
             <span>{t.loggedBadge}</span>
           </div>
@@ -532,10 +532,10 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
               <span className="text-xs font-semibold bg-muted px-3 py-1.5 rounded-full">{actualPace}</span>
             )}
             {stravaSource.averageHeartRate && (
-              <span className="text-xs font-semibold bg-red-50 text-red-600 border border-red-100 px-3 py-1.5 rounded-full">{stravaSource.averageHeartRate} bpm</span>
+              <span className="text-xs font-semibold bg-rust/10 text-rust-deep border border-rust/25 px-3 py-1.5 rounded-full">{stravaSource.averageHeartRate} bpm</span>
             )}
             {stravaSource.elevationGain != null && stravaSource.elevationGain > 0 && (
-              <span className="text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 px-3 py-1.5 rounded-full">+{stravaSource.elevationGain}m</span>
+              <span className="text-xs font-semibold bg-pine/10 text-pine border border-pine/25 px-3 py-1.5 rounded-full">+{stravaSource.elevationGain}m</span>
             )}
           </div>
           {/* Raw lap scroller — only when there's no coach-planned structure
@@ -551,7 +551,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
                     </p>
                     <p className="text-xs font-bold text-navy">{split.pace || split.time}</p>
                     {split.heartRate && (
-                      <p className="text-[10px] text-red-500">{split.heartRate} bpm</p>
+                      <p className="text-[10px] text-rust-deep">{split.heartRate} bpm</p>
                     )}
                   </div>
                 ))}
@@ -584,7 +584,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
                 : recentRange || personalTargetRangeForLevel(latestSteps, workout.targetThresholdLevel)
               if (!range) {
                 return (
-                  <span className="text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full whitespace-nowrap">
+                  <span className="text-[11px] font-semibold bg-ochre/10 text-ochre-deep border border-ochre/25 px-2 py-0.5 rounded-full whitespace-nowrap">
                     {workout.targetThresholdLevel} — אין עדיין נתוני מעבדה
                   </span>
                 )
@@ -611,7 +611,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
           <div className="rounded-2xl border-2 border-gold/40 bg-gold/5 p-4 space-y-3">
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <p className="text-sm font-bold text-navy">🧪 {t.testedLactateQuestion}</p>
-              <div className="flex gap-1 bg-white rounded-xl p-0.5 border border-gold/30">
+              <div className="flex gap-1 bg-card rounded-xl p-0.5 border border-gold/30">
                 <button type="button" onClick={() => setTestedLactate(false)}
                   className={cn('text-xs px-3 py-1 rounded-lg font-semibold transition-all',
                     !testedLactate ? 'bg-gold text-navy shadow-sm' : 'text-muted-foreground')}>
@@ -636,21 +636,21 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
                       <label className="text-[10px] text-muted-foreground block mb-1">{t.repNumberLabel}</label>
                       <Input type="number" min="1" max={splitLogs.length} placeholder="1" value={r.repNumber}
                         onChange={e => setLactateReadings(prev => prev.map((x, xi) => xi === i ? { ...x, repNumber: e.target.value } : x))}
-                        className="h-9 text-sm text-center bg-white" />
+                        className="h-9 text-sm text-center bg-card" />
                     </div>
                     <div>
                       <label className="text-[10px] text-muted-foreground block mb-1">{t.lactateValueLabel}</label>
                       <Input type="number" step="0.1" placeholder="3.5" value={r.value}
                         onChange={e => setLactateReadings(prev => prev.map((x, xi) => xi === i ? { ...x, value: e.target.value } : x))}
-                        className="h-9 text-sm text-center bg-white" />
+                        className="h-9 text-sm text-center bg-card" />
                     </div>
                     <button type="button" onClick={() => setLactateReadings(prev => prev.filter((_, xi) => xi !== i))}
-                      className="h-9 flex items-center justify-center text-gray-300 hover:text-red-400">
+                      className="h-9 flex items-center justify-center text-muted-foreground hover:text-rust-deep">
                       <XIcon className="h-4 w-4" />
                     </button>
                   </div>
                 ))}
-                <Button type="button" variant="outline" size="sm" className="h-8 text-xs bg-white"
+                <Button type="button" variant="outline" size="sm" className="h-8 text-xs bg-card"
                   onClick={() => setLactateReadings(prev => [...prev, { repNumber: '', value: '' }])}>
                   <Plus className="h-3.5 w-3.5 mr-1" />{t.addReadingBtn}
                 </Button>
@@ -760,11 +760,11 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
 
       {/* Strava auto-fill — hidden when already a Strava log */}
       {!stravaSource && <button type="button" onClick={handleFillFromStrava} disabled={stravaFilling || stravaFilled}
-        className="w-full flex items-center justify-between gap-3 px-4 py-3.5 rounded-2xl border border-border bg-white hover:bg-muted/30 transition-all disabled:opacity-60 shadow-sm">
+        className="w-full flex items-center justify-between gap-3 px-4 py-3.5 rounded-2xl border border-border bg-card hover:bg-muted/30 transition-all disabled:opacity-60 shadow-sm">
         <div className="flex items-center gap-3">
           <div className={cn(
             'h-9 w-9 rounded-xl flex items-center justify-center flex-shrink-0',
-            stravaFilled ? 'bg-emerald-500' : 'bg-[#FC4C02]'
+            stravaFilled ? 'bg-pine' : 'bg-[#FC4C02]'
           )}>
             {stravaFilling
               ? <Loader2 className="h-4 w-4 text-white animate-spin" />
@@ -817,27 +817,27 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
         <div className="flex items-center justify-center gap-6 py-2" dir="rtl">
           <button type="button"
             onClick={() => setEffort(prev => prev != null ? Math.max(1, prev - 1) : 5)}
-            className="w-14 h-14 rounded-full border-2 border-border bg-white hover:bg-muted/40 transition-all flex items-center justify-center shadow-sm text-2xl font-bold text-navy select-none">
+            className="w-14 h-14 rounded-full border-2 border-border bg-card hover:bg-muted/40 transition-all flex items-center justify-center shadow-sm text-2xl font-bold text-navy select-none">
             −
           </button>
           <div className="flex flex-col items-center gap-1 min-w-[72px]">
             <span className={cn(
               'text-6xl font-black leading-none transition-colors',
               effort == null ? 'text-muted-foreground/30' :
-              effort <= 2 ? 'text-emerald-500' :
-              effort <= 4 ? 'text-emerald-400' :
-              effort <= 6 ? 'text-amber-500' :
-              effort <= 8 ? 'text-orange-500' : 'text-red-500'
+              effort <= 2 ? 'text-pine' :
+              effort <= 4 ? 'text-pine' :
+              effort <= 6 ? 'text-ochre-deep' :
+              effort <= 8 ? 'text-orange-500' : 'text-rust-deep'
             )}>
               {effort ?? '—'}
             </span>
             <span className={cn(
               'text-sm font-semibold transition-colors',
               effort == null ? 'text-muted-foreground' :
-              effort <= 2 ? 'text-emerald-500' :
-              effort <= 4 ? 'text-emerald-400' :
-              effort <= 6 ? 'text-amber-500' :
-              effort <= 8 ? 'text-orange-500' : 'text-red-500'
+              effort <= 2 ? 'text-pine' :
+              effort <= 4 ? 'text-pine' :
+              effort <= 6 ? 'text-ochre-deep' :
+              effort <= 8 ? 'text-orange-500' : 'text-rust-deep'
             )}>
               {effort == null ? t.chooseIntensity :
                effort <= 2 ? t.effortVeryEasy :
@@ -848,7 +848,7 @@ export function WorkoutLogForm({ workoutId, assignedWorkoutId, athleteId, schedu
           </div>
           <button type="button"
             onClick={() => setEffort(prev => prev != null ? Math.min(10, prev + 1) : 5)}
-            className="w-14 h-14 rounded-full border-2 border-border bg-white hover:bg-muted/40 transition-all flex items-center justify-center shadow-sm text-2xl font-bold text-navy select-none">
+            className="w-14 h-14 rounded-full border-2 border-border bg-card hover:bg-muted/40 transition-all flex items-center justify-center shadow-sm text-2xl font-bold text-navy select-none">
             +
           </button>
         </div>

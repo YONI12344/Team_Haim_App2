@@ -494,7 +494,7 @@ export function WorkoutLibrary() {
                         {workoutTypeLabels[workout.type]}
                       </Badge>
                       {workout.isWarmup && (
-                        <Badge variant="outline" className="border-amber-300 text-amber-700 text-[10px]">
+                        <Badge variant="outline" className="border-ochre/50 text-ochre-deep text-[10px]">
                           חימום
                         </Badge>
                       )}
@@ -504,7 +504,7 @@ export function WorkoutLibrary() {
                         </Badge>
                       )}
                       {isRecent && (
-                        <Badge variant="outline" className="border-emerald-300 text-emerald-700 text-[10px]">
+                        <Badge variant="outline" className="border-pine/50 text-pine text-[10px]">
                           🆕 חדש
                         </Badge>
                       )}

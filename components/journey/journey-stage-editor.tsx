@@ -210,7 +210,7 @@ export function StageActions({ onEdit, onRemove }: StageActionsProps) {
         type="button"
         size="icon"
         variant="ghost"
-        className="h-7 w-7 text-red-600 hover:text-red-700"
+        className="h-7 w-7 text-rust-deep hover:text-rust-deep"
         onClick={onRemove}
         aria-label="Delete stage"
       >

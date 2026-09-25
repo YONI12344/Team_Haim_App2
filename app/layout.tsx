@@ -29,8 +29,8 @@ const rubik = Rubik({
   display: 'swap',
 })
 
-// Karantina — condensed Hebrew + Latin display caps; the athlete app's
-// poster lettering (captions, imperatives, labels). Body stays Heebo.
+// Karantina — condensed Hebrew + Latin display caps; the app's poster
+// lettering (titles, buttons, labels). Body stays Heebo.
 const karantina = Karantina({
   subsets: ['latin', 'hebrew'],
   weight: ['400', '700'],
@@ -72,7 +72,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#1a2744',
+  themeColor: '#16223A',
   width: 'device-width',
   initialScale: 1,
 }
@@ -84,7 +84,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${playfair.variable} ${heebo.variable} ${rubik.variable} ${karantina.variable} bg-background`}>
-      <body className="font-sans antialiased min-h-screen bg-background">
+      <body className="poster-world font-sans antialiased min-h-screen bg-background">
         <LanguageProvider>
           <AuthProvider>
             {children}
