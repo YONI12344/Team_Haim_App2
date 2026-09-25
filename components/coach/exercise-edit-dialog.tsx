@@ -240,7 +240,7 @@ export function ExerciseEditDialog({
                   onClick={() => setForm({ ...form, category: opt.value })}
                   className={cn(
                     'flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors',
-                    form.category === opt.value ? 'bg-[#0a1628] text-white border-[#0a1628]' : 'bg-white text-gray-500 border-gray-200',
+                    form.category === opt.value ? 'bg-navy text-white border-navy' : 'bg-card text-muted-foreground border-border',
                   )}
                 >
                   {opt.label}
@@ -259,7 +259,7 @@ export function ExerciseEditDialog({
                   onClick={() => setForm({ ...form, subcategory: s })}
                   className={cn(
                     'px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-colors',
-                    form.subcategory === s ? 'bg-[#0a1628] text-white border-[#0a1628]' : 'bg-white text-gray-500 border-gray-200',
+                    form.subcategory === s ? 'bg-navy text-white border-navy' : 'bg-card text-muted-foreground border-border',
                   )}
                 >
                   {s}

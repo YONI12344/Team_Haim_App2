@@ -40,7 +40,7 @@ const emptyStep = (): LactateStep => ({ pace: '', hr: null, lactate: 0 })
 // The Lab's shared dark-card language — same gradient as the T1/T2/T3 hero
 // above, so every section of the page reads as one design instead of a mix
 // of dark hero + plain white cards.
-const darkCard = 'rounded-3xl bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85'
+const darkCard = 'rounded-3xl bg-gradient-to-br from-navy to-navy/85'
 // Form controls on a dark card (same treatment as the reassign-select in
 // athlete-planner-view.tsx's dark mode).
 const darkInput = 'bg-white/10 border-white/15 text-white placeholder:text-white/30'
@@ -275,10 +275,10 @@ export function AthletePhysiology({ athleteId, readOnly }: { athleteId: string; 
           an athlete actually opens this page to check, so it gets the same
           dark gradient "hero card" language as a workout tile elsewhere in
           the app instead of blending in as just another white card. ── */}
-      <div className="rounded-3xl bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 p-5">
+      <div className="rounded-3xl bg-gradient-to-br from-navy to-navy/85 p-5">
         <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
           <span className="flex items-center gap-1.5 text-white/90 font-bold text-sm">
-            <Gauge className="h-4 w-4 text-[#c9a84c]"/>
+            <Gauge className="h-4 w-4 text-gold"/>
             {t.labCurrentThresholds}
           </span>
           {phys && (
@@ -383,7 +383,7 @@ export function AthletePhysiology({ athleteId, readOnly }: { athleteId: string; 
                   <p className="text-xs font-bold text-white">{bandText[b.key]?.label ?? b.labelHe}</p>
                   <p className="text-[10px] text-white/50">{bandText[b.key]?.note ?? b.noteHe}</p>
                 </div>
-                <p className="font-mono text-sm font-bold text-[#c9a84c]" dir="ltr">
+                <p className="font-mono text-sm font-bold text-gold" dir="ltr">
                   {secToPace(b.highSec)}–{secToPace(b.lowSec)} <span className="text-[10px] text-white/50">/km</span>
                 </p>
               </div>
@@ -401,7 +401,7 @@ export function AthletePhysiology({ athleteId, readOnly }: { athleteId: string; 
       {/* ── HR zones ── */}
       <div className={cn(darkCard, 'p-4 space-y-3')}>
         <p className="text-sm font-bold text-white/90 flex items-center gap-2">
-          <Heart className="h-4 w-4 text-red-400"/>
+          <Heart className="h-4 w-4 text-rust-deep"/>
           {t.labHrZones}
           {hrZones && (
             <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full',
@@ -430,7 +430,7 @@ export function AthletePhysiology({ athleteId, readOnly }: { athleteId: string; 
                   <p className="text-xs font-bold text-white">{zoneText[z.key]?.label ?? z.labelHe}</p>
                   <p className="text-[10px] text-white/50">{zoneText[z.key]?.note ?? z.noteHe}</p>
                 </div>
-                <p className="font-mono text-sm font-bold text-[#c9a84c]" dir="ltr">
+                <p className="font-mono text-sm font-bold text-gold" dir="ltr">
                   {z.lowBpm > 0 ? z.lowBpm : '<'}–{z.highBpm} <span className="text-[10px] text-white/50">bpm</span>
                 </p>
               </div>
@@ -443,14 +443,14 @@ export function AthletePhysiology({ athleteId, readOnly }: { athleteId: string; 
 
       {/* ── New lactate test ── */}
       {!readOnly && (
-      <div className={cn(darkCard, 'p-4', showNewTest && 'ring-1 ring-[#c9a84c]/40')}>
+      <div className={cn(darkCard, 'p-4', showNewTest && 'ring-1 ring-gold/40')}>
         <div className="flex items-center justify-between">
           <p className="text-sm font-bold text-white/90 flex items-center gap-2">
-            <FlaskConical className="h-4 w-4 text-[#c9a84c]"/>
+            <FlaskConical className="h-4 w-4 text-gold"/>
             {t.labNewLactateTest}
           </p>
           {!showNewTest && (
-            <Button size="sm" variant="outline" className="h-7 text-xs bg-transparent border-[#c9a84c]/40 text-[#c9a84c] hover:bg-white/10 hover:text-[#c9a84c]"
+            <Button size="sm" variant="outline" className="h-7 text-xs bg-transparent border-gold/40 text-gold hover:bg-white/10 hover:text-gold"
               onClick={() => setShowNewTest(true)}>
               <Plus className="h-3 w-3 ml-1"/>{t.labAddTestBtn}
             </Button>
@@ -484,11 +484,11 @@ export function AthletePhysiology({ athleteId, readOnly }: { athleteId: string; 
                   <Input value={s.lactate || ''} onChange={e => setSteps(p => p.map((x, xi) => xi === i ? { ...x, lactate: Number(e.target.value) } : x))}
                     placeholder="1.8" type="number" step="0.1" className={cn('h-8 text-xs text-center', darkInput)}/>
                   <button onClick={() => setSteps(p => p.filter((_, xi) => xi !== i))}
-                    className="text-white/30 hover:text-red-400 text-xs">✕</button>
+                    className="text-white/30 hover:text-rust-deep text-xs">✕</button>
                 </div>
               ))}
               <button onClick={() => setSteps(p => [...p, emptyStep()])}
-                className="w-full py-1.5 text-[11px] font-semibold text-[#c9a84c] hover:bg-white/5 border-t border-white/10">
+                className="w-full py-1.5 text-[11px] font-semibold text-gold hover:bg-white/5 border-t border-white/10">
                 {t.labAddStepBtn}
               </button>
             </div>
@@ -575,7 +575,7 @@ export function AthletePhysiology({ athleteId, readOnly }: { athleteId: string; 
                     <Button size="sm" variant="outline" className="h-7 text-[11px] flex-1 bg-transparent border-white/20 text-white hover:bg-white/10 hover:text-white" onClick={() => applyTest(test)}>
                       {t.labUseThisTestBtn}
                     </Button>
-                    <Button size="sm" variant="ghost" className="h-7 text-[11px] text-red-400 hover:text-red-300 hover:bg-white/10" onClick={() => handleDeleteTest(test.id)}>
+                    <Button size="sm" variant="ghost" className="h-7 text-[11px] text-rust-deep hover:text-red-300 hover:bg-white/10" onClick={() => handleDeleteTest(test.id)}>
                       <Trash2 className="h-3 w-3"/>
                     </Button>
                   </div>

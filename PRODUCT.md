@@ -19,7 +19,7 @@ Team Haim is the coach's platform for remote coaching. The coach delivers the tr
 
 ## Positioning
 
-A personal coach's own platform, not a generic training app. Plans, pace zones, and feedback come from Haim's methods (the Bakken/AI-coach brain in `lib/ai-coach-brain/` and `lib/bakken/`), and the coach-athlete relationship is the center of the product.
+A personal coach's own platform, not a generic training app. Plans, pace zones, and feedback come from Haim's own methods, and the coach-athlete relationship is the center of the product.
 
 ## Operating Context
 
@@ -31,8 +31,8 @@ A personal coach's own platform, not a generic training app. Plans, pace zones, 
 
 - Roles: a single coach account (`isCoachEmail` in `lib/constants.ts`, mirrored in Firestore/Storage rules); every other signed-in user is an athlete.
 - Stack: Next.js + TypeScript, Firebase (Auth, Firestore, Realtime DB, Storage), Cloud Functions, Capacitor.
-- Athlete features: schedule, routine, lift, journey (Season Journey), progress, stats, lab, injury, documents, profile, onboarding, chat.
-- Integrations: Strava sync; AI plan generation and AI coaching chat.
+- Athlete features: schedule, routine, lift, journey (Season Journey), progress, stats, lab, documents, profile, onboarding, chat.
+- Integrations: Strava sync. An AI coach built on a new brain is planned as its own page later; the previous AI coach was removed.
 - Training zones follow Jack Daniels' VDOT model (`lib/running.ts`).
 - Bilingual: English and Hebrew (RTL). Which language is primary is **undecided**; both must work.
 - **The app is live at app.teamhaim.com.** All improvement work happens locally and is verified locally; nothing is deployed without the coach's explicit go-ahead.

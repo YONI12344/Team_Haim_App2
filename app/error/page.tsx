@@ -13,7 +13,7 @@ function ErrorContent() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
       <div className="text-center max-w-md">
-        <h1 className="text-2xl font-bold text-red-600 mb-4">❌ Error</h1>
+        <h1 className="text-2xl font-bold text-rust-deep mb-4">❌ Error</h1>
         <p className="text-muted-foreground mb-8">{message}</p>
         <Button onClick={() => router.push('/')}>
           Go Back to Login

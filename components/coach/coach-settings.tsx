@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { toast } from 'sonner'
@@ -9,27 +8,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Loader2, Check, Save, RefreshCw, Copy, Bot, ArrowUpRight } from 'lucide-react'
+import { Loader2, Check, Save, RefreshCw, Copy } from 'lucide-react'
 import { useLanguage } from '@/contexts/language-context'
 import { getFunctions, httpsCallable } from 'firebase/functions'
-import { AiUsageCard } from '@/components/coach/ai-usage-card'
 
 const SETTINGS_DOC_PATH = 'settings/googleSheets'
 const SERVICE_ACCOUNT_EMAIL = 'team-haim-sheets@teamhaim.iam.gserviceaccount.com'
 
 const COPY = {
-  en: {
-    title: 'Settings',
-    aiTitle: 'AI coach',
-    aiBody: "Each athlete now has their own AI coach conversation, right next to their schedule in the planner. It reads everything they log and builds or adjusts their plan when you ask.",
-    aiLink: 'Open athletes',
-  },
-  he: {
-    title: 'הגדרות',
-    aiTitle: 'מאמן AI',
-    aiBody: 'לכל ספורטאי יש עכשיו שיחה משלו עם מאמן ה-AI, ממש ליד לוח האימונים שלו בתכנון. הוא קורא כל מה שהספורטאי מתעד ובונה או משנה את התוכנית כשאתה מבקש.',
-    aiLink: 'לספורטאים',
-  },
+  en: { title: 'Settings' },
+  he: { title: 'הגדרות' },
 } as const
 
 export function CoachSettings() {
@@ -72,22 +60,6 @@ export function CoachSettings() {
   return (
     <div className="space-y-6 max-w-3xl">
       <h1 className="text-2xl md:text-3xl font-serif font-semibold text-navy">{c.title}</h1>
-
-      <AiUsageCard />
-
-      <Card className="rounded-2xl">
-        <CardContent className="flex items-start gap-3 p-4">
-          <Bot className="mt-0.5 h-5 w-5 shrink-0 text-gold" />
-          <div className="min-w-0 space-y-1.5">
-            <p className="text-sm font-semibold text-navy">{c.aiTitle}</p>
-            <p className="text-sm text-muted-foreground leading-relaxed">{c.aiBody}</p>
-            <Link href="/coach/athletes" className="inline-flex items-center gap-1 text-sm font-medium text-navy underline-offset-4 hover:underline">
-              {c.aiLink}
-              <ArrowUpRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
 
       <Card className="rounded-2xl">
         <CardHeader>

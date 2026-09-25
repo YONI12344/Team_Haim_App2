@@ -101,25 +101,25 @@ export function MoveWorkoutDialog({ open, onOpenChange, workout, athleteId, athl
                 className={cn(
                   'flex items-center justify-between rounded-2xl border px-3 py-2.5 transition-all active:scale-[0.98]',
                   selected
-                    ? 'border-[#c9a84c] bg-[#c9a84c]/10 ring-1 ring-[#c9a84c]/40'
-                    : 'border-border bg-white hover:bg-muted/30'
+                    ? 'border-gold bg-gold/10 ring-1 ring-gold/40'
+                    : 'border-border bg-card hover:bg-muted/30'
                 )}>
                 <div className={isRTL ? 'text-right' : 'text-left'}>
-                  <p className={cn('text-sm font-bold', selected ? 'text-[#0a1628]' : 'text-[#0a1628]/80')}>
+                  <p className={cn('text-sm font-bold', selected ? 'text-navy' : 'text-navy/80')}>
                     {isToday(d)
                       ? t.today
                       : d.toLocaleDateString(isRTL ? 'he-IL' : 'en-US', { weekday: 'long' })}
                   </p>
-                  <p className="text-[11px] text-gray-400">{format(d, 'd/M')}</p>
+                  <p className="text-[11px] text-muted-foreground">{format(d, 'd/M')}</p>
                 </div>
-                {busy && <span className="w-2 h-2 rounded-full bg-[#c9a84c]/70 flex-shrink-0" title={t.workouts} />}
+                {busy && <span className="w-2 h-2 rounded-full bg-gold/70 flex-shrink-0" title={t.workouts} />}
               </button>
             )
           })}
         </div>
 
         <button onClick={handleMove} disabled={saving || !picked}
-          className="w-full h-12 rounded-2xl bg-[#0a1628] hover:bg-[#0a1628]/90 disabled:opacity-40 text-white text-base font-bold transition-all flex items-center justify-center gap-2">
+          className="w-full h-12 rounded-2xl bg-navy hover:bg-navy/90 disabled:opacity-40 text-white text-base font-bold transition-all flex items-center justify-center gap-2">
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}
           {saving ? t.savingDots : t.moveWorkoutBtn}
         </button>

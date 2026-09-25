@@ -13,7 +13,7 @@ import type { Lead } from '@/lib/types'
 
 const STATUS_STYLE: Record<Lead['status'], string> = {
   new: 'bg-blue-100 text-blue-700 border-blue-200',
-  accepted: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  accepted: 'bg-pine/15 text-pine border-pine/25',
   declined: 'bg-muted text-muted-foreground',
   converted: 'bg-gold/15 text-navy border-gold/40',
 }
@@ -161,13 +161,13 @@ export function LeadsList() {
                     <Copy className="h-3.5 w-3.5 mr-1" /> {t.leadsCopyEmailBtn}
                   </Button>
                   {lead.status !== 'accepted' && lead.status !== 'converted' && (
-                    <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" disabled={updatingId === lead.id}
+                    <Button size="sm" className="bg-pine hover:bg-pine text-white" disabled={updatingId === lead.id}
                       onClick={() => setStatus(lead, 'accepted')}>
                       <Check className="h-3.5 w-3.5 mr-1" /> {t.leadsAcceptBtn}
                     </Button>
                   )}
                   {lead.status !== 'declined' && lead.status !== 'converted' && (
-                    <Button size="sm" variant="outline" className="border-red-200 text-red-500 hover:bg-red-50" disabled={updatingId === lead.id}
+                    <Button size="sm" variant="outline" className="border-rust/25 text-rust-deep hover:bg-rust/10" disabled={updatingId === lead.id}
                       onClick={() => setStatus(lead, 'declined')}>
                       <X className="h-3.5 w-3.5 mr-1" /> {t.leadsDeclineBtn}
                     </Button>

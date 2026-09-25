@@ -199,6 +199,9 @@
   --color-pine: #1E4F3A;
   --color-ochre: #C9962C;
   --color-rust: #B4532A;
+  /* Deepened inks for small text on stock, where ochre/rust fall short of 4.5:1. */
+  --color-ochre-deep: #7A5710;
+  --color-rust-deep: #8C3A1A;
   --font-poster: var(--font-karantina), 'Karantina', var(--font-heebo), 'Heebo', sans-serif;
 }
 
@@ -363,10 +366,54 @@ h1, h2, h3, h4, p, span, textarea, input {
   unicode-bidi: plaintext;
 }
 
-/* ── Athlete app: WPA poster world ─────────────────────────────────────
-   Scoped under .poster-world (set on AthleteLayout's root) so coach
-   screens keep their current look until their own redesign pass. */
+/* ── WPA poster world (the whole app) ──────────────────────────────────
+   Set on <body>. Re-inks the shared design tokens so every existing
+   component (cards, buttons, inputs, tabs, dialogs) prints in the same four
+   flat inks as the athlete home screen, without touching any screen's
+   markup or behavior. */
 .poster-world {
+  --background: var(--color-stock);
+  --foreground: var(--color-ink);
+  --card: color-mix(in oklab, var(--color-stock) 55%, white);
+  --card-foreground: var(--color-ink);
+  --popover: color-mix(in oklab, var(--color-stock) 45%, white);
+  --popover-foreground: var(--color-ink);
+  --primary: var(--color-ink);
+  --primary-foreground: var(--color-stock);
+  --secondary: var(--color-pine);
+  --secondary-foreground: var(--color-stock);
+  --muted: var(--color-stock-deep);
+  --muted-foreground: color-mix(in oklab, var(--color-ink) 68%, var(--color-stock));
+  --accent: var(--color-stock-deep);
+  --accent-foreground: var(--color-ink);
+  --destructive: var(--color-rust);
+  --border: color-mix(in oklab, var(--color-ink) 22%, var(--color-stock));
+  --input: color-mix(in oklab, var(--color-ink) 38%, var(--color-stock));
+  --ring: var(--color-ochre);
+  --chart-1: var(--color-ochre);
+  --chart-2: var(--color-ink);
+  --chart-3: var(--color-rust);
+  --chart-4: var(--color-sky);
+  --chart-5: var(--color-pine);
+  --radius: 0.375rem;
+  --radius-2xl: 0.5rem;
+  --radius-3xl: 0.625rem;
+  --sidebar: var(--color-ink);
+  --sidebar-foreground: var(--color-stock);
+  --sidebar-primary: var(--color-ochre);
+  --sidebar-primary-foreground: var(--color-ink);
+  --sidebar-accent: color-mix(in oklab, var(--color-ink) 82%, var(--color-stock));
+  --sidebar-accent-foreground: var(--color-stock);
+  --sidebar-border: color-mix(in oklab, var(--color-ink) 70%, var(--color-stock));
+  --sidebar-ring: var(--color-ochre);
+  --navy: var(--color-ink);
+  --navy-light: color-mix(in oklab, var(--color-ink) 78%, var(--color-stock));
+  --navy-tint: var(--color-stock-deep);
+  --gold: var(--color-ochre);
+  --gold-light: color-mix(in oklab, var(--color-ochre) 28%, var(--color-stock));
+  --coral: var(--color-rust);
+  --coral-light: color-mix(in oklab, var(--color-rust) 22%, var(--color-stock));
+
   background-color: var(--color-stock);
   color: var(--color-ink);
   /* Paper stock: a faint fibre grain printed into the ground. */
@@ -414,6 +461,39 @@ h1, h2, h3, h4, p, span, textarea, input {
   background: color-mix(in oklab, var(--color-stock) 70%, white);
   border: 2px solid var(--color-ink);
   border-radius: 6px;
+}
+
+/* No soft shadow stacks in the poster world: flatten the small elevation
+   utilities (unlayered so it wins; only the shadow var, rings untouched). */
+.poster-world .shadow-xs,
+.poster-world .shadow-sm,
+.poster-world .shadow-md {
+  --tw-shadow: 0 0 #0000;
+}
+
+/* Poster lettering for page and section titles, in the base layer so any
+   colour/size a screen sets on its own title still wins. Karantina is
+   condensed with a small x-height; font-size-adjust keeps each title's
+   existing size class readable. Titles already set in .poster-caps are
+   sized for Karantina and left alone. */
+@layer base {
+  .poster-world :is(h1, h2):not(.poster-caps) {
+    font-family: var(--font-poster);
+    font-weight: 700;
+    font-size-adjust: 0.56;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+}
+
+/* Shared utility for component titles/labels (cards, dialogs, buttons, tabs). */
+@utility poster-type {
+  font-family: var(--font-poster);
+  font-weight: 700;
+  font-size-adjust: 0.56;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 @media (prefers-reduced-motion: no-preference) {

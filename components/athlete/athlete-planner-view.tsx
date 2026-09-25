@@ -57,16 +57,16 @@ const HISTORY_CUTOFF_DAYS = 365
 const historyCutoffStr = () => format(addDays(new Date(), -HISTORY_CUTOFF_DAYS), 'yyyy-MM-dd')
 
 const TYPE_COLORS: Record<string, string> = {
-  easy: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  easy: 'bg-pine/15 text-pine border-pine/25',
   long_run: 'bg-orange-100 text-orange-800 border-orange-200',
   tempo: 'bg-purple-100 text-purple-800 border-purple-200',
   intervals: 'bg-blue-100 text-blue-800 border-blue-200',
-  hill_repeats: 'bg-amber-100 text-amber-800 border-amber-200',
+  hill_repeats: 'bg-ochre/15 text-ochre-deep border-ochre/25',
   fartlek: 'bg-cyan-100 text-cyan-800 border-cyan-200',
-  recovery: 'bg-gray-100 text-gray-600 border-gray-200',
+  recovery: 'bg-muted text-foreground/80 border-border',
   rest: 'bg-muted text-muted-foreground',
-  race: 'bg-red-100 text-red-700 border-red-200',
-  strength: 'bg-rose-100 text-rose-700 border-rose-200',
+  race: 'bg-rust/15 text-rust-deep border-rust/25',
+  strength: 'bg-rust/15 text-rust-deep border-rust/25',
   cross_training: 'bg-teal-100 text-teal-700 border-teal-200',
   swim: 'bg-sky-100 text-sky-700 border-sky-200',
   bike: 'bg-indigo-100 text-indigo-700 border-indigo-200',
@@ -74,9 +74,9 @@ const TYPE_COLORS: Record<string, string> = {
 }
 
 const STATUS_STYLES: Record<string, string> = {
-  completed: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  skipped: 'bg-red-100 text-red-600 border-red-200',
-  scheduled: 'bg-amber-100 text-amber-700 border-amber-200',
+  completed: 'bg-pine/15 text-pine border-pine/25',
+  skipped: 'bg-rust/15 text-rust-deep border-rust/25',
+  scheduled: 'bg-ochre/15 text-ochre-deep border-ochre/25',
 }
 
 const TYPE_BORDER_COLORS: Record<string, string> = {
@@ -616,7 +616,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
     const inlinePaceText = targetLevel && range ? formatTargetRange(range, metrics, source === 'override' ? undefined : auto?.lactateMid, false) : null
 
     return (
-    <div className="rounded-2xl overflow-hidden border border-gray-100 bg-white" dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className="rounded-2xl overflow-hidden border border-border bg-card" dir={isRTL ? 'rtl' : 'ltr'}>
       {targetLevel && (isEditing ? (
             <div className="px-4 py-3 border-b border-border bg-navy/5 space-y-2" dir="rtl">
               <p className="text-xs font-semibold text-navy">התאמת יעד ({targetLevel}) לספורטאי זה</p>
@@ -641,7 +641,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
       ) : (
           <div className="px-4 py-2.5 border-b border-border bg-navy/5 flex items-center justify-end gap-1.5 flex-wrap">
             <span className={cn('text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap',
-              range ? 'bg-white border border-navy/10 text-navy' : 'bg-amber-50 border border-amber-200 text-amber-700')} dir="ltr">
+              range ? 'bg-card border border-navy/10 text-navy' : 'bg-ochre/10 border border-ochre/25 text-ochre-deep')} dir="ltr">
               {range
                 ? `${targetLevel} · ${badgeText}${
                     source === 'override' ? ' · ✏️'
@@ -658,7 +658,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
             )}
             {isCoachViewer && w.targetOverride && (
               <button type="button" onClick={() => clearTargetOverride(w)}
-                className="text-muted-foreground hover:text-red-500 p-1" aria-label="בטל התאמה">
+                className="text-muted-foreground hover:text-rust-deep p-1" aria-label="בטל התאמה">
                 <XIcon className="h-3.5 w-3.5" />
               </button>
             )}
@@ -816,7 +816,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
       {(w.workout.type === 'strength' || w.workout.type === 'stretch') && !!w.workout.strengthBlocks?.length && !!athlete?.strengthToolsVisibleToAthlete && (
         <div className="px-4 py-3 border-t border-border">
           <Link href={`/athlete/lift/${w.id}`}>
-            <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold">
+            <Button className="w-full bg-pine hover:bg-pine text-white font-bold">
               {w.workout.type === 'stretch' ? '🧘 התחל מתיחות' : '💪 התחל אימון כוח'}
             </Button>
           </Link>
@@ -867,7 +867,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
             <div className="p-4" dir={isRTL ? 'rtl' : 'ltr'}>
               <button
                 onClick={() => setOpenLogForms(prev => new Set([...prev, w.id]))}
-                className="w-full h-11 rounded-xl bg-[#0a1628] text-white text-sm font-bold active:scale-[0.98] transition-all">
+                className="w-full h-11 rounded-xl bg-navy text-white text-sm font-bold active:scale-[0.98] transition-all">
                 {stravaForDate ? t.addNoteToWorkoutBtn : t.updateWorkoutBtn}
               </button>
             </div>
@@ -1055,20 +1055,20 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
               </div>
             )}
             {displayHr && (
-              <div className="bg-red-50 rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-red-600">{displayHr}</p>
+              <div className="bg-rust/10 rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold text-rust-deep">{displayHr}</p>
                 <p className="text-xs text-muted-foreground">{t.avgHRBpmLabel}</p>
               </div>
             )}
             {log.elevationGain && (
-              <div className="bg-emerald-50 rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-emerald-700">{log.elevationGain}m</p>
+              <div className="bg-pine/10 rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold text-pine">{log.elevationGain}m</p>
                 <p className="text-xs text-muted-foreground">{t.elevationGainLabel}</p>
               </div>
             )}
             {log.effort && (
-              <div className="bg-amber-50 rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-amber-700">{log.effort}/10</p>
+              <div className="bg-ochre/10 rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold text-ochre-deep">{log.effort}/10</p>
                 <p className="text-xs text-muted-foreground">{t.effortValueLabel}</p>
               </div>
             )}
@@ -1097,11 +1097,11 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
     if (isPending || showForm) return (
       <>
         <DetailsModal />
-        <div className="rounded-2xl border border-amber-200/60 bg-white shadow-sm overflow-hidden" dir="rtl">
+        <div className="rounded-2xl border border-amber-200/60 bg-card shadow-sm overflow-hidden" dir="rtl">
           {/* Compact header row */}
           <div className="px-3.5 py-2.5 flex items-center gap-2">
             <div className={cn('h-6 w-6 rounded-lg flex items-center justify-center flex-shrink-0',
-              isManual ? 'bg-[#0a1628]' : 'bg-[#FC4C02]')}>
+              isManual ? 'bg-navy' : 'bg-[#FC4C02]')}>
               <span className="text-[11px]">{isManual ? kindInfo.emoji : <span className="text-[9px] font-black text-white">S</span>}</span>
             </div>
             <div className="flex-1 min-w-0">
@@ -1110,19 +1110,19 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                   {kindInfo.emoji} {activityLabel(kindInfo.kind, isRTL)}
                 </span>
                 <span className="text-sm font-bold text-navy truncate">{displayName}</span>
-                {kindInfo.hasDistance && !!displayDistance && <span className="text-xs text-gray-500">· {displayDistance} km</span>}
-                {kindInfo.hasDistance && displayPace && <span className="text-xs text-gray-400" dir="ltr">· {displayPace}</span>}
-                {!kindInfo.hasDistance && durationDisplay && <span className="text-xs text-gray-500">· {durationDisplay}</span>}
+                {kindInfo.hasDistance && !!displayDistance && <span className="text-xs text-muted-foreground">· {displayDistance} km</span>}
+                {kindInfo.hasDistance && displayPace && <span className="text-xs text-muted-foreground" dir="ltr">· {displayPace}</span>}
+                {!kindInfo.hasDistance && durationDisplay && <span className="text-xs text-muted-foreground">· {durationDisplay}</span>}
               </div>
             </div>
             <div className="flex items-center gap-1.5 flex-shrink-0">
               <button
                 onClick={() => setShowForm(prev => !prev)}
                 className={cn('text-[11px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap active:scale-95 transition-all border',
-                  showForm ? 'bg-gray-100 text-gray-600 border-gray-200' : 'bg-[#c9a84c]/20 text-[#c9a84c] border-[#c9a84c]/40')}>
+                  showForm ? 'bg-muted text-foreground/80 border-border' : 'bg-gold/20 text-gold border-gold/40')}>
                 {showForm ? t.closeCta : 'ממתין למשוב שלך'}
               </button>
-              <button onClick={handleDelete} className="h-6 w-6 rounded-full hover:bg-red-50 flex items-center justify-center text-muted-foreground/50 hover:text-red-400 transition-colors text-sm">✕</button>
+              <button onClick={handleDelete} className="h-6 w-6 rounded-full hover:bg-rust/10 flex items-center justify-center text-muted-foreground/50 hover:text-rust-deep transition-colors text-sm">✕</button>
             </div>
           </div>
 
@@ -1137,7 +1137,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                 value={log.assignedWorkoutId || ''}
                 disabled={reassigning}
                 onChange={e => handleReassign(e.target.value)}
-                className="flex-1 min-w-0 text-[11px] font-semibold text-navy bg-gray-50 border border-gray-200 rounded-full px-2 py-1 disabled:opacity-50">
+                className="flex-1 min-w-0 text-[11px] font-semibold text-navy bg-muted border border-border rounded-full px-2 py-1 disabled:opacity-50">
                 <option value="">{t.noWorkoutOption}</option>
                 {dayWorkouts.map(w => (
                   <option key={w.id} value={w.id}>{w.workout?.title || t.workouts}</option>
@@ -1155,25 +1155,25 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                   <div className="flex items-center justify-center gap-6">
                     <button
                       onClick={() => setPendingEffort(prev => prev != null ? Math.max(1, prev - 1) : 5)}
-                      className="w-12 h-12 rounded-full border-2 border-border bg-white hover:bg-muted/40 transition-all flex items-center justify-center text-xl font-bold text-navy shadow-sm select-none">
+                      className="w-12 h-12 rounded-full border-2 border-border bg-card hover:bg-muted/40 transition-all flex items-center justify-center text-xl font-bold text-navy shadow-sm select-none">
                       −
                     </button>
                     <div className="flex flex-col items-center gap-1 min-w-[72px]">
                       <span className={cn('text-5xl font-black leading-none transition-colors',
                         pendingEffort == null ? 'text-muted-foreground/25' :
-                        pendingEffort <= 3 ? 'text-emerald-500' :
-                        pendingEffort <= 5 ? 'text-green-600' :
-                        pendingEffort <= 7 ? 'text-amber-500' :
-                        pendingEffort <= 9 ? 'text-orange-500' : 'text-red-500'
+                        pendingEffort <= 3 ? 'text-pine' :
+                        pendingEffort <= 5 ? 'text-pine' :
+                        pendingEffort <= 7 ? 'text-ochre-deep' :
+                        pendingEffort <= 9 ? 'text-orange-500' : 'text-rust-deep'
                       )}>
                         {pendingEffort ?? '—'}
                       </span>
                       <span className={cn('text-xs font-semibold transition-colors',
                         pendingEffort == null ? 'text-muted-foreground' :
-                        pendingEffort <= 3 ? 'text-emerald-500' :
-                        pendingEffort <= 5 ? 'text-green-600' :
-                        pendingEffort <= 7 ? 'text-amber-500' :
-                        pendingEffort <= 9 ? 'text-orange-500' : 'text-red-500'
+                        pendingEffort <= 3 ? 'text-pine' :
+                        pendingEffort <= 5 ? 'text-pine' :
+                        pendingEffort <= 7 ? 'text-ochre-deep' :
+                        pendingEffort <= 9 ? 'text-orange-500' : 'text-rust-deep'
                       )}>
                         {pendingEffort == null ? t.chooseIntensity :
                          pendingEffort <= 3 ? t.effortVeryEasy :
@@ -1184,7 +1184,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                     </div>
                     <button
                       onClick={() => setPendingEffort(prev => prev != null ? Math.min(10, prev + 1) : 5)}
-                      className="w-12 h-12 rounded-full border-2 border-border bg-white hover:bg-muted/40 transition-all flex items-center justify-center text-xl font-bold text-navy shadow-sm select-none">
+                      className="w-12 h-12 rounded-full border-2 border-border bg-card hover:bg-muted/40 transition-all flex items-center justify-center text-xl font-bold text-navy shadow-sm select-none">
                       +
                     </button>
                   </div>
@@ -1241,7 +1241,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
     return (
       <>
         <DetailsModal />
-        <div className="rounded-3xl bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 overflow-hidden" dir="rtl">
+        <div className="rounded-3xl bg-gradient-to-br from-navy to-navy/85 overflow-hidden" dir="rtl">
           {/* Identity row: one badge for source+kind (was a separate icon
               box AND a pill saying almost the same thing — merged into one
               so the eye has a single thing to read here, not two), icon-only
@@ -1287,7 +1287,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                 value={log.assignedWorkoutId || ''}
                 disabled={reassigning}
                 onChange={e => handleReassign(e.target.value)}
-                className="flex-1 min-w-0 text-[11px] font-semibold text-white bg-white/10 border border-white/15 rounded-full px-2.5 py-1 disabled:opacity-50 [&>option]:text-[#0a1628]">
+                className="flex-1 min-w-0 text-[11px] font-semibold text-white bg-white/10 border border-white/15 rounded-full px-2.5 py-1 disabled:opacity-50 [&>option]:text-navy">
                 <option value="">{t.noWorkoutOption}</option>
                 {dayWorkouts.map(w => (
                   <option key={w.id} value={w.id}>{w.workout?.title || t.workouts}</option>
@@ -1306,7 +1306,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
               )}
               {displayDistance && (
                 <div className="rounded-2xl bg-white/10 p-2.5 text-center">
-                  <p className="text-lg font-black text-[#c9a84c] leading-tight">{displayDistance}</p>
+                  <p className="text-lg font-black text-gold leading-tight">{displayDistance}</p>
                   <p className="text-[9px] text-white/50 mt-0.5">ק&quot;מ</p>
                 </div>
               )}
@@ -1347,7 +1347,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
               </button>
               {showSplits && (
                 <div className="px-3 pb-3">
-                  <div className="rounded-2xl bg-white p-2.5">
+                  <div className="rounded-2xl bg-card p-2.5">
                     <SplitsTable splitLogs={log.splitLogs} matchedWorkout={dayWorkouts.find(w => w.id === log.assignedWorkoutId)?.workout} referencePace={log.actualPace} />
                   </div>
                 </div>
@@ -1468,8 +1468,8 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
           onChange={e => handleReassign(e.target.value)}
           className={cn('flex-1 min-w-0 text-[11px] font-semibold rounded-full disabled:opacity-50',
             dark
-              ? 'text-white bg-white/10 border border-white/15 px-2.5 py-1 [&>option]:text-[#0a1628]'
-              : 'text-navy bg-gray-50 border border-gray-200 px-2 py-1')}>
+              ? 'text-white bg-white/10 border border-white/15 px-2.5 py-1 [&>option]:text-navy'
+              : 'text-navy bg-muted border border-border px-2 py-1')}>
           <option value="">{t.noWorkoutOption}</option>
           {dayWorkouts.map(w => (
             <option key={w.id} value={w.id}>{w.workout?.title || t.workouts}</option>
@@ -1488,8 +1488,8 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
           // width and breaking the row layout.
           <span key={l.id} className={cn('max-w-[45vw] truncate text-[10px] font-semibold px-2 py-0.5 rounded-full',
             dark
-              ? (l.id === mainLog.id ? 'bg-[#c9a84c]/20 text-[#c9a84c]' : 'bg-white/10 text-white/60')
-              : (l.id === mainLog.id ? 'border bg-[#c9a84c]/15 text-[#c9a84c] border-[#c9a84c]/30' : 'border bg-gray-50 text-gray-500 border-gray-200'))}>
+              ? (l.id === mainLog.id ? 'bg-gold/20 text-gold' : 'bg-white/10 text-white/60')
+              : (l.id === mainLog.id ? 'border bg-gold/15 text-gold border-gold/30' : 'border bg-muted text-muted-foreground border-border'))}>
             {l.id === mainLog.id && `${t.mainEventBadge} · `}
             {l.actualDistance ? `${l.actualDistance} km` : (formatDurationMin(l.durationMin, isRTL) || l.stravaName)}
           </span>
@@ -1509,7 +1509,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
         </button>
         {showSplits && (
           <div className="px-3 pb-3">
-            <div className="rounded-2xl bg-white p-2.5">
+            <div className="rounded-2xl bg-card p-2.5">
               <SplitsTable splitLogs={mainLog.splitLogs} matchedWorkout={dayWorkouts.find(w => w.id === mainLog.assignedWorkoutId)?.workout} referencePace={mainLog.actualPace} />
             </div>
           </div>
@@ -1519,9 +1519,9 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
 
     // ── STATE 1: Pending feedback (or editing) — compact collapsible ───
     if (isPending || showForm) return (
-      <div className="rounded-2xl border border-amber-200/60 bg-white shadow-sm overflow-hidden" dir="rtl">
+      <div className="rounded-2xl border border-amber-200/60 bg-card shadow-sm overflow-hidden" dir="rtl">
         <div className="px-3.5 py-2.5 flex items-center gap-2">
-          <div className={cn('h-6 w-6 rounded-lg flex items-center justify-center flex-shrink-0', isManual ? 'bg-[#0a1628]' : 'bg-[#FC4C02]')}>
+          <div className={cn('h-6 w-6 rounded-lg flex items-center justify-center flex-shrink-0', isManual ? 'bg-navy' : 'bg-[#FC4C02]')}>
             <span className="text-[11px]">{isManual ? kindInfo.emoji : <span className="text-[9px] font-black text-white">S</span>}</span>
           </div>
           <div className="flex-1 min-w-0">
@@ -1530,17 +1530,17 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                 {kindInfo.emoji} {activityLabel(kindInfo.kind, isRTL)}
               </span>
               <span className="text-sm font-bold text-navy truncate">{totalDistance ? `${totalDistance} km` : durationDisplay}</span>
-              <span className="text-xs text-gray-400">· {logs.length} {t.segmentsCountLabel}</span>
+              <span className="text-xs text-muted-foreground">· {logs.length} {t.segmentsCountLabel}</span>
             </div>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
             <button
               onClick={() => setShowForm(prev => !prev)}
               className={cn('text-[11px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap active:scale-95 transition-all border',
-                showForm ? 'bg-gray-100 text-gray-600 border-gray-200' : 'bg-[#c9a84c]/20 text-[#c9a84c] border-[#c9a84c]/40')}>
+                showForm ? 'bg-muted text-foreground/80 border-border' : 'bg-gold/20 text-gold border-gold/40')}>
               {showForm ? t.closeCta : 'ממתין למשוב שלך'}
             </button>
-            <button onClick={handleDeleteAll} className="h-6 w-6 rounded-full hover:bg-red-50 flex items-center justify-center text-muted-foreground/50 hover:text-red-400 transition-colors text-sm">✕</button>
+            <button onClick={handleDeleteAll} className="h-6 w-6 rounded-full hover:bg-rust/10 flex items-center justify-center text-muted-foreground/50 hover:text-rust-deep transition-colors text-sm">✕</button>
           </div>
         </div>
         {segmentChips()}
@@ -1553,25 +1553,25 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                 <div className="flex items-center justify-center gap-6">
                   <button
                     onClick={() => setPendingEffort(prev => prev != null ? Math.max(1, prev - 1) : 5)}
-                    className="w-12 h-12 rounded-full border-2 border-border bg-white hover:bg-muted/40 transition-all flex items-center justify-center text-xl font-bold text-navy shadow-sm select-none">
+                    className="w-12 h-12 rounded-full border-2 border-border bg-card hover:bg-muted/40 transition-all flex items-center justify-center text-xl font-bold text-navy shadow-sm select-none">
                     −
                   </button>
                   <div className="flex flex-col items-center gap-1 min-w-[72px]">
                     <span className={cn('text-5xl font-black leading-none transition-colors',
                       pendingEffort == null ? 'text-muted-foreground/25' :
-                      pendingEffort <= 3 ? 'text-emerald-500' :
-                      pendingEffort <= 5 ? 'text-green-600' :
-                      pendingEffort <= 7 ? 'text-amber-500' :
-                      pendingEffort <= 9 ? 'text-orange-500' : 'text-red-500'
+                      pendingEffort <= 3 ? 'text-pine' :
+                      pendingEffort <= 5 ? 'text-pine' :
+                      pendingEffort <= 7 ? 'text-ochre-deep' :
+                      pendingEffort <= 9 ? 'text-orange-500' : 'text-rust-deep'
                     )}>
                       {pendingEffort ?? '—'}
                     </span>
                     <span className={cn('text-xs font-semibold transition-colors',
                       pendingEffort == null ? 'text-muted-foreground' :
-                      pendingEffort <= 3 ? 'text-emerald-500' :
-                      pendingEffort <= 5 ? 'text-green-600' :
-                      pendingEffort <= 7 ? 'text-amber-500' :
-                      pendingEffort <= 9 ? 'text-orange-500' : 'text-red-500'
+                      pendingEffort <= 3 ? 'text-pine' :
+                      pendingEffort <= 5 ? 'text-pine' :
+                      pendingEffort <= 7 ? 'text-ochre-deep' :
+                      pendingEffort <= 9 ? 'text-orange-500' : 'text-rust-deep'
                     )}>
                       {pendingEffort == null ? t.chooseIntensity :
                        pendingEffort <= 3 ? t.effortVeryEasy :
@@ -1582,7 +1582,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                   </div>
                   <button
                     onClick={() => setPendingEffort(prev => prev != null ? Math.min(10, prev + 1) : 5)}
-                    className="w-12 h-12 rounded-full border-2 border-border bg-white hover:bg-muted/40 transition-all flex items-center justify-center text-xl font-bold text-navy shadow-sm select-none">
+                    className="w-12 h-12 rounded-full border-2 border-border bg-card hover:bg-muted/40 transition-all flex items-center justify-center text-xl font-bold text-navy shadow-sm select-none">
                     +
                   </button>
                 </div>
@@ -1608,7 +1608,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
 
     // ── STATE 2: Completed — dark hero stats card ────────────────────────
     return (
-      <div className="rounded-3xl bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 overflow-hidden" dir="rtl">
+      <div className="rounded-3xl bg-gradient-to-br from-navy to-navy/85 overflow-hidden" dir="rtl">
         {/* Identity row: source + kind on one side, icon-only actions on the other */}
         <div className="px-4 pt-4 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
@@ -1640,7 +1640,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
         <div className="px-4 pb-4 grid grid-cols-3 gap-1.5">
           {totalDistance > 0 && (
             <div className="rounded-2xl bg-white/10 p-2.5 text-center">
-              <p className="text-lg font-black text-[#c9a84c] leading-tight">{totalDistance}</p>
+              <p className="text-lg font-black text-gold leading-tight">{totalDistance}</p>
               <p className="text-[9px] text-white/50 mt-0.5">ק&quot;מ</p>
             </div>
           )}
@@ -1685,19 +1685,19 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
       <div key={w.id} className="space-y-2">
         {/* Compact premium Nike-style tile */}
         <div className={cn(
-          'bg-white rounded-2xl shadow-sm border-l-4 overflow-hidden transition-all',
+          'bg-card rounded-2xl shadow-sm border-l-4 overflow-hidden transition-all',
           effStatus === 'completed'
-            ? 'border border-emerald-100 border-l-emerald-500'
+            ? 'border border-pine/25 border-l-emerald-500'
             : effStatus === 'skipped'
-            ? 'border border-red-100 border-l-red-400'
-            : `border border-gray-100 ${TYPE_BORDER_COLORS[w.workout?.type] || 'border-l-[#0a1628]'}`
+            ? 'border border-rust/25 border-l-red-400'
+            : `border border-border ${TYPE_BORDER_COLORS[w.workout?.type] || 'border-l-[#0a1628]'}`
         )}>
           {/* Multi-workout index label */}
           {cardIndex != null && cardIndex > 1 && (
             <div className="px-4 pt-2.5 pb-0 flex items-center gap-1.5">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.workoutCardPrefix} {cardIndex}</span>
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{t.workoutCardPrefix} {cardIndex}</span>
               {w.session && SESSION_BADGE[w.session] && (
-                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 border border-gray-200">
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-muted border border-border">
                   {SESSION_BADGE[w.session].emoji} {SESSION_BADGE[w.session].label}
                 </span>
               )}
@@ -1707,7 +1707,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
           {/* Main tap row — min 44px touch target */}
           <button
             onClick={() => setSelectedWorkoutId(prev => prev === w.id ? null : w.id)}
-            className="w-full px-4 py-3.5 text-right active:bg-gray-50 transition-colors min-h-[56px]">
+            className="w-full px-4 py-3.5 text-right active:bg-muted transition-colors min-h-[56px]">
             <div className="flex items-center justify-between gap-3" dir="rtl">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -1715,21 +1715,21 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                     {typeLabels[w.workout?.type] || w.workout?.type}
                   </span>
                   {effStatus === 'completed' && (
-                    <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-1">
-                      <span className="w-3.5 h-3.5 rounded-full bg-emerald-100 inline-flex items-center justify-center text-[8px]">✓</span>
+                    <span className="text-[10px] font-bold text-pine flex items-center gap-1">
+                      <span className="w-3.5 h-3.5 rounded-full bg-pine/15 inline-flex items-center justify-center text-[8px]">✓</span>
                       {log?.actualDistance ? `${log.actualDistance} km` : t.stravaCompletedLabel}
                     </span>
                   )}
                   {effStatus === 'skipped' && (
-                    <span className="text-[10px] font-bold text-red-500 bg-red-50 border border-red-100 px-2 py-0.5 rounded-full">{t.stravaNotDoneLabel}</span>
+                    <span className="text-[10px] font-bold text-rust-deep bg-rust/10 border border-rust/25 px-2 py-0.5 rounded-full">{t.stravaNotDoneLabel}</span>
                   )}
                 </div>
                 <p className={cn('font-bold text-[15px] leading-snug',
-                  effStatus === 'completed' ? 'text-gray-500' : 'text-[#0a1628]')}>
+                  effStatus === 'completed' ? 'text-muted-foreground' : 'text-navy')}>
                   {resolveText(language, w.workout.title, w.workout.titleEn)}
                 </p>
                 {(w.workout.distance || w.workout.duration) && (
-                  <p className="text-xs text-gray-400 mt-0.5">
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     {w.workout.distance && `${w.workout.distance} km`}
                     {w.workout.distance && w.workout.duration && ' · '}
                     {w.workout.duration && `${w.workout.duration} min`}
@@ -1737,15 +1737,15 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                 )}
               </div>
               <div className="flex items-center gap-1 flex-shrink-0">
-                <span className="text-[10px] text-gray-400 font-medium hidden sm:block">{t.detailsBtn}</span>
-                <ChevronDown className={cn('h-4 w-4 text-gray-400 transition-transform duration-200', isSelected ? 'rotate-180' : '')} />
+                <span className="text-[10px] text-muted-foreground font-medium hidden sm:block">{t.detailsBtn}</span>
+                <ChevronDown className={cn('h-4 w-4 text-muted-foreground transition-transform duration-200', isSelected ? 'rotate-180' : '')} />
               </div>
             </div>
           </button>
 
           {/* Expanded detail */}
           {isSelected && (
-            <div className="border-t border-gray-100 px-4 pb-4 pt-3">
+            <div className="border-t border-border px-4 pb-4 pt-3">
               {renderWorkoutDetail(w)}
             </div>
           )}
@@ -1753,15 +1753,15 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
 
         {/* Coach message */}
         {msg && (
-          <div className={cn('bg-white rounded-2xl border p-4 shadow-sm', !msg.read ? 'border-l-4 border-l-[#c9a84c] border-gray-100' : 'border-gray-100')} dir="rtl">
+          <div className={cn('bg-card rounded-2xl border p-4 shadow-sm', !msg.read ? 'border-l-4 border-l-[#c9a84c] border-border' : 'border-border')} dir="rtl">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[#c9a84c]">{t.messageFromCoach}</p>
-              {msg.createdAt?.seconds && <p className="text-[9px] text-gray-400">{format(new Date(msg.createdAt.seconds * 1000), 'd/M/yyyy')}</p>}
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gold">{t.messageFromCoach}</p>
+              {msg.createdAt?.seconds && <p className="text-[9px] text-muted-foreground">{format(new Date(msg.createdAt.seconds * 1000), 'd/M/yyyy')}</p>}
             </div>
-            <p className="text-sm text-[#0a1628] leading-relaxed">{msg.message}</p>
+            <p className="text-sm text-navy leading-relaxed">{msg.message}</p>
             {!msg.read && (
               <button onClick={async () => { try { await updateDoc(doc(db, 'coachMessages', msg.id), { read: true }); setCoachMessages(prev => prev.map(m => m.id === msg.id ? { ...m, read: true } : m)) } catch {} }}
-                className="mt-2 text-[10px] text-gray-400 hover:text-gray-600 underline underline-offset-2">{t.markAsRead}</button>
+                className="mt-2 text-[10px] text-muted-foreground hover:text-foreground/80 underline underline-offset-2">{t.markAsRead}</button>
             )}
           </div>
         )}
@@ -1804,7 +1804,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
       : dayOff.reason === 'trip' ? t.dayOffCardTitleTrip
       : t.dayOffCardTitleOther
     return (
-      <div className="bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 rounded-3xl p-6 text-center space-y-2">
+      <div className="bg-gradient-to-br from-navy to-navy/85 rounded-3xl p-6 text-center space-y-2">
         <p className="text-xl font-bold text-white">{title}</p>
         {dayOff.note && <p className="text-sm text-white/60" dir="auto">{dayOff.note}</p>}
       </div>
@@ -1843,16 +1843,16 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
       <div key={w.id} className="space-y-2">
         {isMulti && (
           <div className="flex items-center gap-1.5 px-1">
-            <p className="text-[10px] font-bold text-[#c9a84c] uppercase tracking-widest">{t.workoutCardPrefix} {idx + 1}</p>
+            <p className="text-[10px] font-bold text-gold uppercase tracking-widest">{t.workoutCardPrefix} {idx + 1}</p>
             {w.session && SESSION_BADGE[w.session] && (
-              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[#c9a84c]/15 text-[#c9a84c]">
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gold/15 text-gold">
                 {SESSION_BADGE[w.session].emoji} {SESSION_BADGE[w.session].label}
               </span>
             )}
           </div>
         )}
         <div className={cn('rounded-3xl transition-all',
-          isEffectivelyDone ? 'bg-gradient-to-br from-emerald-700 to-emerald-800' : 'bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85')}>
+          isEffectivelyDone ? 'bg-gradient-to-br from-pine to-pine' : 'bg-gradient-to-br from-navy to-navy/85')}>
           <div className="p-5">
             <div className="flex items-center justify-between mb-2.5" dir="rtl">
               <span className="bg-white/15 text-white/90 text-[11px] font-bold px-3 py-1 rounded-full">
@@ -1860,7 +1860,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
               </span>
               <div className="flex items-center gap-1.5">
                 {stravaThisDay?.feedbackStatus === 'pending' && (
-                  <span className="text-[10px] font-bold bg-[#c9a84c]/25 text-[#c9a84c] border border-[#c9a84c]/40 px-2 py-0.5 rounded-full">ממתין למשוב</span>
+                  <span className="text-[10px] font-bold bg-gold/25 text-gold border border-gold/40 px-2 py-0.5 rounded-full">ממתין למשוב</span>
                 )}
                 {stravaThisDay && stravaThisDay.feedbackStatus !== 'pending' && (
                   <span className="text-[10px] font-bold text-[#FC4C02] bg-[#FC4C02]/20 px-2 py-0.5 rounded-full">Strava ✓</span>
@@ -1868,7 +1868,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                 {isEffectivelyDone && !stravaThisDay && <span className="text-[11px] font-bold text-emerald-200">{t.stravaCompletedLabel}</span>}
                 {wEff === 'skipped' && <span className="text-[11px] font-bold text-red-300">{t.stravaNotDoneLabel}</span>}
                 {isToday(parseISO(w.scheduledDate)) && wEff === 'scheduled' && idx === 0 && !stravaThisDay && (
-                  <span className="text-[#c9a84c] text-[11px] font-black">{t.today}</span>
+                  <span className="text-gold text-[11px] font-black">{t.today}</span>
                 )}
               </div>
             </div>
@@ -1878,7 +1878,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
             <div className="flex items-center gap-2 mb-4 flex-wrap" dir="rtl">
               {w.workout.distance && (
                 <span className={cn('text-sm font-bold px-3 py-1.5 rounded-full',
-                  isEffectivelyDone ? 'bg-white/20 text-white' : 'bg-[#c9a84c] text-[#0a1628]')}>
+                  isEffectivelyDone ? 'bg-white/20 text-white' : 'bg-gold text-navy')}>
                   {totalMatchedKm ?? topLog?.actualDistance ?? w.workout.distance} km
                 </span>
               )}
@@ -1930,25 +1930,25 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
           </div>
         </div>
         {(wSelected || autoExpandWorkouts) && (
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-card rounded-3xl shadow-sm border border-border overflow-hidden">
             {renderWorkoutDetail(w)}
           </div>
         )}
         {wMsg && (
-          <div className={cn('bg-white rounded-2xl border p-4 shadow-sm',
-            !wMsg.read ? 'border-l-4 border-l-[#c9a84c] border-gray-100' : 'border-gray-100')} dir="rtl">
+          <div className={cn('bg-card rounded-2xl border p-4 shadow-sm',
+            !wMsg.read ? 'border-l-4 border-l-[#c9a84c] border-border' : 'border-border')} dir="rtl">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[#c9a84c]">{t.messageFromCoach}</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gold">{t.messageFromCoach}</p>
               {wMsg.read && wMsg.readAt ? (
-                <span className="flex items-center gap-1 text-[9px] text-emerald-500 font-medium">
+                <span className="flex items-center gap-1 text-[9px] text-pine font-medium">
                   <CheckCircle2 className="h-3 w-3" />
                   {t.seenLabel} {format(new Date(wMsg.readAt), 'HH:mm')}
                 </span>
               ) : wMsg.createdAt?.seconds && (
-                <p className="text-[9px] text-gray-400">{format(new Date(wMsg.createdAt.seconds * 1000), 'd/M/yyyy')}</p>
+                <p className="text-[9px] text-muted-foreground">{format(new Date(wMsg.createdAt.seconds * 1000), 'd/M/yyyy')}</p>
               )}
             </div>
-            <p className="text-sm text-[#0a1628] leading-relaxed">{wMsg.message}</p>
+            <p className="text-sm text-navy leading-relaxed">{wMsg.message}</p>
             {!wMsg.read && (
               <div className="flex justify-end mt-3">
                 <button
@@ -1957,7 +1957,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                     setCoachMessages(prev => prev.map(m => m.id === wMsg.id ? { ...m, read: true, readAt } : m)) // instant
                     updateDoc(doc(db, 'coachMessages', wMsg.id), { read: true, readAt }).catch(() => {})
                   }}
-                  className="flex items-center gap-1.5 bg-[#c9a84c] hover:bg-[#b8962e] text-white text-xs font-semibold px-3 py-1.5 rounded-full transition-colors active:scale-95"
+                  className="flex items-center gap-1.5 bg-gold hover:bg-gold text-white text-xs font-semibold px-3 py-1.5 rounded-full transition-colors active:scale-95"
                 >
                   <CheckCircle2 className="h-3.5 w-3.5" />
                   {t.markedAsReadBtn}
@@ -2010,11 +2010,11 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
         <div className="flex items-center gap-2">
           <button
             onClick={() => setCurrentDate(d => viewMode==='day' ? new Date(d.getTime()-86400000) : viewMode==='week' ? subWeeks(d,1) : subMonths(d,1))}
-            className="w-11 h-11 rounded-2xl bg-gray-100 flex items-center justify-center active:scale-95 transition-all flex-shrink-0">
-            <ChevronRight className="h-5 w-5 text-[#0a1628]" />
+            className="w-11 h-11 rounded-2xl bg-muted flex items-center justify-center active:scale-95 transition-all flex-shrink-0">
+            <ChevronRight className="h-5 w-5 text-navy" />
           </button>
 
-          <p className="flex-1 text-center text-base font-bold text-[#0a1628]">
+          <p className="flex-1 text-center text-base font-bold text-navy">
             {viewMode==='day'
               ? formatHeDateLong(currentDate)
               : viewMode==='week'
@@ -2024,18 +2024,18 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
 
           <button
             onClick={() => setCurrentDate(d => viewMode==='day' ? new Date(d.getTime()+86400000) : viewMode==='week' ? addWeeks(d,1) : addMonths(d,1))}
-            className="w-11 h-11 rounded-2xl bg-gray-100 flex items-center justify-center active:scale-95 transition-all flex-shrink-0">
-            <ChevronLeft className="h-5 w-5 text-[#0a1628]" />
+            className="w-11 h-11 rounded-2xl bg-muted flex items-center justify-center active:scale-95 transition-all flex-shrink-0">
+            <ChevronLeft className="h-5 w-5 text-navy" />
           </button>
         </div>
 
         {/* Row 2: View tabs (gold active) + Strava sync icon */}
         <div className="flex items-center gap-2">
-          <div className="flex gap-1 bg-gray-100 rounded-2xl p-1 flex-1">
+          <div className="flex gap-1 bg-muted rounded-2xl p-1 flex-1">
             {(['day','week','month'] as const).map(mode => (
               <button key={mode} onClick={() => setViewMode(mode)}
                 className={cn('flex-1 h-10 rounded-xl text-sm font-bold transition-all active:scale-95',
-                  viewMode === mode ? 'bg-[#c9a84c] text-[#0a1628] shadow-sm' : 'text-gray-400 hover:text-gray-600')}>
+                  viewMode === mode ? 'bg-gold text-navy shadow-sm' : 'text-muted-foreground hover:text-foreground/80')}>
                 {mode==='day' ? t.dayView : mode==='week' ? t.weekView : t.monthView}
               </button>
             ))}
@@ -2053,9 +2053,9 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
           </button>
           {isCoachViewer && viewMode === 'day' && (
             <button onClick={handleResetDayDebug}
-              className="h-10 px-3 rounded-2xl bg-red-50 flex items-center gap-1.5 active:scale-95 transition-all flex-shrink-0"
+              className="h-10 px-3 rounded-2xl bg-rust/10 flex items-center gap-1.5 active:scale-95 transition-all flex-shrink-0"
               title="איפוס נתוני היום (דיבוג)">
-              <span className="text-xs font-bold text-red-500">🧹 איפוס יום</span>
+              <span className="text-xs font-bold text-rust-deep">🧹 איפוס יום</span>
             </button>
           )}
         </div>
@@ -2069,15 +2069,15 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
         <div className={cn('items-center justify-center gap-1', isCoachViewer ? 'flex' : 'hidden md:flex')}>
           <button onClick={() => setGridZoom(z => Math.max(0.35, Math.round((z - 0.15) * 100) / 100))}
             disabled={gridZoom <= 0.35}
-            className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 disabled:opacity-30 active:scale-90 transition-all">
+            className="w-7 h-7 rounded-full border border-border flex items-center justify-center text-muted-foreground disabled:opacity-30 active:scale-90 transition-all">
             <ZoomOut className="h-3.5 w-3.5" />
           </button>
-          <button onClick={() => setGridZoom(1)} className="text-[11px] text-gray-400 w-12 text-center">
+          <button onClick={() => setGridZoom(1)} className="text-[11px] text-muted-foreground w-12 text-center">
             {Math.round(gridZoom * 100)}%
           </button>
           <button onClick={() => setGridZoom(z => Math.min(4, Math.round((z + 0.15) * 100) / 100))}
             disabled={gridZoom >= 4}
-            className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 disabled:opacity-30 active:scale-90 transition-all">
+            className="w-7 h-7 rounded-full border border-border flex items-center justify-center text-muted-foreground disabled:opacity-30 active:scale-90 transition-all">
             <ZoomIn className="h-3.5 w-3.5" />
           </button>
         </div>
@@ -2101,7 +2101,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
         const addActivityButton = (
           <button
             onClick={() => { setAddActivityDate(dateStr); setAddActivityOpen(true) }}
-            className="w-full h-12 rounded-2xl border-2 border-dashed border-gray-200 hover:border-[#c9a84c]/50 text-gray-400 hover:text-[#c9a84c] text-sm font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98] bg-white/50">
+            className="w-full h-12 rounded-2xl border-2 border-dashed border-border hover:border-gold/50 text-muted-foreground hover:text-gold text-sm font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98] bg-white/50">
             <Plus className="h-4 w-4" />
             {t.addActivityBtn}
           </button>
@@ -2124,7 +2124,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
         // ── Rest day hero ──
         if (!mainW && activitiesToday.length === 0) return (
           <div className="space-y-3">
-            <div className="bg-gradient-to-br from-[#0a1628] to-[#0a1628]/85 rounded-3xl p-8 text-center">
+            <div className="bg-gradient-to-br from-navy to-navy/85 rounded-3xl p-8 text-center">
               <div className="text-5xl mb-4">🌿</div>
               <p className="text-2xl font-bold text-white mb-2">{t.restDayLabel}</p>
               <p className="text-sm text-white/40">{t.restDaySubtitle}</p>
@@ -2163,11 +2163,11 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
               same thing. The coach always gets the full grid regardless of
               screen width — they need the density more than the athlete
               does, and can live with the horizontal scroll on mobile. */}
-          <div className={cn('bg-white rounded-2xl shadow-sm border border-gray-100 p-2 overflow-x-auto', isCoachViewer ? 'block' : 'hidden md:block')}>
+          <div className={cn('bg-card rounded-2xl shadow-sm border border-border p-2 overflow-x-auto', isCoachViewer ? 'block' : 'hidden md:block')}>
             <div style={{ zoom: gridZoom, WebkitTextSizeAdjust: '100%', textSizeAdjust: '100%' } as CSSProperties}>
               <div className="grid gap-1.5 mb-1.5" style={{ gridTemplateColumns: 'repeat(7, minmax(230px, 1fr)) 72px' }}>
-                {dayLabelsRot.map((d,i) => <div key={i} className="text-center text-[10px] font-semibold text-gray-400 py-1">{d}</div>)}
-                <div className="text-center text-[10px] font-semibold text-gray-400 py-1">{isRTL ? 'קמ' : 'km'}</div>
+                {dayLabelsRot.map((d,i) => <div key={i} className="text-center text-[10px] font-semibold text-muted-foreground py-1">{d}</div>)}
+                <div className="text-center text-[10px] font-semibold text-muted-foreground py-1">{isRTL ? 'קמ' : 'km'}</div>
               </div>
               <div className="grid gap-1.5" style={{ gridTemplateColumns: 'repeat(7, minmax(230px, 1fr)) 72px' }}>
                 {weekDays.map((day, di) => {
@@ -2180,13 +2180,13 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                     <div key={di}
                       onClick={() => { setSelectedWeekDay(day); setSelectedWorkoutId(null) }}
                       className={cn('min-h-[140px] min-w-0 rounded-[6px] border transition-all cursor-pointer',
-                        isSelDay ? 'border-[#c9a84c] bg-[#c9a84c]/5' : todayFlag ? 'border-[#0a1628]/25 bg-[#0a1628]/5' : 'border-gray-100 hover:border-gray-200')}>
-                      <div className="p-2 border-b border-gray-100 text-center">
-                        <p className={cn('text-sm font-bold', isSelDay ? 'text-[#c9a84c]' : todayFlag ? 'text-[#0a1628]' : 'text-[#0a1628]/60')}>{format(day,'d')}</p>
+                        isSelDay ? 'border-gold bg-gold/5' : todayFlag ? 'border-navy/25 bg-navy/5' : 'border-border hover:border-border')}>
+                      <div className="p-2 border-b border-border text-center">
+                        <p className={cn('text-sm font-bold', isSelDay ? 'text-gold' : todayFlag ? 'text-navy' : 'text-navy/60')}>{format(day,'d')}</p>
                       </div>
                       <div className="p-2 space-y-1.5">
                         {isOff ? (
-                          <p className="text-xs text-center text-gray-400">🩹</p>
+                          <p className="text-xs text-center text-muted-foreground">🩹</p>
                         ) : dayWs.map(w => (
                           <GridWorkoutBox key={w.id} workout={w.workout} done={getEffectiveStatus(w) === 'completed'} />
                         ))}
@@ -2211,16 +2211,16 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                   const kmOk = targetKm ? Math.abs(weekPlanned - targetKm) <= targetKm * 0.1 : null
                   return (
                     <div className={cn('flex flex-col items-center justify-center gap-0.5 rounded-[6px] min-h-[140px]',
-                      si?.isDownWeek ? 'bg-amber-100/80 ring-1 ring-amber-300' : si?.meta ? si.meta.cell : 'bg-muted/30')}>
+                      si?.isDownWeek ? 'bg-amber-100/80 ring-1 ring-ochre/50' : si?.meta ? si.meta.cell : 'bg-muted/30')}>
                       {si?.meta && (
                         <span className={cn('text-[8px] font-bold px-1.5 py-px rounded-full border leading-none', si.meta.chip)}>
                           {si.isDownWeek ? `⬇ ${isRTL ? 'ירידה' : 'down'}` : si.meta.he}
                         </span>
                       )}
                       {weekPlanned > 0
-                        ? <p className={cn('text-lg font-bold', kmOk == null ? 'text-navy' : kmOk ? 'text-emerald-700' : weekPlanned < (targetKm || 0) ? 'text-amber-700' : 'text-red-600')}>{weekPlanned}</p>
+                        ? <p className={cn('text-lg font-bold', kmOk == null ? 'text-navy' : kmOk ? 'text-pine' : weekPlanned < (targetKm || 0) ? 'text-ochre-deep' : 'text-rust-deep')}>{weekPlanned}</p>
                         : <p className="text-[10px] text-muted-foreground">—</p>}
-                      {weekActual > 0 && <p className="text-[9px] font-bold text-emerald-600">{isRTL ? 'בוצע' : 'done'} {weekActual}</p>}
+                      {weekActual > 0 && <p className="text-[9px] font-bold text-pine">{isRTL ? 'בוצע' : 'done'} {weekActual}</p>}
                       {targetKm != null && (
                         <p className="text-[9px] text-muted-foreground leading-none">{isRTL ? 'יעד' : 'goal'} {targetKm}</p>
                       )}
@@ -2237,7 +2237,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
               exactly like Day view already does (same selectedWeekDay
               state, same renderNavyWorkoutBlock/StravaCard), so nothing
               about that part changes on mobile. */}
-          <div className={cn('bg-white rounded-2xl shadow-sm border border-gray-100 p-3 space-y-3', isCoachViewer ? 'hidden' : 'md:hidden')}>
+          <div className={cn('bg-card rounded-2xl shadow-sm border border-border p-3 space-y-3', isCoachViewer ? 'hidden' : 'md:hidden')}>
             <div className="grid grid-cols-7 gap-1">
               {weekDays.map((day, di) => {
                 const dateStr = format(day, 'yyyy-MM-dd')
@@ -2250,13 +2250,13 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                   <button key={di} type="button"
                     onClick={() => { setSelectedWeekDay(day); setSelectedWorkoutId(null) }}
                     className={cn('flex flex-col items-center gap-1 rounded-2xl py-2 transition-all active:scale-95',
-                      isSelDay ? 'bg-[#c9a84c]/15 ring-1 ring-[#c9a84c]' : todayFlag ? 'bg-[#0a1628]/5' : 'hover:bg-gray-50')}>
-                    <span className={cn('text-[10px] font-semibold', isSelDay ? 'text-[#c9a84c]' : 'text-gray-400')}>{dayLabelsRot[di]}</span>
-                    <span className={cn('text-sm font-bold', isSelDay ? 'text-[#c9a84c]' : todayFlag ? 'text-[#0a1628]' : 'text-[#0a1628]/70')}>{format(day,'d')}</span>
+                      isSelDay ? 'bg-gold/15 ring-1 ring-gold' : todayFlag ? 'bg-navy/5' : 'hover:bg-muted')}>
+                    <span className={cn('text-[10px] font-semibold', isSelDay ? 'text-gold' : 'text-muted-foreground')}>{dayLabelsRot[di]}</span>
+                    <span className={cn('text-sm font-bold', isSelDay ? 'text-gold' : todayFlag ? 'text-navy' : 'text-navy/70')}>{format(day,'d')}</span>
                     {isOff ? (
                       <span className="text-[10px]">🩹</span>
                     ) : (
-                      <span className={cn('h-1.5 w-1.5 rounded-full', dayWs.length === 0 ? 'bg-gray-200' : allDone ? 'bg-emerald-500' : 'bg-[#c9a84c]')} />
+                      <span className={cn('h-1.5 w-1.5 rounded-full', dayWs.length === 0 ? 'bg-muted' : allDone ? 'bg-pine' : 'bg-gold')} />
                     )}
                   </button>
                 )
@@ -2272,13 +2272,13 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
               const targetKm = weekTargetKm(weekStart, activeJourneyDoc, athlete)
               if (!weekPlanned && !weekActual) return null
               return (
-                <div className="flex items-center justify-center gap-3 text-xs text-gray-500 border-t border-gray-100 pt-2.5">
-                  <span>{isRTL ? 'מתוכנן' : 'planned'} <b className="text-[#0a1628]">{weekPlanned}</b> {isRTL ? 'קמ' : 'km'}</span>
-                  <span className="text-gray-300">·</span>
-                  <span>{isRTL ? 'בוצע' : 'done'} <b className="text-emerald-600">{weekActual}</b> {isRTL ? 'קמ' : 'km'}</span>
+                <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground border-t border-border pt-2.5">
+                  <span>{isRTL ? 'מתוכנן' : 'planned'} <b className="text-navy">{weekPlanned}</b> {isRTL ? 'קמ' : 'km'}</span>
+                  <span className="text-muted-foreground">·</span>
+                  <span>{isRTL ? 'בוצע' : 'done'} <b className="text-pine">{weekActual}</b> {isRTL ? 'קמ' : 'km'}</span>
                   {targetKm != null && (
                     <>
-                      <span className="text-gray-300">·</span>
+                      <span className="text-muted-foreground">·</span>
                       <span>{isRTL ? 'יעד' : 'goal'} {targetKm}</span>
                     </>
                   )}
@@ -2298,7 +2298,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
             const addActivityButton = (
               <button
                 onClick={() => { setAddActivityDate(dayStr); setAddActivityOpen(true) }}
-                className="w-full h-12 rounded-2xl border-2 border-dashed border-gray-200 hover:border-[#c9a84c]/50 text-gray-400 hover:text-[#c9a84c] text-sm font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98] bg-white/50">
+                className="w-full h-12 rounded-2xl border-2 border-dashed border-border hover:border-gold/50 text-muted-foreground hover:text-gold text-sm font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98] bg-white/50">
                 <Plus className="h-4 w-4" />
                 {t.addActivityBtn}
               </button>
@@ -2317,9 +2317,9 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
             )
             if (dayWs.length === 0 && activitiesDay.length === 0) return (
               <div className="space-y-3">
-                <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 text-center">
-                  <p className="font-semibold text-[#0a1628] mb-1">{t.restDayLabel}</p>
-                  <p className="text-sm text-gray-400">{format(selectedWeekDay,'EEEE, d MMMM')}</p>
+                <div className="bg-card rounded-3xl shadow-sm border border-border p-8 text-center">
+                  <p className="font-semibold text-navy mb-1">{t.restDayLabel}</p>
+                  <p className="text-sm text-muted-foreground">{format(selectedWeekDay,'EEEE, d MMMM')}</p>
                 </div>
                 {addActivityButton}
               </div>
@@ -2330,9 +2330,9 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                 {unmatchedActivitiesDay.length > 0 && (
                   <div className="space-y-3">
                     <div className="flex items-center gap-3">
-                      <div className="flex-1 border-t border-gray-100" />
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{t.workouts}</span>
-                      <div className="flex-1 border-t border-gray-100" />
+                      <div className="flex-1 border-t border-border" />
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t.workouts}</span>
+                      <div className="flex-1 border-t border-border" />
                     </div>
                     {unmatchedActivitiesDay.map(log => <StravaCard key={log.id} log={log} dayWorkouts={dayWs} />)}
                   </div>
@@ -2357,14 +2357,14 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
               tiny written-out workout text, wider than a phone even at max
               zoom-out. The coach always gets the full grid (see Week view's
               coach note above). */}
-          <div className={cn('bg-white rounded-2xl shadow-sm border border-gray-100 p-2 overflow-x-auto', isCoachViewer ? 'block' : 'hidden md:block')}>
+          <div className={cn('bg-card rounded-2xl shadow-sm border border-border p-2 overflow-x-auto', isCoachViewer ? 'block' : 'hidden md:block')}>
             <div style={{ zoom: gridZoom, WebkitTextSizeAdjust: '100%', textSizeAdjust: '100%' } as CSSProperties}>
               {/* Day headers */}
               <div className="grid gap-1 mb-1" style={{ gridTemplateColumns: 'repeat(7, minmax(210px, 1fr)) 64px' }}>
                 {dayLabelsRot.map((d,i) => (
-                  <div key={i} className="text-center text-[10px] font-semibold text-gray-400 py-1">{d}</div>
+                  <div key={i} className="text-center text-[10px] font-semibold text-muted-foreground py-1">{d}</div>
                 ))}
-                <div className="text-center text-[10px] font-semibold text-gray-400 py-1">{isRTL ? 'קמ' : 'km'}</div>
+                <div className="text-center text-[10px] font-semibold text-muted-foreground py-1">{isRTL ? 'קמ' : 'km'}</div>
               </div>
 
               <div className="space-y-1">
@@ -2396,14 +2396,14 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                               setSelectedMonthDay(prev => prev && isSameDay(prev, day) ? null : day)
                             }}
                             className={cn('min-h-[110px] min-w-0 rounded-[6px] border transition-all',
-                              !inMonth ? 'opacity-15 pointer-events-none border-transparent' : 'border-gray-100',
-                              todayFlag ? 'border-[#0a1628]/25 bg-[#0a1628]/5' : '',
-                              selectedInDay ? 'border-[#c9a84c] bg-[#c9a84c]/5' : '',
-                              clickable ? 'cursor-pointer hover:border-gray-200' : ''
+                              !inMonth ? 'opacity-15 pointer-events-none border-transparent' : 'border-border',
+                              todayFlag ? 'border-navy/25 bg-navy/5' : '',
+                              selectedInDay ? 'border-gold bg-gold/5' : '',
+                              clickable ? 'cursor-pointer hover:border-border' : ''
                             )}>
-                            <div className="p-2 border-b border-gray-100 text-center flex items-center justify-center gap-1">
-                              <p className={cn('text-sm font-bold', selectedInDay ? 'text-[#c9a84c]' : todayFlag ? 'text-[#0a1628]' : inMonth ? 'text-[#0a1628]/60' : 'text-gray-300')}>{format(day,'d')}</p>
-                              {hasUnreadMsg && <span className="w-1 h-1 rounded-full bg-[#c9a84c]" />}
+                            <div className="p-2 border-b border-border text-center flex items-center justify-center gap-1">
+                              <p className={cn('text-sm font-bold', selectedInDay ? 'text-gold' : todayFlag ? 'text-navy' : inMonth ? 'text-navy/60' : 'text-muted-foreground')}>{format(day,'d')}</p>
+                              {hasUnreadMsg && <span className="w-1 h-1 rounded-full bg-gold" />}
                             </div>
                             <div className="p-2 space-y-1.5">
                               {dayWs.map(w => (
@@ -2425,16 +2425,16 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                         const kmOk = wTargetKm ? Math.abs(wKm - wTargetKm) <= wTargetKm * 0.1 : null
                         return (
                           <div className={cn('flex flex-col items-center justify-center gap-0.5 rounded-[6px] min-h-[110px]',
-                            si?.isDownWeek ? 'bg-amber-100/80 ring-1 ring-amber-300' : si?.meta ? si.meta.cell : 'bg-muted/30')}>
+                            si?.isDownWeek ? 'bg-amber-100/80 ring-1 ring-ochre/50' : si?.meta ? si.meta.cell : 'bg-muted/30')}>
                             {si?.meta && (
                               <span className={cn('text-[7px] font-bold px-1 py-px rounded-full border leading-none', si.meta.chip)}>
                                 {si.isDownWeek ? '⬇' : si.meta.he}
                               </span>
                             )}
                             {wKm > 0
-                              ? <p className={cn('text-xs font-bold', kmOk == null ? 'text-navy' : kmOk ? 'text-emerald-700' : wKm < (wTargetKm || 0) ? 'text-amber-700' : 'text-red-600')}>{wKm}</p>
+                              ? <p className={cn('text-xs font-bold', kmOk == null ? 'text-navy' : kmOk ? 'text-pine' : wKm < (wTargetKm || 0) ? 'text-ochre-deep' : 'text-rust-deep')}>{wKm}</p>
                               : <p className="text-[9px] text-muted-foreground">—</p>}
-                            {wDone > 0 && <p className="text-[8px] font-bold text-emerald-600">{wDone}</p>}
+                            {wDone > 0 && <p className="text-[8px] font-bold text-pine">{wDone}</p>}
                             {wTargetKm != null && (
                               <p className="text-[8px] text-muted-foreground leading-none">{wTargetKm}</p>
                             )}
@@ -2454,10 +2454,10 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
               to select it; the same "Selected day" block below already
               handles rendering full detail regardless of which grid set
               selectedMonthDay. */}
-          <div className={cn('bg-white rounded-2xl shadow-sm border border-gray-100 p-2', isCoachViewer ? 'hidden' : 'md:hidden')}>
+          <div className={cn('bg-card rounded-2xl shadow-sm border border-border p-2', isCoachViewer ? 'hidden' : 'md:hidden')}>
             <div className="grid grid-cols-7 gap-y-1 mb-1">
               {dayLabelsRot.map((d,i) => (
-                <div key={i} className="text-center text-[10px] font-semibold text-gray-400 py-1">{d}</div>
+                <div key={i} className="text-center text-[10px] font-semibold text-muted-foreground py-1">{d}</div>
               ))}
             </div>
             <div className="grid grid-cols-7 gap-y-1">
@@ -2477,14 +2477,14 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
                   <button key={di} type="button" disabled={!clickable}
                     onClick={() => setSelectedMonthDay(prev => prev && isSameDay(prev, day) ? null : day)}
                     className={cn('flex flex-col items-center gap-1 py-1.5 rounded-2xl transition-all',
-                      !inMonth ? 'opacity-20 pointer-events-none' : clickable ? 'active:scale-95 hover:bg-gray-50' : '',
-                      selectedInDay ? 'bg-[#c9a84c]/15 ring-1 ring-[#c9a84c]' : todayFlag ? 'bg-[#0a1628]/5' : '')}>
+                      !inMonth ? 'opacity-20 pointer-events-none' : clickable ? 'active:scale-95 hover:bg-muted' : '',
+                      selectedInDay ? 'bg-gold/15 ring-1 ring-gold' : todayFlag ? 'bg-navy/5' : '')}>
                     <span className="relative">
-                      <span className={cn('text-sm font-bold', selectedInDay ? 'text-[#c9a84c]' : todayFlag ? 'text-[#0a1628]' : inMonth ? 'text-[#0a1628]/70' : 'text-gray-300')}>{format(day,'d')}</span>
-                      {hasUnreadMsg && <span className="absolute -top-0.5 -right-1.5 w-1 h-1 rounded-full bg-[#c9a84c]" />}
+                      <span className={cn('text-sm font-bold', selectedInDay ? 'text-gold' : todayFlag ? 'text-navy' : inMonth ? 'text-navy/70' : 'text-muted-foreground')}>{format(day,'d')}</span>
+                      {hasUnreadMsg && <span className="absolute -top-0.5 -right-1.5 w-1 h-1 rounded-full bg-gold" />}
                     </span>
                     {dayWs.length > 0 ? (
-                      <span className={cn('h-1.5 w-1.5 rounded-full', allDone ? 'bg-emerald-500' : 'bg-[#c9a84c]')} />
+                      <span className={cn('h-1.5 w-1.5 rounded-full', allDone ? 'bg-pine' : 'bg-gold')} />
                     ) : dayActivities.length > 0 ? (
                       <span className="text-[10px] leading-none">{getActivityInfo(dayActivities[0]).emoji}</span>
                     ) : (
@@ -2510,7 +2510,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
             if (dayWs.length === 0 && activitiesDay.length === 0) return null
             return (
               <div className="space-y-2">
-                <p className="text-xs font-bold text-[#c9a84c] uppercase tracking-widest px-1" dir="rtl">
+                <p className="text-xs font-bold text-gold uppercase tracking-widest px-1" dir="rtl">
                   {format(selectedMonthDay,'EEEE · d MMMM')}
                 </p>
                 <div className="space-y-3">
@@ -2532,37 +2532,37 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
         {/* שלב העונה — a slim strip, not a full card: secondary info, not
             something that should compete with the schedule for attention. */}
         {journey && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-3 py-2 flex items-center gap-1.5 flex-wrap">
-            <span className="text-[10px] font-bold bg-[#0a1628]/10 text-[#0a1628] px-2 py-0.5 rounded-full">{journey.stageName}</span>
-            <span className="text-xs font-semibold text-[#0a1628]/70">{t.weekWord} {journey.weekInStage}/{journey.totalWeeksInStage}</span>
-            <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full', journey.isOffWeek ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700')}>
+          <div className="bg-card rounded-2xl shadow-sm border border-border px-3 py-2 flex items-center gap-1.5 flex-wrap">
+            <span className="text-[10px] font-bold bg-navy/10 text-navy px-2 py-0.5 rounded-full">{journey.stageName}</span>
+            <span className="text-xs font-semibold text-navy/70">{t.weekWord} {journey.weekInStage}/{journey.totalWeeksInStage}</span>
+            <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full', journey.isOffWeek ? 'bg-ochre/15 text-ochre-deep' : 'bg-pine/15 text-pine')}>
               {journey.isOffWeek ? t.offWeekLabel : t.trainingWeekLabel}
             </span>
             {journey.goalRaceEvent && (
-              <span className="text-[10px] text-gray-400 ml-auto">{journey.goalRaceEvent} · {format(parseISO(journey.goalRaceDate),'MMM d')}</span>
+              <span className="text-[10px] text-muted-foreground ml-auto">{journey.goalRaceEvent} · {format(parseISO(journey.goalRaceDate),'MMM d')}</span>
             )}
           </div>
         )}
 
         {/* ק"מ השבוע */}
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-3">{t.weeklyKmTitle}</p>
+        <div className="bg-card rounded-3xl shadow-sm border border-border p-5">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-3">{t.weeklyKmTitle}</p>
           {athlete?.weeklyKmRange ? (
             <div className="space-y-3">
               <div className="flex items-end gap-2 flex-wrap">
-                <span className="text-3xl font-black text-[#0a1628]">{thisWeekKmActual}</span>
-                <span className="text-sm text-gray-400 mb-1">/ {athlete.weeklyKmRange.min}–{athlete.weeklyKmRange.max} km</span>
+                <span className="text-3xl font-black text-navy">{thisWeekKmActual}</span>
+                <span className="text-sm text-muted-foreground mb-1">/ {athlete.weeklyKmRange.min}–{athlete.weeklyKmRange.max} km</span>
               </div>
-              <div className="w-full bg-gray-100 rounded-full h-2">
-                <div className={cn('h-2 rounded-full transition-all', thisWeekKmActual >= athlete.weeklyKmRange.min ? 'bg-emerald-500' : 'bg-[#c9a84c]')}
+              <div className="w-full bg-muted rounded-full h-2">
+                <div className={cn('h-2 rounded-full transition-all', thisWeekKmActual >= athlete.weeklyKmRange.min ? 'bg-pine' : 'bg-gold')}
                   style={{width:`${Math.min(100,(thisWeekKmActual/athlete.weeklyKmRange.max)*100)}%`}}/>
               </div>
-              <div className="flex items-center justify-between text-xs text-gray-500">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>{thisWeekKmActual >= athlete.weeklyKmRange.min ? t.weekGoalAchieved : `${t.kmRemainingLabel} ${Math.max(0,athlete.weeklyKmRange.min-thisWeekKmActual)} km`}</span>
                 <span>{t.plannedLabel}: {thisWeekKmPlanned} km</span>
               </div>
             </div>
-          ) : <p className="text-sm text-gray-500">{t.goalKmNotSet}</p>}
+          ) : <p className="text-sm text-muted-foreground">{t.goalKmNotSet}</p>}
         </div>
       </div>
 

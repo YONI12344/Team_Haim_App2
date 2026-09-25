@@ -112,7 +112,7 @@ export function AthleteExerciseProgress() {
   if (visible === null) {
     return (
       <div className="flex items-center justify-center min-h-[300px]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#c9a84c]" />
+        <Loader2 className="h-8 w-8 animate-spin text-gold" />
       </div>
     )
   }
@@ -120,8 +120,8 @@ export function AthleteExerciseProgress() {
   if (!visible) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[300px] text-center gap-3">
-        <div className="w-14 h-14 rounded-2xl bg-[#0a1628]/5 flex items-center justify-center">
-          <Sparkles className="h-7 w-7 text-[#0a1628]/40" />
+        <div className="w-14 h-14 rounded-2xl bg-navy/5 flex items-center justify-center">
+          <Sparkles className="h-7 w-7 text-navy/40" />
         </div>
         <p className="text-sm text-muted-foreground max-w-xs">
           התכונה הזו עוד לא הופעלה עבורך — דבר עם המאמן שלך כדי להתחיל במעקב התקדמות
@@ -133,7 +133,7 @@ export function AthleteExerciseProgress() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[300px]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#c9a84c]" />
+        <Loader2 className="h-8 w-8 animate-spin text-gold" />
       </div>
     )
   }
@@ -149,22 +149,22 @@ export function AthleteExerciseProgress() {
         <button
           type="button"
           onClick={() => setSelectedExerciseId(null)}
-          className="flex items-center gap-1 text-sm text-gray-500"
+          className="flex items-center gap-1 text-sm text-muted-foreground"
         >
           <ChevronLeft className="h-4 w-4" />חזרה
         </button>
 
         <div>
-          <h1 className="text-xl font-serif font-bold text-[#0a1628]">{selectedGroup.exerciseName}</h1>
+          <h1 className="text-xl font-serif font-bold text-navy">{selectedGroup.exerciseName}</h1>
           {selectedGroup.personalBest != null && (
-            <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
-              <Trophy className="h-3.5 w-3.5 text-[#c9a84c]" />
+            <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+              <Trophy className="h-3.5 w-3.5 text-gold" />
               שיא אישי: {selectedGroup.personalBest} {unit}
             </p>
           )}
         </div>
 
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
+        <div className="bg-card rounded-3xl shadow-sm border border-border p-5">
           <div className="h-[260px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData}>
@@ -178,13 +178,13 @@ export function AthleteExerciseProgress() {
           </div>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-5">
-          <p className="text-sm font-bold text-[#0a1628] mb-4">היסטוריית אימונים</p>
+        <div className="bg-card rounded-3xl shadow-sm border border-border p-5">
+          <p className="text-sm font-bold text-navy mb-4">היסטוריית אימונים</p>
           <div className="space-y-3">
             {[...selectedGroup.logs].reverse().map((log) => (
-              <div key={log.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
-                <span className="text-sm text-gray-500">{new Date(log.workoutDate).toLocaleDateString('he-IL')}</span>
-                <span className="text-sm font-medium text-[#0a1628]">
+              <div key={log.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                <span className="text-sm text-muted-foreground">{new Date(log.workoutDate).toLocaleDateString('he-IL')}</span>
+                <span className="text-sm font-medium text-navy">
                   {log.sets.map((s) => {
                     const v = selectedGroup.isTimed ? s.durationSec : s.weightKg
                     return v != null ? `${v}` : '—'
@@ -201,14 +201,14 @@ export function AthleteExerciseProgress() {
   return (
     <div className="space-y-4 pb-24" dir="rtl">
       <div>
-        <h1 className="text-2xl md:text-3xl font-serif font-bold text-[#0a1628]">התקדמות בכוח ומתיחות</h1>
-        <p className="text-gray-500 text-sm">משקלים וזמנים לפי תרגיל</p>
+        <h1 className="text-2xl md:text-3xl font-serif font-bold text-navy">התקדמות בכוח ומתיחות</h1>
+        <p className="text-muted-foreground text-sm">משקלים וזמנים לפי תרגיל</p>
       </div>
 
       {groups.length === 0 ? (
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-12 text-center">
-          <Dumbbell className="h-8 w-8 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-400">עדיין אין נתונים — סיימו אימון כוח דרך מצב אימון כדי לראות כאן התקדמות</p>
+        <div className="bg-card rounded-3xl shadow-sm border border-border p-12 text-center">
+          <Dumbbell className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+          <p className="text-muted-foreground">עדיין אין נתונים — סיימו אימון כוח דרך מצב אימון כדי לראות כאן התקדמות</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -217,18 +217,18 @@ export function AthleteExerciseProgress() {
               key={group.exerciseId}
               type="button"
               onClick={() => setSelectedExerciseId(group.exerciseId)}
-              className="w-full bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex items-center justify-between text-right"
+              className="w-full bg-card rounded-2xl shadow-sm border border-border p-4 flex items-center justify-between text-right"
             >
               <div>
-                <p className="font-bold text-[#0a1628] text-sm">{group.exerciseName}</p>
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="font-bold text-navy text-sm">{group.exerciseName}</p>
+                <p className="text-xs text-muted-foreground mt-1">
                   {group.logs.length} אימונים · עודכן {new Date(group.lastDate).toLocaleDateString('he-IL')}
                 </p>
               </div>
               {group.personalBest != null && (
                 <div className="text-left">
-                  <p className="text-lg font-black text-[#c9a84c] leading-none">{group.personalBest}</p>
-                  <p className="text-[10px] text-gray-400 mt-1">{group.isTimed ? 'שניות שיא' : 'ק"ג שיא'}</p>
+                  <p className="text-lg font-black text-gold leading-none">{group.personalBest}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">{group.isTimed ? 'שניות שיא' : 'ק"ג שיא'}</p>
                 </div>
               )}
             </button>

@@ -13,14 +13,14 @@ function StatsPageContent() {
 
   return (
     <div>
-      <div className="flex gap-1 p-1 bg-gray-100/80 rounded-2xl mb-4">
+      <div className="flex gap-1 p-1 bg-muted/80 rounded-2xl mb-4">
         <button
           onClick={() => setActiveTab('stats')}
           className={cn(
             'flex-1 h-10 rounded-xl text-sm font-bold transition-all duration-200',
             activeTab === 'stats'
-              ? 'bg-[#0a1628] text-white shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'
+              ? 'bg-navy text-white shadow-sm'
+              : 'text-muted-foreground hover:text-foreground/80'
           )}
         >
           {t.statistics}
@@ -30,8 +30,8 @@ function StatsPageContent() {
           className={cn(
             'flex-1 h-10 rounded-xl text-sm font-bold transition-all duration-200',
             activeTab === 'journey'
-              ? 'bg-[#0a1628] text-white shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'
+              ? 'bg-navy text-white shadow-sm'
+              : 'text-muted-foreground hover:text-foreground/80'
           )}
         >
           {t.journey}

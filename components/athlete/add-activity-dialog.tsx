@@ -136,12 +136,12 @@ export function AddActivityDialog({ open, onOpenChange, athleteId, athleteName, 
                     className={cn(
                       'flex flex-col items-center gap-1 rounded-2xl border px-2 py-2.5 transition-all active:scale-95',
                       selected
-                        ? 'border-[#c9a84c] bg-[#c9a84c]/10 ring-1 ring-[#c9a84c]/40'
-                        : 'border-border bg-white hover:bg-muted/30'
+                        ? 'border-gold bg-gold/10 ring-1 ring-gold/40'
+                        : 'border-border bg-card hover:bg-muted/30'
                     )}>
                     <span className="text-xl leading-none">{ki.emoji}</span>
                     <span className={cn('text-[11px] font-semibold leading-tight text-center',
-                      selected ? 'text-[#0a1628]' : 'text-gray-500')}>
+                      selected ? 'text-navy' : 'text-muted-foreground')}>
                       {activityLabel(k, isRTL)}
                     </span>
                   </button>
@@ -182,16 +182,16 @@ export function AddActivityDialog({ open, onOpenChange, athleteId, athleteName, 
             <div className="flex items-center justify-center gap-5 py-1" dir="rtl">
               <button type="button"
                 onClick={() => setEffort(prev => prev != null ? Math.max(1, prev - 1) : 5)}
-                className="w-12 h-12 rounded-full border-2 border-border bg-white hover:bg-muted/40 transition-all flex items-center justify-center shadow-sm text-xl font-bold text-[#0a1628] select-none">
+                className="w-12 h-12 rounded-full border-2 border-border bg-card hover:bg-muted/40 transition-all flex items-center justify-center shadow-sm text-xl font-bold text-navy select-none">
                 −
               </button>
               <div className="flex flex-col items-center gap-0.5 min-w-[64px]">
                 <span className={cn('text-5xl font-black leading-none transition-colors',
                   effort == null ? 'text-muted-foreground/30' :
-                  effort <= 2 ? 'text-emerald-500' :
-                  effort <= 4 ? 'text-emerald-400' :
-                  effort <= 6 ? 'text-amber-500' :
-                  effort <= 8 ? 'text-orange-500' : 'text-red-500')}>
+                  effort <= 2 ? 'text-pine' :
+                  effort <= 4 ? 'text-pine' :
+                  effort <= 6 ? 'text-ochre-deep' :
+                  effort <= 8 ? 'text-orange-500' : 'text-rust-deep')}>
                   {effort ?? '—'}
                 </span>
                 <span className="text-xs font-semibold text-muted-foreground">
@@ -204,7 +204,7 @@ export function AddActivityDialog({ open, onOpenChange, athleteId, athleteName, 
               </div>
               <button type="button"
                 onClick={() => setEffort(prev => prev != null ? Math.min(10, prev + 1) : 5)}
-                className="w-12 h-12 rounded-full border-2 border-border bg-white hover:bg-muted/40 transition-all flex items-center justify-center shadow-sm text-xl font-bold text-[#0a1628] select-none">
+                className="w-12 h-12 rounded-full border-2 border-border bg-card hover:bg-muted/40 transition-all flex items-center justify-center shadow-sm text-xl font-bold text-navy select-none">
                 +
               </button>
             </div>
@@ -218,7 +218,7 @@ export function AddActivityDialog({ open, onOpenChange, athleteId, athleteName, 
           </div>
 
           <button onClick={handleSave} disabled={saving}
-            className="w-full h-12 rounded-2xl bg-[#0a1628] hover:bg-[#0a1628]/90 disabled:opacity-50 text-white text-base font-bold transition-all flex items-center justify-center gap-2">
+            className="w-full h-12 rounded-2xl bg-navy hover:bg-navy/90 disabled:opacity-50 text-white text-base font-bold transition-all flex items-center justify-center gap-2">
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             {saving ? t.savingDots : t.addActivityBtn}
           </button>

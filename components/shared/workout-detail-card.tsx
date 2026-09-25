@@ -13,7 +13,7 @@ interface Props {
 export function WorkoutDetailCard({ w, showLog, log }: Props) {
   const { t, isRTL } = useLanguage()
   return (
-    <div className="rounded-2xl border border-border overflow-hidden bg-white shadow-sm" dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className="rounded-2xl border border-border overflow-hidden bg-card shadow-sm" dir={isRTL ? 'rtl' : 'ltr'}>
 
       {/* Warmup */}
       {w.workout.warmup && (
@@ -42,7 +42,7 @@ export function WorkoutDetailCard({ w, showLog, log }: Props) {
                   <span className="bg-navy/10 text-navy text-[11px] font-semibold px-2.5 py-0.5 rounded-full">{set.distance || set.duration}</span>
                 )}
                 {!hasIntervals && set.pace && (
-                  <span className="bg-gold/15 text-yellow-700 text-[11px] font-semibold px-2.5 py-0.5 rounded-full">{set.pace}</span>
+                  <span className="bg-gold/15 text-ochre-deep text-[11px] font-semibold px-2.5 py-0.5 rounded-full">{set.pace}</span>
                 )}
                 {hasIntervals && set.reps > 1 && (
                   <span className="bg-navy/10 text-navy text-[11px] font-semibold px-2.5 py-0.5 rounded-full">{set.reps}×</span>
@@ -61,7 +61,7 @@ export function WorkoutDetailCard({ w, showLog, log }: Props) {
                     </div>
                     <div className="flex items-center gap-2 flex-wrap justify-end">
                       {iv.pace && (
-                        <span className="bg-gold/15 text-yellow-700 text-[11px] font-semibold px-2.5 py-0.5 rounded-full">{iv.pace}</span>
+                        <span className="bg-gold/15 text-ochre-deep text-[11px] font-semibold px-2.5 py-0.5 rounded-full">{iv.pace}</span>
                       )}
                       {iv.rest && (
                         <span className="text-[11px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{t.restLabel}: {iv.rest}</span>
@@ -91,8 +91,8 @@ export function WorkoutDetailCard({ w, showLog, log }: Props) {
 
       {/* Cooldown */}
       {w.workout.cooldown && (
-        <div className="border-r-4 border-emerald-400 bg-emerald-50/60 px-5 py-4 border-t border-border/60">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600 mb-1.5">{t.cooldownLabel}</p>
+        <div className="border-r-4 border-pine/50 bg-emerald-50/60 px-5 py-4 border-t border-border/60">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-pine mb-1.5">{t.cooldownLabel}</p>
           <p className="text-sm text-navy leading-relaxed">{w.workout.cooldown}</p>
         </div>
       )}
@@ -107,16 +107,16 @@ export function WorkoutDetailCard({ w, showLog, log }: Props) {
 
       {/* Log summary */}
       {showLog && log && (
-        <div className="px-5 py-4 border-t-2 border-emerald-200 bg-emerald-50">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600 mb-2">{t.resultsLabel}</p>
+        <div className="px-5 py-4 border-t-2 border-pine/25 bg-pine/10">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-pine mb-2">{t.resultsLabel}</p>
           <div className="flex items-center gap-2 flex-wrap">
             {log.effort != null && (
               <span className={cn(
                 'px-2.5 py-1 rounded-full text-xs font-bold',
-                log.effort <= 4 ? 'bg-emerald-100 text-emerald-700' :
-                log.effort <= 6 ? 'bg-amber-100 text-amber-700' :
+                log.effort <= 4 ? 'bg-pine/15 text-pine' :
+                log.effort <= 6 ? 'bg-ochre/15 text-ochre-deep' :
                 log.effort <= 7 ? 'bg-orange-100 text-orange-700' :
-                'bg-red-100 text-red-700'
+                'bg-rust/15 text-rust-deep'
               )}>{t.effortValueLabel} {log.effort}/10</span>
             )}
             {log.actualDistance && <span className="text-sm text-muted-foreground">{log.actualDistance} {t.km}</span>}
