@@ -110,6 +110,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     height: lead.height ?? null,
                     weight: lead.weight ?? null,
                     experienceLevel: lead.experienceLevel ?? null,
+                    currentShape: lead.currentShape ?? null,
+                    longRunDay: lead.longRunDay ?? null,
                     weeklyMileage: lead.weeklyMileage ?? null,
                     goalRaceEvent: lead.goalRaceEvent ?? null,
                     goalRaceDistance: lead.goalRaceDistance ?? null,
