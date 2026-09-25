@@ -190,16 +190,10 @@
   --color-coral: var(--coral);
   --color-coral-light: var(--coral-light);
 
-  /* Athlete app — WPA poster world (.impeccable/surfaces/app-athlete.md).
-     Four flat inks on paper stock; used by components/athlete/* only. */
-  --color-stock: #EFE6D2;
-  --color-stock-deep: #E4D8BD;
-  --color-ink: #16223A;
-  --color-sky: #0E6E7A;
+  /* Restrained accent used sparingly on the athlete app (coach note card,
+     week-strip "done" dot) — a deep green that reads calmer than gold at
+     high frequency (see components/athlete/*.tsx). */
   --color-pine: #1E4F3A;
-  --color-ochre: #C9962C;
-  --color-rust: #B4532A;
-  --font-poster: var(--font-karantina), 'Karantina', var(--font-heebo), 'Heebo', sans-serif;
 }
 
 @layer base {
@@ -363,64 +357,19 @@ h1, h2, h3, h4, p, span, textarea, input {
   unicode-bidi: plaintext;
 }
 
-/* ── Athlete app: WPA poster world ─────────────────────────────────────
-   Scoped under .poster-world (set on AthleteLayout's root) so coach
-   screens keep their current look until their own redesign pass. */
-.poster-world {
-  background-color: var(--color-stock);
-  color: var(--color-ink);
-  /* Paper stock: a faint fibre grain printed into the ground. */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .086 0 0 0 0 .133 0 0 0 0 .227 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-.poster-world ::selection { background: var(--color-ochre); color: var(--color-ink); }
-.poster-world :focus-visible { outline: 2px solid var(--color-ochre); outline-offset: 2px; }
-.poster-world { scrollbar-color: color-mix(in oklab, var(--color-ink) 45%, transparent) transparent; }
-.poster-world .tabular { font-variant-numeric: tabular-nums; }
-
-/* Condensed poster caps (Karantina carries Hebrew too). */
-.poster-caps {
-  font-family: var(--font-poster);
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  line-height: 0.92;
-  text-transform: uppercase;
+/* ── Motion tokens (emil-design-eng: strong custom easing, not the built-in
+   CSS ones — see components/athlete/*.tsx and components/coach/ai-coach-agent.tsx) ── */
+:root {
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
 }
 
-/* Hairline ink rule with a centred diamond, the poster's section divider. */
-.poster-rule {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  color: var(--color-ink);
-}
-.poster-rule::before,
-.poster-rule::after {
-  content: '';
-  flex: 1;
-  height: 1.5px;
-  background: currentColor;
-  opacity: 0.8;
-}
-.poster-rule > i {
-  width: 7px;
-  height: 7px;
-  background: currentColor;
-  transform: rotate(45deg);
-  flex: none;
-}
-
-/* A printed plate: flat stock with a 2px ink frame. */
-.poster-plate {
-  background: color-mix(in oklab, var(--color-stock) 70%, white);
-  border: 2px solid var(--color-ink);
-  border-radius: 6px;
-}
-
+/* One step/screen entrance, retriggered by a React `key` change. Content
+   the user sees once per flow (onboarding) — fast, quiet, ease-out. */
 @media (prefers-reduced-motion: no-preference) {
-  .poster-settle { animation: poster-settle 700ms cubic-bezier(0.16, 1, 0.3, 1) both; }
-  .poster-settle-slow { animation: poster-settle 1100ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .step-enter { animation: step-in 220ms var(--ease-out-strong) both; }
 }
-@keyframes poster-settle {
-  from { transform: translateY(8px); }
-  to { transform: translateY(0); }
+@keyframes step-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }

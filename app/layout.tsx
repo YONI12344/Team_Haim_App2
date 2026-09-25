@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Playfair_Display, Heebo, Rubik, Karantina } from 'next/font/google'
+import { Playfair_Display, Heebo, Rubik } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from 'sonner'
 import { AuthProvider } from '@/contexts/auth-context'
@@ -26,15 +26,6 @@ const heebo = Heebo({
 const rubik = Rubik({
   subsets: ['latin', 'hebrew'],
   variable: '--font-rubik',
-  display: 'swap',
-})
-
-// Karantina — condensed Hebrew + Latin display caps; the athlete app's
-// poster lettering (captions, imperatives, labels). Body stays Heebo.
-const karantina = Karantina({
-  subsets: ['latin', 'hebrew'],
-  weight: ['400', '700'],
-  variable: '--font-karantina',
   display: 'swap',
 })
 
@@ -83,7 +74,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${playfair.variable} ${heebo.variable} ${rubik.variable} ${karantina.variable} bg-background`}>
+    <html lang="en" className={`${playfair.variable} ${heebo.variable} ${rubik.variable} bg-background`}>
       <body className="font-sans antialiased min-h-screen bg-background">
         <LanguageProvider>
           <AuthProvider>
