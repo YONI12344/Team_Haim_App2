@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Model returned an incomplete skeleton (missing stages) — try again.' }, { status: 500 })
     }
 
-    return NextResponse.json({ skeleton: input })
+    return NextResponse.json({ skeleton: input, usage: response.usage, model: MODEL })
   } catch (err) {
     console.error('AI Coach generate-skeleton error:', err)
     return NextResponse.json({ error: String(err) }, { status: 500 })

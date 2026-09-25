@@ -18,6 +18,7 @@ import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
 import { useWorkoutLibrary } from '@/hooks/useWorkoutLibrary'
 import { AI_SCHEDULE_CHANGED_EVENT, aiCoachFetch } from '@/lib/ai-coach/client'
+import { logAiUsage } from '@/lib/ai-coach/usage-log'
 import { runAgentTool } from '@/lib/ai-coach/agent-executors'
 import { SCHEDULE_WRITING_TOOLS, type AgentToolName } from '@/lib/ai-coach/agent-tools'
 import { appendMessage, clearThread, loadThread, type StoredMessage } from '@/lib/ai-coach/thread-store'
@@ -282,6 +283,7 @@ export function AiCoachAgent({ athleteId, athleteName, className, onClose }: {
         if (stopRef.current) { setError(t.stopped); return }
         const res = await aiCoachFetch('/api/ai-coach/agent', { messages: messagesRef.current.map((m) => m.message) })
         if (res.error) { setError(res.error); return }
+        if (res.usage) logAiUsage({ route: 'agent', model: res.model, athleteId, coachId: user.id, usage: res.usage })
 
         const assistant: Anthropic.MessageParam = { role: 'assistant', content: res.content }
         await push(assistant)

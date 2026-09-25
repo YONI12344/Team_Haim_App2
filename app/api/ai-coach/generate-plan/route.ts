@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Model returned an incomplete block (missing workouts) — try again.' }, { status: 500 })
     }
 
-    return NextResponse.json({ plan: input })
+    return NextResponse.json({ plan: input, usage: response.usage, model: MODEL })
   } catch (err) {
     console.error('AI Coach generate-plan error:', err)
     return NextResponse.json({ error: String(err) }, { status: 500 })
