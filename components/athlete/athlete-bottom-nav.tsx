@@ -6,8 +6,7 @@ import { Home, CalendarDays, BarChart2, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useLanguage } from '@/contexts/language-context'
 
-/** Bottom tab bar (mobile): white bar, gold active state with an underline
- *  that slides via `transform`, not layout — see emil-design-eng. */
+/** Poster caption-bar tab bar: ink slab, stock caps, ochre underline on the active tab. */
 export function AthleteBottomNav() {
   const pathname = usePathname()
   const { t } = useLanguage()
@@ -21,10 +20,10 @@ export function AthleteBottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 md:hidden border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80"
+      className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-ink text-stock"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
-      <div className="flex h-16 justify-around">
+      <div className="flex justify-around h-[4.5rem]">
         {tabs.map((tab) => {
           const isActive = tab.exact ? pathname === tab.href : pathname.startsWith(tab.href)
           return (
@@ -33,16 +32,16 @@ export function AthleteBottomNav() {
               href={tab.href}
               aria-current={isActive ? 'page' : undefined}
               className={cn(
-                'relative flex flex-1 flex-col items-center justify-center gap-1 transition-colors duration-150',
-                isActive ? 'text-navy' : 'text-muted-foreground active:text-navy',
+                'relative flex flex-1 flex-col items-center justify-center gap-1 transition-colors duration-200',
+                isActive ? 'text-stock' : 'text-stock/55 active:text-stock',
               )}
             >
-              <tab.icon className={cn('h-[22px] w-[22px]', isActive && 'stroke-[2.2]')} />
-              <span className="text-[11px] font-medium">{tab.label}</span>
+              <tab.icon className={cn('h-[22px] w-[22px]', isActive ? 'stroke-[2.2]' : 'stroke-[1.7]')} />
+              <span className="poster-caps text-[15px]">{tab.label}</span>
               <span
                 aria-hidden
                 className={cn(
-                  'absolute top-0 h-[2.5px] w-8 rounded-full bg-gold transition-transform duration-200 ease-out',
+                  'absolute bottom-2 h-[3px] w-7 rounded-full bg-ochre transition-transform duration-200',
                   isActive ? 'scale-x-100' : 'scale-x-0',
                 )}
               />
