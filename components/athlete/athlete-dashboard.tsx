@@ -27,7 +27,6 @@ import {
   ChevronLeft,
 } from 'lucide-react'
 import Link from 'next/link'
-import { PosterScene, sceneTimeForStage } from '@/components/athlete/poster-scene'
 import { listJourneys, stageDisplayName } from '@/lib/journey'
 import { cn, isCoachMessageRecent } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -350,8 +349,8 @@ export function AthleteDashboard() {
   if (loading) {
     return (
       <div className="mx-auto max-w-xl space-y-4" aria-busy>
-        <div className="h-[46vh] max-h-[340px] rounded-md bg-stock-deep animate-pulse" />
-        <div className="h-24 rounded-md bg-stock-deep animate-pulse" />
+        <div className="h-48 rounded-2xl bg-navy-tint animate-pulse" />
+        <div className="h-20 rounded-2xl bg-navy-tint animate-pulse" />
       </div>
     )
   }
@@ -398,10 +397,9 @@ export function AthleteDashboard() {
   const unreadCoachMessages = coachMessages.filter(m => !m.read)
   const L = HOME_COPY[isRTL ? 'he' : 'en']
 
-  // Season: which phase today falls in drives the poster's time of day.
+  // Season: which phase today falls in, for the hero's phase chip.
   const todayStr = format(new Date(), 'yyyy-MM-dd')
   const activeStage = season?.stages?.find((s) => todayStr >= s.startDate && todayStr <= s.endDate)
-  const sceneTime = sceneTimeForStage(activeStage?.type)
   const weeksToRace = season?.goalRaceDate
     ? Math.max(0, Math.ceil((parseISO(season.goalRaceDate).getTime() - Date.now()) / (7 * 86400000)))
     : null
@@ -468,27 +466,29 @@ export function AthleteDashboard() {
     <div className="mx-auto max-w-xl space-y-5" dir={isRTL ? 'rtl' : 'ltr'}>
       {isNewAthlete && <NewAthleteRedirect />}
 
-      {/* Notification permission — full plate until dismissed/answered, then a
+      {/* Notification permission — full card until dismissed/answered, then a
           small persistent pill so there's always a way to recover. */}
       {permission !== 'granted' && (
         (notifBannerDismissed || permission === 'denied') ? (
           <button
             onClick={() => permission === 'denied' ? toast.error(t.notificationsDeniedHint) : enableNotifications()}
-            className="flex items-center gap-1.5 rounded-full border-2 border-ink/80 px-3 py-1 text-xs font-semibold text-ink/80 transition-colors hover:bg-stock-deep"
+            className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs font-semibold text-muted-foreground transition-colors duration-150 hover:border-navy/30 hover:text-navy"
           >
             <Bell className="h-3.5 w-3.5" />
             {t.notificationsPillLabel}
           </button>
         ) : (
-          <div className="poster-plate flex items-center gap-3 p-3.5">
-            <Bell className="h-5 w-5 shrink-0 text-ochre" />
+          <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3.5 shadow-sm">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold-light">
+              <Bell className="h-4 w-4 text-gold" />
+            </span>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold leading-tight">{t.notificationsTitle}</p>
-              <p className="mt-0.5 text-xs text-ink/70">{t.notificationsDesc}</p>
+              <p className="text-sm font-semibold leading-tight text-navy">{t.notificationsTitle}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{t.notificationsDesc}</p>
             </div>
             <button
               onClick={enableNotifications}
-              className="poster-caps h-9 shrink-0 rounded-md bg-ink px-3.5 text-[17px] text-stock transition-transform active:scale-95"
+              className="h-9 shrink-0 rounded-xl bg-navy px-3.5 text-sm font-semibold text-white transition-transform duration-150 ease-out active:scale-95"
             >
               {t.enableBtn}
             </button>
@@ -497,7 +497,7 @@ export function AthleteDashboard() {
                 localStorage.setItem('notifBannerDismissed', '1')
                 setNotifBannerDismissed(true)
               }}
-              className="shrink-0 text-ink/50 hover:text-ink"
+              className="shrink-0 text-muted-foreground hover:text-navy"
               aria-label={t.close}
             >
               <X className="h-4 w-4" />
@@ -506,81 +506,78 @@ export function AthleteDashboard() {
         )
       )}
 
-      {/* ── Today's poster: the scene above, the caption bar below ── */}
-      <section className="overflow-hidden rounded-md border-2 border-ink" aria-label={L.today}>
-        <PosterScene time={sceneTime} className="h-[42vh] min-h-[220px] max-h-[330px]">
-          <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
-            <span className="poster-caps rounded-sm bg-stock px-2 py-1 text-[17px] text-ink">
-              {weeksToRace != null && season
-                ? L.raceIn(weeksToRace, season.goalRaceEvent)
-                : format(new Date(), 'd.M')}
-            </span>
-            <button
-              onClick={() => syncStrava()}
-              disabled={stravaSyncing}
-              className="flex h-8 items-center gap-1.5 rounded-sm bg-stock px-2.5 text-ink transition-transform active:scale-95 disabled:opacity-60"
-            >
-              {stravaSyncing
-                ? <Loader2 className="h-3.5 w-3.5 animate-spin text-[#FC4C02]" />
-                : <RefreshCw className="h-3.5 w-3.5 text-[#FC4C02]" />}
-              <span className="poster-caps text-[16px]">{stravaSyncing ? t.stravaSyncingBtn : 'Strava'}</span>
-            </button>
-          </div>
-        </PosterScene>
-
-        <div className="bg-ink px-4 pb-4 pt-3.5 text-stock">
-          <p className="text-[13px] text-stock/70">
-            {t.helloGreeting}, {profileName.split(' ')[0]}
-            {activeStage && <> · <span className="text-ochre">{stageDisplayName(activeStage, isRTL)}</span></>}
-          </p>
-
-          {todayWorkouts.length > 0 ? (
-            todayWorkouts.map((tw, i) => {
-              const done = tw.status === 'completed'
-              const meta = [
-                workoutTypeLabels[tw.workout.type as WorkoutType] || tw.workout.type,
-                tw.workout.distance ? `${tw.workout.distance} ${t.km}` : null,
-                tw.workout.duration ? `${tw.workout.duration} ${t.min}` : null,
-              ].filter(Boolean).join(' · ')
-              return (
-                <div key={tw.id} className={cn(i > 0 && 'mt-4 border-t border-stock/20 pt-4')}>
-                  <div className="mt-1 flex items-start justify-between gap-3">
-                    <h1 className="poster-caps text-balance text-[44px] text-stock">{tw.workout.title}</h1>
-                    {done && (
-                      <span className="poster-caps mt-1 shrink-0 -rotate-6 rounded-sm border-2 border-ochre px-2 py-0.5 text-[20px] text-ochre">
-                        {L.done}
-                      </span>
-                    )}
-                  </div>
-                  <p className="tabular mt-1.5 text-sm text-stock/80">{meta}</p>
-                  <Link
-                    href={`/athlete/schedule?date=${tw.scheduledDate}&workoutId=${tw.id}`}
-                    className={cn(
-                      'poster-caps mt-4 flex h-12 items-center justify-center gap-2 rounded-md text-[22px] transition-transform active:scale-[0.98]',
-                      done ? 'border-2 border-stock/60 text-stock' : 'bg-pine text-stock',
-                    )}
-                  >
-                    {done ? t.workoutDoneDetails : t.openWorkoutBtn}
-                    <Chevron className="h-5 w-5" />
-                  </Link>
-                </div>
-              )
-            })
-          ) : (
-            <div className="mt-1">
-              <h1 className="poster-caps text-[44px] text-stock">{t.restDayLabel}</h1>
-              <p className="mt-1.5 text-sm text-stock/75">{t.restDaySubtitle}</p>
-            </div>
-          )}
+      {/* ── Hero: today's session ── */}
+      <section
+        className="relative overflow-hidden rounded-2xl bg-navy p-5 text-white shadow-sm"
+        aria-label={L.today}
+      >
+        <div className="pointer-events-none absolute -end-20 -top-20 h-64 w-64 rounded-full bg-gold/15 blur-3xl" aria-hidden />
+        <div className="relative flex items-center justify-between gap-2">
+          <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold tabular-nums">
+            {weeksToRace != null && season
+              ? L.raceIn(weeksToRace, season.goalRaceEvent)
+              : format(new Date(), 'd.M')}
+          </span>
+          <button
+            onClick={() => syncStrava()}
+            disabled={stravaSyncing}
+            className="flex h-8 items-center gap-1.5 rounded-full bg-white/10 px-3 text-xs font-semibold transition-[transform,background-color] duration-150 ease-out hover:bg-white/15 active:scale-95 disabled:opacity-60"
+          >
+            {stravaSyncing
+              ? <Loader2 className="h-3.5 w-3.5 animate-spin text-[#FC4C02]" />
+              : <RefreshCw className="h-3.5 w-3.5 text-[#FC4C02]" />}
+            {stravaSyncing ? t.stravaSyncingBtn : 'Strava'}
+          </button>
         </div>
+
+        <p className="relative mt-4 text-[13px] text-white/60">
+          {t.helloGreeting}, {profileName.split(' ')[0]}
+          {activeStage && <> · <span className="text-gold">{stageDisplayName(activeStage, isRTL)}</span></>}
+        </p>
+
+        {todayWorkouts.length > 0 ? (
+          todayWorkouts.map((tw, i) => {
+            const done = tw.status === 'completed'
+            const meta = [
+              workoutTypeLabels[tw.workout.type as WorkoutType] || tw.workout.type,
+              tw.workout.distance ? `${tw.workout.distance} ${t.km}` : null,
+              tw.workout.duration ? `${tw.workout.duration} ${t.min}` : null,
+            ].filter(Boolean).join(' · ')
+            return (
+              <div key={tw.id} className={cn('relative', i > 0 && 'mt-4 border-t border-white/10 pt-4')}>
+                <div className="mt-1 flex items-start justify-between gap-3">
+                  <h1 className="text-balance font-display text-3xl font-semibold leading-tight">{tw.workout.title}</h1>
+                  {done && (
+                    <span className="mt-1 flex shrink-0 items-center gap-1 rounded-full bg-gold/15 px-2 py-0.5 text-xs font-semibold text-gold">
+                      <CheckCircle2 className="h-3 w-3" /> {L.done}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1.5 text-sm tabular-nums text-white/70">{meta}</p>
+                <Link
+                  href={`/athlete/schedule?date=${tw.scheduledDate}&workoutId=${tw.id}`}
+                  className={cn(
+                    'mt-4 flex h-12 items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-transform duration-150 ease-out active:scale-[0.97]',
+                    done ? 'border border-white/25 text-white hover:bg-white/5' : 'bg-gold text-navy',
+                  )}
+                >
+                  {done ? t.workoutDoneDetails : t.openWorkoutBtn}
+                  <Chevron className="h-4 w-4" />
+                </Link>
+              </div>
+            )
+          })
+        ) : (
+          <div className="relative mt-1">
+            <h1 className="font-display text-3xl font-semibold">{t.restDayLabel}</h1>
+            <p className="mt-1.5 text-sm text-white/70">{t.restDaySubtitle}</p>
+          </div>
+        )}
       </section>
 
-      {/* ── This week as a strip of seven stamps ── */}
+      {/* ── This week ── */}
       <section aria-label={t.yourWeekLabel}>
-        <div className="poster-rule mb-3">
-          <span className="poster-caps text-[20px]">{t.yourWeekLabel}</span>
-          <i />
-        </div>
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t.yourWeekLabel}</p>
         <ol className="grid grid-cols-7 gap-1.5">
           {weekDays.map((d) => {
             const ds = format(d, 'yyyy-MM-dd')
@@ -597,19 +594,19 @@ export function AthleteDashboard() {
                   href={`/athlete/schedule?date=${ds}`}
                   aria-label={`${format(d, 'd.M')} ${L.dayState[state]}`}
                   className={cn(
-                    'flex h-[68px] flex-col items-center justify-between rounded-md border-2 py-1.5 transition-colors',
-                    today ? 'border-ink bg-ink text-stock' : 'border-ink/25 text-ink hover:border-ink/60',
+                    'flex h-[68px] flex-col items-center justify-between rounded-xl border py-1.5 transition-colors duration-150',
+                    today ? 'border-navy bg-navy text-white' : 'border-border text-navy hover:border-navy/30',
                   )}
                 >
-                  <span className="poster-caps text-[15px] opacity-80">{L.dayLetters[d.getDay()]}</span>
-                  <span className="tabular text-[15px] font-semibold leading-none">{format(d, 'd')}</span>
+                  <span className={cn('text-xs font-medium', today ? 'text-white/60' : 'text-muted-foreground')}>{L.dayLetters[d.getDay()]}</span>
+                  <span className="text-[15px] font-semibold leading-none tabular-nums">{format(d, 'd')}</span>
                   <span
                     aria-hidden
                     className={cn(
-                      'h-2.5 w-2.5 rounded-full',
-                      state === 'done' && (today ? 'bg-ochre' : 'bg-pine'),
-                      state === 'planned' && (today ? 'border-2 border-ochre' : 'border-2 border-ink/70'),
-                      state === 'skipped' && 'bg-rust',
+                      'h-2 w-2 rounded-full',
+                      state === 'done' && (today ? 'bg-gold' : 'bg-pine'),
+                      state === 'planned' && (today ? 'border border-gold' : 'border border-navy/40'),
+                      state === 'skipped' && 'bg-destructive/70',
                       state === 'rest' && 'bg-transparent',
                     )}
                   />
@@ -619,15 +616,15 @@ export function AthleteDashboard() {
           })}
         </ol>
 
-        <dl className="poster-plate mt-3 grid grid-cols-3">
+        <dl className="mt-3 grid grid-cols-3 rounded-2xl border border-border bg-card shadow-sm">
           {[
             { v: totalDistance.toFixed(0), l: t.weekKmDoneLabel },
             { v: `${completedThisWeek}/${totalThisWeek}`, l: t.workoutsStatLabel },
             { v: effortCount > 0 ? avgEffortNumeric.toFixed(1) : '—', l: t.averageEffortShort },
           ].map((s, i) => (
-            <div key={s.l} className={cn('px-2 py-3 text-center', i > 0 && 'border-s-2 border-ink/15')}>
-              <dd className="poster-caps tabular text-[36px] text-ink">{s.v}</dd>
-              <dt className="mt-1 text-[12px] text-ink/70">{s.l}</dt>
+            <div key={s.l} className={cn('px-2 py-3 text-center', i > 0 && 'border-s border-border')}>
+              <dd className="font-display text-3xl font-semibold tabular-nums text-navy">{s.v}</dd>
+              <dt className="mt-1 text-xs text-muted-foreground">{s.l}</dt>
             </div>
           ))}
         </dl>
@@ -637,23 +634,23 @@ export function AthleteDashboard() {
       {unreadCoachMessages.length > 0 && (
         <section className="space-y-3" aria-label={t.messageFromCoach}>
           {unreadCoachMessages.map(msg => (
-            <article key={msg.id} className="poster-plate p-4">
-              <div className="poster-rule mb-2.5 text-pine">
-                <span className="poster-caps text-[19px]">{t.messageFromCoach}</span>
-                <i />
+            <article key={msg.id} className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+              <div className="mb-2 flex items-center gap-1.5 text-pine">
+                <MessageCircle className="h-3.5 w-3.5" />
+                <span className="text-xs font-semibold uppercase tracking-wide">{t.messageFromCoach}</span>
               </div>
-              {msg.workoutTitle && <p className="mb-1.5 text-xs text-ink/60">{msg.workoutTitle}</p>}
-              <p className="text-[15px] leading-relaxed">{msg.message}</p>
+              {msg.workoutTitle && <p className="mb-1.5 text-xs text-muted-foreground">{msg.workoutTitle}</p>}
+              <p className="text-[15px] leading-relaxed text-foreground">{msg.message}</p>
               <div className="mt-3 flex items-center justify-between">
                 {msg.createdAt?.seconds && (
-                  <p className="tabular text-xs text-ink/55">{format(new Date(msg.createdAt.seconds * 1000), 'd/M/yyyy HH:mm')}</p>
+                  <p className="text-xs tabular-nums text-muted-foreground">{format(new Date(msg.createdAt.seconds * 1000), 'd/M/yyyy HH:mm')}</p>
                 )}
                 <button
                   onClick={() => {
                     setCoachMessages(prev => prev.filter(m => m.id !== msg.id)) // instant hide
                     updateDoc(doc(db, 'coachMessages', msg.id), { read: true, readAt: Date.now() }).catch(() => {})
                   }}
-                  className="poster-caps flex h-8 items-center gap-1.5 rounded-md bg-pine px-3 text-[16px] text-stock transition-transform active:scale-95"
+                  className="flex h-8 items-center gap-1.5 rounded-full bg-pine px-3 text-xs font-semibold text-white transition-transform duration-150 ease-out active:scale-95"
                 >
                   <CheckCircle2 className="h-3.5 w-3.5" />
                   {t.markedAsReadBtn}
@@ -667,20 +664,19 @@ export function AthleteDashboard() {
       {/* ── Strava runs waiting for the athlete's feedback ── */}
       {pendingFeedbackLogs.length > 0 && (
         <section aria-label={t.pendingFeedbackSuffix}>
-          <div className="poster-rule mb-2">
-            <span className="poster-caps text-[19px]">{pendingFeedbackLogs.length} {t.pendingFeedbackSuffix}</span>
-            <i />
-          </div>
-          <ul className="poster-plate divide-y-2 divide-ink/10">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {pendingFeedbackLogs.length} {t.pendingFeedbackSuffix}
+          </p>
+          <ul className="divide-y divide-border rounded-2xl border border-border bg-card shadow-sm">
             {pendingFeedbackLogs
               .sort((a: any, b: any) => b.date.localeCompare(a.date))
               .slice(0, 5)
               .map((log: any) => (
                 <li key={log.id}>
-                  <Link href={`/athlete/schedule?date=${log.date}`} className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-stock-deep/60">
+                  <Link href={`/athlete/schedule?date=${log.date}`} className="flex items-center justify-between gap-3 px-4 py-3 transition-colors duration-150 hover:bg-navy-tint">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold">{log.stravaName || t.pendingFeedbackSuffix}</p>
-                      <p className="tabular mt-0.5 text-xs text-ink/60">
+                      <p className="truncate text-sm font-semibold text-navy">{log.stravaName || t.pendingFeedbackSuffix}</p>
+                      <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
                         {log.date}{log.actualDistance ? ` · ${log.actualDistance} ${t.km}` : ''}
                       </p>
                     </div>
@@ -690,7 +686,7 @@ export function AthleteDashboard() {
               ))}
             {pendingFeedbackLogs.length > 5 && (
               <li>
-                <Link href="/athlete/schedule" className="block px-4 py-2.5 text-center text-xs text-ink/60">
+                <Link href="/athlete/schedule" className="block px-4 py-2.5 text-center text-xs text-muted-foreground">
                   +{pendingFeedbackLogs.length - 5} {L.more}
                 </Link>
               </li>
@@ -701,27 +697,27 @@ export function AthleteDashboard() {
 
       {/* ── Coach's weekly note ── */}
       {latestCoachNote && (
-        <article className="rounded-md bg-pine p-4 text-stock">
+        <article className="rounded-2xl bg-pine p-4 text-white shadow-sm">
           {latestCoachNote.nextWeekFocus && (
             <>
-              <p className="poster-caps text-[19px] text-ochre">{t.nextWeekFocusLabel}</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gold-light">{t.nextWeekFocusLabel}</p>
               <p className="mt-1.5 text-[15px] leading-relaxed">{latestCoachNote.nextWeekFocus}</p>
             </>
           )}
           {latestCoachNote.coachNote && (
             <>
-              <p className={cn('poster-caps text-[19px] text-ochre', latestCoachNote.nextWeekFocus && 'mt-4')}>{t.coachNoteHeading}</p>
+              <p className={cn('text-xs font-semibold uppercase tracking-wide text-gold-light', latestCoachNote.nextWeekFocus && 'mt-4')}>{t.coachNoteHeading}</p>
               <p className="mt-1.5 text-base font-medium leading-relaxed">{latestCoachNote.coachNote}</p>
             </>
           )}
           <div className="mt-4 flex items-center justify-between">
             {latestCoachNote.weekStart && (
-              <p className="tabular text-xs text-stock/65">{latestCoachNote.weekStart} – {latestCoachNote.weekEnd}</p>
+              <p className="text-xs tabular-nums text-white/65">{latestCoachNote.weekStart} – {latestCoachNote.weekEnd}</p>
             )}
             <button
               onClick={handleDismissWeeklySummary}
               disabled={isDismissingNote}
-              className="poster-caps flex h-8 items-center gap-1.5 rounded-md bg-stock px-3 text-[16px] text-ink transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-8 items-center gap-1.5 rounded-full bg-white px-3 text-xs font-semibold text-pine transition-transform duration-150 ease-out active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <CheckCircle2 className="h-3.5 w-3.5" />
               {t.markedAsReadBtn}
@@ -730,8 +726,8 @@ export function AthleteDashboard() {
         </article>
       )}
 
-      {/* ── Everything else, as one printed index ── */}
-      <nav aria-label={L.more} className="poster-plate divide-y-2 divide-ink/10">
+      {/* ── Everything else ── */}
+      <nav aria-label={L.more} className="divide-y divide-border rounded-2xl border border-border bg-card shadow-sm">
         {[
           {
             href: '/athlete/chat',
@@ -744,20 +740,20 @@ export function AthleteDashboard() {
           { href: '/athlete/progress', icon: TrendingUp, label: L.strengthTitle, sub: L.strengthSub, badge: null, show: !!profile?.strengthToolsVisibleToAthlete },
           { href: '/athlete/lab', icon: FlaskConical, label: t.labLabel, sub: t.labDesc, badge: null, show: !!profile?.labVisibleToAthlete },
         ].filter(r => r.show).map((r) => (
-          <Link key={r.href} href={r.href} className="flex items-center gap-3.5 px-4 py-3.5 transition-colors hover:bg-stock-deep/60">
-            <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-ink text-stock">
+          <Link key={r.href} href={r.href} className="flex items-center gap-3.5 px-4 py-3.5 transition-colors duration-150 hover:bg-navy-tint">
+            <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-navy-tint text-navy">
               <r.icon className="h-5 w-5" />
               {r.badge && (
-                <span className="absolute -top-1.5 -end-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-rust px-1 text-[10px] font-bold text-stock">
+                <span className="absolute -top-1.5 -end-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-white">
                   {r.badge}
                 </span>
               )}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[15px] font-semibold leading-tight">{r.label}</span>
-              <span className={cn('mt-0.5 block text-xs', r.badge ? 'font-semibold text-rust' : 'text-ink/60')}>{r.sub}</span>
+              <span className="block text-[15px] font-semibold leading-tight text-navy">{r.label}</span>
+              <span className={cn('mt-0.5 block text-xs', r.badge ? 'font-semibold text-destructive' : 'text-muted-foreground')}>{r.sub}</span>
             </span>
-            <Chevron className="h-5 w-5 shrink-0 text-ink/40" />
+            <Chevron className="h-5 w-5 shrink-0 text-muted-foreground" />
           </Link>
         ))}
       </nav>
