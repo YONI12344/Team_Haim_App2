@@ -1860,6 +1860,8 @@ export function AthletePlanner({ athleteId }: Props) {
                   {leadData.primaryGoal && <div><span className="font-semibold">מטרה עיקרית: </span>{leadData.primaryGoal}</div>}
                   {leadData.longTermGoal && <div><span className="font-semibold">מטרה ארוכת טווח: </span>{leadData.longTermGoal}</div>}
                   {leadData.runningExperienceDuration && <div><span className="font-semibold">שנות ניסיון: </span>{leadData.runningExperienceDuration}</div>}
+                  {leadData.currentShape && <div><span className="font-semibold">כושר נוכחי: </span>{leadData.currentShape}</div>}
+                  {leadData.longRunDay && <div><span className="font-semibold">יום ריצה ארוכה מועדף: </span>{leadData.longRunDay}</div>}
                   {leadData.city && <div><span className="font-semibold">עיר: </span>{leadData.city}</div>}
                   {leadData.daysPerWeek != null && <div><span className="font-semibold">ימי אימון בשבוע: </span>{leadData.daysPerWeek}</div>}
                   {leadData.preferredDays && leadData.preferredDays.length > 0 && <div><span className="font-semibold">ימים מועדפים: </span>{leadData.preferredDays.join(', ')}</div>}

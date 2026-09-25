@@ -12,6 +12,7 @@ type Facility = 'track' | 'gym' | 'treadmill' | 'trails'
 type RunningDuration = 'under_6mo' | '6to12mo' | '1to3yr' | 'over_3yr'
 type Device = 'garmin' | 'strava' | 'polar' | 'coros' | 'apple_watch' | 'hr_strap' | 'other'
 type DayKey = 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday'
+type CurrentShape = 'just_starting' | 'returning' | 'consistent' | 'peak_fitness'
 interface DayTraining { description: string }
 
 const EXPERIENCE_LEVELS: ExperienceLevel[] = ['beginner', 'intermediate', 'advanced', 'professional']
@@ -29,6 +30,11 @@ const FACILITIES: Facility[] = ['track', 'gym', 'treadmill', 'trails']
 const FACILITY_LABELS: Record<'en' | 'he', Record<Facility, string>> = {
   en: { track: 'Track', gym: 'Gym / weights', treadmill: 'Treadmill', trails: 'Trails' },
   he: { track: 'מסלול אתלטיקה', gym: 'חדר כושר', treadmill: 'הליכון', trails: 'מסלולי שטח' },
+}
+const CURRENT_SHAPES: CurrentShape[] = ['just_starting', 'returning', 'consistent', 'peak_fitness']
+const CURRENT_SHAPE_LABELS: Record<'en' | 'he', Record<CurrentShape, string>> = {
+  en: { just_starting: 'Just starting out', returning: 'Returning after a break', consistent: 'Training consistently', peak_fitness: 'Peak fitness / just raced' },
+  he: { just_starting: 'רק מתחיל/ה', returning: 'חוזר/ת אחרי הפסקה', consistent: 'מתאמן/ת באופן עקבי', peak_fitness: 'בכושר שיא / התחרתי לאחרונה' },
 }
 const RUNNING_DURATIONS: RunningDuration[] = ['under_6mo', '6to12mo', '1to3yr', 'over_3yr']
 const RUNNING_DURATION_LABELS: Record<'en' | 'he', Record<RunningDuration, string>> = {
@@ -50,6 +56,8 @@ interface FormState {
   height: number | ''; weight: number | ''
   experienceLevel: ExperienceLevel | ''
   runningExperienceDuration: RunningDuration | ''
+  currentShape: CurrentShape | ''
+  longRunDay: DayKey | ''
   weeklyMileage: number | ''
   typicalWeek: Record<DayKey, DayTraining>
   recentRaceDistance: RaceDistance | ''
@@ -83,7 +91,7 @@ const EMPTY_TYPICAL_WEEK: Record<DayKey, DayTraining> = DAY_ORDER.reduce((acc, d
 const EMPTY_FORM: FormState = {
   name: '', email: '', phone: '', dateOfBirth: '', city: '',
   height: '', weight: '',
-  experienceLevel: '', runningExperienceDuration: '', weeklyMileage: '',
+  experienceLevel: '', runningExperienceDuration: '', currentShape: '', longRunDay: '', weeklyMileage: '',
   typicalWeek: EMPTY_TYPICAL_WEEK,
   recentRaceDistance: '', recentRaceHours: 0, recentRaceMinutes: '', recentRaceSeconds: '', recentRaceDate: '',
   shoesInfo: '', devicesUsed: [],
@@ -158,6 +166,8 @@ export function ApplyForm() {
         weight: form.weight === '' ? null : Number(form.weight),
         experienceLevel: form.experienceLevel || null,
         runningExperienceDuration: form.runningExperienceDuration || null,
+        currentShape: form.currentShape || null,
+        longRunDay: form.longRunDay || null,
         weeklyMileage: form.weeklyMileage === '' ? null : Number(form.weeklyMileage),
         typicalWeek: Object.fromEntries(
           DAY_ORDER.map((day) => [day, form.typicalWeek[day].description.trim() || null])
@@ -277,6 +287,17 @@ export function ApplyForm() {
                   <button key={d} type="button" onClick={() => set('runningExperienceDuration', d)}
                     className={`py-2 rounded-lg border text-xs font-medium transition-colors ${form.runningExperienceDuration === d ? 'bg-[#1a2744] text-white border-[#1a2744]' : 'border-gray-200 text-gray-600 hover:border-[#1a2744]'}`}>
                     {RUNNING_DURATION_LABELS[language][d]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('How is your fitness right now?', 'איך הכושר שלך כרגע?')}</label>
+              <div className="grid grid-cols-2 gap-2">
+                {CURRENT_SHAPES.map((s) => (
+                  <button key={s} type="button" onClick={() => set('currentShape', s)}
+                    className={`py-2 rounded-lg border text-xs font-medium transition-colors ${form.currentShape === s ? 'bg-[#1a2744] text-white border-[#1a2744]' : 'border-gray-200 text-gray-600 hover:border-[#1a2744]'}`}>
+                    {CURRENT_SHAPE_LABELS[language][s]}
                   </button>
                 ))}
               </div>
@@ -417,6 +438,17 @@ export function ApplyForm() {
                 {DAY_ORDER.map((d) => (
                   <button key={d} type="button" onClick={() => toggleDay(d)}
                     className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${form.preferredDays.includes(d) ? 'bg-[#1a2744] text-white border-[#1a2744]' : 'border-gray-200 text-gray-600 hover:border-[#1a2744]'}`}>
+                    {DAY_LABELS[language][d]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('Preferred long-run day (optional)', 'יום מועדף לריצה ארוכה (לא חובה)')}</label>
+              <div className="flex flex-wrap gap-2">
+                {DAY_ORDER.map((d) => (
+                  <button key={d} type="button" onClick={() => set('longRunDay', form.longRunDay === d ? '' : d)}
+                    className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${form.longRunDay === d ? 'bg-[#c9a84c] text-white border-[#c9a84c]' : 'border-gray-200 text-gray-600 hover:border-[#c9a84c]'}`}>
                     {DAY_LABELS[language][d]}
                   </button>
                 ))}
