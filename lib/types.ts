@@ -385,7 +385,9 @@ export interface Workout {
   // one-off library clutter from real reusable coach-authored workouts.
   // Older docs predating this field fall back to a live cross-reference
   // against assignedWorkouts (source:'bakken') instead.
-  source?: 'bakken' | 'coach'
+  // 'haim_brain' = exported by the coach from the AI Coach page (components/coach/ai-coach-brain.tsx);
+  // those docs are also libraryHidden, one per exported day.
+  source?: 'bakken' | 'coach' | 'haim_brain'
   // Hides this workout from the Workout Library list (components/coach/
   // workout-library.tsx) — set on per-week clones created by copy-week/
   // paste, which are real workouts/{id} docs but shouldn't clutter the

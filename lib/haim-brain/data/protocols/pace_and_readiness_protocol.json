@@ -1,0 +1,137 @@
+{
+  "meta": {
+    "purpose": "This file is the bridge between an athlete's raw analysis data and an actual training plan. It answers two questions, sourced directly from the book chapter by chapter rather than invented: (1) how does the method actually estimate an athlete's Golden Zone / threshold pace, and (2) what data and tests does the book say you genuinely need before building a training plan. The coaching agent's assessment interview and plan-builder should be driven by this file, not by ad-hoc judgment.",
+    "source_citation": {
+      "title": "The Norwegian Method",
+      "author": "Marius Bakken, MD",
+      "chapters_used": ["2 (Find Your Threshold)", "13 (Intensity Control Deep Dive -- Lactate Profiling)", "11 (Warning Signs and Overtraining)", "9 (A Doctor's Advice on Health and Injury)"]
+    },
+    "governing_principle": "From Chapter 2: 'The most important thing is to start somewhere and build experience over time... The second most important thing: the lower the accuracy of the test, the greater the margin you must build in.' A plan built on a rough pace estimate is fine as long as the margin is conservative and the plan says so explicitly."
+  },
+
+  "step_1_estimate_the_golden_zone_pace": {
+    "source": "Chapter 2, section 1_which_method_to_start_with and section 6_the_three_point_method",
+    "how_to_choose_a_method_by_athlete_level": [
+      {
+        "level": "Recreational (roughly 4-6 hours/week)",
+        "start_with": "VDOT from a recent race + a 30-minute heart rate time trial",
+        "cross_check_with": "Talk test, perceived exertion, chest-strap heart rate during real sessions",
+        "margin_rule": "Build extra margin below the estimated threshold -- when in doubt, slower."
+      },
+      {
+        "level": "Ambitious (roughly 6-8+ hours/week)",
+        "start_with": "Three-point method (field test + extended talk test + heart-rate method), or lactate profiling if available",
+        "cross_check_with": "All three converging within 3-5 heartbeats or 5-7 sec/km (8-11 sec/mile)",
+        "margin_rule": "If tests disagree, use the lower (more conservative) result."
+      },
+      {
+        "level": "Elite / sub-elite",
+        "start_with": "Lactate measurement",
+        "cross_check_with": "Heart rate + talk test for day-to-day correction",
+        "margin_rule": "Still train below threshold to protect volume and repeatability, even with a lactate meter."
+      }
+    ],
+    "available_methods": {
+      "A_talk_test": {
+        "what_it_needs_from_the_athlete": "No equipment. A fixed 30-100 word text they know by heart.",
+        "protocol": ["15 min easy warmup", "5-8 intervals of 3 minutes, pace increasing gradually each interval", "1 min easy jog between intervals", "In the final 30-40 sec of each interval, recite the text aloud and note whether it's 'Yes' (comfortable), 'Yes, but...' (effortful), or 'No' (can't speak comfortably)"],
+        "how_to_read_it": "The Golden Zone sits between the 'Yes' -> 'Yes, but...' transition (near VT1) and a point below the 'Yes, but...' -> 'No' transition (near VT2). Short sentences possible but not full sentences = near threshold.",
+        "important_caveat": "Each step needs at least 3 minutes -- shorter intervals give misleading results because the talk-test response lags the physiological shift by up to 2 minutes."
+      },
+      "B_thirty_minute_time_trial": {
+        "what_it_needs_from_the_athlete": "A flat route or treadmill, a heart rate monitor (chest strap preferred over wrist).",
+        "protocol": ["Run 30 minutes at the fastest steady pace sustainable", "First 10 minutes: settle into rhythm, don't count this part", "Average heart rate over the final 20 minutes = estimated threshold heart rate", "Subtract 4-7 beats from that value to get the Golden Zone heart rate"],
+        "caveat": "Hard to pace without experience; daily form and weather affect it. A treadmill standardizes this better than an outdoor route."
+      },
+      "C_vdot_from_recent_race": {
+        "what_it_needs_from_the_athlete": "A recent race result or hard time-trial result (must be recent -- a year-old time doesn't reflect current fitness).",
+        "how_it_works": "Daniels's VDOT tables convert a recent race time into training paces. T-pace = the pace sustainable for about 60 minutes.",
+        "golden_zone_adjustment": "Golden Zone pace is typically 8-12 sec/km SLOWER than standard T-pace -- do not use raw T-pace for threshold sessions.",
+        "worked_reference_point": "A 20:00 5K runner (4:00/km, 6:26/mile) has threshold paces roughly: short intervals (1-3min) 4:18-4:25/km, medium intervals (4-5min) 4:25-4:32/km, long intervals (8-12min) 4:32-4:39/km."
+      },
+      "D_max_heart_rate_based": {
+        "what_it_needs_from_the_athlete": "A real, measured max heart rate -- NOT the '220 minus age' formula, which the book explicitly says has a 10-12 beat margin of error, too imprecise to use.",
+        "how_to_measure_max_hr": {
+          "protocol": ["Find a hill that takes 2-3 min to climb", "15-20 min thorough warmup", "Effort 1: controlled hard, not all-out", "Effort 2: hard, max intensity in the final 30 sec", "Effort 3: hard from the start, highest intensity throughout", "3-4 min rest between efforts", "Highest heart rate recorded across the three efforts is close to true max"]
+        },
+        "threshold_as_percent_of_max": {
+          "less_experienced": "77-84% of max HR",
+          "well_trained": "80-87% of max HR",
+          "elite": "82-89% of max HR"
+        },
+        "caveat": "Threshold heart rate is NOT stable -- it runs 5-7 beats lower first thing in the morning, drifts upward in heat (7-10 beats across a session at ~23C/73F), and shifts with fatigue vs. peak form. Use it as an anchor, not gospel; cross-check with talk test."
+      },
+      "E_lactate_profiling": {
+        "what_it_needs_from_the_athlete": "A lactate meter (the book calls this the gold standard, but explicitly not required for most recreational athletes).",
+        "protocol": ["5-minute intervals at progressively increasing pace", "30-second pause between intervals, measure lactate", "6-10 steps needed to see the full curve shape", "Plot the curve: flat zone, transition zone, steep zone", "Threshold = a RANGE (e.g. 2.3-3.0 mmol/L for well-trained athletes), not a single point"],
+        "test_standardization_required": ["Same route or treadmill, same warmup every time", "Last above-threshold session at least 4 days prior", "Note sleep/stress/heat -- all shift the reading", "Sample from the same site every time (earlobe preferred if a helper is available; otherwise fingertip, consistently)", "Dry the skin, clean with alcohol, let dry, wipe away the FIRST drop of blood and test the second"],
+        "the_adaptation_period_rule": "If lab-measured threshold is e.g. 4.0 mmol/L and the athlete is new to threshold training, do NOT train at 4.0. Train at the standard Golden Zone (2.3-3.0 mmol/L) for 4-6 months first, then retest. Training at the raw measured value usually doesn't work for undertrained muscles."
+      }
+    },
+    "common_mistakes_to_avoid_when_estimating_pace": [
+      "Trusting one method blindly -- always cross-check at least two.",
+      "Using race results older than a few months for VDOT.",
+      "Forgetting daily variation -- threshold shifts with sleep, stress, heat; never plan to run precisely AT the threshold, always with margin below it.",
+      "Trusting a GPS watch's threshold estimate at face value -- the book says these often run too high; build in 3-5% margin below what the watch suggests.",
+      "Ignoring subjective signals -- if the talk test or perceived exertion says it's too hard, believe it even if the number says otherwise."
+    ]
+  },
+
+  "step_2_confirm_baseline_readiness_before_training_begins": {
+    "source": "Chapter 11 (stair test, resting heart rate, HRV) and Chapter 9 (lab markers)",
+    "why_this_step_exists": "The book is explicit that muscular overload shows up before resting heart rate, sleep, or motivation change -- 'the muscles know first.' A baseline reading taken before training starts is what makes it possible to detect a real deviation later, rather than guessing.",
+    "baselines_to_establish": [
+      {
+        "baseline": "Resting heart rate",
+        "how": "Measure immediately on waking, lying still, for 2x30 sec (or a strap). Log for 7-14 days before starting to get a true baseline, not a single reading.",
+        "why_it_matters_later": "A rise of 5+ beats for 3+ days, or a gradual creep over 2 weeks, is an early overload signal -- but only detectable if you know the athlete's normal number."
+      },
+      {
+        "baseline": "The stair test (muscular feel)",
+        "how": "Pick a short flight of stairs the athlete can climb daily at roughly the same time. Note how the thighs feel on the way up -- this is entirely subjective/qualitative, no equipment needed.",
+        "why_it_matters_later": "Catches the earliest stage of overload (elevated muscle tone, reduced elasticity) before resting HR, sleep, or motivation ever change. 'Stairs suddenly got heavy' is the book's own recurring athlete quote."
+      },
+      {
+        "baseline": "Sleep quality (self-rated 1-10)",
+        "how": "A simple nightly diary entry, plus noting the time of any early waking (03:00-05:00 waking is specifically called out as a cortisol-related overtraining signal).",
+        "why_it_matters_later": "Sleep disruption is described as often the FIRST symptom of overtraining, ahead of performance decline."
+      },
+      {
+        "baseline": "HRV, if the athlete already has a wearable",
+        "how": "Same time, same position, same conditions daily; track a 7-day rolling average, not single readings.",
+        "why_it_matters_later": "Most useful for catching a brewing illness early -- a sharp unexplained overnight drop is a signal to go easy on the next hard session. Not reliable as a single number in isolation; must be read together with resting HR and perceived well-being.",
+        "optional": true
+      },
+      {
+        "baseline": "Ferritin / vitamin D / B12, if the athlete trains seriously and hasn't been tested",
+        "how": "A blood test, not something the coaching agent can do -- but the agent should ask whether it's been done and recommend it when relevant.",
+        "targets": {
+          "ferritin": "50-60 ug/L during high-volume training (below ~30 ng/mL is a real problem; 30-50 often suboptimal under load)",
+          "vitamin_d": "75-100 nmol/L (30-40 ng/mL) 25(OH)D",
+          "b12": "At least ~250 pmol/L (340 pg/mL), preferably ~300 pmol/L (410 pg/mL)"
+        },
+        "who_this_matters_most_for": "Anyone training 30+ miles/week, anyone with recurring fatigue or bone-stress-type injuries, and especially female athletes (menstrual iron losses are called out explicitly).",
+        "optional_but_flag_if_missing": true
+      }
+    ]
+  },
+
+  "step_3_minimum_data_required_before_building_a_plan": {
+    "source": "Synthesized from Chapters 2, 3, 5, 6, 9, 11, 13 -- this is the actual gate the assessment interview should check before declaring readiness.",
+    "blocking_required_data": [
+      { "item": "Goal and timeline (race + date, or general goal if no race)", "why": "Chapter 3 -- weekly structure and periodization both depend entirely on how much time is available to the goal." },
+      { "item": "Real recent training load -- last 2-3 weeks, day by day, not an average", "why": "Chapter 9's injury-risk data is about a session relative to the athlete's ACTUAL recent longest run, not a guessed weekly average. Without this, session prescriptions risk a dangerous mileage/intensity spike." },
+      { "item": "Longest recent run and peak mileage in the last year", "why": "Establishes true ceiling and whether the athlete is currently detrained relative to their history." },
+      { "item": "Current injuries or recurring issues", "why": "Chapter 9's transition/injury logic and Chapter 4's muscular-limiter framing both require this before prescribing any load increase." },
+      { "item": "Days per week and which specific days", "why": "Chapters 5/6 structure the week around specific hard/easy day placement -- threshold sessions need real recovery days around them, not just a day count." },
+      { "item": "Some threshold pace estimate, even rough -- OR explicit agreement to estimate it together using step_1 above", "why": "Chapter 1's entire premise: 'you cannot train consistently at or above the threshold, you must run below it.' Without ANY pace anchor, session paces in a plan are just guesses with no safety margin logic behind them." }
+    ],
+    "non_blocking_but_valuable": [
+      "Equipment access (GPS watch, HR monitor, lactate meter) -- determines WHICH pace-estimation method from step_1 to use.",
+      "Baseline resting heart rate / stair test feel -- valuable for monitoring later, not required to build the first plan.",
+      "Recent lab markers -- valuable especially at higher volume, not blocking for a first plan.",
+      "Coaching style / detail preference -- affects how the plan is written, not what's in it."
+    ],
+    "rule_for_missing_data": "If a blocking item is missing and the athlete doesn't have it (e.g. no recent race for VDOT, no lactate meter), do not stall -- pick the most appropriate estimation method from step_1 given their equipment and experience level, make a clearly labeled assumption, and say explicitly that it will be corrected once real data comes in (e.g. after the Week 5 retest). This mirrors the book's own governing principle: start somewhere, build in margin, refine over time."
+  }
+}

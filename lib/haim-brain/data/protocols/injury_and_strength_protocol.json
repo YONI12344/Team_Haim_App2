@@ -1,0 +1,74 @@
+{
+  "meta": {
+    "purpose": "Decides whether an athlete actually needs strength training, what kind, and where it goes in the week -- sourced from the book's own cost/benefit analysis, not a generic 'runners should lift' recommendation. Also carries the injury-modification rules for building sessions around an existing issue.",
+    "source_citation": {
+      "title": "The Norwegian Method",
+      "author": "Marius Bakken, MD",
+      "chapters_used": ["9 (A Doctor's Advice on Health and Injury)", "10 (Recovery and Prevention)", "3 (Load and Six Foundational Principles)"]
+    },
+    "governing_principle": "Chapter 10: 'My recommendation: chase the minimum effective dose at the lowest possible cost... The weight room is not where distance runners win races, but a supplement, and supplements should support the main work, not compete with it.'"
+  },
+
+  "step_1_does_this_athlete_need_strength_training": {
+    "source": "Chapter 10, section 'the_bottom_line'",
+    "probably_not_necessary_if": ["Under 40", "Injury-free", "Has room to add more running instead"],
+    "worth_considering_if": ["Over 50 and noticing age-related effects", "History of injuries despite otherwise sensible training", "Genuine performance plateau, not just a rough patch"],
+    "yes_definitely_if": ["Known low bone density (osteopenia/osteoporosis) or history of stress fractures", "Recurring asymmetric injuries that don't respond to load management alone"],
+    "important_caveat_before_prescribing_strength_work": "Chapter 10 explicitly warns: before reaching for the barbell for an asymmetric injury, ask whether it's genuine muscle weakness or the product of volume/intensity that ramped up too fast. Strength work will only mask a training-structure problem and may make it worse by driving up muscle tone. Check the recent training log for a spike BEFORE recommending strength work as the fix.",
+    "age_context": "Muscle mass declines ~3-5% per decade starting around 30, accelerating after 50 (sarcopenia). For veteran runners, strength work becomes about preservation, not performance."
+  },
+
+  "step_2_the_real_cost_to_weigh": {
+    "source": "Chapter 10, 'the_hidden_cost' and 'the_arithmetic'",
+    "the_tradeoff": "Strength training raises muscle tone and increases the recovery needed between hard running sessions. More recovery time means fewer threshold sessions fit in the week, which means less of the volume that actually drives endurance adaptation. For most distance runners, what's lost on the road matters more than what's gained in the weight room -- this is why it's a supplement, never a co-equal pillar.",
+    "research_context": "Meta-analyses show real but modest running-economy gains (2-8% after 6-12 weeks) from strength/plyometric work, greatest at high loads (>=80% 1RM) and higher running speeds -- but the gain must be weighed against the tone cost above, not assumed free."
+  },
+
+  "step_3_how_to_dose_it_if_prescribed": {
+    "source": "Chapter 10, 'practical_approach_checklist'",
+    "dosing": [
+      "1-2 sessions/week for 6-12 weeks during a building phase, then drop to 1/week for maintenance",
+      "High load (>=80% 1RM) or explosive plyometric work -- research supports this over light, high-rep circuits",
+      "Emphasize eccentric work, especially hamstrings and calves -- transfers well to running demands, may reduce injury risk",
+      "If committed to, do it year-round -- abrupt mid-season starts sharply raise injury risk. Taper/pause only during peak competition.",
+      "Target 80% of the ideal program, not 100% -- the minimum effective dose costs a fraction of the price of pushing all the way."
+    ]
+  },
+
+  "step_4_where_to_place_it_in_the_week": {
+    "source": "Chapter 10, 'three_models_tested' -- the book tested three placements directly",
+    "model_a_after_a_threshold_day_am_pm": {
+      "description": "Threshold in the morning, strength/speed added same evening.",
+      "verdict": "Compromised -- tone often stayed elevated into the next day, degrading what should have been an easy run."
+    },
+    "model_b_evening_before_a_threshold_day": {
+      "description": "Strength/speed the evening before a threshold morning.",
+      "verdict": "Compromised -- more often than not, the threshold session itself suffered; legs never found their rhythm."
+    },
+    "model_c_after_the_x_session_recommended": {
+      "description": "Hard X-session (e.g. Saturday), strength/speed work immediately after or same evening, Sunday fully easy.",
+      "verdict": "Worked best -- concentrates the demanding work without bleeding into threshold days.",
+      "caveat": "Introduce gradually even here -- an abrupt start piles new stress onto an already-loaded system."
+    },
+    "rule_for_the_plan_builder": "Default to Model C: place any prescribed strength work on the same day as the X-session (see session_catalog_and_matching.json step_2), not on a separate easy day and not adjacent to the main or support quality sessions."
+  },
+
+  "step_5_injury_specific_session_modifications": {
+    "source": "Chapter 9 (transitions/injury) and Chapter 3 (muscular system as the true limiter)",
+    "general_rule": "Chapter 9's own injury-risk data (used elsewhere in this brain, see the Frandsen 2025 cohort finding) is about a SINGLE SESSION relative to the athlete's actual recent longest effort -- not a generic weekly cap. Any modification below should be checked against the athlete's real recent training log, not a textbook default.",
+    "modifications": [
+      {
+        "condition": "Recurring shin splints / bone-stress history",
+        "modification": "Cap any single session's length increase to no more than ~10% beyond the athlete's actual recent longest effort. Prefer softer surfaces (treadmill, track) for at least one quality session per week. Check shoe age/model as a first-line fix before adding load restrictions."
+      },
+      {
+        "condition": "Returning from a layoff (injury, illness, or general time off)",
+        "modification": "Re-enter at the 'cautious entry' version of the weekly template (session_catalog_and_matching.json step_4): cap threshold time at 20-25 minutes total until the body re-adapts, THEN increase volume -- never increase volume and intensity together on a return."
+      },
+      {
+        "condition": "Documented muscle imbalance or asymmetry with no recent training spike",
+        "modification": "This is the one case where targeted strength work (step_3/step_4 above) is appropriate as a direct fix, not just a general fitness supplement."
+      }
+    ]
+  }
+}

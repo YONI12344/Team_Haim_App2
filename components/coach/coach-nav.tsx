@@ -26,6 +26,7 @@ import {
   User,
   Settings,
   UserPlus,
+  Sparkles,
 } from 'lucide-react'
 
 export function CoachNav() {
@@ -40,6 +41,7 @@ export function CoachNav() {
     { href: '/coach/leads', label: t.leadsNav, icon: UserPlus },
     { href: '/coach/workouts', label: t.workouts, icon: Dumbbell },
     { href: '/coach/chat', label: t.chat, icon: MessageCircle },
+    { href: '/coach/ai-coach', label: t.aiCoachNav, icon: Sparkles },
     { href: '/coach/settings', label: t.settings, icon: Settings },
   ]
 

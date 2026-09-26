@@ -1,0 +1,248 @@
+{
+  "chapter_label": "12",
+  "source_file": "chapter12_teamhaim_brain.json",
+  "meta": {
+    "project": "TeamHaim AI Coach Brain",
+    "file_purpose": "Structured knowledge-base entry for the AI coaching agent, covering Chapter 12: the historical development of the Norwegian Method from 1995 to today -- the coaches, experiments, and lineage of athletes that shaped it.",
+    "important_note_on_sourcing": "This file separates two things on purpose: (1) FACTUAL / SCIENTIFIC / HISTORICAL DATA -- names, dates, results, training structures -- which are not copyrightable and are explicitly credited to their source book below, and (2) YONI HAIM'S ORIGINAL COACHING VOICE -- fresh explanations, framing, and philosophy written from scratch, not copied or reworded sentence-by-sentence from the source text. No verbatim or near-verbatim book text is reproduced here. This entire chapter is the source author's personal history and is cited as historical background only -- it is NOT retold as if it were Yoni Haim's own biography.",
+    "source_citation": {
+      "title": "The Norwegian Method",
+      "author": "Marius Bakken, MD",
+      "chapter_used": "Chapter 12: Development 1995-Today (Part IV: Going Deeper)",
+      "pages_used": "pp. 232-243, complete (12 photographed pages processed one at a time, zero gaps).",
+      "note": "All historical data, named coaches/athletes, training structures, and results in the 'source_science' section below originate from this book and are credited to Marius Bakken. Use this citation whenever the underlying content is referenced downstream in the app."
+    }
+  },
+  "source_science": {
+    "description": "Historical/factual content extracted from Chapter 12, credited to Marius Bakken, 'The Norwegian Method', logged page by page (pp. 232-243). Nothing has been trimmed.",
+    "1_chapter_opening_the_founding_question": {
+      "page": 232,
+      "the_question": "How can a runner without extreme innate abilities train more and better without breaking down? That question drove everything that followed.",
+      "how_the_method_actually_formed": "Training methods tend to be presented as finished packages, as if someone sat down one day and constructed them from scratch. That is not how it works. The method grew in waves of trial, error, measurement, and adjustment. Each influence added something; each failure removed something. The result is thousands of lactate measurements, countless failed experiments, and a long series of corrections that only made sense in hindsight.",
+      "who_contributed": "Coaches, physiologists, and runners contributed through conversations, ideas, and questions. Some ideas came from coaches met by chance. Others from physiologists who asked questions not previously considered. Most came from the author's own body, which showed again and again what worked and what did not.",
+      "the_ongoing_nature_of_the_method": "The method is not finished. It will continue to evolve, and readers should be part of that process: ask questions and experiment, but don't blindly copy what worked for someone else -- do it in a controlled way, one variable at a time, with measurements that give answers."
+    },
+    "2_1995_1996_york_high_school_and_joe_newton": {
+      "pages": "232-233",
+      "the_exchange_application": "In 1995, the author was a high school student in Norway with an exchange application and not much to fill in. Under interests, he wrote the only thing he knew to be true: 'I like to run.' That single line landed him at York High School in Elmhurst, Illinois.",
+      "joe_newton": "Already a legend, Newton had built York into a national institution in cross-country, a record few have come close to in American high school running (the film 'The Long Green Line' would later tell that story). Newton was a disciple of Arthur Lydiard, in direct contact through shared clinics and phone calls. In 1988, he became the first high school track coach brought onto the US Olympic staff.",
+      "the_training_structure": "With Newton, volume was high, but never just mileage -- intervals were woven into the system as a fixed rhythm through the week. Every Wednesday: 25 x 400 meters. The author learned that session there, and it later became one of the central quality sessions in the Norwegian Method.",
+      "the_result": "That year became a personal turning point -- by spring, the author had run the fastest high school two-mile time in the US that year, proof of what can happen when you land in an environment where load is not just executed but managed, repeated, and tolerated.",
+      "the_coe_connection": "It was through Newton that the author was introduced to Peter Coe, which brought his first experience with double threshold."
+    },
+    "3_1995_1996_peter_coe_and_first_double_threshold": {
+      "page": 233,
+      "the_connection": "Before the 1984 Olympics, Newton had worked with Sebastian Coe. Through that connection, the author met Sebastian's father and coach, Peter Coe.",
+      "the_first_double_threshold_experience": "Peter Coe gave the author his first taste of double threshold: two controlled sessions on the same day, a way to accumulate more threshold work without any single session becoming too large. The author was focused on 800 and 1500 meters at the time, but the logic was immediately clear and stayed with him. His first double threshold session was run on the Prairie Path in the bitter Chicago wind, winter of 1995-96.",
+      "top_up_mileage_weeks": "Peter trained with a structured approach with several distinct intensity levels. To compensate for phases with lower mileage, he used what he called top-up mileage weeks -- periods where conditioning load was compressed into fewer days.",
+      "ongoing_contact_and_hill_training": "The author stayed in contact with Peter Coe until 2002, through emails, his visits to Norway, and stays with him in Chelsea, running some of Sebastian's old training routes. One was an overgrown hill by the Thames that became his first experience with systematic hill training. Peter used two formats: long efforts of 600-800 meters and shorter, steeper sprints of 180-200 meters. The short hill workout is now a standard element in a typical winter week of the Norwegian Method."
+    },
+    "4_1997_indiana_university_and_sam_bell": {
+      "page": 234,
+      "the_move": "After a year back in Norway, the author started at Indiana University in fall 1997, training under Sam Bell, who coached Bob Kennedy -- the first non-African to break 13:00 for 5,000 meters.",
+      "training_alongside_kennedy": "Kennedy had just finished a rest period after a demanding international season, and the author's rising cross-country form let him keep up with Kennedy's interval work. At the time, Kennedy trained alongside a group of Kenyans that included Daniel Komen, the world record holder for 3,000 meters -- conversations that sparked an interest in Kenyan training the author would later pursue firsthand.",
+      "kennedys_key_insight": "Kenyans have a more finely calibrated sense of perceived exertion than most non-African runners -- they hit the right intensity more intuitively. The author later confirmed this through lactate measurements at Kenyan training camps.",
+      "why_he_left": "The author left Indiana after just one year -- the training model did not suit his physiology, but seeing the world's fastest non-African runner up close gave valuable insight into what a top performance environment looks like. He also continued developing double threshold, stacking extra sessions close together, often in the evenings."
+    },
+    "5_1998_1999_back_to_norway_and_per_halle": {
+      "pages": "234-235",
+      "the_return": "Late in 1998, the author returned to Norway close to quitting running. His former coach Per Halle welcomed him back. Per had run 13:27 and finished seventh in the Olympic final in Munich 1972, the same race where Lasse Viren won and Steve Prefontaine finished fourth. Per lived a few hundred meters from the author's childhood home and had followed him since he was young.",
+      "the_diary_copying_experiment": "The author made an unusual decision: to copy Per Halle's training diary from 1972 for the 1999 season, session by session. From January 1999, he increased volume to 180 km (112 miles) per week to mirror Halle, with intensity consciously lowered to ensure an aerobic focus and a significant training buffer. Later measurements confirmed he had been hitting the Golden Zone. Many of Per's typical winter sessions, such as 6-minute and 10-minute intervals, later became central to the typical Norwegian Method winter week.",
+      "the_result": "The experiment ended with 13:22 for 5,000 meters, built on awareness of intensity and a consistently conservative strategy -- a turning point proving that more aerobic load under control strengthened everything else. He was fortunate to hit this load primarily using heart rate, but also learned that 'more' had to be controlled, or a limit would come sooner than necessary.",
+      "further_1999_experimentation": "Further into 1999, the author engaged in even more extreme experimentation: up to three or four sessions daily, threshold sessions with a combined volume of 26 km (16 miles), daily threshold training inspired by Coe's top-up mileage weeks. The experimentation never stopped, but the lesson held."
+    },
+    "6_1999_2002_the_lactate_project": {
+      "page": 235,
+      "the_project": "The next step came through a project run by the Norwegian Athletics Federation and the Norwegian Olympic Sports Centre. Espen Tonnessen, Orjan Madsen, and Frank Evertsen were part of it.",
+      "franks_contribution": "Frank Evertsen brought practical experience with field measurement of lactate and years of work with Kenyan runners. As part of the project, lactate was measured during three weekend training camps -- not yet as a steering tool, but to check actual load against intention. By 2000, the author was using it on every quality session, giving far more precise session control and evaluation, and enabling a dynamic training model continually adjusted around fixed principles.",
+      "the_collaboration": "From 2000 to 2002, Frank and the author worked together. The lactate data added a new layer of precision to the structural framework and intensity principles built through preceding years. Frank also introduced the author to altitude training, which led to his first trip to Kenya in 2000."
+    },
+    "7_kenya_the_pattern_that_emerged": {
+      "page": 236,
+      "the_reality_check": "Kenya became a reality check. The author spent months in partly remote areas training with some of the best runners in the world, seeing enormous talent and depth. More importantly, he saw that many of the best hit the right load intuitively -- the lactate meter made it possible to actually see this, not guess.",
+      "the_key_finding": "Equally important: on hard sessions above threshold, the same runners did not push lactate as high as Norwegians typically did. They held back there too, with a flat, controlled curve.",
+      "the_takeaway": "Kenya did not give the recipe, but confirmation of being on the right track, and more data to work with. The best do not always push the hardest -- they hit the right load more often. It is reproducible, but it should be measured."
+    },
+    "8_2002_2003_transition_to_structured_model": {
+      "page": 236,
+      "the_setback": "After a difficult 2002 season, the collaboration with Evertsen ended and the author trained alone again. The principles still worked, but needed fine-tuning to get back to where he had been -- recovery had become harder, margins smaller. He ran 13:35 at best, a long way from his 13:09 personal best at the time.",
+      "why_it_mattered": "In hindsight, that period was essential -- smaller margins forced adjustments that made the model more precise than ever, because when there is less room for error, every variable has to earn its place.",
+      "specific_adjustments": "Removed intensive 1000-meter intervals at 5-8 mmol/L entirely from winter training. Reduced the volume of single threshold sessions but doubled up with systematic double threshold sessions several times per week. Shifted from two hard weeks followed by one easier week to structurally flat weeks.",
+      "the_alex_stanton_connection": "The shift to flatter weeks came after a conversation with Alex Stanton, Paula Radcliffe's coach. The author's manager, Stale Jan Froynes, used his contacts to arrange it -- a long phone conversation from the author's student apartment in Oslo where Stanton dissected his own experience before they looked at how it could solve the author's challenges. Combined with increased focus on double threshold, it allowed steady progress without the same risk of overload."
+    },
+    "9_2003_2004_alnes_froynes_and_final_structure": {
+      "pages": "237-238",
+      "leif_olav_alnes": "During this period, the author began working with Leif Olav Alnes -- sprint coach for Geir Moen, and later for Karsten Warholm, who in 2021 shattered the 400-meter hurdles world record. Alnes had helped with sprint and explosive training since 2000-2001 and had influenced the author's thinking about consolidating hard sessions.",
+      "the_collaboration": "Before the 2003 season, the author asked Alnes to join his training sessions; it took a long time to convince him, but he agreed after the author laid out exactly what help was needed. Alnes used his understanding of balancing concentrated load with recovery to shape training weeks -- his experience with sprinters helped cut total threshold load per session and instead focus on double threshold with somewhat shorter sessions. He checked lactate and challenged the author's thinking over a two-year period.",
+      "the_breakthrough_winter": "In winter 2004, everything clicked into place -- the first time the author followed what was later recognized as the typical Norwegian Method week, in the base period.",
+      "week_structure_february_2004_south_africa_dullstroom_altitude": [
+        {
+          "day": "Monday",
+          "session": "2 easy runs, zone 1"
+        },
+        {
+          "day": "Tuesday AM",
+          "session": "Long intervals (6 x 2000 m, lactate 2-3 mmol/L)"
+        },
+        {
+          "day": "Tuesday PM",
+          "session": "20-25 x 400 m (lactate near 3.0 mmol/L)"
+        },
+        {
+          "day": "Wednesday",
+          "session": "2 easy runs, zone 1"
+        },
+        {
+          "day": "Thursday AM",
+          "session": "4 x 10-minute intervals (lactate 2-3 mmol/L)"
+        },
+        {
+          "day": "Thursday PM",
+          "session": "10-12 x 1000 m intervals (lactate near 3.0 mmol/L)"
+        },
+        {
+          "day": "Friday",
+          "session": "2 easy runs, zone 1"
+        },
+        {
+          "day": "Saturday",
+          "session": "10 x 200 m in 26-28 seconds"
+        },
+        {
+          "day": "Sunday",
+          "session": "Long run, never longer than 16-18 km (10-11 miles)"
+        }
+      ],
+      "total_weekly_load": "180 km (112 miles) per week.",
+      "the_result": "That summer, the author set his personal best with 13:06.39 in Rome, the fastest 5,000-meter time in Europe that year by a five-second margin, in what he considers a suboptimal race (for comparison, 19 athletes ran faster than this in Europe in 2024)."
+    },
+    "10_2004_2006_transfer_to_other_runners": {
+      "page": 238,
+      "bjornar_kristensen": "From 2004 to 2006, the author trained alongside steeplechaser Bjornar Kristensen, coached by Eric Toogood -- one of very few athletes he actually trained with. The method was controversial and few wanted to commit to it fully at the time. His training was modified to the same model: double threshold sessions, lower intensity on easy days, systematic altitude training. Kristensen ran 8:16 for 3,000-meter steeplechase.",
+      "henrik_ingebrigtsen": "Toogood also coached another young athlete: Henrik Ingebrigtsen, brother of Jakob. Toogood took the training model and the exact sessions to Henrik, whom he guided until just a few months before Henrik's first European Championship gold in 2012. Henrik finished fifth at the Olympics that same summer, only 21 years old. The X-session element introduced was Coe-style short hill sprints instead of flat ground.",
+      "takeaway": "Once the framework is robust, it can transfer between athletes with surprisingly few changes, and the smartest tweaks tend to be small."
+    },
+    "11_2009_2013_bridge_to_ingebrigtsen_era": {
+      "pages": "238-239",
+      "gjert_ingebrigtsen_contact": "From 2009, and intensified between 2011 and 2013, the author had direct contact with Gjert Ingebrigtsen: phone calls, emails, text messages, concrete advice on session-to-session planning.",
+      "recommendations_made": "One of the first things recommended was systematizing double threshold sessions on the same day, also for a 1500-meter runner. Focus on intervals rather than continuous hard sessions. Strengthening altitude training as base work, tapering, and competition preparation. Repeated emphasis that development of the anaerobic threshold must be the core focus over time. Long conversations covered intensity control with a lactate meter, especially at the threshold, and intensity levels versus total kilometer load for summer and winter."
+    },
+    "12_2022_simen_halle_haugen_full_circle": {
+      "page": 239,
+      "the_connection": "In 2022, the author was contacted by the family of his former coach Per Halle to help his grandson, Simen Halle Haugen, a 13:37 runner for 5,000 meters. The author worked with him over a full annual cycle.",
+      "integration_into_ingebrigtsen_group": "During this period, Haugen was integrated into the Ingebrigtsen training group during their altitude camps in Sierra Nevada. They followed, pretty much as a carbon copy, the same weekly structure, lactate values, and sessions developed eighteen years earlier: Tuesday's 2000-meter intervals in the morning, 400s in the evening; Thursday's 10-minute intervals in the morning, 1000s in the evening; the X-Factor element on Saturday; 180 km (112 miles) per week; lactate sitting right between 2-3 mmol/L.",
+      "takeaway": "When intensity is tightly controlled and the week is built around repeatable anchors, a model can scale from one runner to an entire group, and still look almost identical decades later."
+    },
+    "13_2019_today_from_norwegian_niche_to_global_reach": {
+      "pages": "239-240",
+      "context": "Norway has 5.5 million inhabitants, about the same as Minnesota, yet the level Norwegian athletes achieve in middle distance, long distance, and triathlon is world class. The model is now used across all the strong Norwegian training environments.",
+      "double_threshold_becomes_a_buzzword": "Double threshold eventually became a term that took on a life of its own. At the same time, strong international environments began adopting the weekly structure correctly: controlled threshold volume, flat weeks, minimal stress on easy days, focus on control rather than variation for variation's sake.",
+      "mike_smith_nau": "Mike Smith at Northern Arizona University was one of the first in the USA. NAU became the first major American college program to systematically implement double threshold and has since become a dominant force with multiple NCAA titles.",
+      "kalle_berglund_and_andreas_almgren": "Swedish runners like Kalle Berglund and Andreas Almgren adopted the Ingebrigtsen training directly. Almgren trains at an even higher volume than Jakob, often over 200 km (124 miles) per week, with double threshold on Tuesdays and Thursdays. Results: Swedish records at 1500m, 5000m, 10,000m, and half marathon, plus the European record at 5000 meters in 2025.",
+      "george_mills": "George Mills describes his week structure as: Monday/Wednesday/Friday two easy runs (morning and evening); Tuesday and Thursday double threshold; Saturday a harder session with jogging afterward; Sunday a long run. In June 2025, he set the British record for 5,000 meters, nearly seven seconds faster than Mo Farah's record, which had stood for fourteen years.",
+      "arild_tveiten_and_norwegian_triathletes": {
+        "source": "Former Norwegian national triathlon-team coach Arild Tveiten, in correspondence with the author.",
+        "description": "Described the model used by Norwegian triathletes including Kristian Blummenfelt (a framework spread from distance running into endurance sport more broadly) as built on high volume at low intensity, threshold values typically around 2.5 to 3.0 mmol/L, and regular double-threshold structure -- the same principles the author had published more than a decade earlier.",
+        "tveitens_quote": "When estimating the threshold according to these protocols, we typically find that the anaerobic threshold lands around 2.5-3.0 mmol/L lactate rather than the typical 4 mmol/L ... We do a lot of double-threshold.",
+        "the_4_day_altitude_cycle": "Day 1: two threshold sessions/double threshold running, one easy session (5-8 hours workout). Day 2: long easy training of about 2 hours easy training of choice. Day 3: two threshold sessions, one easy. Day 4: very easy training of about 2 hours easy training of choice."
+      },
+      "kristian_blummenfelt_and_olav_alexander_bu": "Triathletes have expanded the framework further -- athletes like Blummenfelt use science to measure adaptation and load more precisely than lactate alone, integrating nutrition absorption and temperature under the expert guidance of coach Olav Alexander Bu.",
+      "takeaway": "The model works across distances and endurance sports because the physiology is the same. Only the application changes."
+    },
+    "14_what_changed_and_what_remained_the_same": {
+      "pages": "240-241",
+      "what_shifted": "In the 1990s, people talked about key workouts and classic 2:1 periodization. Now the best talk about weeks in long cycles, often periodized toward altitude or heat training. Technology makes it easier to copy: lactate measurement has become far more accessible, helpful, but it also means some runners have become more number-driven than necessary. Shoes and surfaces have changed the tolerance threshold -- modern footwear reduces much of the acute load and can make higher volumes of quality work possible, but does not remove the fundamental law that muscle tone must still drop between training loads.",
+      "the_summer_intensification_pattern": "The model's dynamic elements are being stretched. Jakob Ingebrigtsen and the world's best middle-distance runners have integrated significantly more intensive elements during summer -- natural and distance-specific. It took the author ten years to arrive at the weekly structure used in winter, and he simply did not have time to try more.",
+      "the_almgren_1000m_example": "Andreas Almgren provides a similar example: far higher volume on the track at high speed, such as 10 x 1000 m in the low 2:30s, corresponding to his 5,000-meter pace. The author suspects Almgren's lactate corresponds to what he experienced on his own 1000-meter sessions before the change made in 2003 -- 'skipping over' the 3-5 mmol/L zone and concentrating on lactate from 5-7 (8) mmol/L, an area with significant gain weighed against risk.",
+      "terminology_drift": "Terms have become detached from the whole. 'Double threshold' has for some become synonymous with 'two threshold sessions.' In the original sense, it means two threshold sessions placed within a much larger system -- done with an already too heavily loaded muscular system, the effect is questionable.",
+      "the_authors_take": "What you see across all of this is further individualization and distance-specific adaptation, and the author welcomes it -- it supports the very point of the model: a fixed center, understanding of its importance, ability to measure precisely, then moving outward with curiosity to individualize and adapt, in parallel with careful control.",
+      "the_core_unchanged_since_1999": "Develop the anaerobic threshold as high as possible. Do it by training in a controlled way in the Golden Zone. Compress training into double sessions to get more volume near the threshold. Be careful with more intensive training, and always with measurement. Balance the muscular system. Test, adjust, test again. It is not more complicated than that."
+    },
+    "15_why_the_method_actually_fails_when_it_fails": {
+      "page": 242,
+      "the_real_failure_point": "Doing it well requires a control system that most people never learn, because they copy the structure without understanding how intensity is actually guided. They get the sessions right and the control wrong. That is where the method breaks down -- not in the design, but in the execution, week after week, session after session.",
+      "why_single_sessions_arent_the_risk": "At an elite level, and for any serious runner pushing close to their ceiling, you can get through a hard session -- the body adapts to single bouts of stress remarkably well.",
+      "the_real_danger_the_0_3_mmol_l_drift": "What the body cannot absorb is forty weeks at slightly wrong intensity -- not dramatically wrong, just a fraction above where the training stimulus tips from productive to erosive. That margin is too small to feel in the moment. A 0.3 mmol/L drift in threshold lactate readings across six weeks of training looks like nothing on any given Tuesday. Across a full season with serious load, it is the difference between arriving at your target race sharp and arriving depleted.",
+      "why_lactate_testing_earns_its_place": "Not as a lab curiosity, but as the only tool that gives session-level feedback precise enough to catch that drift before it compounds. Heart rate tells you how hard the cardiovascular system is working. Perceived effort tells you how the session feels. Lactate tells you what is actually happening in the muscle -- whether intensity is sitting where intended, or has crept into a zone that looks identical from the outside but produces a fundamentally different training effect.",
+      "the_perception_gap": "Elite runners and ambitious amateurs who have used lactate-guided training for years often describe the same thing: the numbers reveal sessions they would have sworn were easy as slightly too hard, and sessions they pushed through as surprisingly well-absorbed. That gap between perception and physiology is where most training errors live.",
+      "bridge_to_chapter_13": "The next chapter is about closing that gap: how to read lactate curves, recognize drift, separate signal from noise, and make adjustments before the cost shows up two weeks later."
+    },
+    "16_chapter_summary_points_source": [
+      "It started with a problem. How can a runner without extreme innate abilities train more and better without breaking down? That question drove nearly three decades of refinement.",
+      "The influences. Joe Newton brought volume and intervals together. Peter Coe introduced double threshold and top-up mileage weeks. Sam Bell's environment showed what elite looked like up close. Per Halle's 1972 training diary became the template for the 1999 breakthrough of 13:22.",
+      "Kenya confirmed the direction. The best runners hit the right load intuitively, and held back on hard sessions too. Lactate measurement made it possible to see this, not guess.",
+      "Lactate measurements. From 2000 onward, every quality session was measured. It turned the model from a set of principles into a dynamic system that could be continually adjusted.",
+      "The structure clicked in 2004. Double threshold Tuesday and Thursday, easy days Monday/Wednesday/Friday, X-session Saturday, long run Sunday. 180 km per week. Lactate 2-3 mmol/L. That summer: 13:06 for 5000 meters.",
+      "What hasn't changed. Develop the threshold as high as possible. Train in the Golden Zone. Compress quality into double sessions. Be careful with intensive work. Balance the muscular system. The method breaks down not in the design, but in the execution."
+    ],
+    "17_named_people_and_results_in_chapter": [
+      "Joe Newton -- York High School (Elmhurst, IL) coach; first HS track coach on US Olympic staff (1988); disciple of Arthur Lydiard; originated the 25x400m Wednesday session.",
+      "Peter Coe -- coach/father of Sebastian Coe; introduced the author to double threshold and top-up mileage weeks (1995-96) and systematic hill training (600-800m long / 180-200m short formats).",
+      "Sam Bell -- Indiana University coach (1997); coached Bob Kennedy.",
+      "Bob Kennedy -- first non-African to break 13:00 for 5,000m; trained alongside Daniel Komen.",
+      "Daniel Komen -- 3,000m world record holder, trained with Kennedy's group.",
+      "Per Halle -- the author's childhood coach; 13:27 5000m, 7th in the 1972 Munich Olympic final (won by Lasse Viren, Steve Prefontaine 4th); his 1972 training diary was copied for the 1999 season.",
+      "Espen Tonnessen, Orjan Madsen, Frank Evertsen -- Norwegian Athletics Federation / Olympic Sports Centre lactate project (1999-2002); Evertsen introduced field lactate measurement and altitude training.",
+      "Alex Stanton -- Paula Radcliffe's coach; conversation (arranged by manager Stale Jan Froynes) that led to the shift to flat training weeks in 2002-2003.",
+      "Leif Olav Alnes -- sprint coach for Geir Moen and later Karsten Warholm (2021 400m hurdles WR); shaped the 2003-2004 double-threshold structure.",
+      "Bjornar Kristensen -- steeplechaser (8:16 3000m SC) coached by Eric Toogood using the transferred model (2004-2006).",
+      "Henrik Ingebrigtsen -- Jakob's brother; 2012 European Championship gold, 5th at the 2012 Olympics at age 21, coached by Eric Toogood using the same model.",
+      "Gjert Ingebrigtsen -- direct contact with the author from 2009, intensified 2011-2013, on session-to-session planning for the Ingebrigtsen brothers.",
+      "Simen Halle Haugen -- Per Halle's grandson; 13:37 5000m runner; integrated into the Ingebrigtsen group in 2022, following an 18-years-later carbon copy of the 2004 structure.",
+      "Mike Smith -- Northern Arizona University coach; first major US college program to systematically implement double threshold.",
+      "Kalle Berglund and Andreas Almgren -- Swedish runners; Almgren trains 200+ km/week with Tuesday/Thursday double threshold; multiple Swedish records plus 2025 European 5000m record.",
+      "George Mills -- British 5000m record holder (June 2025), breaking Mo Farah's 14-year-old record by ~7 seconds.",
+      "Arild Tveiten -- former Norwegian national triathlon-team coach; described the Blummenfelt training model and a 4-day altitude cycle independently confirming the 2.5-3.0 mmol/L Golden Zone.",
+      "Kristian Blummenfelt -- elite triathlete using an expanded version of the framework under coach Olav Alexander Bu.",
+      "Olav Alexander Bu -- coach integrating nutrition absorption and temperature science alongside lactate for triathletes."
+    ],
+    "author_background_reference": {
+      "note": "This entire chapter IS the author's personal/professional history. Cited strictly as sourcing/background. Not to be presented as Yoni Haim's own biography.",
+      "key_personal_results_mentioned": [
+        "Fastest US high school two-mile time (spring 1996, York High School).",
+        "13:22 for 5000m (1999, after copying Per Halle's 1972 diary).",
+        "13:09 personal best referenced as of 2002 (before the 13:35 dip that led to the 2002-2003 restructuring).",
+        "13:06.39 for 5000m in Rome (summer 2004) -- fastest in Europe that year by 5 seconds."
+      ]
+    }
+  },
+  "yoni_haim_coaching_philosophy": {
+    "identity": "Yoni Haim -- Division I track athlete, founder of TeamHaim.",
+    "attribution_line": "The historical development, named coaches, and training lineage described in this section are drawn from and credited to Marius Bakken, 'The Norwegian Method,' Chapter 12. This is his personal history, not TeamHaim's -- the reflections below are original commentary from Yoni Haim on what this history teaches about building a coaching system.",
+    "chapter_12_reframed": {
+      "title": "No One Invents a Method Alone: What Nearly 30 Years of Trial and Error Teaches",
+      "opening_philosophy": "I didn't build TeamHaim's philosophy in a vacuum, and neither did anyone whose method is actually worth following. Reading how this system came together over three decades — one borrowed session here, one failed experiment there, one blunt conversation with a rival coach that changed everything — reminded me why I'm so upfront about where TeamHaim's own ideas come from. Nobody invents a training philosophy from scratch. They steal wisely, test relentlessly, and keep only what survives contact with real athletes.",
+      "why_i_never_present_a_method_as_finished": {
+        "coach_translation": "What strikes me most about this history is that the method wasn't designed — it was discovered, one correction at a time, over decades, and it's explicitly described as still not finished. That's exactly how I think about TeamHaim's approach. Any coach who tells you their system is complete and perfect is selling you something. The right posture is constant, controlled experimentation — never blind copying, always one variable at a time, always measured.",
+        "citation_note": "Sourced from source_science.1_chapter_opening_the_founding_question."
+      },
+      "the_lesson_from_borrowing_a_rivals_entire_training_diary": {
+        "coach_translation": "One of the boldest moves in this whole history was literally copying a mentor's decades-old training diary, session by session, to rebuild a stalled career. That takes real humility — admitting you don't have the answer, and that someone else's hard-won structure might. I tell my athletes the same thing: if something is working spectacularly for someone else at your level, study it seriously before assuming you need to invent your own wheel.",
+        "citation_note": "Sourced from source_science.5_1998_1999_back_to_norway_and_per_halle."
+      },
+      "the_pattern_i_trust_most_when_evaluating_a_method": {
+        "coach_translation": "The single most convincing part of this whole story to me isn't any one coach's genius — it's that the same underlying pattern (moderate, controlled threshold work, held back deliberately even on hard days) kept getting independently rediscovered by completely different people in completely different sports, decades apart, without copying each other. When multiple smart people arrive at the same answer independently, that's a much stronger signal than any single charismatic coach insisting they've found the secret.",
+        "citation_note": "Sourced from source_science.7_kenya_the_pattern_that_emerged and source_science.13_2019_today_from_norwegian_niche_to_global_reach (the Arild Tveiten correspondence)."
+      },
+      "the_real_reason_good_systems_fail_in_other_peoples_hands": {
+        "coach_translation": "Here's the single most important lesson in this whole chapter for me as a coach: when this method fails for someone, it's almost never because the weekly structure was wrong. It's because they copied the SESSIONS without understanding the CONTROL SYSTEM behind them — how to actually judge day-to-day intensity. Getting the schedule right and the intensity judgment wrong is the single most common way a good plan quietly turns into a bad outcome. I care far more about teaching an athlete how to read their own effort than about handing them a spreadsheet of workouts.",
+        "citation_note": "Sourced from source_science.15_why_the_method_actually_fails_when_it_fails."
+      },
+      "why_a_tiny_drift_matters_more_than_a_single_bad_session": {
+        "coach_translation": "One single hard session that goes slightly too hard? Barely matters — the body absorbs that easily. What actually wrecks a season is a TINY error repeated for months: running just a touch too hard on what's supposed to be moderate work, week after week, invisible on any single day. By the time it shows up in results, you're already deep in the hole. This is exactly why I care so much about precise, repeatable intensity control rather than just 'good enough' effort.",
+        "citation_note": "Sourced from source_science.15_why_the_method_actually_fails_when_it_fails (the 0.3 mmol/L drift example)."
+      },
+      "why_i_watch_how_the_best_actually_train_not_just_what_they_say": {
+        "coach_translation": "Almost every serious breakthrough in this history came from someone getting close enough to a genuinely elite environment to observe what actually happened day to day — not what got publicized, but the actual sessions, the actual restraint on hard days, the actual weekly rhythm. That's why I put so much value in watching real training, not just reading about philosophy. The gap between what people say they do and what they actually do in training is where most of the useful information lives."
+      },
+      "core_takeaways_for_teamhaim_athletes": [
+        "No good training system was invented from scratch. It was built by testing, failing, and keeping only what survived real athletes and real seasons.",
+        "If a method or a workout is working spectacularly for someone at your level, study it seriously before assuming you need something entirely your own.",
+        "When multiple independent, credible sources land on the same principle without copying each other, trust that far more than any single confident voice.",
+        "Most training failures aren't bad session design — they're good sessions paired with poor intensity judgment. Learn to read your own effort, not just follow a spreadsheet.",
+        "The damage that actually ends seasons is rarely one bad day. It's a small, repeated error that's invisible day-to-day and only shows up months later.",
+        "Watch how good athletes actually train, not just what they say about how they train. The gap between the two is where the real lessons live."
+      ]
+    }
+  }
+}

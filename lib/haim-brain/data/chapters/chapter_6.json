@@ -1,0 +1,778 @@
+{
+  "chapter_label": "6",
+  "source_file": "chapter6_teamhaim_brain.json",
+  "meta": {
+    "project": "TeamHaim AI Coach Brain",
+    "file_purpose": "Structured knowledge-base entry for the AI coaching agent, covering Chapter 6: advanced double-threshold structuring, precise intensity control, distance-specific adaptation, and individualization for runners training 6-8+ hours per week.",
+    "important_note_on_sourcing": "This file separates two things on purpose: (1) FACTUAL / SCIENTIFIC DATA -- weekly tables, protocols, research citations, numeric guidance -- which are not copyrightable and are explicitly credited to their source book below, and (2) YONI HAIM'S ORIGINAL COACHING VOICE -- fresh explanations, framing, and philosophy written from scratch, not copied or reworded sentence-by-sentence from the source text. No verbatim or near-verbatim book text is reproduced here. Personal anecdotes belonging to the source author (his own career, his mentors, his athletes) are cited as background only and are NOT retold as if they were Yoni Haim's own experiences.",
+    "source_citation": {
+      "title": "The Norwegian Method",
+      "author": "Marius Bakken, MD",
+      "chapter_used": "Chapter 6: The Ambitious Runner (Part II: The Application)",
+      "pages_used": "pp. 111-145, complete (35 photographed pages, processed one page at a time; several pages arrived out of physical order but all gaps were tracked down and filled -- no content is missing from this chapter).",
+      "note": "All scientific data, weekly tables, protocols, and named research findings in the 'source_science' section below originate from this book and are credited to Marius Bakken. Use this citation whenever the underlying content is referenced downstream in the app."
+    }
+  },
+  "source_science": {
+    "description": "Factual / prescriptive content extracted from Chapter 6, credited to Marius Bakken, 'The Norwegian Method', logged page by page (pp. 111-145). This is the most data-dense chapter so far -- treat every table and numeric protocol as load-bearing data for the AI coach.",
+    "1_chapter_opening": {
+      "page": 111,
+      "premise": "For runners who put in six to eight hours a week, perhaps more, and have sustained that load for years -- whose bodies still respond, who understand the satisfaction of absorbing real training volume -- this chapter is about wanting something more.",
+      "peter_coe_anecdote": "Summer 1996: the author, just back from an exchange year in the US, was invited by Peter Coe (father and lifelong coach of Sebastian Coe) to stay at their home in Chelsea, sleeping in Sebastian's old room. Peter's office contained binders of training diaries covering the entire path to the world records. The precision was striking: Sebastian rarely exceeded 90 kilometers a week (56 miles). What mattered was not the volume but the calibration -- every session justified, every load placed with intention.",
+      "vebjorn_rodal_anecdote": "During the stay, the author watched the Olympic 800m final beside Peter Coe -- the event where Sebastian Coe had held the world record for sixteen years -- as Vebjørn Rodal won gold for Norway."
+    },
+    "2_what_this_chapter_offers": {
+      "page": 112,
+      "audience": "For runners who want advanced methods without surrendering their lives to the sport -- who wonder whether double threshold belongs in their program, are considering a lactate meter, or want structure and periodization that delivers results while still allowing them to function at work and at home. At this level, precision becomes essential, not optional.",
+      "two_sections": {
+        "section_1": "The Practical Framework -- how to structure double threshold sessions, control intensity with precision, periodize the training year, and adapt the model to a target event.",
+        "section_2": "Individualization -- what to do when the body does not respond as expected, and how to push further when ready."
+      },
+      "no_rigid_programs_by_design": "This chapter deliberately avoids rigid week-by-week programs. When already training six to eight hours a week or more, no cookie-cutter schedule can substitute for a genuine understanding of your own limits and responses.",
+      "practical_tip": "It may help to read or skim Chapter 5 before continuing, since several principles introduced there also apply here."
+    },
+    "3_section_1_the_performance_plateau": {
+      "page": 113,
+      "the_plateau": "Most runners experience a slowdown after two or three years of systematic training. The initial gains come quickly, sometimes dramatically so, and then the curve bends. This is not a failure of effort.",
+      "research_cited": "The classic HERITAGE study by Bouchard and colleagues in 1999 showed that individual responses to endurance training vary enormously, and that much of this variation is genetic. After the early surge of adaptation, most runners gradually approach a plateau, not because they are doing something wrong, but because they are nearing the ceiling of what their physiology will readily give.",
+      "how_to_keep_moving_forward": "You become dependent on increased training complexity: smarter periodization, more variation in stimulus, sharper intensity distribution. Central to this is double threshold -- a high-yield tool when handled with care."
+    },
+    "4_double_threshold_two_approaches": {
+      "page": 113,
+      "option_1_full_double_threshold": {
+        "definition": "Two double-threshold days per week, plus one optional harder session.",
+        "advantages": "Maximum threshold development. Rapid progress once adaptation takes hold. Mentally engaging.",
+        "disadvantages": "Requires flexibility in daily life. Higher risk of overreaching if intensity control slips."
+      },
+      "option_2_the_middle_model": {
+        "definition": "One double-threshold day plus two single-threshold sessions, or one double, one single, and one harder session.",
+        "advantages": "More sustainable over time. Easier to fit around work and family. Lower injury risk.",
+        "disadvantages": "Slightly slower progression. Requires more careful planning."
+      },
+      "recommendation": "Start with the middle model and reassess after eight to twelve weeks."
+    },
+    "5_weekly_structure_full_double_threshold": {
+      "page": 114,
+      "title": "FULL DOUBLE THRESHOLD - WEEKLY STRUCTURE",
+      "schedule": [
+        {
+          "day": "Monday",
+          "session": "Easy/recovery: 40-60 min, <70% max heart rate"
+        },
+        {
+          "day": "Tuesday",
+          "session": "Double threshold day 1 -- Morning: 5-6 x 6 min threshold, 1 min rest. Evening: 20-25 x 1 min threshold, 30 sec rest"
+        },
+        {
+          "day": "Wednesday",
+          "session": "Easy/recovery: 40-60 min very easy, or rest"
+        },
+        {
+          "day": "Thursday",
+          "session": "Double threshold day 2 -- Morning: 3 x 10 min threshold, 90 sec rest. Evening: 15 x 90 sec lightly progressive, 30 sec rest"
+        },
+        {
+          "day": "Friday",
+          "session": "Easy/recovery or rest: 30-45 min completely easy or full rest, depending on Saturday's session"
+        },
+        {
+          "day": "Saturday",
+          "session": "X-session (see alternatives)"
+        },
+        {
+          "day": "Sunday",
+          "session": "Long run: distance and pace depending on goal. For 5K/10K, rarely more than 60-90 minutes needed"
+        }
+      ],
+      "x_session_saturday_rotation": [
+        "25-30 x 45/15 progressive",
+        "5 x 1000 meters at 5-10K race pace",
+        "Test run or competition",
+        "16-20 km (10-12 miles) total in progressive marathon-specific runs"
+      ],
+      "x_sessions_by_target_distance": {
+        "5K": "Hill sessions (8-10 x 60-75 sec) or 30/30 blocks",
+        "10K": "Threshold variation (2-3 x progressive 10 min) + 6-8 x 30/30",
+        "half_marathon": "3 x 12-15 min threshold, or 40-60 min continuous threshold at varying pace"
+      }
+    },
+    "6_weekly_structure_middle_model": {
+      "page": 115,
+      "title": "THE MIDDLE MODEL: WEEKLY STRUCTURE",
+      "schedule": [
+        {
+          "day": "Monday",
+          "session": "Rest day, or 30 min very easy if complete rest leaves you sluggish"
+        },
+        {
+          "day": "Tuesday",
+          "session": "Support threshold: 6 x 6 min threshold, 1 min rest"
+        },
+        {
+          "day": "Wednesday",
+          "session": "45-50 min easy"
+        },
+        {
+          "day": "Thursday",
+          "session": "Main threshold: 4 x 10 min threshold, 1:30 rest"
+        },
+        {
+          "day": "Friday",
+          "session": "Rest day"
+        },
+        {
+          "day": "Saturday",
+          "session": "X-session: 15-18 x 45/15 progressive from 10K to 5K race pace"
+        },
+        {
+          "day": "Sunday",
+          "session": "Long run: 75-85 min easy"
+        }
+      ],
+      "double_threshold_every_other_week_variant": [
+        {
+          "day": "Tuesday",
+          "session": "Morning: 6-8 x 5 min threshold, 1 min rest. Evening: 15-20 x 45/15"
+        },
+        {
+          "day": "Thursday",
+          "session": "Shortened session (e.g., 3 x 8 min) -- keeps total threshold volume in check"
+        },
+        {
+          "day": "Saturday",
+          "session": "As in the middle model"
+        },
+        {
+          "day": "Sunday",
+          "session": "Long run as in the middle model"
+        }
+      ],
+      "ground_rules": [
+        "Easy means easy: <70% of max heart rate, typically a pace you can hold while breathing through your nose",
+        "High intensity stays under 30 minutes per week, and only when fully recovered",
+        "Never attempt to make up missed quality work -- the plan moves forward regardless"
+      ]
+    },
+    "7_parallels_with_jakob_ingebrigtsen": {
+      "page": 116,
+      "framing": "At this point, your training structure may begin to resemble what a top athlete actually does. As an illustration, here is a typical training week for both the author in 2005 and Jakob Ingebrigtsen nearly two decades later.",
+      "title": "EXAMPLE: TRAINING WEEK AT ELITE LEVEL (WINTER PHASE)",
+      "schedule": [
+        {
+          "day": "Monday",
+          "session": "Two easy runs"
+        },
+        {
+          "day": "Tuesday",
+          "session": "Morning: Long intervals (6 x 2000 m, lactate 2-3 mmol/L). Evening: 20-25 x 400 m (lactate near 3.0 mmol/L)"
+        },
+        {
+          "day": "Wednesday",
+          "session": "Two easy runs"
+        },
+        {
+          "day": "Thursday",
+          "session": "Morning: 4 x 10 min intervals (lactate 2-3 mmol/L). Evening: 10-12 x 1000 m intervals (lactate near 3.0 mmol/L)"
+        },
+        {
+          "day": "Friday",
+          "session": "Two easy runs"
+        },
+        {
+          "day": "Saturday",
+          "session": "X-session with intensive intervals, 20-30 seconds. The author often ran flat (e.g., 10 x 200 m); Jakob typically runs hills. Lactate well above the threshold."
+        },
+        {
+          "day": "Sunday",
+          "session": "Long run, rarely longer than 16-18 km (10-11 miles)"
+        }
+      ],
+      "total_volume": "Hovers around 180 km per week (112 miles)."
+    },
+    "8_periodization_at_this_level": {
+      "page": 116,
+      "principle": "At this level, think in cycles. The previous chapter can be a starting point, but when training six to eight hours per week, the structure of those cycles can often be tightened further for optimal results.",
+      "annual_cycle_12_months": [
+        "Two peaks per year, typically spring and autumn",
+        "Three to four months of buildup toward each peak",
+        "Four to six weeks of transition between phases"
+      ],
+      "monthly_cycle_4_weeks": [
+        "Weeks 1-2: Volume emphasis (roughly 120% of normal duration)",
+        "Week 3: Intensity peak (90% volume, slightly higher weighting on quality sessions)",
+        "Week 4: Regeneration (70% volume)"
+      ],
+      "altitude_note": "For the truly advanced, training in heat or at altitude can become a natural part of this monthly rhythm. The author used altitude systematically throughout his career: short stays of seven to fourteen days at elevation, followed by somewhat easier training at sea level."
+    },
+    "9_weekly_cycle_and_training_volume": {
+      "page": 117,
+      "weekly_cycle_7_days": [
+        "Two hard days with threshold focus (Tuesday/Thursday)",
+        "One more intensive day, either in length or intensity (Saturday)",
+        "One long run (Sunday)",
+        "Three easy or recovery days"
+      ],
+      "increasing_volume_guidance": "To increase volume, consider adding double days that combine easy running with double threshold work. Always build gradually, never abruptly, and always include checkpoints at least every fourth week to assess performance and adjust load and threshold pace as needed.",
+      "training_volume_importance": "Total running distance per week is one of the most important factors determining how fast you will ultimately run. It supports both raw fitness development and recovery capacity.",
+      "prerequisites_for_volume_increase": [
+        "You must be completely injury-free when you begin",
+        "The increase must happen gradually over an extended period, never abruptly",
+        "Volume takes priority over increased intensity or more frequent hard sessions",
+        "When adding load, it is often better to add more sessions rather than lengthening existing ones"
+      ],
+      "how_much_to_run": "As much as you can handle while still executing your quality sessions properly."
+    },
+    "10_top_up_mileage_weeks": {
+      "pages": "117-118",
+      "origin": "Peter Coe introduced this concept to the author in 1995, when he was still a young middle-distance runner.",
+      "definition": "A short period of significantly higher total volume, lasting four to six weeks, placed roughly three to eight weeks before competition.",
+      "example_from_70_km_week": {
+        "note": "TIMING: 3-8 weeks before competition. DURATION: 4-6 weeks with gradual increase.",
+        "table": [
+          {
+            "week": "Week 1",
+            "volume": "77 km (48 miles, +10%)"
+          },
+          {
+            "week": "Week 2",
+            "volume": "84 km (52 miles, +20%)"
+          },
+          {
+            "week": "Week 3",
+            "volume": "91 km (57 miles, +30%)"
+          },
+          {
+            "week": "Week 4",
+            "volume": "98 km (61 miles, +40%)"
+          },
+          {
+            "week": "Week 5",
+            "volume": "105 km (65 miles, +50%)"
+          },
+          {
+            "week": "Week 6",
+            "volume": "105-110 km (65-68 miles, hold or slight increase)"
+          },
+          {
+            "week": "Week 7",
+            "volume": "70-75 km (44-47 miles, back to normal)"
+          },
+          {
+            "week": "Weeks 8-10",
+            "volume": "70 km (44 miles, normal load)"
+          },
+          {
+            "week": "Weeks 11-13",
+            "volume": "Competition"
+          }
+        ]
+      },
+      "important_notes": [
+        "The increase applies only to easy sessions, both length and frequency",
+        "Quality sessions remain at the same level",
+        "This must be built on an already solid training foundation",
+        "Lower risk than many other interventions when progressed gradually",
+        "After the block, return to normal weekly volume before competition"
+      ],
+      "hierarchy_of_priorities": [
+        "Execute threshold sessions at correct intensity and chosen volume. This is always the priority. Quality sessions stay the same -- never sacrifice these for volume.",
+        "Increase easy-day volume. Longer easy runs, or add more easy sessions per week. Only easy sessions grow.",
+        "Block-wise volume increase. Several weeks elevated. Return to normal before competition.",
+        "More intensive training. Only when steps 1-3 are exhausted."
+      ],
+      "figure_6_1_description": "The Volume Hierarchy (four-step downward-arrow diagram matching the priorities above). Caption: do not add intensity before you have exhausted the safer volume options. In this model, threshold quality is protected, and volume growth happens mainly through easy sessions.",
+      "key_point": "Volume increase and intensity control go hand in hand. To tolerate higher total load, you must be all the more precise with intensity on each individual session."
+    },
+    "11_precise_intensity_control": {
+      "page": 119,
+      "premise": "At this level, marginal improvements matter. What changes as training volume rises is not the principles but the precision required.",
+      "recommendation": "Check where your actual threshold lies every fourth week, through a full lactate profile or one of the tests described in Chapter 2. The 30-minute test works well without lactate profiling access; a pure time trial is another option.",
+      "lactate_meter_cost_benefit": "A personal lactate meter typically costs about the same as a pair of running shoes (around 300 USD), and a single lab test even less. With a few samples per month, you will quickly become much better at controlling intensity.",
+      "practical_tip": "If you acquire a lactate meter, systematically map the variation in heart rate versus lactate, both within sessions and across different conditions: morning versus evening, treadmill versus outdoor, and in relation to harder sessions earlier in the week. This builds an arsenal of reference points that eventually lets you reduce how often you need to test."
+    },
+    "12_lactate_profiling_protocol": {
+      "page": 120,
+      "scope_note": "This section assumes you have a lactate meter. If you do not, skip it -- pace, heart rate, and the talk test are sufficient for most runners.",
+      "protocol": [
+        "5-minute intervals with increasing speed",
+        "30 seconds rest between intervals",
+        "Measure lactate after each interval",
+        "Plot the curve",
+        "Adjust training zones based on changes"
+      ],
+      "frequency": "Do a thorough test every fourth week if you have access to lactate profiling."
+    },
+    "13_authors_personal_lab_to_field_protocol": {
+      "page": 121,
+      "verification_principle": "Ideally, a lab test should be checked against a standard field test outdoors a few days later, to ensure that the variation between treadmill and outdoor running is not too large. This can be highly individual.",
+      "the_authors_own_method": "Over time, the author developed enough confidence through mapping both lab profiles and occasional field tests that he no longer needed lab testing -- he could simply check progression and target numbers during training. His fixed protocol was: lactate test on treadmill, two days easy, light threshold session, two days easy, then a control test outdoors.",
+      "lactate_in_intensive_sessions": {
+        "premise": "Lactate can be used actively, with almost equal effect, to regulate load in more intensive sessions, not just in the Golden Zone.",
+        "the_dead_zone": "As a rough guide, the zone between 3.5 and 5.5 mmol/L often produces wear without delivering much benefit to the processes you are trying to stimulate above the threshold -- comparable to running a bit too fast on easy days: effort without the intended return.",
+        "key_point_individual_variation": "More explosive runners will see lactate rise far higher than the values given at a given effort. Treat all lactate values in this chapter as a template with room for personal variation.",
+        "interval_length_matters": "There is a fundamental difference between short and long intervals. Longer intervals (over roughly 400 meters or one minute) become far more problematic at high lactate than shorter intervals at the same lactate level, if the goal is to avoid inducing peak fitness too early."
+      }
+    },
+    "14_lactate_zones_for_intensive_sessions": {
+      "page": 122,
+      "context": "At a maximum lactate of around 15 mmol/L, three intensity zones for lactate-controlled training above the threshold:",
+      "zones": [
+        {
+          "lactate_range": "5-9 mmol/L",
+          "use_case": "Typical for hill sessions in winter and controlled sessions in a buildup phase. Sufficient stimulus above the threshold without excessive degradation or premature peak induction, though values should only approach 9 toward the end of the session. Somewhat individual and exercise-specific."
+        },
+        {
+          "lactate_range": "7-11 mmol/L",
+          "use_case": "Typical for transition periods leading into competition. Approaches real 3-5K race pace for most runners. On these sessions, lactate can often be kept relatively stable throughout, given adequate rest."
+        },
+        {
+          "lactate_range": "11+ mmol/L",
+          "use_case": "Reserved for sharpened, highly intensive sessions. Rest can be used actively to regulate intensity. These sessions will be peak-inducing for most athletes. Necessary in moderate doses, but if done too often week after week, threshold capacity will erode -- and threshold capacity is the foundation for all distance running."
+        }
+      ],
+      "heart_rate_monitor_guidance": "Always measure heart rate alongside pace at this level. A wrist-based monitor is often sufficient for easy sessions and resting heart rate; for harder sessions, use a chest strap for the accuracy needed.",
+      "x_session_hill_training_foundation": "In the Norwegian model, hill training is a central component through much of the year. In winter, athletes typically run 8-15 repetitions of 200 meters uphill at an intensity well above the traditional threshold -- combining strength and endurance work without necessarily reaching very high speeds. The resistance of the hill functions as strength training itself, while the reduced speed lowers injury risk. This produces high muscular activation (innervation) with comparatively low risk, favorable for many runners including recreational athletes."
+    },
+    "15_periodized_hill_training_and_drip_load": {
+      "pages": "123-124",
+      "periodized_hill_training": {
+        "definition": "An alternative to a fixed hill session format: train in cycles of six to eight weeks, varying the length of hill intervals week to week.",
+        "cycle": [
+          "Week 1: Short, sprint-like hill runs of 60-100 meters",
+          "Week 2: Traditional hill intervals around 200 meters",
+          "Week 3: Long hill intervals around 600-800 meters",
+          "Then: Repeat the cycle"
+        ],
+        "benefit": "Provides variation and progression without excessive injury risk."
+      },
+      "transition_between_phases": {
+        "technique": "Add small doses of shorter intervals toward the end of the session when transitioning to longer intervals -- carrying the adaptation from earlier phases continuously into the new training block.",
+        "examples": [
+          "After the 200-meter interval session: finish with 2-3 x 60 meters (from the previous phase)",
+          "After the 600-800-meter interval session: finish with 1-2 x 60 meters and 1-2 x 200 meters (from the two previous phases)"
+        ],
+        "authors_term": "The author calls this drip load -- choosing sufficient but minimal load to maintain qualities as you move into the next specific phase."
+      },
+      "strategic_use_of_rest_marathon_specific": {
+        "definition": "An effective method for marathon-specific endurance: divide threshold work into 6-minute intervals with 2 minutes of easy running rest, rather than traditional short rests.",
+        "benefit": "Increases total continuous running time considerably while retaining some interval character (higher speed and muscular variation) without the accumulated fatigue of completely continuous running -- ideal for building the specific endurance a marathon requires."
+      },
+      "strategic_use_of_rest_gentler_intensity": {
+        "definition": "The same long-rest principle works on intensive sessions for the opposite purpose: a gentler variant that allows high intensity without accumulating excessive fatigue.",
+        "worked_example": "A classic 10 x 400 meters at high intensity with 1-minute rest can be brutal: lactate builds up, muscles grow heavier, and the final intervals become a battle. Using 2-4 minutes of easy running rest between each interval instead lets you approach race pace on each individual interval, with far lower total load. You stimulate high speed, neuromuscular coordination, and lactate tolerance without digging into exhaustion that requires several days of recovery.",
+        "when_its_most_valuable": "Especially valuable when you want to maintain or build speed in periods where total load is already high, particularly during the building phase of the training cycle. The long rests function as a safeguard against overload while the training effect on the intense intervals is maintained."
+      }
+    },
+    "16_distance_specific_adaptation": {
+      "page": 125,
+      "premise": "At this level, specificity for your target distance becomes important. Each race distance has its own character, but the qualities developed with smart threshold training remain central for all distances from 1500 meters and up -- they form the foundation and main focus throughout.",
+      "training_for_5k_10k": {
+        "approach": "Emphasize small elements of higher speed combined with a solid threshold base. The key is managing to retain threshold capacity into competition season while adding small doses of higher intensity, achieved by having one shorter, more intensive session in the early part of the program, ideally on hills, then increasing specificity as competitions approach.",
+        "base_training": "Two days with threshold work and one day with shorter intervals around 30 seconds (with good rests, ideally on hills). Structure can be completely flat, or alternate two harder weeks followed by one easier week. Easy training should be completely easy, with emphasis on volume.",
+        "transition_period": "After base training, a simple transition period replaces the shorter-interval session as described in the X-session progression table below. Ideally use one to two weeks with light adaptation and strides beforehand to avoid an abrupt transition to faster running."
+      }
+    },
+    "17_x_session_progression_toward_5k": {
+      "page": 126,
+      "title": "PROGRESSION OF X-SESSION TOWARD 5K COMPETITION",
+      "table": [
+        {
+          "timing": "7 weeks before",
+          "session": "200-300 meter intervals: 8-12 x 200-300 m at 3-5K pace, 45-60 sec rest"
+        },
+        {
+          "timing": "6 weeks before",
+          "session": "400-meter intervals: 6-10 x 400 m at 3-5K pace, 1:00-1:30 rest"
+        },
+        {
+          "timing": "5 weeks before",
+          "session": "800-meter intervals: 4-6 x 800 m at 3-5K pace, 2-3 min rest"
+        },
+        {
+          "timing": "2-4 weeks before",
+          "session": "1000-meter intervals (peak-inducing): 4-6 x 1000 m at 3-5K pace, 3 min rest. Often the most peak-inducing variant. Overspeed toward end of session: finish the 1000-meter session with 3-5 x 300 m at controlled overspeed around 1500 m pace, with 60-75 sec jog rest. This provides a nice connection to speed without emptying you."
+        },
+        {
+          "timing": "Week before",
+          "session": "Reduce the number of 1000-meter intervals or return to shorter intervals like 200-300 m to conserve reserves."
+        }
+      ],
+      "competition_season": "It is usually sufficient to use primarily the competition itself as the intensive element. This X-session, gradually sharpened toward the season and then into competition, makes it possible to extract a great deal of potential with very low risk -- keeping the muscular system engaged at higher speed with short effort time once per week, without being particularly peak-inducing. Because transitions carry high injury risk, having such an element be somewhat more intensive over winter makes the transitions themselves much safer."
+    },
+    "18_half_marathon_and_marathon_training": {
+      "pages": "127-128",
+      "why_the_marathon_is_different": "The marathon is the ultimate endurance challenge. 42.195 kilometers requires more than a high lactate threshold -- also metabolic efficiency, mental endurance, precise pace control, and specific adaptations in the muscular system for the distance's length. The challenge lies in balancing partially conflicting principles: too much volume and too many quality sessions create high risk of injury and overtraining; too little length and specific load means the body does not have time to adapt to the unique demands.",
+      "the_100_day_marathon_plan_origin": "Developed by the author in 2009, building directly on the same threshold principles but adapted to the marathon's demands for pace, distance, and continuity. The background: the author considered moving up to marathon after his career as a 5000-meter runner. He traveled to Italy in 2007 to learn from legendary coaches like Romano Tordelli, and had long conversations with Renato Canova during championships, specifically to study how they combined threshold work with marathon-specific phase periodization. He never became a marathon runner -- medical school demanded its due -- but those experiences inspired him to systematize the philosophy for recreational runners.",
+      "phase_division_the_key_to_marathon_success": [
+        "5K/10K phase",
+        "Half marathon phase",
+        "Marathon phase",
+        "Peak phase"
+      ],
+      "key_point": "You carry adaptations in the muscular system from one phase to another, with gradual sharpening toward the marathon-specific weeks. Once you reach that phase, you maintain these qualities at a minimum while long threshold sessions at varying pace, ideally continuous, take over the main focus.",
+      "why_more_continuous_sessions_in_marathon_training": "This aligns with what many of the world's best marathon runners do, following a tradition from Italian marathon training. It is specific and limited to the marathon (and possibly half marathon) -- for training to stay in shape and race at 5K or 10K, more interval-based training overall is clearly recommended.",
+      "marathon_cycle_disclaimer": "The example weeks below are shown for structure and thinking only, with lower volume than what most readers of this chapter will be accustomed to. Ideally use more volume than the examples show."
+    },
+    "19_marathon_cycle_phase_examples": {
+      "pages": "129-130",
+      "phase_1_5k_10k_focus_1_3_weeks": {
+        "description": "A period of 5K and 10K-specific training, where interval sessions are emphasized at somewhat higher intensity to provide a favorable stimulus for the muscular system.",
+        "example_week": [
+          {
+            "day": "Monday",
+            "session": "4 x 800 m with 400 m running rest. Intensity in high threshold zone on the 800s and low threshold zone on the 400s"
+          },
+          {
+            "day": "Tuesday",
+            "session": "Rest day"
+          },
+          {
+            "day": "Wednesday",
+            "session": "8 x (60-45-30-15 sec run, 15 sec rest). Run gradually faster, start just under the threshold, finish above. A variant of 45/15"
+          },
+          {
+            "day": "Thursday",
+            "session": "Easy training"
+          },
+          {
+            "day": "Friday",
+            "session": "10 x 2 min threshold"
+          },
+          {
+            "day": "Saturday",
+            "session": "Rest day"
+          },
+          {
+            "day": "Sunday",
+            "session": "Longer easy training"
+          }
+        ]
+      },
+      "phase_2_half_marathon_focus_4_7_weeks": {
+        "description": "The threshold focus is maintained, but the load is gradually adjusted toward the prolonged effort that awaits in the marathon-specific weeks. The speed component from the 5K/10K phase is retained.",
+        "example_week": [
+          {
+            "day": "Monday",
+            "session": "Continuous run: 12 min threshold + 3 min just above + 6 min threshold + 3 min just below + 9 min threshold + 3 min just above + 2 min just below + 1 min just above. Can finish with light 5-10 x (45 sec run/15 sec rest)"
+          },
+          {
+            "day": "Tuesday",
+            "session": "Rest day"
+          },
+          {
+            "day": "Wednesday",
+            "session": "5 x 4 min varying from threshold to just above the threshold, can finish with 5-10 x (45 sec run/15 sec rest)"
+          },
+          {
+            "day": "Thursday",
+            "session": "Easy training"
+          },
+          {
+            "day": "Friday",
+            "session": "6 x 6 min threshold with 2 min running rest just below the threshold"
+          },
+          {
+            "day": "Saturday",
+            "session": "Rest day"
+          },
+          {
+            "day": "Sunday",
+            "session": "Long easy run, 2 hours"
+          }
+        ]
+      },
+      "phase_3_marathon_specific_phase": {
+        "description": "In the marathon weeks, tough progressive long sessions are introduced, while elements from the two preceding phases are maintained through small doses across the weekly cycle.",
+        "example_week": [
+          {
+            "day": "Monday",
+            "session": "Continuous run 60 min where pace varies every 4 min between high threshold and the zone between easy training and the threshold"
+          },
+          {
+            "day": "Tuesday",
+            "session": "Rest day"
+          },
+          {
+            "day": "Wednesday",
+            "session": "Easy training"
+          },
+          {
+            "day": "Thursday",
+            "session": "30 min easy, 30 min between easy and threshold, 30 min threshold"
+          },
+          {
+            "day": "Friday",
+            "session": "Rest day"
+          },
+          {
+            "day": "Saturday",
+            "session": "3.5 hours easy. Alternatively, with energy to spare, run marginally shorter to finish directly into a few 1-minute intervals or 45/15"
+          },
+          {
+            "day": "Sunday",
+            "session": "Easy"
+          }
+        ]
+      },
+      "phase_4_peaking_tapering_2_3_weeks": "Volume, length, and intensity are reduced -- but never so much that the muscular system loses adequate stimulus, and never so little that the training already completed loses its effect. Light sessions are reintroduced, for example 20 x 1 minute. The number of sessions drops. Everything is sharpened directly toward the race.",
+      "phase_5_recovery": "Short intervals with short rests are used again here, combined with rest or easy runs, to get the body moving toward a new training cycle.",
+      "closing_note": "These five phases give the periodization a solid framework for marathon training. Combined with the weekly structures and models described earlier, this provides the tools to train systematically toward all distances from 5K to marathon."
+    },
+    "20_section_2_individualization_and_adaptation": {
+      "page": 131,
+      "framing": "If you have made it here, you have mastered threshold training at a high level and delivered results. This section is not about fixing something broken -- it is about optimizing something that already works, by going deeper into how genetics, muscle fiber composition, and individual differences can affect how you adapt the model."
+    },
+    "21_genetics_and_individualization": {
+      "page": 131,
+      "central_question": "What if your body responds differently than expected to threshold training? Even when everything is done correctly -- intensity control, periodization, management of muscle tone -- certain runners struggle with the model, not from lack of will or understanding, but because their genetic starting point is fundamentally different.",
+      "vebjorn_rodal_case_study": "Toward the end of 1999, Vebjørn Rodal (Olympic 800m champion from 1996, one of the author's childhood heroes alongside Sebastian Coe) shifted his training from a relatively intensive focus to somewhat more threshold-based work. His threshold numbers were better than ever that spring, but his competition results dropped substantially relative to his level. Rodal was probably more type II-dominant -- explosive, fast, built for shorter, more intense loads. When some of his training was converted to longer, monotonous threshold sessions, part of what made him unique disappeared. The author has seen this pattern repeat itself.",
+      "the_underlying_variable": "Many runners thrive and flourish with long threshold sessions and high volume. Some tolerate it poorly, regardless of training experience or understanding. The difference most likely lies in muscle fiber composition.",
+      "self_reflection_prompt": "There are recreational-runner versions of Rodal too. Someone who always thrived in childhood with explosive jumps or sprint-element sports, and for whom long, monotonous threshold sessions drain more than they build up, may respond better to slightly shorter intervals, more variation, and more frequent rests within the same principles -- simply because their muscular system functions best that way."
+    },
+    "22_warning_signs_and_fiber_composition": {
+      "page": 132,
+      "warning_signs_pure_threshold_may_not_suit_you": [
+        "You can complete threshold sessions technically correctly, but progression is absent over months",
+        "The muscular system feels constantly heavy, even on easy days and after sufficient rest",
+        "You experience repeated muscle and tendon injuries despite correct intensity control",
+        "Short, intense sessions feel natural and good; prolonged threshold work feels like a battle",
+        "You have a background in explosive sports or notice you have always been fast rather than enduring"
+      ],
+      "muscle_fiber_research": "The distribution of muscle fibers varies enormously between individuals. Some have up to 80% type I fibers (endurance fibers); others have 60-70% type II fibers (fast fibers). Those with a preponderance of type II fibers can struggle with traditional threshold training, since these fibers are designed for short-term, high-intensity work rather than prolonged moderate load.",
+      "authors_own_fiber_profile": "The author lay somewhere in the middle of this spectrum, leaning toward type I. As a teenager he was fast -- running 60 meters in 7.2 seconds at 15, top of his age group in Norway -- but was more enduring than fast. Because he did not have a completely 'pure' endurance-oriented muscular system, threshold training worked well for him precisely because it compensated for genetic limitations by maximizing the aerobic system.",
+      "trainability_note": "These qualities are partly trainable. Studies also show that athletes who have trained for many years with endurance work adapt accordingly, including changes in fiber composition. Whether to give threshold training a proper chance regardless of suspected type, or to account for likely type from the start, are both possible approaches."
+    },
+    "23_adaptations_for_type_ii_dominant_runners": {
+      "page": 133,
+      "adaptations": [
+        "Cut the longest threshold sessions: Reduce both interval length and total volume. Long, monotonous threshold sessions will feel less effective and often degrade the qualities you already possess as a type II runner.",
+        "Shorter easy runs: Use increased frequency instead. Volume can be maintained but divided up. Running pace should be kept consistently down.",
+        "More explosive elements: You tolerate and benefit more from sprint training and strength work.",
+        "Progressive threshold sessions: Reduce the number somewhat. They should be progressive, with increasing pace where you also increasingly allow yourself to go right over and through the threshold. Many also find good effect from a more explosive finishing focus, such as faster 45/15 or 30/30.",
+        "Periodic weeks without threshold focus: Every second or third week, allow yourself pure weeks without any threshold focus at all, to observe response and get a natural break from the monotonous pattern."
+      ],
+      "from_exception_to_rule": "The above is the exception -- for pure type II-dominant runners, this adaptation is not optional but necessary. Many in this category have already been selected out at an earlier point, since endurance training never felt 'right' to begin with. For everyone else who masters the threshold-focused model and thrives with the structure, there is room for something different: a bit more experimentation within the framework, because you may be ready to go a step further."
+    },
+    "24_areas_for_individual_experimentation": {
+      "page": 134,
+      "prerequisites_for_experimentation": [
+        "You have mastered threshold training. It sits.",
+        "You have delivered results with it over time.",
+        "You manage the transition from threshold-based base training to competition-sharpened work in summer."
+      ],
+      "areas_to_explore": "Testing the X-session and 'the two horses,' race-pace specificity through rest manipulation, the competition season, and double threshold variants.",
+      "x_session_as_hill_training_rationale": "Hill running provides a high degree of muscular innervation (recruiting a large portion of the muscular system) and a built-in strength element within the running movement itself, rather than through lifting weights. Effort time is limited to 20-30 seconds, avoiding excessive load accumulation within each interval -- great opportunities for adaptation, with probably large individual differences.",
+      "practical_tip": "If you can limit yourself to one day per week where you experiment with greater load, you can freely be creative in how you solve it -- either by improving qualities you experience as weaknesses (such as the ability to float at race pace), or by strengthening qualities you are already good at but that lie above the threshold."
+    },
+    "25_the_two_horses": {
+      "pages": "135-136",
+      "the_analogy_setup": "The risk with more intensive training combined with threshold work is usually described with an analogy, using data shared with permission from Leif Olav Alnes.",
+      "karsten_warholm_data": "Karsten Warholm, world record holder at 400 meters hurdles (perhaps the most demanding anaerobic event that exists), runs once per week through large parts of the training cycle with 20 x 2 minutes of lactate-controlled threshold training, done especially from autumn toward winter. As soon as Warholm begins running more anaerobic and very intensive training sessions through winter, it is almost like pressing a button: lactate data on these same 20 x 2-minute sessions shows his body begins far earlier to choose an anaerobic pathway, with rapidly rising lactate, in a way not fully explainable physiologically -- the change happens too quickly for that.",
+      "the_core_mechanism": "At high load, needing to move as fast as possible (which a competition or tough training session essentially is), the body faces a choice of which energy system to activate, and it will choose the one that feels most rational based on recent training. If the anaerobic system has recently been activated and feels available, the body will choose it -- even too early, if the need is actually prolonged effort. For distance running, this is especially unfortunate.",
+      "governing_quote": "The body can choose the aerobic horse, the enduring system where the body uses oxygen effectively, or the anaerobic horse, the explosive system where the body produces energy without sufficient oxygen. The instruction about which horse is best to bet on comes from the training in the preceding period.",
+      "figure_6_2_description": {
+        "caption": "Training in the preceding weeks determines which energy system the body selects under race pressure.",
+        "threshold_dominant_scenario": "Weeks 1-6 dominated by threshold training (light bars) -> Race day -> Aerobic horse selected (checkmark). Caption: the aerobic system dominates; under race pressure, the body draws on what it has trained most; lactate stabilizes; you hold pace.",
+        "intensive_dominant_scenario": "Weeks 1-6 with increasingly dark/intensive training bars -> Race day -> Anaerobic horse selected (x mark). Caption: the anaerobic system has been activated too often; under race pressure, the body selects it again, too early and too aggressively; lactate climbs unchecked; you fade.",
+        "legend": "Threshold training (light gray), Intensive training (dark gray), Drip (limited dose) (black)"
+      },
+      "the_balance_point": "The X-session, used year-round and in limited amounts, provides just enough load in the anaerobic area without triggering the unfortunate anaerobic-dominant pathway too strongly -- the button is not pressed hard enough. Doing it consistently over time also avoids an abrupt transition that could set this system going too quickly and intensely. Hill training works well for the muscular-system load needed beyond threshold training; speed training or fast strides after some sessions can also be tested if tolerated."
+    },
+    "26_the_principle_of_drip_load": {
+      "page": 137,
+      "definition": "A refined way to include desired training elements (speed, plyometrics, strength) without disrupting the energy-pathway signal the body chooses. Select the desired load and press the button regularly, but always in limited doses -- sufficient but not excessive activation.",
+      "effect_size": "Roughly eighty percent of the effect is captured without negatively affecting other important qualities. You center around a threshold-oriented focus but harvest small drips of other qualities regularly, but never too much.",
+      "examples_of_drip_load": [
+        "150-180 meter faster intervals on track in connection with a hill session or 45/15: choose 1-3 repetitions rather than 5-8",
+        "3-5 plyometric jumps on stairs in 2-3 series with long rests after a threshold session. Finish with some light strides to lower muscle tone"
+      ],
+      "the_principle_stated_plainly": "Press the button regularly, but never long enough that the body prioritizes the other system.",
+      "drip_load_before_sessions": {
+        "concept": "Placing drip load before the main session (before going into planned threshold work) may be even more favorable than adding it afterward.",
+        "evidence_basis": "This is purely theoretical for humans, but animal studies support that exercise order -- and especially the final load in a session -- can tip the signal balance one way or the other in a composite training session (Ogasawara et al., 2014). The body reads what comes last and adjusts the adaptations accordingly in the period that follows.",
+        "key_point": "Even though the author is a proponent of running easy on easy days, some runners try speed, strength, or plyometrics on 'easy' days. If you want to add drips there, do this as the very first load of the day.",
+        "example": {
+          "Monday": "Double threshold",
+          "Tuesday": "Light warm-up, then short speed training as a drip, then easy morning long run as planned"
+        },
+        "rationale": [
+          "You concentrate drip load toward the day before",
+          "You go right into the normal load actually planned for Tuesday, the easy long run",
+          "The easy long run comes last and gives the body the right signal about what the day is about"
+        ]
+      }
+    },
+    "27_the_race_pace_dilemma_and_dynamic_rests": {
+      "pages": "138-140",
+      "the_dilemma": "If you are going to run a 5K fast, the muscular system needs to know that pace. But if you train too much at race pace, you activate the anaerobic system too often and your threshold capacity weakens. You need some of that race pace, but cannot add hard training at that pace week after week, or the body eventually chooses the wrong horse.",
+      "the_underrated_solution": "Race Pace Without Destroying Threshold Capacity: dynamic rests and dynamic interval length. You train at race pace, but it is the rest and length -- not the pace -- that regulates intensity. Decide the pace beforehand; adjust rests or interval length during the session to keep yourself around the threshold. This way you accumulate substantial kilometers at race pace without activating the anaerobic processes you want to avoid.",
+      "figure_6_3_description": {
+        "caption": "Pace stays fixed. Rest is adjusted to keep effort at threshold. More race-pace volume, less anaerobic cost.",
+        "worked_example": "Pace fixed at 5K race pace. First three intervals at 1:30 rest; effort drifts above threshold by the third interval, so rest is increased to 3:00 for the remaining four intervals, which holds effort at the threshold line. Result: approximately 2.7 km run at 5K pace, aerobically.",
+        "three_step_flow": "Fix the pace (decide beforehand, do not change it) -> Monitor effort (talk test or lactate, stay at or under threshold) -> Adjust the rest (too hard? longer rest, or shorter intervals)."
+      },
+      "how_to_do_it_protocol": [
+        "Choose volume, intensity, and pace first: for example, train 8 km (5 miles) total at your 5000-meter race pace.",
+        "Keep the session aerobically dominant by manipulating rest and rep length.",
+        "Control intensity throughout: use either the talk test toward the end of each interval, or a lactate meter, to ensure you do not drift too far above the threshold, ideally staying under.",
+        "Start with a baseline: the session begins with 3-4 x 300 meters with 1:30 rest.",
+        "Adjust rests based on feedback: if testing shows you are struggling a bit too much relative to desired intensity, increase rests to 3 minutes and jog easily during the rest."
+      ],
+      "practical_notes": "The session often becomes long, but the principle is accumulating volume and kilometers at a desired pace without activating unfavorable processes -- the only levers are interval length and rest. This type of session can also be done in the evening after a simple threshold session in the morning, combining it with normal threshold training on the same day. If combined with hill training or light speed work, it activates the muscular system while training specifically at race pace.",
+      "for_the_truly_experimental": {
+        "definition": "A more advanced and riskier variant where the morning session is run at race pace and regulated based on interval length instead of rest: choose the rest first (for example, 2 minutes fixed), but reduce the length of the intervals themselves during the session based on load. Must be balanced against injury risk, but the benefit is accustoming the body to recruiting more muscle fibers without necessarily activating the unfavorable anaerobic processes."
+      },
+      "example_race_pace_double_threshold_plus": {
+        "morning": "20 x 300 m at your 5K race pace with 2 min rest, where the session is gradually reduced to 200-meter intervals if load becomes too great",
+        "evening": "15 x 500 m at 5K race pace with long or increasing rests up toward 4-5 minutes",
+        "caveat": "This achieves variation in both interval length and rest for further adaptation, but is advanced experimentation reserved for those with experience, full control of intensity management, and a body that tolerates high volume at race pace."
+      }
+    },
+    "28_from_base_training_to_competition_season": {
+      "page": 141,
+      "the_transition_question": "Threshold training, double threshold, 45/15, drip load, and race pace with dynamic rests work excellently in base training. But how do you adapt the training model when competitions come close and the body needs to be sharp rather than building fitness?",
+      "competition_season_is_maintenance_not_building": "The transition must be careful -- it is about carrying qualities from one phase to the next. If you lose too much of the threshold foundation because you emphasize too many intensive sessions, and if the muscular system also tightens up, you get little return on winter's foundation.",
+      "governing_quote": "Put bluntly: Speed helps you little if you are 200 meters behind when the sprint starts."
+    },
+    "29_lactate_meter_in_competition_season": {
+      "page": 142,
+      "maintenance_load": "In competition season, most manage with two simple threshold sessions per week rather than the traditional four sessions of 2x double threshold used in winter at a high level. This is more than sufficient for most over several weeks, possibly with shorter breaks where blocks with more threshold training are added. Maintenance is the primary focus, together with competition-specific load.",
+      "using_lactate_on_intensive_sessions": "The lactate curve is most informative on intervals over 800 meters; shorter intervals (200-300m) give a somewhat poorer picture of the aerobic/anaerobic balance from the session alone. Follow the lactate curve especially on intervals around 800-1000 meters: after two to three of these at 3000-5000m pace, the curve will flatten out if the aerobic engine manages to load maximally, but it often tips into further rise if the anaerobic engine takes over too quickly.",
+      "authors_own_pre_pb_data": "Four days before his personal best at 5000 meters, the author ran 4-6 x 1000 meters followed by some faster 300-meter intervals. The times on the 1000s were 2:32.8, 2:32.3, and 2:32.3, with lactate of 6.8, 9.7, and 10.3 mmol/L -- showing the curve settling and flattening stably around 10.0 mmol/L between interval two and three, and staying there for the rest of the session."
+    },
+    "30_double_threshold_a_continuation": {
+      "pages": "142-144",
+      "reducing_in_competition_season": "It is natural for many to reduce double threshold work in the competition period, but there is room to experiment -- using double threshold not to maximize the amount of threshold training, but the opposite: to maintain the qualities in the cheapest possible way.",
+      "andreas_almgren_example": "5000-meter runner Andreas Almgren (12:44) still uses double threshold in competition season, but with significantly lower intensity on morning sessions and not the same total volume as in winter -- frequent but non-demanding sessions for maintenance, without actually focusing on building them further.",
+      "double_threshold_study_reference": "A double threshold study covered in the next chapter shows this directly: two divided threshold sessions produce less load than one long session.",
+      "two_ways_to_use_double_threshold": [
+        "To accumulate as much volume as possible on threshold training",
+        "To limit the load while preserving threshold speed"
+      ],
+      "double_threshold_winter_example": [
+        {
+          "day": "Monday",
+          "session": "40-50 min easy morning and evening"
+        },
+        {
+          "day": "Tuesday",
+          "session": "Morning: 6 x 6 min threshold / Evening: 25 x 400 m threshold"
+        },
+        {
+          "day": "Wednesday",
+          "session": "40-50 min easy morning and evening"
+        }
+      ],
+      "double_threshold_summer_example": [
+        {
+          "day": "Saturday",
+          "session": "Competition"
+        },
+        {
+          "day": "Sunday",
+          "session": "40-50 min easy"
+        },
+        {
+          "day": "Monday",
+          "session": "40-50 min easy morning and evening"
+        },
+        {
+          "day": "Tuesday",
+          "session": "Morning: 5 x 5 min at pace 5-10 sec/km (8-16 sec/mile) under the threshold / Evening: 15 x 400 m threshold"
+        },
+        {
+          "day": "Wednesday",
+          "session": "40-50 min easy morning and evening"
+        },
+        {
+          "day": "Thursday",
+          "session": "Somewhat harder session"
+        }
+      ],
+      "the_ambitious_runners_real_challenge": "As an ambitious runner, the challenge is no longer just doing threshold work -- it's organizing it across the week without breaking the balance. You're handling more load, tighter intensity, and less margin for error. Double threshold is not a rigid system to copy, but a deliberate tool: it serves one purpose in winter, and another during the competition period -- maintaining threshold qualities through the week with small, controlled doses, without blowing up the total load.",
+      "why_double_threshold_gets_its_own_chapter": "The method has spread well beyond the elite level, and more recreational runners are now experimenting with it, making it even more important to understand what it actually does -- and what happens when it's used carelessly."
+    },
+    "31_chapter_summary_points_source": [
+      "Double threshold: two options. Full double threshold means two double days per week plus an optional harder session. The middle model means one double day plus single threshold sessions. Start with the middle model and reassess after eight to twelve weeks.",
+      "Volume first. The priority hierarchy: execute threshold sessions at correct intensity and chosen volume, then increase easy volume, then consider block-wise volume increases, and only then add more intensive training. Top-up mileage weeks -- four to six weeks of gradually increased easy running before a goal race -- can produce substantial jumps in performance at low risk.",
+      "Precision at this level. Check your threshold every fourth week. A lactate meter costs about the same as a pair of shoes and pays for itself in accuracy. Map heart rate against lactate across conditions to build reference points you can rely on without the meter.",
+      "The two horses. The body chooses between its aerobic and anaerobic energy system based on recent training. Too much intensive work and the anaerobic system activates too early under race pressure. The X-session, kept limited and consistent year-round, provides just enough stimulus without pressing that button too hard.",
+      "Drip load. Small, regular doses of speed, plyometrics, or strength that capture roughly 80 percent of the effect without degrading threshold capacity. Press the button regularly, but never long enough that the body prioritizes the wrong system.",
+      "Race pace without the cost. Fix the pace at race speed. Adjust rest duration and interval length to keep overall effort near threshold. You accumulate kilometers at the pace your muscles need to know, without activating the anaerobic processes you want to avoid.",
+      "Genetics matter. Some runners are type II-dominant and respond poorly to long, monotonous threshold work. If progression stalls despite correct execution, consider shorter intervals, more variation, and periodic weeks without threshold focus.",
+      "Competition season is maintenance. Two threshold sessions per week replaces four. The transition from base to racing must be gradual. Lose the threshold foundation and speed alone won't save you."
+    ],
+    "32_named_sources_and_references_in_chapter": [
+      "Peter Coe -- father and lifelong coach of Sebastian Coe; hosted the author in 1996; introduced the top-up mileage concept in 1995.",
+      "Sebastian Coe -- double Olympic champion, the author's childhood idol; his training diaries (rarely exceeding 90km/week) illustrated the calibration-over-volume principle.",
+      "Vebjørn Rodal -- 1996 Olympic 800m champion; case study for genetics/fiber-type mismatch with threshold training.",
+      "Bouchard and colleagues -- the HERITAGE study (1999) on genetic variation in endurance training response.",
+      "Jakob Ingebrigtsen -- elite runner whose 2020s training week is compared directly to the author's own 2005 training week.",
+      "Karsten Warholm -- world record holder, 400m hurdles; central figure in 'The Two Horses' analogy, with data shared by Leif Olav Alnes.",
+      "Leif Olav Alnes -- provided the Warholm training/lactate data used in 'The Two Horses' section.",
+      "Ogasawara et al. (2014) -- animal-study research on how exercise order affects adaptation signaling in composite training sessions.",
+      "Romano Tordelli and Renato Canova -- Italian coaches the author studied under/consulted in 2007 while researching marathon-specific periodization.",
+      "Andreas Almgren -- 5000m runner (12:44) cited as an example of maintaining double threshold at reduced intensity during competition season.",
+      "'The 100 Day Marathon Plan' -- a separate work by the author (2009), providing the marathon-specific phase structure referenced throughout this chapter."
+    ],
+    "author_background_reference": {
+      "note": "Cited strictly as sourcing/background for the science above. Not to be presented as Yoni Haim's own biography.",
+      "facts": [
+        "Stayed with Peter and Sebastian Coe in Chelsea in summer 1996.",
+        "Ran 60 meters in 7.2 seconds at age 15, top of his age group in Norway, while identifying as more type-I/endurance-leaning overall.",
+        "Traveled to Italy in 2007 to study marathon-specific periodization under Romano Tordelli and Renato Canova.",
+        "Developed 'The 100 Day Marathon Plan' in 2009.",
+        "Ran 4-6 x 1000m at 2:32-2:33 splits (lactate 6.8-10.3 mmol/L) four days before his 5000m personal best."
+      ]
+    }
+  },
+  "yoni_haim_coaching_philosophy": {
+    "identity": "Yoni Haim -- Division I track athlete, founder of TeamHaim.",
+    "attribution_line": "The physiology, protocols, and research citations in this section (double threshold structuring, lactate zones, the 'two horses' energy-system model, drip load, dynamic-rest race-pace training, fiber-type individualization) are drawn from and credited to Marius Bakken, 'The Norwegian Method,' Chapter 6. The explanations, framing, and coaching philosophy below are original to Yoni Haim / TeamHaim.",
+    "chapter_6_reframed": {
+      "title": "Betting on the Right Horse: Advanced Training for the Athlete Who's Already Good",
+      "opening_philosophy": "By the time an athlete comes to me putting in real hours, week after week, for years, they've usually hit the same wall: the easy gains are gone, and what used to work has stopped moving the needle. That's not a sign something's broken. It's a sign they're finally at the point where precision matters more than effort. This is the chapter where I stop coaching 'harder' and start coaching 'exact.'",
+      "why_double_threshold_isnt_one_size_fits_all": {
+        "coach_translation": "I never hand an athlete the full double-threshold model on day one. There's a lighter version -- one double day a week plus single sessions -- that gets almost all the benefit with a fraction of the risk to someone's job, family, and joints. I start everyone there and only escalate to the full version after two or three months of proof that their body and their life can actually absorb it.",
+        "citation_note": "Sourced from source_science.4_double_threshold_two_approaches."
+      },
+      "the_order_i_add_load_in": {
+        "coach_translation": "When an athlete wants to do more, I never let intensity be the first lever. First: are your quality sessions dialed in exactly right? Second: can we add more easy miles? Third: can we run a short block of elevated volume for a few weeks? Only after all three of those are maxed out do I even consider more intense work. Most athletes want to skip straight to step four. Almost none of them need to.",
+        "citation_note": "Sourced from source_science.10_top_up_mileage_weeks (the hierarchy of priorities and Figure 6.1)."
+      },
+      "the_two_horses_is_the_single_most_important_idea_in_this_chapter": {
+        "coach_translation": "Here's the thing almost nobody understands about race day: your body doesn't choose how to produce energy in the moment. It chooses based on what you trained most recently. Spend a winter doing mostly steady, controlled work, and on race day your body reaches for the engine that got the most reps -- the one that holds pace instead of blowing up. Spend that same winter doing too much hard, anaerobic work, and your body reaches for THAT system on race day instead -- the one that goes out fast and dies. I am fanatical about this because I've watched it happen to real athletes. The training you did eight weeks ago is quietly deciding how your race unfolds today.",
+        "citation_note": "Sourced from source_science.25_the_two_horses, including the Karsten Warholm case data and Figure 6.2."
+      },
+      "why_i_still_program_one_hard_session_a_week": {
+        "coach_translation": "If the anaerobic system is so risky to over-train, why not cut it completely? Because a small, consistent dose keeps the door cracked open without kicking it wide. One controlled hard session a week, held to the same intensity year-round, gives you just enough exposure that your body doesn't panic and over-recruit that system on race day. It's a vaccine dose, not a treatment.",
+        "citation_note": "Sourced from source_science.25_the_two_horses.the_balance_point."
+      },
+      "drip_load_the_trick_i_use_to_sneak_in_speed_work": {
+        "coach_translation": "Athletes always want more speed work, more strength work, more of whatever they think they're missing. My answer is almost never 'no' and almost never 'as much as you want' either. It's 'a little, constantly.' A handful of fast strides after a hill session. A few plyometric jumps with long rest after a threshold day. Small enough that it never competes with the main engine, frequent enough that you never lose the quality entirely. You get most of the benefit for almost none of the risk.",
+        "citation_note": "Sourced from source_science.26_the_principle_of_drip_load."
+      },
+      "training_at_race_pace_without_the_hangover": {
+        "coach_translation": "Every athlete eventually asks me the same question: if I never practice my actual race pace, how will my body know it on race day? Here's the trick that solves it: lock in the pace, and use REST as your control knob instead of intensity. Start with short rests. The second effort starts drifting into dangerous territory, stretch the rest out. You end up racking up real kilometers at race pace while your body stays anchored in the safe, aerobic zone the whole time. It feels almost like cheating. It isn't -- it's just using the one lever most people never think to touch.",
+        "citation_note": "Sourced from source_science.27_the_race_pace_dilemma_and_dynamic_rests."
+      },
+      "not_everyone_is_built_for_the_same_program": {
+        "coach_translation": "I've had athletes do everything right -- perfect intensity control, patient buildup, real consistency -- and still stall out feeling constantly heavy. Before I assume they're not trying hard enough, I ask about their background. Were they always the explosive kid, fast over short distances, never the one who could grind out long steady efforts? That's not a character flaw, that's their muscle fibers telling you something. Those athletes usually need shorter, sharper sessions with more variety and more real rest weeks, not more of the same monotonous grinding that's supposedly 'good for everyone.'",
+        "citation_note": "Sourced from source_science.21_genetics_and_individualization, source_science.22_warning_signs_and_fiber_composition, and source_science.23_adaptations_for_type_ii_dominant_runners."
+      },
+      "race_season_is_for_keeping_what_you_built_not_building_more": {
+        "coach_translation": "The single biggest mistake I see in-season is athletes trying to keep building fitness right up until race week. That's backwards. Once competition season starts, my job shifts from building the engine to just keeping it running. Two solid quality sessions a week instead of four. The workouts get sharper and more specific, but the total load comes down. You don't get faster in-season by doing more -- you get faster by not losing what winter already gave you.",
+        "citation_note": "Sourced from source_science.28_from_base_training_to_competition_season and source_science.30_double_threshold_a_continuation."
+      },
+      "core_takeaways_for_teamhaim_athletes": [
+        "When you want to add training, add volume before intensity, and easy miles before hard ones. Almost nobody actually needs more hard sessions.",
+        "What you train in the weeks before a race decides which energy system your body reaches for ON race day. Protect your aerobic engine as the default.",
+        "Keep exactly one controlled hard session in the mix year-round. Not zero, not five -- one, consistently.",
+        "Want more speed or strength without wrecking your main engine? Take it in small, frequent doses, never a big single hit.",
+        "You can train at real race pace without paying for it, if you control the rest instead of the pace.",
+        "If you're doing everything right and still stalling, ask whether you're actually built for this exact program, or whether you need something shorter and sharper.",
+        "In competition season, your job is to protect what you built, not chase more fitness. Less volume, sharper focus."
+      ]
+    }
+  }
+}

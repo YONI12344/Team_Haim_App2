@@ -1,0 +1,96 @@
+{
+  "meta": {
+    "purpose": "The feedback loop: as the athlete reports how sessions actually go, this decides whether to hold, add, or cut pace/volume/difficulty for what comes next. The book already contains a complete framework for exactly this (the five lactate-curve session types) plus a slower week-to-week overtraining-detection layer -- both are captured here rather than invented.",
+    "source_citation": {
+      "title": "The Norwegian Method",
+      "author": "Marius Bakken, MD",
+      "chapters_used": ["13 (Intensity Control Deep Dive)", "11 (Warning Signs and Overtraining)", "3 (Load and Six Foundational Principles)"]
+    },
+    "two_timescales": "This protocol operates on two different clocks: WITHIN a single session (the five session types, real-time, needs lactate or a good proxy), and ACROSS weeks (the traffic-light/overtraining layer, using resting HR, HRV, sleep, and the stair test -- no equipment beyond a HR strap needed). A coaching agent without live lactate data during a chat should rely mainly on the week-to-week layer and treat the session-type layer as something to teach the athlete to self-monitor."
+  },
+
+  "within_session_adjustment_the_five_session_types": {
+    "source": "Chapter 13, sections 8-13",
+    "how_to_read_it": "Whether by lactate meter or by feel/breathing/pace-holding as a proxy, classify how a quality session is actually going against these five patterns and respond immediately -- don't wait until the session is over.",
+    "types": [
+      {
+        "type": "Type 1 -- Stable and flat",
+        "pattern": "Effort stays level and repeatable at the same pace, session after session.",
+        "response": "Let it stand. This is the green light to build volume (add minutes/reps), not pace. These sessions can carry more of the week's total load."
+      },
+      {
+        "type": "Type 2 -- Stable but slightly high",
+        "pattern": "Consistent but costs a bit more than it should -- session 'looks fine on paper' but effort/lactate sits a touch elevated throughout.",
+        "response": "Keep the session but trim volume slightly, or ease pace marginally early rather than late. Goal: shift back to Type 1 next time, don't just push through."
+      },
+      {
+        "type": "Type 3 -- Creeping drift",
+        "pattern": "Starts fine, gradually gets harder to hold at the same pace -- the most important pattern to catch EARLY, because small adjustments here save the whole week.",
+        "response": "Reduce pace now, don't wait for the last rep. Cut volume if needed -- finishing the prescribed session is rarely worth more than protecting tomorrow's quality. Convert to a controlled, slightly-lower-intensity version of the same structure."
+      },
+      {
+        "type": "Type 4 -- Steep rise",
+        "pattern": "Effort/lactate spikes early and sharply -- this has stopped being threshold work regardless of what the plan said.",
+        "response": "Stop the threshold work entirely. Convert to easy volume or short controlled efforts (45/15) at much lower intensity. If this is the first half of a double-threshold day, cancel the second session outright."
+      },
+      {
+        "type": "Type 5 -- Strange day",
+        "pattern": "Signals don't add up -- feels much harder or easier than the numbers suggest, or breathing/pace/feel are inconsistent with each other.",
+        "response": "Don't trust the numbers today. Fall back on feel, breathing, and mechanics, and default to the conservative choice -- a controlled progressive 45/15 session is always a safe fallback."
+      }
+    ],
+    "coaching_agent_application": "When an athlete reports how a session felt in chat, map their description onto one of these five types before recommending anything for the NEXT session. Language cues: 'felt the same the whole way through' -> Type 1. 'Fine but I was working harder than usual for the same pace' -> Type 2. 'Started fine, got harder every rep' -> Type 3. 'Blew up early' -> Type 4. 'Nothing made sense, HR was weird / I felt great but couldn't hit pace' -> Type 5."
+  },
+
+  "week_to_week_shape_tracking_the_traffic_light_layer": {
+    "source": "Chapter 11 (resting HR, HRV, sleep, stair test) and Chapter 5's 'traffic light model' reference used to gate load increases",
+    "signals_to_track": [
+      {
+        "signal": "Resting heart rate (baseline established at onboarding -- see pace_and_readiness_protocol.json step_2)",
+        "green": "Within +/-2-3 beats of baseline",
+        "yellow": "+5 beats above baseline sustained 3+ days, OR a gradual creep over 1-2 weeks even without a single big jump",
+        "red": "+8-10 beats sustained over a week, or +10-15 beats that doesn't normalize with rest"
+      },
+      {
+        "signal": "Stair test / muscular feel",
+        "green": "Normal, unremarkable",
+        "yellow": "Noticeably heavier than usual for 2+ consecutive days",
+        "red": "Heaviness that doesn't improve with an easy day, or new tingling/cramping"
+      },
+      {
+        "signal": "Sleep quality (self-rated + waking pattern)",
+        "green": "Normal quality, normal wake times",
+        "yellow": "Trouble falling asleep despite fatigue, or waking 03:00-05:00 repeatedly",
+        "red": "Persistent poor sleep across a week combined with either of the above"
+      },
+      {
+        "signal": "HRV, if available",
+        "green": "Within normal 7-day rolling range",
+        "yellow": "A rapid unexplained overnight drop (possible brewing illness)",
+        "red": "Sustained depression across several days, especially combined with elevated resting HR"
+      },
+      {
+        "signal": "The 10-day 'genuinely good session' check",
+        "rule": "Across any 10-day training stretch, at least one session should feel genuinely good -- light legs, wanting to do more. If that feeling never shows up in that window, treat it as a signal on its own, independent of the other numbers."
+      }
+    ],
+    "how_to_combine_signals": "No single signal should override training decisions alone (Chapter 11 is explicit that HRV especially is not reliable in isolation). Read resting HR + stair test + sleep + perceived well-being TOGETHER. Two or more at yellow simultaneously is treated as one red."
+  },
+
+  "adjustment_rules_by_overall_state": {
+    "source": "Synthesized from the two layers above, applied to what changes in the NEXT session or week",
+    "all_green": {
+      "action": "Proceed as planned. If green signals repeat across a receptive window, this is when Model 3 from session_catalog_and_matching.json (add extra threshold reps) applies -- add length, never intensity."
+    },
+    "one_yellow_signal": {
+      "action": "Proceed but flag it to the athlete. Slightly reduce the volume of the next quality session (Type 2 response) rather than skipping it outright."
+    },
+    "two_plus_yellow_or_one_red": {
+      "action": "Treat the next quality session as provisional -- start conservatively and be ready to convert it to Type 3/4 handling mid-session. Consider swapping the next hard day for an easy day instead, especially if the X-session is what's coming up (it's the most disposable slot)."
+    },
+    "sustained_red_across_a_week": {
+      "action": "Step back to the 'cautious entry' structure (session_catalog_and_matching.json step_4) for 1-2 weeks: cap threshold time, hold volume flat or reduce it, and re-establish baseline signals before resuming progression. This mirrors the book's transition/injury guidance -- interruptions handled this way are far less costly than pushing through and forcing a longer break later."
+    },
+    "pace_recalibration_trigger": "Independent of the above, re-run a pace-estimation method from pace_and_readiness_protocol.json roughly every 4-6 weeks, or immediately after a noticeably strong performance (the book's own case: a threshold heart rate only 11 beats below max was a direct signal of peak form worth re-testing around) -- shape can improve faster than a stale pace estimate reflects."
+  }
+}

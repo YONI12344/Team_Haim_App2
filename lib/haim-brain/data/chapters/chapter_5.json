@@ -1,0 +1,458 @@
+{
+  "chapter_label": "5",
+  "source_file": "chapter5_teamhaim_brain.json",
+  "meta": {
+    "project": "TeamHaim AI Coach Brain",
+    "file_purpose": "Structured knowledge-base entry for the AI coaching agent, covering Chapter 5: concrete weekly training structures, periodization models, and load-progression rules for runners training 4-6 hours per week. This is Part II ('The Application') -- the first fully concrete, prescriptive chapter in the brain, containing exact weekly tables, paces, and protocols.",
+    "important_note_on_sourcing": "This file separates two things on purpose: (1) FACTUAL / SCIENTIFIC DATA -- weekly tables, protocols, research citations, numeric guidance -- which are not copyrightable and are explicitly credited to their source book below, and (2) YONI HAIM'S ORIGINAL COACHING VOICE -- fresh explanations, framing, and philosophy written from scratch, not copied or reworded sentence-by-sentence from the source text. No verbatim or near-verbatim book text is reproduced here. Personal anecdotes belonging to the source author (his own competition seasons, his own recreational training) are cited as background only and are NOT retold as if they were Yoni Haim's own experiences.",
+    "source_citation": {
+      "title": "The Norwegian Method",
+      "author": "Marius Bakken, MD",
+      "chapter_used": "Chapter 5: The Recreational Runner Who Wants More (Part II: The Application), plus the Part II section introduction",
+      "pages_used": "pp. 83, 85-109, complete (30 photographed pages processed one at a time, plus page 103 supplied afterward and merged in).",
+      "note": "All scientific data, weekly tables, protocols, and named research findings in the 'source_science' section below originate from this book and are credited to Marius Bakken. Use this citation whenever the underlying content is referenced downstream in the app."
+    }
+  },
+  "source_science": {
+    "description": "Factual / prescriptive content extracted from Chapter 5, credited to Marius Bakken, 'The Norwegian Method', logged page by page (pp. 83, 85-102, 104-109). This chapter contains the first concrete weekly training tables in the book -- treat all numeric values here as load-bearing data for the AI coach.",
+    "0_part_2_introduction": {
+      "page": 83,
+      "structure": "Part II is built around two training volumes: 4 to 6 hours per week, and 6 to 8 hours or more. The first is for runners who have moved past the phase where everything works just from running regularly -- the easy gains are behind them, progress has slowed, and they are ready for precision. The second is for those who have found their rhythm and want to find out how good they can become; double sessions become a realistic tool and periodization gains new layers.",
+      "shared_foundation": "Both volumes rest on the same principles from Part I. The difference is application -- how much can be added, how often, and in what combinations.",
+      "the_two_most_important_catalysts": "Double threshold (two threshold sessions in a single day) provides the single greatest performance lift for many runners, but requires understanding the nuances of how hard each session should be, how long, and how to balance double days with the rest of the week. 45/15 allows accumulating more quality time in the right zone than almost any other session type, at a surprisingly low cost. Both work for recreational runners, both are level-dependent in application, and both, done well, can transform training without dramatically increasing total volume, load, or risk. Each gets its own dedicated chapter later in the book.",
+      "part_4_note": "Part IV goes deeper, written primarily for elite athletes and coaches, but open to anyone who wants to understand why the method works, not just how. It is not required reading to benefit from Parts II and III."
+    },
+    "1_chapter_opening": {
+      "page": 85,
+      "premise": "This chapter shows how to structure threshold sessions, easy runs, and 45/15 intervals within 4 to 6 hours per week -- so that every session counts.",
+      "murakami_reference": "References Haruki Murakami, who has run marathons for over thirty years and, in 'What I Talk About When I Talk About Running,' describes running not as transformation but as showing up, day after day, because it works.",
+      "why_the_hunger_appears": "When running becomes a fixed part of the week, something shifts that fitness alone cannot explain: the mind clears, stress becomes more manageable, and a kind of direction develops. Then comes the hunger for more from the hours invested -- better sessions, more days where everything clicks, a threshold pace that keeps climbing. At 4 to 6 hours a week, there is no margin for wasted sessions, and every one must land where it should."
+    },
+    "2_the_reality_of_limited_time": {
+      "pages": "85-86",
+      "anecdote": "5:45 on an October morning: dark house, front steps, breath visible in the cold air while everyone else sleeps. Fifty minutes until needing to be in the shower. The session: threshold intervals, four times eight minutes with one-minute recoveries. No room for a slow start, no drifting into rhythm -- the session must work from the first stride.",
+      "why_this_matters": "This is the reality for most runners who want to train seriously but do not have eight hours a week to spare. The author knows it from the inside -- a general practitioner's schedule leaves little flexibility where sessions must fit between clinics, on-call nights, family, and sleep. But within 4 to 6 hours per week, real progress is possible; it just requires that nothing is wasted.",
+      "the_pyramid_analogy": "Runners who log eight to ten hours per week can build a broad pyramid: a wide base of easy mileage supporting a narrow peak of quality work. With less time, the pyramid narrows -- you cannot afford the same foundation, but the peak can still be sharp. Threshold training makes that possible; it lets you place quality exactly where it matters most."
+    },
+    "3_the_80_20_rule_adjusted": {
+      "pages": "86-87",
+      "why_it_doesnt_scale_down": "The much-discussed 80/20 rule -- 80 percent of training easy, 20 percent hard -- does not translate well to limited hours. The rule emerged from studies of elite athletes who train 15 to 25 hours per week, and the mathematics breaks down when scaled to 5 hours.",
+      "research_cited": "Seiler demonstrated that elite endurance athletes consistently complete around 80 percent of their training at low intensity. But these athletes typically log somewhere between 500 and 1,200 hours annually (Seiler, 2006; Seiler & Tønnessen, 2009).",
+      "why_the_math_breaks_for_recreational_runners": "For a recreational runner accumulating perhaps 250 hours per year, the picture shifts. With 5 hours per week, an 80/20 split gives four hours of easy running and one hour of intensity. On paper that sounds fine, but in practice that single hour might yield only two quality sessions of thirty minutes each -- barely enough to warm up properly and complete meaningful threshold work. The margin becomes too thin, and threshold-based training alone provides more room for adjustments."
+    },
+    "4_the_adjusted_formula": {
+      "page": 87,
+      "box_title": "THE ADJUSTED FORMULA FOR 4-6 HOURS WEEKLY VOLUME",
+      "distribution": [
+        "60-65% easy/recovery",
+        "20-30% threshold work",
+        "5-10% high intensity or race pace"
+      ],
+      "worked_example": "If you train five days per week with 5 hours total, aim for 3:00-3:15 of easy running, 1:15-1:30 of threshold work, and up to 20-30 minutes at higher intensity. The shift toward more threshold training is deliberate, and it is where the return is greatest."
+    },
+    "5_why_this_distribution": {
+      "page": 87,
+      "priority_1_threshold": "Threshold training and development. Nothing else delivers a comparable return for the time invested. If you have four to six hours per week, the focus should be optimized threshold work up to the load you can absorb without breaking down.",
+      "priority_2_volume": "Accumulated running volume. Over months and years of consistent running, something happens to the body that cannot be rushed: ligaments gradually tighten, structures stabilize, movement patterns become more efficient, running economy improves (less energy spent per kilometer), and completely easy training carries its own fitness benefit. It is essential for building the conditioning base everything else rests upon.",
+      "the_combination": "Increased total kilometers becomes highly effective when combined with intelligent threshold training that never tips into muscular overload. You want to accumulate volume, but never on an overloaded system."
+    },
+    "6_marathon_volume_research": {
+      "pages": "87-88",
+      "study_cited": "A comprehensive Strava analysis examined all training sessions in the final sixteen weeks before 151,813 marathon finishes by 119,452 runners (Muniz-Pumares et al., 2025).",
+      "key_figures": {
+        "average_volume": "45.1 +/- 26.4 kilometers per week (28 +/- 16 miles) across the dataset.",
+        "fastest_group": "Runners finishing between 120 and 150 minutes averaged around 107 kilometers weekly (66 miles).",
+        "slowest_group": "Runners finishing over 240 minutes averaged about 35 kilometers weekly (22 miles).",
+        "where_the_extra_volume_came_from": "Extra volume among the fastest finishers came almost entirely from easy kilometers at low intensity, while time spent in moderate and hard zones was remarkably similar across all performance levels."
+      }
+    },
+    "7_governing_philosophy": {
+      "page": 88,
+      "governing_quote": "Threshold training is important. Sufficient running volume is important. Everything else becomes, in my view, essentially optimization on top of these two.",
+      "the_goal": "Combine as much pure running volume as the body tolerates, balanced against the amount of threshold training it can absorb, with a small and carefully placed load of harder, more intensive work. Both threshold training and easy volume represent low-hanging fruit -- return to these and push the boundaries there whenever you want to add more training.",
+      "the_simple_diagnostic_question": "If you are ever in doubt about what the next step should be, ask yourself: is there room to run a few more completely easy sessions, or a few more threshold intervals?",
+      "key_point_box": "Ultimately, everything comes down to total load. Each load you add takes capacity and opportunity away from something else. Choose and prioritize with care. The single most common mistake at this level is failing to understand the cost of intensive training relative to the benefit of threshold work and easy volume.",
+      "how_long_this_can_carry_you": "Many runners can improve over a long period with focus only on threshold sessions and training volume, with some competitions added, simply because they continuously fill up with what matters most without adding anything that carries risk of degradation. If balanced perfectly, it is entirely possible to postpone more intensive training until improvement plateaus. The timing for this varies considerably -- the author has seen runners with steady improvement for one to two years on a completely threshold-oriented focus alone."
+    },
+    "8_weekly_structure_three_key_sessions": {
+      "page": 89,
+      "premise": "What most often provides the best return at this level is a system built systematically around three key sessions.",
+      "session_1_main_quality": "Your primary threshold workout with the highest load of the week. Recommended: longer intervals, ten minutes or more, alternatively continuous running with varying pace if building toward a marathon. This type of session is more demanding than other threshold work and should be limited to once per week.",
+      "session_2_support_quality": "Threshold variants with intervals that are not too long -- maximum duration of three minutes, perhaps up to six. These can easily take the form of 45/15. Occasionally, for runners moving between the level described in this chapter and the next, this day can become double threshold.",
+      "session_3_x_session": {
+        "definition": "Your sharpened, variable training session, hence the name. While the two threshold sessions form the foundation, the X-session is the spice that adapts to your specific goals. It can have its place, but not always and not for everyone.",
+        "two_uses": [
+          "Competition-oriented training toward your target pace and distance.",
+          "Variation with slightly higher intensity than threshold training."
+        ],
+        "flexibility": "The X-session is the most flexible component in the training week. It can be adjusted, reduced, or removed entirely at signs of overload or injury. It is added on top when you need it, but can also be a completely normal threshold session with some variation."
+      },
+      "three_sessions_as_foundation": "Everything else supports these sessions. Support sessions (additional easy runs, etc.) are useful, but not essential. If you complete only these three sessions each week, you will experience steady progress -- provided that all other runs are genuinely easy."
+    },
+    "9_practical_examples_by_goal": {
+      "page": "89-90",
+      "marathon_runner": "A long session of two to three hours for volume building, or a marathon-specific session with varying pace around the threshold.",
+      "5000_meter_runner": "Hill training during winter season for strength and power development.",
+      "general_development": "Short intervals above threshold pace; 45/15 sessions work well here."
+    },
+    "10_double_threshold_every_other_week": {
+      "page": 90,
+      "premise": "Within this weekly rhythm, the strategic use of double threshold can help you experiment with this training form and move toward higher load. You do not need to do it two days per week like elite athletes -- every other week is more than enough to capture significant benefits.",
+      "why_every_other_week_works_box": [
+        "Recovery. With lower total volume, you have more margin to handle the load.",
+        "Variation. By alternating, you get both the benefit of double threshold and room for other types of quality work.",
+        "Life puzzle. Realistically, it is easier to fit one double day into the schedule every other week.",
+        "Progression. You can gradually increase frequency if the body responds well.",
+        "Longevity. A type of stimulus should occur at minimum every ten to fourteen days to produce lasting adaptation."
+      ],
+      "further_reading_note": "The chapter on double threshold explains more about how these principles can be tentatively integrated for recreational runners who want to, who have surplus, and who are completely injury-free -- including guidance on gradual entry, such as running an easy session and a threshold session on the same day before attempting true double threshold."
+    },
+    "11_example_5_hour_week_table": {
+      "page": 91,
+      "title": "5-HOUR WEEK IN THE BASE TRAINING PERIOD",
+      "schedule": [
+        {
+          "day": "Monday",
+          "session": "Rest. Full recovery from weekend training, if the weekend allowed extra load."
+        },
+        {
+          "day": "Tuesday",
+          "session": "Support quality session -- 6 x 6 min threshold, or 10-12 x 3 min with 1 min recovery. Can be varied so that heart rate rises approximately 10 beats within each interval, with pace adjusted upward every 2 minutes."
+        },
+        {
+          "day": "Wednesday",
+          "session": "Easy 40-60 min. These sessions should be run so slowly it almost feels wrong. Conversation should flow without effort. The only goals are accumulated training volume, improved running economy, and light circulation."
+        },
+        {
+          "day": "Thursday",
+          "session": "Main quality session -- 3-4 x 10 min or a long varying session. This is one of the most demanding sessions of the training week. Longer intervals place greater load on the muscular system generally."
+        },
+        {
+          "day": "Friday",
+          "session": "Rest. Strategic recovery before weekend training. Note: some runners respond poorly to a completely free day before a quality session like the 45/15 on Saturday. If that describes you, rotate sessions so this day is not completely free."
+        },
+        {
+          "day": "Saturday",
+          "session": "More specific session -- toward marathon, X-session, or 45/15: 15-20 x 45 sec progressive effort with 15 sec rest (jog or walk). Start at 10K pace, increase toward 5K pace. Alternatively, this day can contain a third threshold session for the week."
+        },
+        {
+          "day": "Sunday",
+          "session": "Long, easy run. Duration can be distance-specific. For half marathon or marathon: increase progressively week by week. For distances under 10K: 60-90 minutes is more than enough."
+        }
+      ],
+      "cautious_entry_guidance": "If you want a cautious entry to this weekly structure, or have struggled with injuries, you can follow the same model but reduce the volume on quality sessions. Keep total time on threshold sessions at twenty to twenty-five minutes while you get used to the rhythm. Then gradually increase volume as the body adapts. Choose structure first, then gradually increase volume as the body adapts."
+    },
+    "12_four_models_for_increasing_load": {
+      "pages": "91-93",
+      "premise": "If you have time and plenty of surplus in such a week, you can follow one of four alternatives to increase load. It is individual which of the four strategies works best; for many it will be useful to test all of these over time to see what works for you. When you find the best alternative, it can become your fixed strategy for load increase.",
+      "figure_5_1_description": "Four-box diagram (Figure 5.1: 'Suggestions for increasing training load -- choose the model that fits you best and follow it over time'): (1) Cautious double threshold, (2) Pure volume increase, (3) Longer threshold sessions, (4) Special variants.",
+      "model_1_cautious_double_threshold": {
+        "summary": "On weekends or while commuting to and from work. Powerful medicine -- must be done correctly. For experienced runners.",
+        "detail": "This is powerful medicine and must be done correctly and precisely, but if you get it right, it is one of the most effective things you can do. Especially favorable if weekends allow more load and more rest than weekdays, or if you can recover better on weekends than during the rest of the week. This alternative is for experienced runners who over time are at the boundary between the level described in this chapter and the next. Be especially observant of the morning session; it must be careful and controlled."
+      },
+      "model_2_pure_volume_increase": {
+        "summary": "Add more easy sessions, or extend existing ones. Optionally longer warm-up/cool-down.",
+        "priority_order": "The very best approach is to increase the number of easy runs. The second best is to increase the length of already existing easy runs. The third best is longer warm-ups or cool-downs.",
+        "top_up_mileage_weeks": "Strategically placed weeks with more running volume, which in themselves can provide relatively large improvement in performance, assessed against risk and effort.",
+        "progression_principle": "Gradual progression of training volume week by week of approximately ten percent over a six-week period, carefully planned before a competition and ideally placed to finish approximately four weeks before a target race."
+      },
+      "model_3_longer_threshold_intervals": {
+        "summary": "When the traffic light model shows green: add extra reps. Don't increase intensity.",
+        "detail": "This alternative is the obvious one. In the traffic light model, parameters such as resting heart rate, HRV, the stair test, and warm-up heart rate, in addition to measurements during the session itself, are used to assess how demanding the session should be. With load, the length of the session is central.",
+        "recommendation_box": "If you have an especially good training period and get repeated green signals, do not be afraid to add extra threshold intervals to sessions. You have entered a receptive window, and as long as you are not tempted to increase intensity, take advantage of it."
+      },
+      "model_4_special_variants": {
+        "summary": "Combination sessions (easy + threshold), step intervals, active recovery. Familiar territory combined.",
+        "combination_sessions": "Run easy for sixty to ninety minutes and then, without pause, go directly into 45/15. This type of session provides a completely different type of load and focus than most other sessions -- a special variant that can be tried for variation and to increase load in periods when you want it.",
+        "governing_quote": "The advantage is that it is familiar territory; you just connect known elements together for a new type of load. This can successfully be done for other sessions as well.",
+        "other_variants": [
+          "Step intervals: each 3-minute interval divided into 1-minute segments, with a marked increase for each step, finishing right at or marginally above the threshold.",
+          "Active jogging rests: consciously running at a heart rate during recoveries that never allows falling below a certain level.",
+          "Mixed sessions: combining shorter and longer intervals in the same workout."
+        ]
+      }
+    },
+    "13_additional_intensive_sessions_caveat": {
+      "page": 94,
+      "position": "Additional dedicated high-intensity sessions (beyond the X-session) do not have a place in load increase at this level, which is voluntary -- the author believes the risk outweighs the benefit at four to six hours per week. A periodization approach where two weeks of threshold focus are followed by one week of slightly more intensive work could be tried, but in most cases the risk is not worth it. Many argue that some speed training can lift training further; there are individual experiences, and the author has placed his thoughts on positioning such sessions in Chapter 11, under the section on strength training and recovery.",
+      "creative_license": "You're allowed to be creative. All these principles are in line with the priority hierarchy described above."
+    },
+    "14_flexibility_and_adjustment": {
+      "page": 94,
+      "premise": "Training plans meet reality. Sessions fall through. Time runs short. The question is how to respond.",
+      "priorities_when_time_is_tight": [
+        "Main quality session -- always protected",
+        "Support quality session",
+        "Long run (can be shortened)",
+        "Easy sessions (can be reduced)"
+      ],
+      "safety_plan": "If time pressure continues over time, consider entering a safety plan where you focus on a minimum of one single threshold session per week, but never more than a week between sessions. This is a principle for maintaining training even through hectic periods.",
+      "when_a_session_falls_through": [
+        "Do not try to make up the session later.",
+        "Stick to the next planned session.",
+        "Steer forward; do not chase missed sessions.",
+        "If multiple sessions fall through, consider a gradual approach back to normal training, with frequent use of 45/15 alongside gradual progression of easy runs."
+      ]
+    },
+    "15_precise_intensity_control": {
+      "pages": "95-96",
+      "when_you_have_surplus": "Do not increase intensity. Rather, add some volume to sessions, so sessions become longer, not more intense.",
+      "core_principle": "Optimal threshold training takes place mostly just below the actual threshold point, not at or above it. Pursue the Golden Zone consistently. At the level you are training now, with higher total load than many recreational runners carry, this becomes critical.",
+      "interval_length_affects_pace": "The principle is simple: the shorter each interval, the faster you can run without exceeding the threshold. You will be able to detect this with heart rate measurement or the talk test, but be aware of it if you choose to run primarily based on calculated pace.",
+      "pace_guide_by_interval_length_table": {
+        "example_runner": "Runner with an 18-minute 5K",
+        "rows": [
+          {
+            "interval_length": "45 sec - 1 min",
+            "pace_adjustment": "Approximately 5-7 sec/km (8-11 sec/mile) faster than calculated threshold pace"
+          },
+          {
+            "interval_length": "4-5 min",
+            "pace_adjustment": "Corresponds to calculated threshold pace"
+          },
+          {
+            "interval_length": "6-8 min",
+            "pace_adjustment": "Approximately 5-7 sec/km (8-11 sec/mile) slower than calculated threshold pace"
+          },
+          {
+            "interval_length": "10-15 min",
+            "pace_adjustment": "Typically 7-10 sec/km (11-16 sec/mile) slower than threshold pace"
+          }
+        ]
+      },
+      "warning": "If you follow a calculator slavishly on 10-minute intervals, you risk running 7-10 seconds per kilometer too fast (about 11-16 seconds per mile), and ending up well above the threshold. Over time, this leads to overload."
+    },
+    "16_combine_objective_numbers_with_subjective_feel": {
+      "pages": "95-96",
+      "the_question": "So how do you avoid this trap and strengthen the safety net further? The answer is to combine objective measurements with subjective assessment, not to trust calculators blindly. You do this by maintaining a conscious and broad relationship with where your training zone lies.",
+      "practice": "At this level, establish threshold pace through a field test or calculate it from a recent race. But equally important: use the talk test and bodily feel during the session. Adjust down consistently when in doubt. Even at the top level, there should be a connection between feel and measurements. Sometimes you can allow yourself to be a bit heavier on the first intervals, but eventually subjective feel and simple tests should align with measurements like heart rate or pace. If not, adjust down -- rather be in the lower area of the zone than to tip just over.",
+      "practical_tip": "All this -- sub-threshold, interval length, subjective assessments -- can sound complicated, but individual weeks should actually be simple. A training week does not need to be complicated; the simplicity in the weekly example above is part of the point. Most people benefit more from simplification than from more complicated sessions or weeks. The complexity can rather build over larger periods, through several weeks and the training year as a whole, through careful adjustments and transitions."
+    },
+    "17_periodization_explained": {
+      "page": 96,
+      "definition": "Periodization means planning training over weeks, months, and years so the body gets the best possible adaptation without overload. Instead of training the same way all the time, periodization means varying the load strategically -- a long-term plan where different phases of training have different purposes, never far from the basic principles described elsewhere in the book.",
+      "transitions_rule": "No transitions should be too abrupt, or as hard as pushing strategically. Transitions should always center around the same basic principles."
+    },
+    "18_significance_of_periodization_plateaus_and_transitions": {
+      "page": 97,
+      "why_variation_is_needed": "The body adapts to training through repeated loads, but generally also needs some variation to avoid stalling. At the same time, this requires an overall plan -- without one, you risk either getting stuck in a plateau or pushing yourself too hard or too long, ending up injured or overtrained.",
+      "the_balance": "Variation involves transitions and thereby increased risk of injuries, and therefore variation must always be balanced against as much and as good threshold training as possible, combined with sufficient volume.",
+      "for_the_recreational_runner": "Periodization for a recreational runner with four to six hours training volume can be as simple as alternating between some weeks where you focus on training volume, then some weeks with more intensity focus -- all within the same template with attention on threshold training.",
+      "no_single_perfect_model": "For the ambitious, periodization can mean clear phases through the year toward specific goals, but there is no completely perfect periodization model for absolutely everyone. Some thrive best with a flat, stable structure through the year, and this is necessary to avoid injuries. Others respond better to more varied training periods.",
+      "the_gradual_transition_rule": "Always glide gradually from one phase to another, always with gradual transitions, never abruptly, given the increased injury risk. This may sound overly cautious, but it is written from experience and care."
+    },
+    "19_the_variation_principle": {
+      "page": 97,
+      "steps": [
+        "Choose your training distribution. In the example above, this means two to three threshold sessions, none or one more intensive session, and the rest easy training.",
+        "Vary within each session. Adjust rests, interval length, composition, and surface around sessions. This comes first.",
+        "Practice intensity control. Focus on hitting the right intensity through the training week over time.",
+        "Periodize when progress plateaus. If performance plateaus, choose one of the periodization options outlined below."
+      ]
+    },
+    "20_periodization_model_flat_structure": {
+      "page": 98,
+      "figure_5_2_description": "Flat structure: same threshold and general load, week after week. Fewest transitions, lowest injury risk. Bar chart shows roughly equal load across weeks 1-8.",
+      "rationale": "A good and natural alternative is to start with a relatively flat structure, where training from one week to another does not vary too much. The advantage is that transitions become fewer, and because threshold training itself has a building effect, you can progress without constantly changing the program week by week and month by month. The risk of both injuries and stagnation becomes smaller than with more complicated models.",
+      "authors_own_practice": "This is also the model the author himself uses as a recreational runner, with a desire for good fitness and an injury-free daily life. It fits well into a busy daily life while ensuring some progression.",
+      "adding_structure": "If you additionally have one fixed, slightly more intensive quality session approximately every seventh to fourteenth day, you get a structure that is both easy to execute and sustainable over time, where you can also expect steady progression. If you want to train specifically toward competitions more structurally, there are several good ways to plan the weeks."
+    },
+    "21_periodization_model_flat_with_progressive_x_session": {
+      "pages": "99-100",
+      "figure_5_3_description": "Flat structure with progressive X-session: the threshold base stays flat, while race-specific X-session work sharpens more and more toward competition. Bar chart shows flat load bars with a rising dashed 'X-factor' progression line, weeks 1-8.",
+      "rationale": "A good alternative is a flat training structure through base training, with an X-session that progressively becomes more and more sharpened toward competitions. Competitions eventually take over for intensive training. You build your training gradually, with relatively similar weeks. The main quality session and support quality session stay in place. The X-session is where progression happens -- it evolves over time to bring you closer to the demands of your race.",
+      "example_x_session_progression_table": [
+        {
+          "period": "Week 1-4",
+          "training": "10 x 200m hill session gradually increased to 10 x 300m hill session at increasing speed. Rest is an easy jog down."
+        },
+        {
+          "period": "Week 5-8",
+          "training": "Alternating every other week between hill and flat surface. Carry the hill element forward but vary it against more specific training on flat every other week. Try to achieve some progression in pace from session to session. All of these can easily be finished with 10 x 45/15, alternatively the flat session is 45/15 itself."
+        },
+        {
+          "period": "Week 9-12",
+          "training": "Transition to 800-1,000m intervals with 3 min rest. Ideally finish with 10 x 45/15. These should go near your 5K pace."
+        },
+        {
+          "period": "Week 13",
+          "training": "5K race."
+        }
+      ],
+      "injury_prevention_note": "With this model, use the more intensive X-session to gradually sharpen the load more and more race-like. For many, this variant works perfectly -- it is a simple and relatively safe way to train. If you choose this type of structure, ideally add two easy days before the X-session to ensure you do not get injured. Experience shows this is much more important than possibly adding two easy days afterward.",
+      "figure_5_4_description": "Flat Structure with Periodic Race Pace: pure threshold weeks with a harder test session every 4-6 weeks. Feedback without disruption. Bar chart shows flat load with periodic 'test' spikes at weeks 3 and 7."
+    },
+    "22_flat_structure_with_periodic_race_pace_variant": {
+      "page": 101,
+      "origin": "A popular variant of this, which amusingly was inspired by the 'unknown' brother of Jakob Ingebrigtsen -- Kristoffer Ingebrigtsen -- trying to get in shape in a busy daily life, developed by Englishman James Copeland.",
+      "structure": "A simplification of the Norwegian Method as described in this book, toward recreational runners who are precisely at this level. The classic structure: three threshold sessions per week (sub-threshold, in line with the method's philosophy), three easy runs, and a slightly harder load approximately every fourth to sixth week in the form of a test run.",
+      "use_case": "A very safe variant, and for many can be a good starting point, or a solution to long-term stagnation. Sessions are structured as one long interval session with intervals around ten minutes, one long interval session with intervals around six minutes, and one interval session with intervals around three minutes.",
+      "example_table": [
+        {
+          "day": "Monday",
+          "session": "6 x 6 min (sub)threshold"
+        },
+        {
+          "day": "Tuesday",
+          "session": "1x easy (under 70% of max heart rate, as I also recommend)"
+        },
+        {
+          "day": "Wednesday",
+          "session": "3-4 x 10 min (sub)threshold"
+        },
+        {
+          "day": "Thursday",
+          "session": "1x easy"
+        },
+        {
+          "day": "Friday",
+          "session": "Off"
+        },
+        {
+          "day": "Saturday",
+          "session": "10 x 3-4 min (sub)threshold"
+        },
+        {
+          "day": "Sunday",
+          "session": "Easy"
+        }
+      ],
+      "lactate_specification": "All interval training in this variant is conducted in the lactate range of 2.5-3.5 mmol/L -- just below the traditional threshold reference point of 4.0 mmol/L, hence the term sub-threshold. Test runs and competitions, spaced several weeks apart, are what periodically lift the load above that ceiling.",
+      "why_it_works": "Worth trying especially if you are injury-prone, because the structure keeps things safe while still being effective. For many runners, a single-minded focus on the correct training zone -- in both interval sessions and volume -- at the right intensity week after week produces a far better result than more traditional approaches, though for some this process takes four to six months.",
+      "step_wise_expansion": "Once that foundation is in place, you can choose to develop the structure further by adding the right type of X-session and observing whether it improves performance without triggering injuries. There is no guarantee, but the step-wise approach is sensible: start in the right place, with a strict focus on threshold training, before expanding, with the risks that entails, only if you choose or need to."
+    },
+    "23_periodization_model_block_periodization": {
+      "pages": "102-103",
+      "figure_5_5_description": "Block periodization: two hard weeks, one light. Absorb and supercompensate. Bar chart shows a repeating pattern across weeks 1-8: two higher-load weeks, one light week, with the light weeks lower and the second block's peak (week 5) the tallest.",
+      "definition": "A classic structured and periodized model can look like this: 2 weeks with higher training volume and some double threshold days, then 1 week with light training and reduced total volume.",
+      "rationale": "The model gives the body time to absorb the load and creates variation in both intensity and volume. Many recreational runners experience this as an effective and motivating way to train.",
+      "the_goal_of_the_two_hard_weeks": "The goal is to absorb the maximum load you can handle, both in total volume and through threshold sessions, before pulling back for one week of light training with ideally one to two fewer sessions than normal and reduced overall load.",
+      "higher_risk_alternative": "An alternative is to spend two weeks with the main emphasis on threshold training while keeping the X-session lower in intensity, then reduce volume significantly in the third week and shift the focus -- for example, by replacing some of the threshold work with two moderately intense X-sessions. The risk is higher, so this approach should be tried with caution.",
+      "authors_personal_experience": "The author has used both flat and periodized models in his own career, and early on alternated between the two. Later he moved toward a more even profile, inspired by Alex Stanton, Paula Radcliffe's coach, whom he was introduced to through Ståle Jan Frøynes. Both approaches have value -- the question is which fits best with your daily life and your goals.",
+      "if_you_try_block_periodization_checklist": [
+        "Use the stair test. Walk up the same stairs every morning at the same time, preferably before breakfast. Register how your thigh muscles feel -- heavy and sluggish, or light and responsive? Over time, this pattern provides a reliable warning signal about overload.",
+        "Rise in performance. You should experience rising performance right up until a few days before the lighter week starts. This is important: performance should build through the hard weeks.",
+        "The lighter week is not just a break. It should provide a lift beyond what the normal training weeks provide alone. You should come back from the lighter week with better capacity than you had before you went into it.",
+        "The litmus test. If you do not experience performance building through the weeks and coming back stronger after lighter weeks, you should reconsider the strategy. Then either the harder weeks are too hard, or the light weeks are wrongly designed."
+      ]
+    },
+    "25_periodization_model_gradual_progression": {
+      "page": 104,
+      "figure_5_6_description": "Gradual progression: steady build toward a goal. Start low, increase month by month. Bar chart shows steadily rising load across weeks 1-8, plateauing near the end, tracked by a rising dashed trend line.",
+      "definition": "A third approach is gradual progression with variation through the entire training cycle. For marathon training, this can mean moving from 5-10K-specific work, through half marathon pace, and on to marathon pace, as structured in 'The 100 Day Marathon Plan' [a separate work by the author].",
+      "the_idea": "Carry training forward from one phase to the next by shifting the load gradually toward the final goal -- enough change to progress, not so much that the body loses what it has built. This approach works for other distances too: you build running volume and intensity systematically over several months rather than in sharp blocks.",
+      "when_its_especially_effective": "Especially effective if your daily life is demanding but certain periods of the year give you more time. Practical example: if you have more time and energy during summer, with a goal of racing in autumn, you can build progressively through spring toward summer vacation, then increase volume during those weeks when life allows it. From there you carry the fitness into autumn without abrupt transitions, using the summer weeks as your foundation for the racing season."
+    },
+    "26_choice_of_periodization_model": {
+      "page": 105,
+      "flat_structure_best_for": "Those who need predictability, have limited training time all year, or are injury-prone and need stable load. Also a very good model to get used to threshold training and practice the right pace without too much risk.",
+      "short_periodization_2_3_week_blocks_best_for": "Experienced runners who respond well to variation and who want a more dynamic training experience.",
+      "long_periodization_several_months_best_for": "Ideal when life situation varies through the year, or when training toward specific goals far in the future, for example a marathon.",
+      "governing_principle": "Regardless of which model you choose, remember that continuity always trumps complexity. A simple plan you actually follow is better than a perfect plan that becomes too demanding to execute.",
+      "warning_box": "Even the best periodization model is worthless if you cannot execute it without getting injured. Precisely when you move up toward 4 to 6 hours of training per week, the accumulated load begins to become significant. The mechanical strain, where the foot lands with two to four times your body weight, 10,000 times in a single hour, leaves its mark on the muscular system, tendons, and joints. Therefore, be especially observant for signs of overload while you try out periodization."
+    },
+    "27_when_periodization_fails": {
+      "pages": "105-106",
+      "anecdote": "Between the Bislett Games and the World Championships, threshold pace began to fall during the middle of competition season -- not much, but enough that measurements showed a clear trend. Too many intensive intervals had been trained too close together, and the price was being paid. Three weeks to the World Championships was too short to turn things around through normal means. The desperate solution: altitude training at the foot of Galdhøpiggen, the highest mountain in Norway, for five days with a study mate -- a tent was brought just in case, but the tourist cabin at Juvass had a room available. Extreme, but the measurements gave no choice.",
+      "root_cause": "The problem was not threshold training itself; it was that it had been abandoned too early and too abruptly when competition season started. The transition from threshold base to intensive training had been too hard, and the body lost its footing. Fortunately, the solution worked.",
+      "the_lesson": "This example is the reason gradual transitions between phases are always recommended, and the reason the periodization staircase can be a safe starting point for many -- to avoid this exact mistake, even on a smaller scale than running to Galdhøpiggen.",
+      "the_counterintuitive_fix": "Many feel that form stagnates right above a fitness peak and respond by adding more hard sessions, more load, more new things. The lesson is almost the opposite of what feels intuitive: when everything suddenly gets a bit heavier, the solution is rarely to turn up the intensity even more. Often it is to take one step back to more threshold, more easy, and a few fewer intensively sharpened sessions. This solution usually works much better, and it is also a much faster way back."
+    },
+    "28_the_periodization_staircase": {
+      "pages": "106-107",
+      "concept": "In line with the advice above, especially if you are injury-prone, it can be helpful to think of periodization as a load staircase upward. Optimization of purely muscular factors -- the load you feel in the muscles themselves, such as muscle soreness and tensions -- is what the author believes is the key to tolerating more training.",
+      "why_this_matters_for_recreational_runners": "The author's experience as an elite runner, physician, and now recreational runner is that many recreational runners enter more systematic training with muscles that are far from what you want. In patients who run, he most often feels a muscular system that lacks the fine elastic starting point you want. This is far more common than you would think, and it is one of the reasons the periodization staircase is recommended -- sensible threshold training can help normalize muscular state over time, so it can be sensible to start at the very bottom of the risk curve to achieve this.",
+      "four_steps": [
+        "Hold a completely flat structure for four to eight months with threshold training up toward the threshold point, with easy training in between. The variation is there, but it lies within the threshold range. The goal is to build the best possible muscular starting point.",
+        "Keep a flat structure, but now with one 45/15 X-session. Gradually increase intensity in 45/15, ideally by running the intervals progressively so that each interval goes a bit faster than the previous. Over time, this naturally glides over into work above the threshold.",
+        "Begin systematic experiments with a more varied X-session, and cautiously try specific periodization. The point is to compare this with the completely flat structure and see what you actually respond best to.",
+        "Choose the model that suits you best and that keeps you injury-free over time. You then move in the right direction on the risk curve, where the model ensures you are ready for the next step, especially muscularly."
+      ],
+      "figure_5_7_description": "Staircase diagram, four steps rising left to right against axes of 'Training complexity and risk' (y) and 'Time (months)' (x): (1) Flat threshold -- threshold + easy only, 4-8 months, 'Build muscular foundation / Normalize muscular state, Learn intensity control'; (2) Add 45/15 -- one X-Factor session, progressive intensity, 'Careful adaptation / Glide toward above-threshold work'; (3) Experiment -- varied X-Factor, try periodization, 'Compare flat vs. periodized / Find what you respond to'; (4) Pick model -- best fit for you, injury-free long term, 'Sustain and refine / Progress year after year'. Caption: each step builds on a stable muscular foundation; move up only when the current level is injury-free and fully absorbed."
+    },
+    "29_reflection_and_the_way_forward": {
+      "page": 108,
+      "closing_statement": "Four to six hours is enough if you prioritize threshold work over everything else, reduce gray-zone training between completely easy and threshold training, and accept that easy days must be easy. For many, this is the right level, year after year.",
+      "governing_line": "The training works, the body holds, life hangs together.",
+      "when_to_move_on": "If you already train more (six to eight hours per week) and want to focus on competitions with better structure and periodization, or if recovery is going faster, the body is responding better to load, and there is surplus and desire to train more -- both are good reasons to read on to the next chapter, which covers structuring training when volume increases, double threshold, precise intensity control, and periodization that works when the accumulated load becomes large."
+    },
+    "30_chapter_summary_points_source": [
+      "Four to six hours is enough. But there's no margin for wasted sessions. Every one must land where it should.",
+      "Adjusted distribution. The 80/20 rule doesn't scale down well. At this volume, aim for 60-65 percent easy, 20-30 percent threshold, and 5-10 percent higher intensity. The shift toward more threshold work is deliberate -- it's where the return is greatest.",
+      "Three key sessions. A main quality session with longer intervals, a support quality session with shorter threshold work or 45/15, and an optional X-session that adapts to your goals. Everything else supports these three.",
+      "Interval length affects pace. Shorter intervals allow faster running at the same effort. On 10-minute intervals, following a calculator blindly can put you 7-10 seconds per kilometer above threshold. Adjust down as intervals get longer.",
+      "Four ways to increase load. Careful double threshold on weekends, pure volume increase through more easy runs, longer threshold intervals when signals are green, or special session variants that combine familiar elements in new ways.",
+      "Periodization options. A flat structure is safest and often enough. Add a progressive X-session if you want race-specific sharpening. Block periodization works for experienced runners who respond to variation. Gradual progression suits training toward a specific goal. In all cases, transitions should be gradual.",
+      "The periodization staircase. Start with a flat threshold-only structure for months to build muscular foundation. Then add 45/15. Then experiment with a more varied X-session. Move up only when the current level is injury-free and fully absorbed."
+    ],
+    "31_named_sources_and_references_in_chapter": [
+      "Haruki Murakami -- author of 'What I Talk About When I Talk About Running', referenced re: running as a fixed, non-transformative part of life.",
+      "Seiler (2006); Seiler & Tønnessen (2009) -- research establishing the 80/20 training-intensity-distribution finding in elite athletes training 500-1,200 hours/year.",
+      "Muniz-Pumares et al. (2025) -- Strava-based study of training volume across 151,813 marathon finishes by 119,452 runners in the final 16 weeks before race day.",
+      "Jakob Ingebrigtsen / Kristoffer Ingebrigtsen -- Kristoffer (Jakob's 'unknown' brother) is credited as the inspiration for the 'flat structure with periodic race pace' variant.",
+      "James Copeland -- Englishman credited with developing the 'flat structure with periodic race pace' variant referenced above.",
+      "'The 100 Day Marathon Plan' -- a separate work by the author, referenced for its use of continuous threshold variants and the gradual-progression periodization model."
+    ]
+  },
+  "yoni_haim_coaching_philosophy": {
+    "identity": "Yoni Haim -- Division I track athlete, founder of TeamHaim.",
+    "attribution_line": "The weekly structures, periodization models, research citations, and numeric guidance in this section are drawn from and credited to Marius Bakken, 'The Norwegian Method,' Chapter 5. The explanations, framing, and coaching philosophy below are original to Yoni Haim / TeamHaim.",
+    "chapter_5_reframed": {
+      "title": "Making 5 Hours Count: The TeamHaim Weekly Blueprint",
+      "opening_philosophy": "Most athletes who come to me with 'only' 4-6 hours a week to train assume that's a compromise -- a smaller, watered-down version of real training. I tell them the opposite: with that little time, every single session has to earn its place, which actually forces better training than a lot of athletes with twice the hours ever get around to doing. You don't need more hours. You need every hour you have to land exactly where it should.",
+      "why_the_classic_80_20_rule_doesnt_apply_to_you": {
+        "coach_translation": "You've probably heard that elite runners do 80% easy, 20% hard. That's true, but it's true for people running 15-25 hours a week. Do that math on 5 hours and your 'hard' bucket is one measly hour -- barely enough to warm up and squeeze in real threshold work. At your volume, the ratio has to shift: roughly two-thirds easy, and a much bigger chunk of quality threshold work than the elites use, because you don't have the luxury of a huge easy-mileage base to lean on.",
+        "citation_note": "Sourced from source_science.3_the_80_20_rule_adjusted and source_science.4_the_adjusted_formula."
+      },
+      "the_two_things_that_actually_matter": {
+        "coach_translation": "Cut through all the noise and there are exactly two things worth obsessing over at this volume: how much threshold work you can absorb, and how many total easy miles you can accumulate without breaking down. Everything else -- hill sprints, drills, extra core work -- is optimization on top of those two. If you're ever unsure what to add to a week, ask one question: is there room for one more easy run, or one more threshold interval? If the answer is no to both, you don't need anything else.",
+        "citation_note": "Sourced from source_science.7_governing_philosophy."
+      },
+      "the_three_sessions_that_run_your_week": {
+        "coach_translation": [
+          "One main session, once a week, with your longest intervals -- this is the hardest thing you do, so it only happens once.",
+          "One support session with shorter, sharper threshold work -- this is what keeps the engine tuned between main efforts.",
+          "One optional X-session that flexes toward whatever you're actually training for -- and I mean flexes. If you're beat up, this is the first thing that gets cut, no guilt attached."
+        ],
+        "citation_note": "Sourced from source_science.8_weekly_structure_three_key_sessions."
+      },
+      "when_youre_going_well_add_length_not_speed": {
+        "coach_translation": "This is the rule I repeat more than any other: when you're feeling strong and want to push, add TIME to the session, not PACE. Run the same effort for longer, not a harder effort for the same time. The second you start chasing a faster number instead of more minutes in the zone, you've stopped doing threshold training and started gambling with your whole week's recovery.",
+        "citation_note": "Sourced from source_science.15_precise_intensity_control."
+      },
+      "shorter_intervals_should_feel_faster": {
+        "coach_translation": "Don't run every interval length at the exact same calculated pace -- that's a rookie mistake that either wastes your short intervals or wrecks your long ones. A 1-minute rep should feel meaningfully faster than a 10-minute rep, even though they're targeting the 'same' threshold. If you blindly hold your calculator's threshold pace through a 10-minute interval, you're almost certainly running too hard for a rep that long.",
+        "citation_note": "Sourced from source_science.15_precise_intensity_control.pace_guide_by_interval_length_table."
+      },
+      "four_ways_i_add_load_and_the_order_i_trust_them": {
+        "coach_translation": [
+          "First, I just add more easy miles or make existing easy runs longer -- the safest lever by far.",
+          "Second, if an athlete's readiness signals are all green, I let them add extra reps to the same session, never a faster pace.",
+          "Third, for an experienced athlete with real recovery capacity, I'll cautiously try a double session on a weekend -- but this is not a beginner move.",
+          "Fourth, I'll get creative with combination or step sessions -- but these are just familiar tools reassembled, not a new kind of risk."
+        ],
+        "citation_note": "Sourced from source_science.12_four_models_for_increasing_load."
+      },
+      "how_i_pick_a_periodization_model": {
+        "coach_translation": "I don't force every athlete into the same season structure. If someone's schedule is chaotic or they get hurt easily, I keep every week nearly identical -- flat, boring, and safe, because boring is what actually lets them build fitness uninterrupted. If someone is building toward one specific race, I keep the weekly threshold work flat but let one session sharpen gradually as the race approaches. If someone thrives on change, we can do harder blocks followed by a deliberate lighter week. None of these is more 'serious' than the others -- the only wrong choice is one you can't stick with.",
+        "citation_note": "Sourced from source_science.20 through source_science.26 (the five periodization models and the choice-of-model guidance)."
+      },
+      "the_mistake_almost_everyone_makes_when_they_stall": {
+        "coach_translation": "Every athlete who plateaus wants to fix it the same way: add something harder. Nine times out of ten that's exactly backwards. When training suddenly feels heavier for no clear reason, my first move is almost always to pull back toward more threshold and more easy running, and cut whatever intensity was just added. That single step back usually resolves the plateau faster than pushing through ever would.",
+        "citation_note": "Sourced from source_science.27_when_periodization_fails."
+      },
+      "the_staircase_i_use_with_new_athletes": {
+        "coach_translation": "With any athlete new to structured training, I start at the bottom of a staircase, not the top. Step one is months of flat threshold and easy running, nothing else -- just building a base the muscles can actually handle. Only once that's fully absorbed and injury-free do I add one sharper session. Only once THAT'S absorbed do I start experimenting with real periodization. Skipping steps doesn't get you there faster. It gets you hurt.",
+        "citation_note": "Sourced from source_science.28_the_periodization_staircase."
+      },
+      "core_takeaways_for_teamhaim_athletes": [
+        "At limited hours, threshold work and total easy volume are the whole game. Everything else is a bonus on top.",
+        "When you feel strong, add more time in the zone -- never more speed. That's how you add load without adding risk.",
+        "Your longest intervals should feel noticeably easier per-meter than your shortest ones. If they don't, you're pushing too hard on the long ones.",
+        "When in doubt about adding load, add easy miles first. It's the safest lever you have, every time.",
+        "If you stall, don't add harder work. Strip back to more threshold and more easy running first -- it works faster than pushing through.",
+        "Build the staircase in order: flat structure first, sharpening second, real periodization only once the earlier steps are fully absorbed."
+      ]
+    }
+  }
+}

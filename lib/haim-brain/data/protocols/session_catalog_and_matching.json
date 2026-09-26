@@ -1,0 +1,127 @@
+{
+  "meta": {
+    "purpose": "Bridges an athlete's goal + level to an actual weekly session structure: which workout CATEGORY fits them, what the three key session slots are, the concrete session-type catalog to fill those slots, and the rules for increasing load over time. This is what the plan-builder should consult to decide session types and distances -- not invent from scratch.",
+    "source_citation": {
+      "title": "The Norwegian Method",
+      "author": "Marius Bakken, MD",
+      "chapters_used": ["1 (Threshold as the Hub)", "3 (Load and Six Foundational Principles)", "5 (The Recreational Runner)", "6 (The Ambitious Runner)", "7 (Double Threshold)", "8 (45/15 Micro-Intervals)"]
+    }
+  },
+
+  "step_1_match_athlete_to_a_category": {
+    "source": "Chapter 5 vs Chapter 6 split, cross-checked against Chapter 2's level guidance",
+    "categories": [
+      {
+        "category": "Recreational (roughly 4-6 hours / week)",
+        "signals": "weekly_hours_available is 'Under 4 hours' or '4-6 hours', OR running_experience is 'Just starting out' or 'Recreational'",
+        "structure": "Three key sessions (see step_2) as the entire quality workload. No double threshold.",
+        "source_chapter": "5"
+      },
+      {
+        "category": "Ambitious (roughly 6-8+ hours / week)",
+        "signals": "weekly_hours_available is '6-8 hours' or '8+ hours', AND running_experience is 'Competitive' or the athlete already tolerates 2 quality sessions/week well",
+        "structure": "Same three-session skeleton, but Session 2 (support quality) can become a double-threshold day; more total threshold volume.",
+        "source_chapter": "6, 7"
+      },
+      {
+        "category": "Elite / sub-elite",
+        "signals": "running_experience is 'Elite / collegiate / professional'",
+        "structure": "Two to three double-threshold sessions per week (Chapter 3's 'general load' guidance), lactate-guided.",
+        "source_chapter": "6, 7, 13"
+      }
+    ],
+    "important_note": "Category is a starting point, not a cage. A recreational runner returning from a long layoff should be started BELOW their raw hours-available category (see injury_and_strength_protocol.json and the conservative-entry guidance below)."
+  },
+
+  "step_2_the_three_key_sessions": {
+    "source": "Chapter 5, section 8_weekly_structure_three_key_sessions -- 'What most often provides the best return at this level is a system built systematically around three key sessions.'",
+    "session_1_main_quality": {
+      "definition": "The highest-load threshold session of the week. Longer intervals (10+ min) or continuous varying-pace running for marathon-oriented athletes.",
+      "frequency": "Once per week maximum -- this session is too demanding to repeat.",
+      "placement_rule": "Needs a genuinely easy day both before and after (Chapter 3's 24-hour muscle-tone window: tone peaks the day AFTER a hard session, not during it)."
+    },
+    "session_2_support_quality": {
+      "definition": "Shorter threshold intervals, max duration 3 min (up to 6 min occasionally). Often takes the 45/15 form. For ambitious/elite athletes, this slot can become a double-threshold day.",
+      "frequency": "Once per week (recreational); can pair with a same-day second session for ambitious+.",
+      "placement_rule": "Same easy-day-buffer rule as session 1."
+    },
+    "session_3_x_session": {
+      "definition": "The flexible, variable session -- either competition-pace-specific work, or extra variation slightly above threshold. NOT mandatory.",
+      "frequency": "Zero or one per week.",
+      "flexibility_rule": "The X-session is the first thing to cut at any sign of overload or injury -- it can also just be a normal threshold session with mild variation if the athlete needs stability instead.",
+      "placement_rule": "Chapter 10's strength-training research found Model C (strength/speed work placed right after the X-session, e.g. Saturday) the best-tolerated placement -- see injury_and_strength_protocol.json."
+    },
+    "everything_else": "All other runs are genuinely easy (see the 70% max-HR rule in pace_and_readiness_protocol.json's related chapter-3 content). If an athlete completes only these three sessions well, with all other runs truly easy, they get steady progress -- this is the floor, not a compromise."
+  },
+
+  "step_3_session_type_catalog": {
+    "source": "Chapter 3, section 9_sixth_pillar_interval_training",
+    "medium_intervals_4_to_10_min": {
+      "role": "The workhorse -- the default choice for session 1 or 2 for most athletes.",
+      "examples": ["6 x 6 min, 1 min rest (classic)", "4 x 10 min, 90 sec rest (heavier)", "6 x 5 min, 45 sec rest (in between)"]
+    },
+    "short_intervals_1_to_3_min": {
+      "role": "Higher quality, faster pace, lower lactate accumulation per rep. Good for session 2 or as part of a mixed session.",
+      "example": "30 x 1 min gives 30 min of threshold work distributed into manageable chunks."
+    },
+    "long_intervals_11_to_20_min": {
+      "role": "Teaches stable pacing over long periods. Use sparingly -- once every 10-14 days, not weekly.",
+      "caution": "Easy to start too hard; the second half becomes a fight against lactate instead of controlled work.",
+      "split_alternative": "8 min threshold, 4 min jog recovery, 8 min threshold again -- same total length, less continuous wear."
+    },
+    "very_short_20_to_45_sec_45_15_protocol": {
+      "role": "A distinct category (full protocols live in Chapter 8) -- micro-intervals maximizing time-at-intensity with minimal muscular cost. Frequently used for session 2 or the X-session.",
+      "source_chapter": "8"
+    },
+    "mixed_and_shaped_sessions": {
+      "classic_combo": "3 x 10 min (90 sec rest) then, after a short easy jog, 10 x 45/15 -- long intervals for base load, finished with speed work.",
+      "pyramid": "3-6-9-6-3 min with 90 sec rest, optionally finished with 5-10 x 20/20.",
+      "descending": "10-8-6-4-2-1 min with increasing speed as intervals shorten.",
+      "pacing_rule": "Start 5-7 sec/km slower than target pace on the first interval and build through the session -- soft start, soft landing. Never make the first or last interval the hardest."
+    },
+    "continuous_threshold_efforts": {
+      "role": "The exception to the interval-first rule -- reserved for half-marathon/marathon-specific work: 20-40 min continuous efforts for metabolic endurance, fat oxidation, and race-pace judgment.",
+      "not_the_default": "For everything shorter than a half marathon, intervals beat continuous running at the same effort -- 5-15 sec/km faster at equal load, per Chapter 3."
+    }
+  },
+
+  "step_4_reference_weekly_template": {
+    "source": "Chapter 5, section 11_example_5_hour_week_table -- 'Example 5-Hour Week in the Base Training Period'",
+    "note": "This is a worked EXAMPLE from the book for a recreational athlete, not a rigid template -- use it as the shape to adapt, substituting the athlete's own days/paces/distances.",
+    "week": [
+      {"day": "Monday", "session": "Rest"},
+      {"day": "Tuesday", "session": "Support quality -- 6x6min threshold OR 10-12x3min w/ 1min recovery"},
+      {"day": "Wednesday", "session": "Easy 40-60 min, deliberately slow"},
+      {"day": "Thursday", "session": "Main quality -- 3-4x10min or a long varying session"},
+      {"day": "Friday", "session": "Rest (or rotate if the athlete responds poorly to a fully free day before Saturday's quality)"},
+      {"day": "Saturday", "session": "X-session / 45/15 -- e.g. 15-20x45sec progressive (10K pace building to 5K pace) w/ 15sec rest"},
+      {"day": "Sunday", "session": "Long easy run -- 60-90 min for sub-10K goals, progressive week-by-week for half/full marathon goals"}
+    ],
+    "cautious_entry_rule": "For a returning or injury-prone athlete, keep the SAME structure but cap total threshold-session time at 20-25 minutes while they adapt, then gradually increase volume. Choose the structure first, increase volume second -- never the reverse."
+  },
+
+  "step_5_how_to_increase_load_over_time": {
+    "source": "Chapter 5, section 12_four_models_for_increasing_load",
+    "models": [
+      {
+        "model": "Cautious double threshold",
+        "when": "Experienced athletes near the recreational/ambitious boundary, especially if weekends allow more recovery than weekdays.",
+        "caution": "Powerful but must be done precisely -- watch the morning session closely."
+      },
+      {
+        "model": "Pure volume increase (preferred default)",
+        "priority_order": ["Add more easy runs (best)", "Extend existing easy runs (second best)", "Longer warm-up/cool-down (third best)"],
+        "progression_rate": "About 10% volume increase per week over a 6-week block, ideally finishing ~4 weeks before a target race."
+      },
+      {
+        "model": "Longer threshold intervals -- traffic-light gated",
+        "rule": "ONLY add extra reps when the traffic-light signals (resting HR, HRV, stair test, warm-up HR -- see adaptive_progression_protocol.json) are green. Add length, not intensity."
+      },
+      {
+        "model": "Special variants",
+        "examples": ["Combination: 60-90min easy directly into 45/15, no break", "Step intervals: 3min broken into 1min segments, each stepping up", "Active jogging rest: recovery jog kept above a HR floor instead of fully easy"]
+      }
+    ],
+    "which_to_use": "Individual -- the book recommends testing several over time and adopting whichever one the athlete responds to best as their fixed default strategy."
+  }
+}

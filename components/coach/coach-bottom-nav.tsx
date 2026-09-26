@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Users, Dumbbell, MessageCircle, UserPlus } from 'lucide-react'
+import { Home, Users, Dumbbell, MessageCircle, UserPlus, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useLanguage } from '@/contexts/language-context'
 
@@ -16,6 +16,7 @@ export function CoachBottomNav() {
     { href: '/coach/leads', label: t.leadsNav, icon: UserPlus, exact: false },
     { href: '/coach/workouts', label: t.workouts, icon: Dumbbell, exact: false },
     { href: '/coach/chat', label: t.chat, icon: MessageCircle, exact: false },
+    { href: '/coach/ai-coach', label: t.aiCoachNav, icon: Sparkles, exact: false },
   ]
 
   return (

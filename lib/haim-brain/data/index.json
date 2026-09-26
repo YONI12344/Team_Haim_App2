@@ -1,0 +1,153 @@
+{
+  "project": "TeamHaim AI Coach Brain -- Master Knowledge Base",
+  "file_purpose": "Consolidated knowledge base combining all 18 chapters (1-17 plus the Final Chapter) of the source book into a single file for the TeamHaim AI coaching agent.",
+  "important_note_on_sourcing": "This file separates two things throughout: (1) FACTUAL / SCIENTIFIC DATA, credited to the source book below, and (2) YONI HAIM'S ORIGINAL COACHING VOICE, written fresh and not copied from the source text. No verbatim or near-verbatim book text is reproduced anywhere in this file.",
+  "source_citation": {
+    "title": "The Norwegian Method",
+    "author": "Marius Bakken, MD",
+    "note": "All content under any 'source_science' key throughout this file originates from this book and is credited to Marius Bakken. Cite this book whenever source_science content is surfaced to an athlete or used to justify a coaching claim."
+  },
+  "known_open_gaps": [
+    "Chapter 4, page 80 -- not yet supplied by the user; all other pages across all 18 chapters are complete."
+  ],
+  "chapter_index": [
+    {
+      "chapter": "1",
+      "short_description": "Chapter 1 concepts on threshold training",
+      "pages_used": "Foreword, Introduction, Part I opening, pp. 19-29"
+    },
+    {
+      "chapter": "2",
+      "short_description": "how to find your personal threshold using practical, low-equipment methods",
+      "pages_used": "pp. 31-43"
+    },
+    {
+      "chapter": "3",
+      "short_description": "the six foundational pillars of the method and how weekly load is structured around them",
+      "pages_used": "pp. 45-68 (24 photographed pages; one intermediate page in this range was not captured in the photos provided)"
+    },
+    {
+      "chapter": "4",
+      "short_description": "why the muscular system, not the cardiovascular system, is the true limiter, and how muscle tone governs weekly training",
+      "pages_used": "pp. 69-79 (12 photographed pages, one of which was a duplicate shot of p.74; page 80, likely a blank/divider page before Part II, was not among the photos provided)"
+    },
+    {
+      "chapter": "5",
+      "short_description": "concrete weekly training structures, periodization models, and load-progression rules for runners training 4-6 hours per week. This is Part II ('The Application",
+      "pages_used": "pp. 83, 85-109, complete (30 photographed pages processed one at a time, plus page 103 supplied afterward and merged in)."
+    },
+    {
+      "chapter": "6",
+      "short_description": "advanced double-threshold structuring, precise intensity control, distance-specific adaptation, and individualization for runners training 6-8+ hours per week",
+      "pages_used": "pp. 111-145, complete (35 photographed pages, processed one page at a time; several pages arrived out of physical order but all gaps were tracked down and filled -- no content is missing from this chapter)."
+    },
+    {
+      "chapter": "7",
+      "short_description": "the full physiology, research base, and practical protocols for double threshold training",
+      "pages_used": "pp. 147-161, complete (16 photographed pages processed one at a time; one photo was a duplicate of p.158, no content lost -- no gaps in this chapter)."
+    },
+    {
+      "chapter": "8",
+      "short_description": "the physiology, research base, and full protocol library for 45/15 micro-interval training",
+      "pages_used": "pp. 163-174, complete (13 photographed pages processed one at a time, plus page 169 supplied afterward as a clean photo and merged in -- no gaps remain in this chapter)."
+    },
+    {
+      "chapter": "9",
+      "short_description": "injury prevention, managing training transitions, returning to training after illness, and the lab markers (iron, vitamin D, B12) that matter for runners",
+      "pages_used": "Part III divider and introduction, plus pp. 182-190, complete (12 photographed pages processed one at a time, zero gaps)."
+    },
+    {
+      "chapter": "10",
+      "short_description": "what actually works for recovery and injury prevention (strength training, stretching, thermal therapy, modern shoes, energy balance) and what doesn't",
+      "pages_used": "Opening epigraph plus pp. 193-208, complete (18 photographed pages processed one at a time, zero gaps)."
+    },
+    {
+      "chapter": "11",
+      "short_description": "recognizing early warning signs of overtraining and the practical tools (stair test, resting heart rate, HRV, traffic light model) to catch it before it becomes",
+      "pages_used": "Opening epigraph plus pp. 211-224, complete (16 photographed pages processed one at a time, zero gaps)."
+    },
+    {
+      "chapter": "12",
+      "short_description": "the historical development of the Norwegian Method from 1995 to today",
+      "pages_used": "pp. 232-243, complete (12 photographed pages processed one at a time, zero gaps)."
+    },
+    {
+      "chapter": "13",
+      "short_description": "the technical deep dive into lactate profiling and real-time intensity control",
+      "pages_used": "Opening epigraph plus pp. 245-264, complete (22 photographed pages processed one at a time, zero gaps)."
+    },
+    {
+      "chapter": "14",
+      "short_description": "the deep physiological mechanism behind why double threshold works",
+      "pages_used": "Opening epigraph plus pp. 267-280, complete (16 photographed pages processed one at a time, plus page 274 supplied afterward and merged in -- no gaps remain in this chapter)."
+    },
+    {
+      "chapter": "15",
+      "short_description": "muscle tone, elasticity, and stiffness",
+      "pages_used": "Opening epigraph plus approx. pp. 281-292, complete (12 photographed pages processed one at a time). Content flows completely and coherently from opening to closing with no narrative gaps, though exact page-number attribution for two consecutive pages is uncertain (page numbers 285 and 288 were read on adjacent photos, but the text connects seamlessly across them, suggesting no content was actually missed)."
+    },
+    {
+      "chapter": "16",
+      "short_description": "altitude training and heat training as catalysts (not replacements) for the threshold-based method",
+      "pages_used": "pp. 295-304 (approx.) plus Summary, complete (11 photographed pages processed one at a time, zero gaps)."
+    },
+    {
+      "chapter": "17",
+      "short_description": "where the Norwegian Method is heading",
+      "pages_used": "pp. 307-314 plus Summary, complete (8 photographed pages processed one at a time, plus page 311 supplied afterward and merged in -- no gaps remain in this chapter)."
+    },
+    {
+      "chapter": "Final",
+      "short_description": "'Precision Over Time'",
+      "pages_used": "pp. 317-319, complete (4 photographed pages processed one at a time, one was a duplicate of p.318, zero content gaps -- this is the entire final chapter and the book ends here)."
+    }
+  ],
+  "chapter_file_map": {
+    "1": "part1_the_method/chapter_1.json",
+    "2": "part1_the_method/chapter_2.json",
+    "3": "part1_the_method/chapter_3.json",
+    "4": "part1_the_method/chapter_4.json",
+    "5": "part2_the_application/chapter_5.json",
+    "6": "part2_the_application/chapter_6.json",
+    "7": "part2_the_application/chapter_7.json",
+    "8": "part2_the_application/chapter_8.json",
+    "9": "part3_running_for_life/chapter_9.json",
+    "10": "part3_running_for_life/chapter_10.json",
+    "11": "part3_running_for_life/chapter_11.json",
+    "12": "part4_going_deeper/chapter_12.json",
+    "13": "part4_going_deeper/chapter_13.json",
+    "14": "part4_going_deeper/chapter_14.json",
+    "15": "part4_going_deeper/chapter_15.json",
+    "16": "part4_going_deeper/chapter_16.json",
+    "17": "part4_going_deeper/chapter_17.json",
+    "Final": "part4_going_deeper/chapter_final.json"
+  },
+  "part_structure": {
+    "part1_the_method": [
+      "1",
+      "2",
+      "3",
+      "4"
+    ],
+    "part2_the_application": [
+      "5",
+      "6",
+      "7",
+      "8"
+    ],
+    "part3_running_for_life": [
+      "9",
+      "10",
+      "11"
+    ],
+    "part4_going_deeper": [
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "Final"
+    ]
+  }
+}

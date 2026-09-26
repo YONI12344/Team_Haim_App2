@@ -252,6 +252,7 @@ export interface Translations {
   workouts: string
   settings: string
   leadsNav: string
+  aiCoachNav: string
   navHome: string
   navPlan: string
   navStats: string
@@ -1184,6 +1185,7 @@ const translations: Record<Language, Translations> = {
     chat: 'Chat',
     athletes: 'Athletes',
     leadsNav: 'Leads',
+    aiCoachNav: 'AI Coach',
     workouts: 'Workouts',
     settings: 'Settings',
     coachPortal: 'Coach Portal',
@@ -2079,6 +2081,7 @@ const translations: Record<Language, Translations> = {
     chat: 'צ\'אט',
     athletes: 'ספורטאים',
     leadsNav: 'לידים',
+    aiCoachNav: 'מאמן AI',
     workouts: 'אימונים',
     settings: 'הגדרות',
     coachPortal: 'אזור המאמן',

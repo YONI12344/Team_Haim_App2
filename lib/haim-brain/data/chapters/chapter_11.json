@@ -1,0 +1,332 @@
+{
+  "chapter_label": "11",
+  "source_file": "chapter11_teamhaim_brain.json",
+  "meta": {
+    "project": "TeamHaim AI Coach Brain",
+    "file_purpose": "Structured knowledge-base entry for the AI coaching agent, covering Chapter 11: recognizing early warning signs of overtraining and the practical tools (stair test, resting heart rate, HRV, traffic light model) to catch it before it becomes serious, plus how to recover from it.",
+    "important_note_on_sourcing": "This file separates two things on purpose: (1) FACTUAL / SCIENTIFIC DATA -- research findings, protocols, numeric guidance -- which are not copyrightable and are explicitly credited to their source book below, and (2) YONI HAIM'S ORIGINAL COACHING VOICE -- fresh explanations, framing, and philosophy written from scratch, not copied or reworded sentence-by-sentence from the source text. No verbatim or near-verbatim book text is reproduced here. Personal and clinical anecdotes belonging to the source author (his own overtraining experience, his patients) are cited as background only and are NOT retold as if they were Yoni Haim's own experiences.",
+    "source_citation": {
+      "title": "The Norwegian Method",
+      "author": "Marius Bakken, MD",
+      "chapter_used": "Chapter 11: Warning Signs and Overtraining (Part III: Running for Life)",
+      "pages_used": "Opening epigraph plus pp. 211-224, complete (16 photographed pages processed one at a time, zero gaps).",
+      "note": "All scientific data, protocols, and named research findings in the 'source_science' section below originate from this book and are credited to Marius Bakken. Use this citation whenever the underlying content is referenced downstream in the app."
+    }
+  },
+  "source_science": {
+    "description": "Factual / prescriptive content extracted from Chapter 11, credited to Marius Bakken, 'The Norwegian Method', logged page by page (pp. 211-224). Nothing has been trimmed.",
+    "0_chapter_epigraph": "The early signals are always quiet. A staircase that feels heavier. A session that never finds its rhythm. Miss them, and weeks become months. What follows is how to catch them in time.",
+    "1_chapter_opening_ryan_hall": {
+      "page": 211,
+      "the_case_study": "In 2011, Ryan Hall ran the Boston Marathon in 2:04:58, a performance that placed him at the very top of the world. A few years earlier he had competed in the heats of the same 5,000 meters in Helsinki mentioned at the start of the book, before shifting focus to the marathon. He was 28, in the best shape of his career, and everything suggested his finest races still lay ahead.",
+      "the_collapse": "Five years later, he could barely complete an easy training run. Hall had been running 150-210 km (93-130 miles) per week since he was 17, known for his work capacity and his ability to push through almost anything. When his results began to slip, he did what many runners do: he trained harder, piled on more volume, and ground through the fatigue. His body collapsed, slowly and systematically, until there was nothing left to push.",
+      "his_retirement_quote": "When he announced his retirement at 33, he described an exhaustion that wouldn't lift: 'I've explored every issue to get back to the level I've been at, and my body is not responding. I realized that it was time to stop.' (New York Times, 2016)",
+      "how_common_overtraining_is": "Some studies estimate that up to two-thirds of all elite runners experience overtraining at some point in their careers. Even if the numbers are uncertain, it's far from rare. The author has been there himself. It doesn't only strike the elite -- on forums for recreational runners training three or four times a week, the same symptoms and the same desperation to understand what went wrong appear. What surprises most people is how little it can take: just a few sessions per week can tip you into overload if slightly too demanding training coincides with poor sleep, a brewing infection, or other life stress."
+    },
+    "2_how_the_slide_happens": {
+      "page": 212,
+      "the_recreational_runner_arc": "You might follow the plan almost to the letter -- threshold sessions go well, easy runs stay easy, progress arrives. Then it shifts. Small signals creep in, often tangled up with a hectic daily life: a staircase at home that suddenly feels heavier even though everything else seems normal, then a few days later sleep changes, waking a little earlier without knowing why, then mental adjustments -- a session gets shuffled, you start bargaining with yourself in the name of discipline. Eventually progress stalls. What could have been a simple course correction over a few days turns into weeks of stagnation, and because the early signals went unheeded, it can take months to return to where you started.",
+      "why_this_chapter_matters": "Overtraining is feared by athletes, yet it lacks precise objective markers. That's exactly why you must learn to recognize the subtle signals the body sends before it's too late, and why tracking a few objective measures alongside your feel is recommended."
+    },
+    "3_resting_heart_rate": {
+      "page": 212,
+      "why_track_it": "Even as a recreational runner, the author still tracks resting heart rate every night as a window into load, along with HRV. A rise in early-morning heart rate is a classic sign that the body isn't firing on all cylinders, and no fancy equipment is needed to monitor it.",
+      "how_to_measure_correctly": [
+        "Measure immediately after waking, before getting up",
+        "Lie still, completely relaxed",
+        "Count heart rate for 30 seconds x 2, or use a heart rate monitor",
+        "Log the value in your training diary",
+        "Watch for trends over 7-14 days"
+      ]
+    },
+    "4_interpreting_heart_rate_changes": {
+      "page": 213,
+      "research_cited": "Barron and colleagues showed as early as 1985 that overtrained endurance athletes displayed impaired hormonal response in the HPA axis during insulin-induced hypoglycemia. In practice, this kind of axis disruption can show up over time as altered resting heart rate, alongside fatigue and performance decline.",
+      "interpretation_scale": [
+        {
+          "category": "Normal variation",
+          "value": "+/-2-3 beats from day to day"
+        },
+        {
+          "category": "Concerning",
+          "value": "+5 beats above baseline for 3+ days"
+        },
+        {
+          "category": "Alarming",
+          "value": "+8-10 beats sustained over a week"
+        },
+        {
+          "category": "Critical",
+          "value": "+10-15 beats that don't normalize with rest"
+        }
+      ],
+      "gradual_changes_matter_too": "Absolute numbers are not everything. A gradual climb from 45 to 48 to 51 over two weeks is just as telling as a sudden spike. Resting heart rate often serves as an early warning that load has grown too heavy, typically surfacing a few days before the body starts shutting down in other ways.",
+      "the_authors_caution": "Not a fan of letting numbers alone dictate training, but when these patterns persist over several days, they should not be ignored. One point matters especially: do not push hard and fast on the sessions that follow. Running a threshold workout with an emerging infection carries far less risk than an intensive effort up near 90-95% of maximum heart rate."
+    },
+    "5_sleep_symptoms": {
+      "page": 213,
+      "why_sleep_is_first": "Sleep disturbances are often the first symptom of overtraining syndrome, long before performance falters. Endocrine hormones are essential for physiological responses and adaptations during exercise, and they shape the recovery phase by modulating anabolic and catabolic processes. When these hormones drift out of balance, sleep is usually the first to suffer.",
+      "warning_signals_in_sleep_patterns": [
+        "Difficulty falling asleep despite exhaustion",
+        "Waking between 03:00 and 05:00 (cortisol peak)",
+        "Restless sleep with frequent position changes",
+        "Night sweats without obvious cause",
+        "Nightmares or unusually vivid dreams",
+        "Feeling wired even though you're spent"
+      ],
+      "the_vicious_cycle": "Chronically elevated cortisol from daily training disrupts the normal circadian rhythm, setting off a vicious cycle: poor sleep leads to poorer recovery, which breeds more stress, which degrades sleep further still.",
+      "practical_tracking": "Keep a simple sleep diary, rate quality from 1 to 10 each morning, note waking times and how you feel. Look for patterns that track with hard training, and consider HRV measurement at night or in the morning for objective data."
+    },
+    "6_loss_of_motivation": {
+      "page": 214,
+      "reframing_the_symptom": "Loss of motivation and training enjoyment isn't a weakness, but the body's defense mechanism. It is rarely wise to train hard when the body is already signaling 'enough.' Overtraining is characterized by reduced sport-specific performance, accelerated fatiguability, and subjective symptoms of stress.",
+      "mental_warning_signals": [
+        "Anxiety before planned quality sessions",
+        "Constant rumination over training volume",
+        "The sense that training has become obligation rather than joy",
+        "Fading competitive drive",
+        "Heightened emotional volatility"
+      ]
+    },
+    "7_performance_stagnation": {
+      "page": 214,
+      "the_common_mistake": "When results plateau, the first impulse is often to train harder. A common mistake is confusing overtraining with underperformance.",
+      "objective_signs": "Threshold pace feels progressively heavier. Getting heart rate up and speed during sessions becomes a struggle, as if you can't quite access the gears you normally have.",
+      "governing_quote": "This relates primarily to muscular factors. The muscles' ability to mobilize diminishes, and every extra effort seems to cost far more than it should.",
+      "additional_signs": "Recovery drags on longer than normal, and simple activities that call on the muscles a bit more (climbing stairs, for instance) feel unexpectedly heavy."
+    },
+    "8_the_blunted_stress_response": {
+      "page": 215,
+      "the_paradox": "In response to a standardized high-intensity effort, overtrained athletes show lower heart rate, lactate, and plasma cortisol response. This paradox -- the body's failure to mount a normal stress response -- is a hallmark of overtraining.",
+      "key_point": "During any ten-day training stretch, at least one session should feel genuinely good, light legs, the temptation to pile on more work. If that feeling never arrives within that window, it's time to hit the brakes."
+    },
+    "9_heavy_thighs": {
+      "page": 215,
+      "the_signal": "One of the most telling signs of emerging overtraining is how the thighs feel during everyday movement. Climbing stairs suddenly becomes an ordeal, and even ordinary walking can feel strangely laborious.",
+      "the_mechanism": "This traces back to changes in muscle tone and elasticity that follow a predictable arc. In the early phase of overtraining, muscle tone climbs while elasticity remains relatively intact -- you notice heaviness especially on stairs, as if the thighs weigh twice what they should. This is the body's first signal that the muscles aren't recovering properly between sessions.",
+      "if_ignored": "Push on without adequate rest, and the condition progresses. Muscle tone can then paradoxically collapse, while the muscles turn tight and inelastic -- this is serious overtraining. Now even small efforts feel nearly impossible. You may notice tingling in the thighs at night, minor cramps in stiff tissue, and a pervasive sense that the legs simply won't cooperate.",
+      "governing_quote": "Ask them about the first sign, and most will tell you the same thing: stairs suddenly got heavy.",
+      "the_way_back": "Short strides and 45/15 intervals can actually help you climb out of this state by stimulating the muscles in the right way. Combined with massage when needed, this can be the path back to normal tone and elasticity."
+    },
+    "10_the_stair_test": {
+      "pages": "215-217",
+      "premise": "A smart, practical way to catch overtraining and overload early. Early overtraining is primarily a muscular phenomenon -- before resting heart rate budges, before sleep deteriorates, before motivation wavers, subtle changes occur in the muscles that most people miss.",
+      "figure_11_1_description": {
+        "title": "The Stair Test -- Early detection of overload through muscular feel",
+        "overload_progression_sequence": "Muscle tone elevates -> Elasticity declines -> Resting HR rises -> Sleep deteriorates -> Motivation fades",
+        "key_insight": "The stair test detects the first two stages (muscle tone elevates, elasticity declines) before the three traditional warning signs (resting HR rises, sleep deteriorates, motivation fades) ever appear."
+      },
+      "daily_execution_protocol": [
+        "Choose a short flight of stairs you can climb daily -- same stairs, same number of steps, ideally at the same time of day",
+        "Climb with conscious attention to how the thigh muscles feel on the way up and when you reach the top; focus specifically on the muscular sensation",
+        "Over time, you'll develop sensitivity to your normal variations",
+        "Days when the stairs feel unusually heavy, when the thighs seem stiff or sluggish, may be an early signal that recovery isn't keeping pace with load"
+      ],
+      "the_underlying_mechanism": "It comes down to two things: elevated muscle tone (the baseline tension in the muscle fibers) combined with reduced elasticity in the tissue itself. When muscles do not get enough time to normalize between sessions, they linger in a state of heightened tension while simultaneously losing their natural elasticity -- the capacity to contract and stretch efficiently. This does not happen overnight, but builds gradually over days and weeks of inadequate recovery.",
+      "why_it_works": "Used systematically over several weeks, the stair test will paint a surprisingly precise picture of muscular condition and recovery."
+    },
+    "11_muscular_state_as_the_central_variable": {
+      "page": 217,
+      "the_central_thesis": "The stair test captures something important: the muscles respond before much else does, often before resting heart rate rises, before sleep deteriorates, before motivation fades. The muscles know first. Muscular factors are the true ceiling on training, especially in running -- what governs how you feel week to week, your receptivity to training, the good days and the bad, comes down mostly to the balance struck in the muscular system.",
+      "personal_admission": "Even as both runner and general practitioner, the author is struck by how important this remains even for runners training just three or four times a week. He can slide straight into muscular overtraining (elevated tone, depleted elasticity) on just four to six sessions a week if he pushes the threshold work a touch too hard -- despite more than twenty-five years of systematic training, ten of them at two or three sessions a day.",
+      "how_little_it_takes": "Muscles are perishable and demand continuous attention and adjustment. It takes surprisingly little to upset the balance: a few weeks where intensity runs slightly too high or recovery windows fall slightly too short.",
+      "manual_assessment_technique": "You can assess the muscles directly. Wrap a broad grip around the muscle belly. Notice how tense it is, how much mass fills your hand. Shift the muscle sideways and feel how freely it moves -- high tone limits displacement. Then release; the speed at which it springs back is the elasticity.",
+      "cross_reference": "Chapter 15 contains precise definitions, a muscular reference point drawn from thousands of palpations, the story of the author's master's thesis with Professor Per Brodal, and guidance on actively optimizing muscle tone through the training cycle and into competition."
+    },
+    "12_why_threshold_training_provides_control": {
+      "page": 218,
+      "the_argument": "Higher intensity doesn't just raise muscle tone more, it also prolongs the time needed to return to normal -- you lose control of the recovery window. With a threshold-based model, this stays under far better control: threshold sessions, even doubles, leave roughly the same muscular imprint each time. That predictability is the payoff: low risk, high reward."
+    },
+    "13_hrv_measurement": {
+      "page": 218,
+      "the_nuance": "Heart Rate Variability is often presented as the gold standard for training monitoring, but reality is more nuanced than the marketing suggests. The most common response to overload is a progressive drop in HRV, yet several studies have reported rising HRV trends in overtrained endurance athletes. This paradox can likely be explained by two autonomic presentations of overtraining.",
+      "two_presentations_of_overtraining": [
+        {
+          "type": "Sympathetic-dominant presentation",
+          "description": "'Wired but tired' -- disturbed sleep, irritability, sometimes elevated resting HR and reduced HRV."
+        },
+        {
+          "type": "Parasympathetic-hyperactivity presentation (often in endurance athletes)",
+          "description": "Unusually low or hard-to-raise HR, reduced max HR, profound fatigue, low drive, depressive symptoms; HRV may be relatively high in some cases but is variable."
+        }
+      ],
+      "mixed_research": "An older study from 2003 (Bosquet) concluded that HRV during sleep doesn't appear to be a valid marker for overtraining in male endurance athletes. Other work (Mourot et al., 2004) hints at the opposite, but findings are method-dependent, underscoring the complexity."
+    },
+    "14_using_hrv_effectively": {
+      "page": 219,
+      "practice": "Using HRV effectively requires measuring consistently: same time, same position, same conditions. Track seven-day rolling averages and stay alert to both increases and decreases. Always pair HRV with subjective markers, and resist overreacting to single readings.",
+      "practical_tip": "HRV is most useful for catching illness before it fully arrives -- it is surprisingly sensitive to brewing infection. A rapid, unexplained overnight shift is a signal to tread carefully with the next hard session. Many patients report noticing the dip just before symptoms hit.",
+      "the_triangulation_approach": {
+        "citation": "Recent research (Alfonso et al., 2025, Journal of Sports Sciences) emphasizes that daily HRV should be read alongside resting heart rate and perceived well-being.",
+        "figure_11_2_description": "'HRV Alone Is Not Enough' -- three factors to read together: Daily HRV (trend direction, not absolute value), Resting heart rate (elevated = incomplete recovery), Perceived well-being (sleep quality, energy, mood).",
+        "interpretation": "Low HRV combined with elevated resting heart rate and poor sleep points to compromised recovery, even if heart rate during the session looks normal. Add in perceived feel and perhaps warm-up heart rate, and you have a solid read on how receptive the body is to training that day."
+      }
+    },
+    "15_lactate_profile_changes": {
+      "pages": "219-220",
+      "premise": "For those with access to lactate testing, shifts in lactate profile offer invaluable insight into overtraining.",
+      "three_phase_table": [
+        {
+          "phase": "Phase 1 - Early overtraining",
+          "description": "Lactate rises 0.5-1.0 mmol/L at standard paces. Heart rate is normal or slightly elevated. Subjective heaviness."
+        },
+        {
+          "phase": "Phase 2 - Overtraining",
+          "description": "Lactate rises 1.5-2.0 mmol/L at standard paces. Heart rate drops at the same intensity. Markedly higher perceived effort; difficulty reaching pace."
+        },
+        {
+          "phase": "Phase 3 - Severe overtraining",
+          "description": "Inability to produce high lactate values. A 'flat' profile even with maximal effort. Resting heart rate elevated; warm-up heart rate low or normal; threshold heart rate suppressed."
+        }
+      ]
+    },
+    "16_performance_tests_every_fourth_week": {
+      "page": 220,
+      "premise": "Systematic testing is essential for catching overtraining early. A detailed training diary helps prevent it, and guides your return if you've already slipped into overtraining syndrome.",
+      "lactate_based_protocol": "A submaximal standard test every four weeks: begin with 10 minutes of warm-up, then run 3-5 x 5 minutes at fixed paces. Compare against previous tests by correlating lactate with heart rate and pace; look for patterns. In a good phase you want low lactate, high heart rate, and high pace.",
+      "non_lactate_alternative": "If your training is built on field tests or VDOT rather than lactate, periodic retesting gives almost equally useful data."
+    },
+    "17_blood_work": {
+      "page": 220,
+      "when_to_order": "As a physician, the author routinely orders blood work when athletes present with overtraining symptoms. Labs must be read in context, never in isolation -- muscular state matters far more than any single value. The first priority is ruling out deficiency or systemic illness masquerading as overtraining.",
+      "the_practical_panel": "Ferritin, vitamin B12, vitamin D, TSH and free T4, a basic metabolic panel, liver enzymes, and a complete blood count (including hemoglobin and platelets). Testosterone, cortisol, and creatine kinase (CK) can also be useful.",
+      "on_creatine_kinase": "There is no single 'right' cutoff for CK. Baselines vary widely, hard training can elevate CK for 1 to 3 days (sometimes into the thousands), and the most useful signal is the trend over time together with symptoms and recovery. The author's own CK ranged from roughly 100 to 2,000 U/L during hard blocks -- the point stands: don't fixate on one number, look at the trajectory and the full clinical picture."
+    },
+    "18_adjustment_strategies_reduce_intensity_not_volume": {
+      "page": 221,
+      "the_common_mistake": "When overtraining looms, the instinct is often to slash volume drastically. Research, and the author's own experience, suggest this is often the wrong move.",
+      "the_recommended_approach": "Keep heart rate around 70% of max on most sessions and give the body time to rebuild a solid base without excess stress. Cut volume by perhaps 20-30%, but combine this with regular 30/30 or 45/15 sessions -- maintaining muscular stimuli is critical, or you risk a rocky return to normal training.",
+      "why_easy_running_and_light_intervals_help": "Easy running promotes blood flow, preserves mitochondrial function, lowers cortisol, and maintains training habits and mental health. Adding 30/30 or 45/15 work (and possibly light hill strides) stimulates the muscles across the full loading spectrum, recruiting a wider range of motor units and restoring a better feel for the tissue -- improving the chances of recovering from an overtrained state.",
+      "sample_recovery_week": [
+        "2 complete rest days per week, ideally consecutive",
+        "1 session of 45/15 x 10-15, with each rep progressively faster to span the muscular range",
+        "1 session of 30/30, similarly structured",
+        "1 session of 15-20 x hill strides, progressively faster, roughly 60m each, aiming to reactivate the muscles",
+        "2 sessions of easy running, 20-30 minutes",
+        "Combine with massage and hot baths when possible"
+      ]
+    },
+    "19_buffer_weeks": {
+      "page": 222,
+      "premise": "In line with the principle that short intervals can reset overloaded muscles, consider building in a super-easy week with a short-interval focus roughly every fourth week once you're functioning again -- think of it as a buffer against sliding back into overtraining.",
+      "structure_for_super_easy_week": [
+        "Volume: 60-70% of normal",
+        "Intensity: At most one threshold-pace session",
+        "Quality emphasis: Shorter intervals like 45/15",
+        "Easy sessions: Very easy, though volume can rise on a longer weekend run",
+        "Include massage and hot/cold baths to amplify the muscular reset"
+      ]
+    },
+    "20_the_traffic_light_model_original_version": {
+      "page": 222,
+      "premise": "The traffic light model offers a different way of thinking about load: you adjust each day's session dynamically, based on objective markers gathered during the workout itself, supplemented with resting heart rate from that morning. The result: you add volume on days when the body is maximally receptive, and back off on days when it clearly isn't -- extracting maximum benefit from responsive training days while steering clear of overtraining when the body is most vulnerable.",
+      "the_authors_original_version": {
+        "green_light": "Low warm-up heart rate and high heart rate at the threshold (confirmed by lactate). If resting heart rate and muscular feel aligned, it was a perfect day for hard work -- the session was extended on the fly, up to 30-40% beyond what was planned.",
+        "yellow_light": "Normal values = complete as planned.",
+        "red_light": "High warm-up heart rate or low threshold heart rate combined with elevated lactate early in the session = abort the workout or stop after warm-up. Then one day off, one day easy, before resuming normal load."
+      }
+    },
+    "21_the_traffic_light_model_figure_11_3": {
+      "page": 223,
+      "worked_example": "Four days before a 13:06 for 5,000 meters, the author recorded a threshold heart rate of 181 (just 11 beats below max) at 3.0 mmol/L lactate and 2:52 per kilometer pace (4:37 per mile). Resting heart rate was low, and the thighs felt lively on stairs: optimal form and a clear green light for hard training.",
+      "check_list": [
+        "Resting heart rate",
+        "HRV (if available)",
+        "Leg feel on stairs",
+        "Warm-up HR response",
+        "Speed at target HR",
+        "First rep feel + numbers"
+      ],
+      "green_go": {
+        "markers": "Low resting HR, high HRV, legs feel lively on stairs, HR rises quickly to target, high speed at threshold.",
+        "action": "Add 30-40% more volume than planned. Maximize the day."
+      },
+      "yellow_hold": {
+        "markers": "All markers in normal, average territory. Nothing stands out positively or negatively.",
+        "action": "Run the session exactly as planned. No changes."
+      },
+      "red_stop": {
+        "markers": "High resting HR, low HRV, heavy legs on stairs, warm-up HR sluggish, low speed at threshold, elevated lactate.",
+        "action": "Stop after warm-up. 1 day off -> 1 day easy -> resume normal load."
+      },
+      "practical_tip": "Run a fixed 3-6 minute threshold rep before every session, following a standard warm-up, using the same distance each time. Done consistently, this yields valuable data; over time, the pattern tells you everything. The goal is to build a flexible framework grounded in how the body is actually functioning that day (felt and measured), then act on what you find."
+    },
+    "22_chapter_conclusion": {
+      "page": 224,
+      "governing_statement": "Overtraining is not a sign of weakness, but ambition that outran control.",
+      "the_tools_are_simple": "A staircase, a resting heart rate, a grip around the muscle belly, a traffic light system that forces you to ask the right question before every hard session. None of it is complicated. The hard part is acting on what you find.",
+      "who_actually_lasts": "The runners who last are not the ones who train the hardest, but the ones who learn when to stop, and who trust that stopping today is what lets them train again tomorrow.",
+      "bridge_to_part_4": "If the practical parts of this book are enough for you, you now have what you need. But if you want to understand the deeper mechanics behind what you've been applying -- why threshold training works the way it does, how the model actually came together, and where the final percentages hide -- read on."
+    },
+    "23_chapter_summary_points_source": [
+      "The early signals. Stairs that suddenly feel heavy. Sleep that breaks between 3 and 5 AM. Loss of motivation. A threshold pace that feels progressively harder. These arrive before anything dramatic, and they're the ones to act on.",
+      "The stair test. Climb the same stairs daily and notice how the thighs feel. Over time you develop a baseline. Days when they feel stiff or sluggish are an early signal that recovery isn't keeping pace with load.",
+      "Resting heart rate. A rise of 5 beats above baseline for three or more days is concerning. A sustained rise of 8-10 beats over a week is alarming. Track trends over 7-14 days, not single readings.",
+      "The muscles know first. Before heart rate budges, before sleep deteriorates, before motivation fades. It takes surprisingly little to upset the balance.",
+      "The traffic light model. Green: low warm-up heart rate, light stairs, heart rate rising quickly to target -- extend the session. Yellow: normal values -- complete as planned. Red: any marker sharply off -- pull back or rest.",
+      "Reduce intensity, not volume. When overtraining looms, keep most sessions around 70 percent of max heart rate. Add 45/15 and 30/30 work to maintain muscular stimuli. Easy running promotes recovery; complete rest often makes the return harder.",
+      "Overtraining is not weakness. It is ambition that outran control. The hard part isn't knowing what to look for. It's acting on what you find."
+    ],
+    "24_named_sources_and_references_in_chapter": [
+      "Ryan Hall -- 2:04:58 Boston Marathon (2011); central case study for overtraining-driven career collapse; New York Times, 2016 retirement quote.",
+      "Barron and colleagues (1985) -- research showing overtrained endurance athletes display impaired HPA-axis hormonal response.",
+      "Bosquet (2003) -- study questioning HRV during sleep as a valid overtraining marker in male endurance athletes.",
+      "Mourot et al. (2004) -- research hinting at the opposite conclusion from Bosquet, underscoring method-dependent complexity.",
+      "Alfonso et al. (2025), Journal of Sports Sciences -- research on reading daily HRV alongside resting heart rate and perceived well-being.",
+      "Professor Per Brodal -- the author's master's thesis advisor, referenced in connection with Chapter 15's muscle-tone material."
+    ],
+    "author_background_reference": {
+      "note": "Cited strictly as sourcing/background for the science above. Not to be presented as Yoni Haim's own biography.",
+      "facts": [
+        "Personally experienced overtraining himself during his competitive career.",
+        "Developed and used his own version of the Traffic Light Model systematically throughout his competitive career.",
+        "Reports being able to slide into muscular overtraining on just 4-6 sessions a week despite 25+ years of systematic training experience.",
+        "Recorded a threshold HR of 181 (11 beats below max) at 3.0 mmol/L lactate, 2:52/km pace, four days before his 13:06 5000m personal best."
+      ]
+    }
+  },
+  "yoni_haim_coaching_philosophy": {
+    "identity": "Yoni Haim -- Division I track athlete, founder of TeamHaim.",
+    "attribution_line": "The research, protocols, and clinical frameworks in this section (the Stair Test, the Traffic Light Model, HRV/resting-HR interpretation, the lactate overtraining phases) are drawn from and credited to Marius Bakken, 'The Norwegian Method,' Chapter 11. The explanations, framing, and coaching philosophy below are original to Yoni Haim / TeamHaim.",
+    "chapter_11_reframed": {
+      "title": "The Muscles Know First: Catching Overtraining Before It Catches You",
+      "opening_philosophy": "Every athlete I've ever seen truly break down from overtraining was disciplined, not lazy. They didn't skip warning signs because they didn't care — they skipped them because the signs were quiet, and pushing through has always been treated like a virtue. My job as a coach isn't to make athletes tougher. It's to teach them to notice the whisper before it becomes a scream.",
+      "the_test_i_have_every_athlete_run_daily": {
+        "coach_translation": "Forget expensive wearables for a second. The single cheapest, most reliable early-warning tool I know is a flight of stairs. Same stairs, same time of day, every day — and just pay attention to how your thighs feel walking up them. Long before your resting heart rate budges or your sleep falls apart, your legs will tell you the truth. If stairs that used to feel like nothing suddenly feel like work, that's not you being tired. That's data.",
+        "citation_note": "Sourced from source_science.10_the_stair_test and Figure 11.1's progression sequence."
+      },
+      "why_the_legs_lie_last_not_first": {
+        "coach_translation": "Most athletes wait for their heart rate monitor or their mood to tell them something's wrong. By the time those signals show up, the muscles have already been struggling for days or weeks. Muscle tone rises and elasticity drops FIRST — that's the real leading indicator. Heart rate, sleep, and motivation are all lagging indicators. If you're only watching those, you're always finding out too late.",
+        "citation_note": "Sourced from source_science.11_muscular_state_as_the_central_variable."
+      },
+      "the_stoplight_system_i_run_every_hard_day": {
+        "coach_translation": "Before any quality session, I want a quick read: how did the warm-up feel, what's resting heart rate doing, how did the legs feel on stairs that morning? Green light — everything's firing, extend the session and get more out of the day. Yellow — totally normal, run exactly what's planned, no more no less. Red — anything sharply off, cut the session short after the warm-up and take a real day off, not a token easy jog. This isn't about being cautious for its own sake. It's about not wasting your best days being conservative, and not digging a hole on your worst ones.",
+        "citation_note": "Sourced from source_science.20_the_traffic_light_model_original_version and source_science.21_the_traffic_light_model_figure_11_3."
+      },
+      "the_number_that_actually_matters_on_your_watch": {
+        "coach_translation": "Ignore the fancy recovery score your watch invents. Just track your resting heart rate first thing every morning, lying still before you get up. A jump of 5 beats that sticks around for three-plus days is worth paying attention to. 8-10 beats sustained over a week is a real signal to back off. And don't just watch for spikes — a slow creep upward over two weeks tells you the same story a sudden jump would.",
+        "citation_note": "Sourced from source_science.3_resting_heart_rate and source_science.4_interpreting_heart_rate_changes."
+      },
+      "when_an_athlete_is_already_in_the_hole": {
+        "coach_translation": "The worst instinct when someone's clearly overtrained is to slam the brakes completely — total rest, nothing. That's almost always the wrong move. What actually works is cutting volume moderately, maybe 20-30%, while KEEPING a couple of short, light sessions like 45/15 or 30/30 in the mix. Complete rest lets the muscles sit in a bad state with nothing pulling them back toward normal. A little bit of the right kind of stimulus gets you back faster than doing nothing at all.",
+        "citation_note": "Sourced from source_science.18_adjustment_strategies_reduce_intensity_not_volume."
+      },
+      "the_buffer_week_i_build_into_every_plan": {
+        "coach_translation": "Even when an athlete is training well, I build in a genuinely easy week roughly every four weeks — reduced volume, at most one moderate session, mostly short intervals and truly easy running. This isn't a reward for good behavior. It's insurance. It's a lot easier to prevent the slide into overtraining with a planned light week than to dig out of a real hole later.",
+        "citation_note": "Sourced from source_science.19_buffer_weeks."
+      },
+      "the_hardest_part_isnt_spotting_it": {
+        "coach_translation": "I tell every athlete this directly: the signs of overtraining are not hard to learn. They're simple — a heavy staircase, a session that never settles into rhythm, a subtle bump in resting heart rate. What's actually hard is having the discipline to act on those signs instead of pushing through because you're ambitious, or because the training plan says today's a hard day. Overtraining isn't a weakness. It's what happens when ambition outruns the willingness to listen.",
+        "citation_note": "Sourced from source_science.22_chapter_conclusion."
+      },
+      "core_takeaways_for_teamhaim_athletes": [
+        "Run the same daily stair test. It catches trouble in your muscles before your heart rate, sleep, or motivation ever show a thing.",
+        "Track your resting heart rate every morning. A sustained rise of 5+ beats for several days is a real signal, not noise.",
+        "Use a simple green/yellow/red check before hard sessions. Extend on green days, hold steady on yellow, pull back hard on red.",
+        "If you're already overtrained, don't go to zero. Cut volume moderately and keep short, light stimulus like 45/15 in the mix — it speeds recovery more than total rest.",
+        "Build a genuinely easy week into the plan every 3-4 weeks as insurance, not as a reward.",
+        "Overtraining isn't about being weak. It's about being ambitious without also being willing to listen. Both matter."
+      ]
+    }
+  }
+}
