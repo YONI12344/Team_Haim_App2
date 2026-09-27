@@ -1,7 +1,8 @@
 // The TeamHaim brain run on one athlete's app data, for the coach-only AI Coach page.
 //   analyze -> decisions + free calibration week (no AI, $0)
 //   ask     -> the coach asks about the athlete (AI, key points of the relevant chapters)
-//   build   -> the coach asks for a plan or a change to it (AI, full science of the plan's chapters)
+//   build   -> the coach asks for a new plan or a rebuild (AI, full science of the plan's chapters)
+//   edit    -> a small change to the current plan (cheaper model, no science, only the changed days come back)
 // Server-only. Never writes to Firestore: the coach exports plans from the page.
 
 import Anthropic from '@anthropic-ai/sdk'
@@ -12,15 +13,17 @@ import { pyRound } from './paces'
 import { enforceAll, isRecoveryWeek, progressionCycle, rulesText, volumeCeiling, VOLUME_LAWS } from './enforce'
 import { type AthleteSnapshot, contextText, toBrainProfile } from './athlete-context'
 import { ADAPTIVE_PROTOCOL, chapterIndexText, chapterScience, compactChapter, routeChapters, seasonChapters } from './brain'
-import { ASK_TAIL, BUILD_TAIL, METHOD_GUARDRAILS, PERSONA, PLAN_RULES, PLAN_SCHEMA } from './prompts'
+import { ASK_TAIL, BUILD_TAIL, EDIT_TAIL, METHOD_GUARDRAILS, PERSONA, PLAN_RULES, PLAN_SCHEMA, PLAN_SCHEMA_DAY } from './prompts'
 
 export const BRAIN_MODEL = process.env.HAIM_BRAIN_MODEL || 'claude-opus-5'
+// Small changes to an existing plan: a cheaper model, since the rules are re-checked in code afterwards.
+export const EDIT_MODEL = process.env.HAIM_EDIT_MODEL || 'claude-sonnet-5'
 // USD per million tokens: input, output. Cache reads bill at 10% of input, cache writes at 125%.
 const PRICING: Record<string, [number, number]> = { 'claude-opus-5': [5, 25], 'claude-sonnet-5': [3, 15], 'claude-haiku-4-5': [1, 5] }
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 export interface CoachRequest {
-  action: 'analyze' | 'ask' | 'build'
+  action: 'analyze' | 'ask' | 'build' | 'edit'
   snapshot: AthleteSnapshot
   startDate?: string
   message?: string
@@ -52,8 +55,8 @@ function extractJson(text: string): any {
   try { return JSON.parse(text.slice(start, end + 1)) } catch { return null }
 }
 
-function costOf(usage: Anthropic.Usage): number {
-  const [inP, outP] = PRICING[BRAIN_MODEL] || PRICING['claude-opus-5']
+function costOf(usage: Anthropic.Usage, model = BRAIN_MODEL): number {
+  const [inP, outP] = PRICING[model] || PRICING['claude-opus-5']
   const cached = usage.cache_read_input_tokens || 0
   const written = usage.cache_creation_input_tokens || 0
   return (usage.input_tokens * inP + cached * inP * 0.1 + written * inP * 1.25 + usage.output_tokens * outP) / 1_000_000
@@ -61,7 +64,7 @@ function costOf(usage: Anthropic.Usage): number {
 
 export async function runCoachAI(req: CoachRequest, apiKey = process.env.ANTHROPIC_API_KEY) {
   const { action, snapshot } = req
-  if (!snapshot?.profile || !['analyze', 'ask', 'build'].includes(action)) throw new CoachAIError('Pick an athlete first.')
+  if (!snapshot?.profile || !['analyze', 'ask', 'build', 'edit'].includes(action)) throw new CoachAIError('Pick an athlete first.')
   const start = parseDay(req.startDate) || parseDay(snapshot.today) || new Date()
   const profile = toBrainProfile(snapshot)
   const pipeline = runPipeline(profile)
@@ -86,6 +89,10 @@ export async function runCoachAI(req: CoachRequest, apiKey = process.env.ANTHROP
   const [baseline, baselineSrc] = loggedKm ? [loggedKm, 'the weekly km in the app']
     : calKms.length ? [calKms.reduce((a, b) => a + b, 0), 'the calibration week'] : [null, 'unknown']
   const recentLongest = Math.max(parseKm(profile.longest_run_last_3_weeks) || 0, ...calKms) || null
+  // With no recent run on record (no logs in the app), the 10%-longer rule starts from the plan's own first week
+  // instead of from nothing: week 1 stays as written and every later jump is still capped.
+  const longestFor = (p: BrainPlan) => recentLongest
+    ?? (Math.max(0, ...(p.weeks[0]?.days || []).map((d) => (typeof d.km === 'number' ? d.km : 0))) || null)
   if (action === 'build') {
     const [cycle, cycleText] = progressionCycle(profile, 12)
     const [ceiling] = volumeCeiling(profile, baseline)
@@ -101,6 +108,44 @@ export async function runCoachAI(req: CoachRequest, apiKey = process.env.ANTHROP
   }
 
   const athlete = contextText(snapshot, profile)
+
+  if (action === 'edit') {
+    // A small change: no book science, a cheaper model, and only the changed days come back. The code-checked
+    // rules then run on the whole plan again, so a change can't break them.
+    if (!req.plan?.weeks?.length) throw new CoachAIError('Build or load a plan first, then ask for a change.')
+    const compact = req.plan.weeks.map((w) => ({
+      week: w.week, phase: w.phase,
+      days: w.days.map((d) => ({ date: d.date, weekday: d.weekday, type: d.type, title: d.title, km: d.km ?? null, minutes: d.minutes ?? null,
+        steps: (d.steps || []).map((s) => [s.kind, s.label, s.reps && `${s.reps}x`, s.minutes && `${s.minutes}min`, s.km && `${s.km}km`, s.pace, s.rest && `rest ${s.rest}`].filter(Boolean).join(' ')) })),
+    }))
+    const system = [
+      PERSONA, METHOD_GUARDRAILS,
+      'Rules checked in code after you answer (a change that breaks them gets cut back):\n' + rulesText(['code']),
+      '=== The athlete ===\n' + athlete,
+      `=== Current plan (${req.plan.start_date} to ${req.plan.end_date}) ===\nPaces: ${JSON.stringify(req.plan.paces)}\n${JSON.stringify(compact)}`,
+      EDIT_TAIL + PLAN_SCHEMA_DAY,
+    ].join('\n\n')
+    const client = new Anthropic({ apiKey })
+    const msg = await client.messages.stream({
+      model: EDIT_MODEL, max_tokens: 8000, system,
+      messages: [...history.slice(-4), { role: 'user', content: message }],
+    }).finalMessage()
+    const text = msg.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map((b) => b.text).join('\n')
+    const meta = { cost: costOf(msg.usage, EDIT_MODEL), model: EDIT_MODEL, usage: msg.usage }
+    const parsed = extractJson(text) || {}
+    const changes: any[] = Array.isArray(parsed.changes) ? parsed.changes : []
+    const byDate = new Map(changes.filter((c) => c?.date && c?.day && typeof c.day === 'object').map((c) => [c.date, c.day]))
+    if (!byDate.size) return { reply: parsed.reply || text, plan: null, ...meta }
+    const draft = structuredClone(req.plan)
+    for (const w of draft.weeks) w.days = w.days.map((d) => (byDate.has(d.date!) ? { ...byDate.get(d.date!), date: d.date, weekday: d.weekday } : d))
+    const rerun = normalizePlan({ ...draft, safety: undefined, volume_story: undefined }, parseDay(draft.start_date) || start)
+    const plan = draft.template ? rerun : enforceAll(rerun, {
+      profile, category: pipeline.planRequest.category, maxQuality: pipeline.planRequest.weekly_structure?.max_quality_sessions,
+      baseline, baselineSrc, recentLongest: longestFor(rerun),
+    })
+    return { reply: parsed.reply || text, plan, changedDates: [...byDate.keys()], ...meta }
+  }
+
   const decisions = "=== Pipeline result (computed in code from the book's rules) ===\n" + JSON.stringify(pipeline.planRequest)
   const age = Number(profile.age) || null
   // The big, stable part of the prompt goes first and is cached, so repeat requests in a session are cheaper.
@@ -145,7 +190,7 @@ export async function runCoachAI(req: CoachRequest, apiKey = process.env.ANTHROP
   const plan = enforceAll(written, {
     profile, category: pipeline.planRequest.category,
     maxQuality: pipeline.planRequest.weekly_structure?.max_quality_sessions,
-    baseline, baselineSrc, recentLongest,
+    baseline, baselineSrc, recentLongest: longestFor(written),
   })
   return { reply: parsed.reply || text, plan, ...meta }
 }

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { collection, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { loadAiUsage, type AiUsageEntry } from '@/lib/ai-coach/usage-log'
+import { loadAiUsage, loadAthleteAppUsage, type AiUsageEntry, type AthleteAppDay } from '@/lib/ai-coach/usage-log'
 import { formatTokens, formatUsd } from '@/lib/ai-coach/pricing'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Loader2, DollarSign } from 'lucide-react'
@@ -21,6 +21,10 @@ const COPY = {
     noUsage: 'No AI calls logged yet.',
     unknownAthlete: 'General',
     routeLabels: { agent: 'Chat', 'generate-skeleton': 'Season plan', 'generate-plan': 'Season plan', 'haim-brain': 'AI Coach page', 'coach-voice': 'In my words' } as Record<string, string>,
+    byApp: 'By app',
+    coachApp: 'Coach AI (this app)',
+    athleteApp: 'Athlete app (ai.teamhaim.com)',
+    athleteAppMissing: "The athlete app's spend shows here once the aiCoachUsage database rule is deployed.",
   },
   he: {
     title: 'שימוש ועלות AI',
@@ -33,10 +37,20 @@ const COPY = {
     noUsage: 'עדיין לא נרשם שימוש ב-AI.',
     unknownAthlete: 'כללי',
     routeLabels: { agent: 'שיחה', 'generate-skeleton': 'תוכנית עונה', 'generate-plan': 'תוכנית עונה', 'haim-brain': 'עמוד מאמן AI', 'coach-voice': 'במילים שלי' } as Record<string, string>,
+    byApp: 'לפי אפליקציה',
+    coachApp: 'AI של המאמן (האפליקציה הזו)',
+    athleteApp: 'אפליקציית הספורטאים (ai.teamhaim.com)',
+    athleteAppMissing: 'העלות של אפליקציית הספורטאים תופיע כאן אחרי פריסת כלל הגישה aiCoachUsage.',
   },
 } as const
 
 interface Totals { costUsd: number; tokens: number; calls: number }
+const sumApp = (days: AthleteAppDay[]): Totals => days.reduce(
+  (acc, d) => ({ costUsd: acc.costUsd + d.costUsd, tokens: acc.tokens + d.tokens, calls: acc.calls + d.calls }),
+  { costUsd: 0, tokens: 0, calls: 0 },
+)
+const plus = (a: Totals, b: Totals): Totals => ({ costUsd: a.costUsd + b.costUsd, tokens: a.tokens + b.tokens, calls: a.calls + b.calls })
+
 const sum = (entries: AiUsageEntry[]): Totals => entries.reduce(
   (acc, e) => ({
     costUsd: acc.costUsd + e.costUsd,
@@ -51,6 +65,8 @@ export function AiUsageCard() {
   const c = COPY[language === 'en' ? 'en' : 'he']
   const [entries, setEntries] = useState<AiUsageEntry[] | null>(null)
   const [names, setNames] = useState<Record<string, string>>({})
+  // The athlete app's daily totals; null = can't be read yet (its database rule isn't deployed).
+  const [appDays, setAppDays] = useState<AthleteAppDay[] | null | undefined>(undefined)
 
   useEffect(() => {
     let cancelled = false
@@ -58,6 +74,7 @@ export function AiUsageCard() {
     loadAiUsage(3650)
       .then((rows) => { if (!cancelled) setEntries(rows) })
       .catch((err) => { console.error('AI usage load failed:', err); if (!cancelled) setEntries([]) })
+    loadAthleteAppUsage(3650).then((d) => { if (!cancelled) setAppDays(d) })
     getDocs(collection(db, 'users')).then((snap) => {
       if (cancelled) return
       const map: Record<string, string> = {}
@@ -97,8 +114,12 @@ export function AiUsageCard() {
     )
   }
 
-  const totalsAll = sum(entries)
-  const totals30 = sum(last30)
+  const cutoff30 = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
+  const appAll = sumApp(appDays || [])
+  const app30 = sumApp((appDays || []).filter((d) => d.date >= cutoff30))
+  const coachAll = sum(entries)
+  const totalsAll = plus(coachAll, appAll)
+  const totals30 = plus(sum(last30), app30)
 
   return (
     <Card className="rounded-2xl">
@@ -110,7 +131,7 @@ export function AiUsageCard() {
         <CardDescription>{c.desc}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
-        {entries.length === 0 ? (
+        {entries.length === 0 && !appAll.calls ? (
           <p className="text-sm text-muted-foreground">{c.noUsage}</p>
         ) : (
           <>
@@ -127,6 +148,20 @@ export function AiUsageCard() {
                   </p>
                 </div>
               ))}
+            </div>
+
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{c.byApp}</p>
+              <div className="divide-y divide-border rounded-xl border border-border">
+                {[{ label: c.coachApp, t: coachAll }, ...(appDays ? [{ label: c.athleteApp, t: appAll }] : [])].map((row) => (
+                  <div key={row.label} className="flex items-center justify-between gap-3 px-3 py-2">
+                    <span className="min-w-0 truncate text-sm font-medium text-navy">{row.label}</span>
+                    <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{formatTokens(row.t.tokens)} · {row.t.calls}</span>
+                    <span className="shrink-0 text-sm font-semibold tabular-nums text-navy">{formatUsd(row.t.costUsd)}</span>
+                  </div>
+                ))}
+              </div>
+              {appDays === null ? <p className="mt-2 text-xs text-muted-foreground">{c.athleteAppMissing}</p> : null}
             </div>
 
             {perAthlete.length > 0 && (

@@ -80,3 +80,18 @@ the WHOLE updated plan (all weeks), not just the changed part. If no length is g
 Reply with ONLY a JSON object: {"reply": "2-5 sentences to the coach: what you built or changed, and why", "plan": <plan in exactly this shape>}
 Plan shape:
 `
+
+export const PLAN_SCHEMA_DAY = `{"type": one of ["rest","easy","golden","long","test","x","strength","race"], "title": "...", "summary": "...",
+ "km": number or null, "minutes": number or null, "zone": one of ["easy","golden","above","rest"],
+ "steps": [{"kind": one of ["warmup","reps","steady","recovery","cooldown","test","strength","note"], "label": "...", "reps": integer or null,
+   "minutes": number or null, "km": number or null, "pace": "...", "rest": "... or null", "detail": "... or null"}],
+ "why": "1-2 sentences", "chapter": "chapter id or null"}`
+
+export const EDIT_TAIL = `The coach wants a SMALL change to the current plan. Change only the days the request needs; leave every
+other day exactly as it is. Keep the plan's paces. Whole kilometres. If the request really needs the whole plan rebuilt,
+change nothing and say so in the reply.
+
+Reply with ONLY a JSON object: {"reply": "1-3 sentences to the coach: what you changed and why",
+"changes": [{"date": "yyyy-MM-dd of an existing day", "day": <the full new day in this shape>}]}
+Day shape:
+`

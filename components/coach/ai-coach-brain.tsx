@@ -26,7 +26,9 @@ import type { AthleteSnapshot, HillChoice } from '@/lib/haim-brain/athlete-conte
 import { type BrainPlan, type PlanDay, allDays, describeStep, toWorkoutFields } from '@/lib/haim-brain/plan'
 
 type Choice = { topic: string; choice: string; why: string }
-type Msg = { role: 'user' | 'assistant'; content: string; cost?: number; kind?: 'ask' | 'build'; at?: string }
+type Msg = { role: 'user' | 'assistant'; content: string; cost?: number; kind?: Kind; at?: string }
+type Kind = 'ask' | 'edit' | 'build'
+const KIND_LABEL: Record<Kind, string> = { ask: 'Ask', edit: 'Small change', build: 'Build' }
 const CALIBRATION_SOURCE = 'Calibration week · built by code · $0'
 
 const ZONE_COLOR: Record<string, string> = { easy: '#3fa8a2', golden: '#d9a441', above: '#e0694d', rest: '#9aa0aa' }
@@ -54,7 +56,7 @@ export function AiCoachBrain() {
   const [planSource, setPlanSource] = useState<string>('')
   const [messages, setMessages] = useState<Msg[]>([])
   const [input, setInput] = useState('')
-  const [busy, setBusy] = useState<'' | 'analyze' | 'ask' | 'build'>('')
+  const [busy, setBusy] = useState<'' | 'analyze' | Kind>('')
   const [spent, setSpent] = useState(0)
   const [openDay, setOpenDay] = useState<string | null>(null)
   const [exportOpen, setExportOpen] = useState(false)
@@ -191,7 +193,7 @@ export function AiCoachBrain() {
     await analyze(snapshot, startDate)
   }
 
-  const send = async (kind: 'ask' | 'build') => {
+  const send = async (kind: Kind) => {
     const text = input.trim()
     if (!text || !snapshot || busy) return
     const history = messages.map(({ role, content }) => ({ role, content }))
@@ -211,7 +213,9 @@ export function AiCoachBrain() {
       const nextMessages = [...messages, asked, answer]
       setMessages(nextMessages)
       const nextPlan = data.plan || plan
-      const nextSource = data.plan ? `Built by the AI · $${(data.cost || 0).toFixed(2)} · ${format(new Date(), 'd MMM')}` : planSource
+      const nextSource = data.plan
+        ? `${kind === 'edit' ? `Changed ${data.changedDates?.length || ''} day${data.changedDates?.length === 1 ? '' : 's'}` : 'Built by the AI'} · $${(data.cost || 0).toFixed(2)} · ${format(new Date(), 'd MMM')}`
+        : planSource
       if (data.plan) { setPlan(data.plan); setPlanSource(nextSource) }
       if (data.error) toast.error(data.error)
       persist(current({ messages: nextMessages, plan: nextPlan, planSource: nextSource }))
@@ -244,6 +248,8 @@ export function AiCoachBrain() {
   }
 
   const athleteName = athletes.find((a) => a.id === athleteId)?.name
+  // Once the AI has built a plan, every change is a small edit; a whole new plan needs Start over first.
+  const hasAiPlan = !!plan && !!planSource && !planSource.startsWith('Calibration')
   const logged8w = snapshot?.logs.length ?? 0
   const upcoming = snapshot?.schedule.filter((w) => w.scheduledDate >= today).length ?? 0
 
@@ -422,8 +428,10 @@ export function AiCoachBrain() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-gold" /> Talk to the brain about {athleteName}</CardTitle>
               <CardDescription>
-                Ask reads the athlete's data (about $0.05). Build writes or changes the plan above, e.g. "build the season to the goal race",
-                "make week 2 smaller", "no double threshold" (about $0.30-0.90). The conversation and plan are saved for next time.
+                Ask reads the athlete's data (about $0.05). {hasAiPlan
+                  ? 'Change plan edits only the days it needs, e.g. "make week 2 smaller", "move Thursday to Friday" (about $0.02-0.10). For a whole new plan, use Start over first.'
+                  : 'Build plan writes the plan, e.g. "build the season to the goal race" (about $0.30-0.90). After that, changes are small and cheap.'}
+                {' '}Every plan is re-checked by the brain's rules. The conversation and plan are saved.
               </CardDescription>
               <p className={`text-xs ${month?.budget && month.spent > month.budget ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
                 This session ${spent.toFixed(2)}
@@ -434,21 +442,25 @@ export function AiCoachBrain() {
             <CardContent className="space-y-3">
               {messages.map((m, i) => (
                 <div key={i} className={m.role === 'user' ? 'ms-10 rounded-lg bg-secondary px-3 py-2 text-sm' : 'text-sm whitespace-pre-wrap'}>
-                  {m.role === 'user' ? <span className="text-xs text-muted-foreground block">{m.kind === 'build' ? 'Build' : 'Ask'}</span> : null}
+                  {m.role === 'user' ? <span className="text-xs text-muted-foreground block">{KIND_LABEL[m.kind || 'ask']}</span> : null}
                   {m.content}
                   {m.cost !== undefined ? <span className="block text-xs text-muted-foreground mt-1">${m.cost.toFixed(3)}</span> : null}
                 </div>
               ))}
-              {busy === 'ask' || busy === 'build' ? (
+              {busy === 'ask' || busy === 'build' || busy === 'edit' ? (
                 <p className="text-sm text-muted-foreground flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" /> {busy === 'build' ? 'Writing the plan. A full season takes a few minutes.' : 'Reading the athlete\'s data.'}
+                  <Loader2 className="h-4 w-4 animate-spin" /> {busy === 'build' ? 'Writing the plan. A full season takes a few minutes.' : busy === 'edit' ? 'Changing just those days.' : 'Reading the athlete\'s data.'}
                 </p>
               ) : null}
               <Textarea value={input} onChange={(e) => setInput(e.target.value)} rows={3}
                 placeholder={`e.g. How has ${athleteName || 'this athlete'} trained the last month? / Build 8 weeks to the goal race, 5 days a week`} />
               <div className="flex gap-2 justify-end">
                 <Button variant="outline" disabled={!input.trim() || !!busy} onClick={() => send('ask')}><Send className="h-4 w-4" /> Ask</Button>
-                <Button disabled={!input.trim() || !!busy} onClick={() => send('build')}><Sparkles className="h-4 w-4" /> Build / change plan</Button>
+                {hasAiPlan ? (
+                  <Button disabled={!input.trim() || !!busy} onClick={() => send('edit')}><PenLine className="h-4 w-4" /> Change plan</Button>
+                ) : (
+                  <Button disabled={!input.trim() || !!busy} onClick={() => send('build')}><Sparkles className="h-4 w-4" /> Build plan</Button>
+                )}
               </div>
             </CardContent>
           </Card>

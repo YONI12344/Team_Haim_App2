@@ -8,7 +8,7 @@
  * credential needed, same spirit as the rest of this feature.
  */
 
-import { addDoc, collection, doc, getDoc, getDocs, orderBy, query, serverTimestamp, setDoc, Timestamp, where } from 'firebase/firestore'
+import { addDoc, collection, doc, documentId, getDoc, getDocs, orderBy, query, serverTimestamp, setDoc, Timestamp, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { costFor, type AnthropicUsage } from '@/lib/ai-coach/pricing'
 
@@ -76,19 +76,48 @@ export async function loadAiUsage(days: number): Promise<AiUsageEntry[]> {
   })
 }
 
-/** Sum of costUsd for entries from the start of the current calendar month. */
+export interface AthleteAppDay { date: string; costUsd: number; tokens: number; calls: number }
+
+/** Daily spend of the TeamHaim AI athlete app (ai.teamhaim.com), from its aiCoachUsage/{yyyy-MM-dd} docs.
+ *  Null when it can't be read (e.g. the coach-read rule for aiCoachUsage isn't deployed yet). */
+export async function loadAthleteAppUsage(days: number): Promise<AthleteAppDay[] | null> {
+  const since = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10) // doc ids are UTC dates
+  try {
+    const snap = await getDocs(query(collection(db, 'aiCoachUsage'), where(documentId(), '>=', since)))
+    return snap.docs.map((d) => {
+      const data = d.data() as any
+      return {
+        date: d.id,
+        costUsd: Number(data.total_cost_usd) || 0,
+        tokens: (Number(data.input_tokens) || 0) + (Number(data.output_tokens) || 0),
+        calls: Number(data.requests) || 0,
+      }
+    })
+  } catch (err) {
+    console.warn('Athlete app AI usage unavailable:', err)
+    return null
+  }
+}
+
+/** This calendar month's AI spend across both apps: this app's calls plus the athlete app's daily totals. */
 export async function loadAiUsageThisMonth(): Promise<{ costUsd: number; tokens: number; calls: number }> {
   const now = new Date()
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-  const entries = await loadAiUsage(Math.ceil((Date.now() - monthStart.getTime()) / 86400000) + 1)
+  const daysIn = Math.ceil((Date.now() - monthStart.getTime()) / 86400000) + 1
+  const [entries, appDays] = await Promise.all([loadAiUsage(daysIn), loadAthleteAppUsage(daysIn)])
   const inMonth = entries.filter((e) => e.createdAt >= monthStart)
-  return inMonth.reduce(
+  const mine = inMonth.reduce(
     (acc, e) => ({
       costUsd: acc.costUsd + e.costUsd,
       tokens: acc.tokens + e.inputTokens + e.outputTokens + e.cacheWriteTokens + e.cacheReadTokens,
       calls: acc.calls + 1,
     }),
     { costUsd: 0, tokens: 0, calls: 0 },
+  )
+  const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  return (appDays || []).filter((d) => d.date.startsWith(monthKey)).reduce(
+    (acc, d) => ({ costUsd: acc.costUsd + d.costUsd, tokens: acc.tokens + d.tokens, calls: acc.calls + d.calls }),
+    mine,
   )
 }
 

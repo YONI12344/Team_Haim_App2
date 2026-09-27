@@ -10,7 +10,7 @@ import { db } from '@/lib/firebase'
 import type { BrainPlan } from './plan'
 import type { HillChoice } from './athlete-context'
 
-export interface BrainMsg { role: 'user' | 'assistant'; content: string; kind?: 'ask' | 'build'; cost?: number; at?: string }
+export interface BrainMsg { role: 'user' | 'assistant'; content: string; kind?: 'ask' | 'edit' | 'build'; cost?: number; at?: string }
 
 export interface BrainMemory {
   plan: BrainPlan | null
