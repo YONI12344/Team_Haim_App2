@@ -20,7 +20,7 @@ const COPY = {
     perAthlete: 'By athlete',
     noUsage: 'No AI calls logged yet.',
     unknownAthlete: 'General',
-    routeLabels: { agent: 'Chat', 'generate-skeleton': 'Season plan', 'generate-plan': 'Season plan', 'haim-brain': 'AI Coach page' } as Record<string, string>,
+    routeLabels: { agent: 'Chat', 'generate-skeleton': 'Season plan', 'generate-plan': 'Season plan', 'haim-brain': 'AI Coach page', 'coach-voice': 'In my words' } as Record<string, string>,
   },
   he: {
     title: 'שימוש ועלות AI',
@@ -32,7 +32,7 @@ const COPY = {
     perAthlete: 'לפי ספורטאי',
     noUsage: 'עדיין לא נרשם שימוש ב-AI.',
     unknownAthlete: 'כללי',
-    routeLabels: { agent: 'שיחה', 'generate-skeleton': 'תוכנית עונה', 'generate-plan': 'תוכנית עונה', 'haim-brain': 'עמוד מאמן AI' } as Record<string, string>,
+    routeLabels: { agent: 'שיחה', 'generate-skeleton': 'תוכנית עונה', 'generate-plan': 'תוכנית עונה', 'haim-brain': 'עמוד מאמן AI', 'coach-voice': 'במילים שלי' } as Record<string, string>,
   },
 } as const
 

@@ -7,10 +7,10 @@
 // the coach confirms. The AI itself never writes anything.
 
 import { useEffect, useMemo, useState } from 'react'
-import { addDoc, collection, doc, getDoc, getDocs, query, serverTimestamp, where } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore'
 import { format, addDays, subWeeks } from 'date-fns'
 import { toast } from 'sonner'
-import { Check, ChevronDown, ChevronUp, Loader2, RotateCcw, Send, Sparkles, Upload } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, Loader2, PenLine, RotateCcw, Send, Sparkles } from 'lucide-react'
 import { db } from '@/lib/firebase'
 import { getAiBudget, loadAiUsageThisMonth, logAiUsage } from '@/lib/ai-coach/usage-log'
 import { type BrainMemory, clearMemory, loadMemory, saveMemory } from '@/lib/haim-brain/memory'
@@ -18,11 +18,10 @@ import { useAuth } from '@/contexts/auth-context'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { CoachVoiceReview } from '@/components/coach/coach-voice-review'
 import type { AthleteSnapshot, HillChoice } from '@/lib/haim-brain/athlete-context'
 import { type BrainPlan, type PlanDay, allDays, describeStep, toWorkoutFields } from '@/lib/haim-brain/plan'
 
@@ -59,8 +58,6 @@ export function AiCoachBrain() {
   const [spent, setSpent] = useState(0)
   const [openDay, setOpenDay] = useState<string | null>(null)
   const [exportOpen, setExportOpen] = useState(false)
-  const [includeBusyDays, setIncludeBusyDays] = useState(false)
-  const [exporting, setExporting] = useState(false)
   const [exportedDates, setExportedDates] = useState<string[]>([])
   const [savedAt, setSavedAt] = useState<string | null>(null)
   const [month, setMonth] = useState<{ spent: number; budget: number | null } | null>(null)
@@ -225,55 +222,25 @@ export function AiCoachBrain() {
     }
   }
 
-  // What an export would do: sessions from today on, rest days skipped, and (unless the coach opts
-  // in) days that already have something scheduled are left alone.
+  // What would go to the athlete: sessions from today on, rest days left out. Days that already have
+  // a workout start unticked in the review step.
   const exportable = useMemo(() => {
-    if (!plan || !snapshot) return { add: [] as PlanDay[], busyDays: [] as PlanDay[] }
-    const taken = new Set(snapshot.schedule.filter((w) => w.status !== 'skipped').map((w) => w.scheduledDate))
-    const sessions = allDays(plan).filter((d) => d.type !== 'rest' && d.date && d.date >= today)
-    const busyDays = sessions.filter((d) => taken.has(d.date!))
-    return { add: includeBusyDays ? sessions : sessions.filter((d) => !taken.has(d.date!)), busyDays }
-  }, [plan, snapshot, includeBusyDays, today])
+    if (!plan || !snapshot) return { sessions: [] as PlanDay[], busy: new Set<string>() }
+    const busy = new Set(snapshot.schedule.filter((w) => w.status !== 'skipped').map((w) => w.scheduledDate))
+    return { sessions: allDays(plan).filter((d) => d.type !== 'rest' && d.date && d.date >= today), busy }
+  }, [plan, snapshot, today])
 
-  const doExport = async () => {
-    if (!user || !snapshot) return
-    setExporting(true)
-    let done = 0
-    try {
-      for (const day of exportable.add) {
-        const fields = toWorkoutFields(day)
-        const base = { ...fields, source: 'haim_brain' as const, libraryHidden: true, createdBy: user.id, createdAt: new Date(), updatedAt: new Date() }
-        const ref = await addDoc(collection(db, 'workouts'), { ...base, createdAt: serverTimestamp(), updatedAt: serverTimestamp() })
-        await addDoc(collection(db, 'assignedWorkouts'), {
-          workoutId: ref.id,
-          workout: { ...base, id: ref.id },
-          athleteId: snapshot.athleteId,
-          assignedBy: user.id,
-          scheduledDate: day.date,
-          status: 'scheduled',
-          source: 'haim_brain',
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        })
-        done++
-      }
-      toast.success(`Added ${done} workout${done === 1 ? '' : 's'} to the schedule.`)
-      setExportOpen(false)
-      setSnapshot((s) => s && {
-        ...s,
-        schedule: [...s.schedule, ...exportable.add.map((d) => ({ scheduledDate: d.date!, title: d.title, type: toWorkoutFields(d).type, status: 'scheduled' }))],
-      })
-    } catch {
-      toast.error(done ? `Stopped after ${done} workouts: couldn't add the rest.` : "Couldn't add the workouts.")
-    } finally {
-      setExporting(false)
-      // Remember what actually reached the schedule, even if the export stopped partway.
-      if (done) {
-        const nextExported = [...new Set([...exportedDates, ...exportable.add.slice(0, done).map((d) => d.date!)])].sort()
-        setExportedDates(nextExported)
-        persist(current({ exportedDates: nextExported }))
-      }
-    }
+  // Called by the "In my words" step once workouts actually reached the athlete's schedule.
+  const onSent = (dates: string[]) => {
+    const sent = new Set(dates)
+    setSnapshot((s) => s && {
+      ...s,
+      schedule: [...s.schedule, ...exportable.sessions.filter((d) => sent.has(d.date!))
+        .map((d) => ({ scheduledDate: d.date!, title: d.title, type: toWorkoutFields(d).type, status: 'scheduled' }))],
+    })
+    const nextExported = [...new Set([...exportedDates, ...dates])].sort()
+    setExportedDates(nextExported)
+    persist(current({ exportedDates: nextExported }))
   }
 
   const athleteName = athletes.find((a) => a.id === athleteId)?.name
@@ -370,8 +337,8 @@ export function AiCoachBrain() {
                     <Button size="sm" variant="ghost" onClick={startOver} disabled={!!busy} title="Forget the saved plan and conversation">
                       <RotateCcw className="h-4 w-4" /> Start over
                     </Button>
-                    <Button size="sm" onClick={() => setExportOpen(true)} disabled={!exportable.add.length && !exportable.busyDays.length}>
-                      <Upload className="h-4 w-4" /> Export
+                    <Button size="sm" onClick={() => setExportOpen(true)} disabled={!exportable.sessions.length}>
+                      <PenLine className="h-4 w-4" /> In my words & send
                     </Button>
                   </div>
                 </div>
@@ -488,29 +455,16 @@ export function AiCoachBrain() {
         </>
       ) : null}
 
-      <Dialog open={exportOpen} onOpenChange={setExportOpen}>
-        <DialogContent dir="ltr">
-          <DialogHeader>
-            <DialogTitle>Export to {athleteName}'s schedule</DialogTitle>
-            <DialogDescription>
-              {exportable.add.length} workout{exportable.add.length === 1 ? '' : 's'} will be added from {exportable.add[0]?.date || '-'} on.
-              Rest days aren't added. {athleteName} will see them in the app within their visible weeks. You can edit or delete them in the planner like any workout.
-            </DialogDescription>
-          </DialogHeader>
-          {exportable.busyDays.length ? (
-            <label className="flex items-start gap-2 text-sm">
-              <Checkbox checked={includeBusyDays} onCheckedChange={(v) => setIncludeBusyDays(v === true)} />
-              <span>{exportable.busyDays.length} day{exportable.busyDays.length === 1 ? ' already has' : 's already have'} a workout scheduled. Add these too (next to the existing ones)?</span>
-            </label>
-          ) : null}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setExportOpen(false)}>Cancel</Button>
-            <Button onClick={doExport} disabled={exporting || !exportable.add.length}>
-              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />} Add {exportable.add.length} workouts
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {snapshot && athleteName ? (
+        <CoachVoiceReview
+          open={exportOpen}
+          onClose={() => setExportOpen(false)}
+          athlete={{ id: snapshot.athleteId, name: athleteName, gender: snapshot.profile.gender }}
+          days={exportable.sessions}
+          busyDates={exportable.busy}
+          onSent={onSent}
+        />
+      ) : null}
     </div>
   )
 }
