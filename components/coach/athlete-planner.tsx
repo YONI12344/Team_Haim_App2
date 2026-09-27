@@ -43,7 +43,6 @@ import { secToPace } from '@/lib/physiology'
 import dynamic from 'next/dynamic'
 import { LinkedRoutinesEditor, type LinkedRoutine } from '@/components/coach/linked-routines-editor'
 import { AthletePlannerView } from '@/components/athlete/athlete-planner-view'
-import { AI_SCHEDULE_CHANGED_EVENT } from '@/lib/ai-coach/client'
 import { useLanguage } from '@/contexts/language-context'
 import { toast } from 'sonner'
 import { MarkDayOffDialog } from '@/components/shared/mark-day-off-dialog'
@@ -491,17 +490,6 @@ export function AthletePlanner({ athleteId }: Props) {
     load()
   }, [athleteId])
 
-  // The AI coach panel (components/coach/ai-coach-agent.tsx) and its plan
-  // settings write workouts directly — refetch when they report a change.
-  const [scheduleVersion, setScheduleVersion] = useState(0)
-  useEffect(() => {
-    const onChange = (e: Event) => {
-      if ((e as CustomEvent).detail?.athleteId === athleteId) setScheduleVersion(v => v + 1)
-    }
-    window.addEventListener(AI_SCHEDULE_CHANGED_EVENT, onChange)
-    return () => window.removeEventListener(AI_SCHEDULE_CHANGED_EVENT, onChange)
-  }, [athleteId])
-
   // ── Load assigned workouts + logs ─────────────────────────────────────────
   // Neither query is actually scoped to a month (both pull this athlete's
   // full history), so this only needs to run once per athlete — it used to
@@ -541,7 +529,7 @@ export function AthletePlanner({ athleteId }: Props) {
       }
     }
     load()
-  }, [athleteId, scheduleVersion])
+  }, [athleteId])
 
   // ── Per-athlete week settings ─────────────────────────────────────────────
   // Calendar week start (0 = Sunday default, 1 = Monday)

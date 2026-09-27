@@ -21,14 +21,14 @@ const COPY = {
   en: {
     title: 'Settings',
     aiTitle: 'AI coach',
-    aiBody: "Each athlete now has their own AI coach conversation, right next to their schedule in the planner. It reads everything they log and builds or adjusts their plan when you ask.",
-    aiLink: 'Open athletes',
+    aiBody: "The AI Coach page reads an athlete's data from the app, remembers your conversation and plan for each athlete, and adds workouts to their schedule only when you export.",
+    aiLink: 'Open AI Coach',
   },
   he: {
     title: 'הגדרות',
     aiTitle: 'מאמן AI',
-    aiBody: 'לכל ספורטאי יש עכשיו שיחה משלו עם מאמן ה-AI, ממש ליד לוח האימונים שלו בתכנון. הוא קורא כל מה שהספורטאי מתעד ובונה או משנה את התוכנית כשאתה מבקש.',
-    aiLink: 'לספורטאים',
+    aiBody: 'עמוד מאמן ה-AI קורא את נתוני הספורטאי מהאפליקציה, זוכר את השיחה והתוכנית לכל ספורטאי, ומוסיף אימונים ללוח שלו רק כשאתה מייצא.',
+    aiLink: 'למאמן AI',
   },
 } as const
 
@@ -81,7 +81,7 @@ export function CoachSettings() {
           <div className="min-w-0 space-y-1.5">
             <p className="text-sm font-semibold text-navy">{c.aiTitle}</p>
             <p className="text-sm text-muted-foreground leading-relaxed">{c.aiBody}</p>
-            <Link href="/coach/athletes" className="inline-flex items-center gap-1 text-sm font-medium text-navy underline-offset-4 hover:underline">
+            <Link href="/coach/ai-coach" className="inline-flex items-center gap-1 text-sm font-medium text-navy underline-offset-4 hover:underline">
               {c.aiLink}
               <ArrowUpRight className="h-3.5 w-3.5" />
             </Link>

@@ -11,12 +11,10 @@ import { cn } from '@/lib/utils'
 import { PosterScene } from '@/components/athlete/poster-scene'
 
 /**
- * Athlete onboarding. Collects the profile the coach and the AI coach plan
- * from — the original fields plus the 18-chapter brain's extended intake
- * (training hours, fiber leaning, job demand, injury detail, threshold
- * testing, lab markers...), stored on users/{uid} under the same names that
- * lib/ai-coach/season-pipeline.ts reads. Everything past the core fields is
- * optional; nothing here talks to the AI.
+ * Athlete onboarding. Collects the profile the coach plans from — the
+ * original fields plus an extended intake (training hours, fiber leaning,
+ * job demand, injury detail, threshold testing, lab markers...), stored on
+ * users/{uid}. Everything past the core fields is optional.
  */
 
 type Lang = 'en' | 'he'
