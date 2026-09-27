@@ -10,8 +10,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { addDoc, collection, doc, getDoc, getDocs, query, serverTimestamp, where } from 'firebase/firestore'
 import { format, addDays, subWeeks } from 'date-fns'
 import { toast } from 'sonner'
-import { ChevronDown, ChevronUp, Loader2, Send, Sparkles, Upload } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, Loader2, RotateCcw, Send, Sparkles, Upload } from 'lucide-react'
 import { db } from '@/lib/firebase'
+import { getAiBudget, loadAiUsageThisMonth, logAiUsage } from '@/lib/ai-coach/usage-log'
+import { type BrainMemory, clearMemory, loadMemory, saveMemory } from '@/lib/haim-brain/memory'
 import { useAuth } from '@/contexts/auth-context'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -25,7 +27,8 @@ import type { AthleteSnapshot, HillChoice } from '@/lib/haim-brain/athlete-conte
 import { type BrainPlan, type PlanDay, allDays, describeStep, toWorkoutFields } from '@/lib/haim-brain/plan'
 
 type Choice = { topic: string; choice: string; why: string }
-type Msg = { role: 'user' | 'assistant'; content: string; cost?: number; kind?: 'ask' | 'build' }
+type Msg = { role: 'user' | 'assistant'; content: string; cost?: number; kind?: 'ask' | 'build'; at?: string }
+const CALIBRATION_SOURCE = 'Calibration week · built by code · $0'
 
 const ZONE_COLOR: Record<string, string> = { easy: '#3fa8a2', golden: '#d9a441', above: '#e0694d', rest: '#9aa0aa' }
 const HILL_OPTIONS: HillChoice[] = ['Yes, a good hill nearby', 'Only short hills (under a minute)', 'No hill, but a treadmill with incline', 'No hills at all']
@@ -58,13 +61,31 @@ export function AiCoachBrain() {
   const [exportOpen, setExportOpen] = useState(false)
   const [includeBusyDays, setIncludeBusyDays] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [exportedDates, setExportedDates] = useState<string[]>([])
+  const [savedAt, setSavedAt] = useState<string | null>(null)
+  const [month, setMonth] = useState<{ spent: number; budget: number | null } | null>(null)
 
   useEffect(() => {
     getDocs(query(collection(db, 'users'), where('role', '==', 'athlete')))
       .then((snap) => setAthletes(snap.docs.map((d) => ({ id: d.id, name: (d.data().name as string) || 'Unnamed' }))
         .sort((a, b) => a.name.localeCompare(b.name))))
       .catch(() => toast.error("Couldn't load your athletes."))
+    Promise.all([loadAiUsageThisMonth(), getAiBudget()])
+      .then(([usage, budget]) => setMonth({ spent: usage.costUsd, budget }))
+      .catch(() => {})
   }, [])
+
+  // Everything the page remembers for this athlete is saved after each change, so the coach can
+  // come back later and keep working on the same plan and conversation.
+  const persist = (mem: BrainMemory) => {
+    if (!athleteId) return
+    saveMemory(athleteId, mem)
+      .then(() => setSavedAt(new Date().toISOString()))
+      .catch(() => toast.error("Couldn't save this conversation. It's still on screen."))
+  }
+  const current = (patch: Partial<BrainMemory> = {}): BrainMemory => ({
+    plan, planSource, startDate, hill, messages, exportedDates, ...patch,
+  })
 
   const call = async (payload: Record<string, unknown>) => {
     const token = await firebaseUser?.getIdToken()
@@ -80,11 +101,19 @@ export function AiCoachBrain() {
 
   const loadAthlete = async (id: string) => {
     setAthleteId(id)
-    setSnapshot(null); setAnalysis(null); setPlan(null); setMessages([]); setPlanSource('')
+    setSnapshot(null); setAnalysis(null); setPlan(null); setMessages([]); setPlanSource(''); setExportedDates([]); setSavedAt(null)
     if (!id) return
     setLoadingAthlete(true)
     try {
-      const since = format(subWeeks(new Date(), 8), 'yyyy-MM-dd')
+      const memory = await loadMemory(id).catch(() => null)
+      const memHill = memory?.hill ?? ''
+      const memStart = memory?.startDate || startDate
+      setHill(memHill)
+      setStartDate(memStart)
+      // Read back far enough to cover everything done since a saved plan began, not just 8 weeks.
+      const eightWeeks = format(subWeeks(new Date(), 8), 'yyyy-MM-dd')
+      const planStart = memory?.plan?.start_date
+      const since = planStart && planStart < eightWeeks ? planStart : eightWeeks
       const [u, logs, aw, off] = await Promise.all([
         getDoc(doc(db, 'users', id)),
         getDocs(query(collection(db, 'logs'), where('athleteId', '==', id), where('date', '>=', since))),
@@ -102,11 +131,17 @@ export function AiCoachBrain() {
         }),
         injuries: [],
         daysOff: off.docs.map((d) => plain(d.data())),
-        overrides: { hill_access: hill },
+        overrides: { hill_access: memHill },
         today,
       }
       setSnapshot(snap)
-      await analyze(snap, startDate)
+      await analyze(snap, memStart, !!memory?.plan)
+      if (memory) {
+        if (memory.plan) { setPlan(memory.plan); setPlanSource(memory.planSource) }
+        setMessages(memory.messages)
+        setExportedDates(memory.exportedDates)
+        setSavedAt(memory.updatedAt || null)
+      }
     } catch {
       toast.error("Couldn't read this athlete's data.")
     } finally {
@@ -114,43 +149,75 @@ export function AiCoachBrain() {
     }
   }
 
-  const analyze = async (snap: AthleteSnapshot, start: string) => {
+  /** Decisions (free). Also replaces the plan with a fresh calibration week unless keepPlan. */
+  const analyze = async (snap: AthleteSnapshot, start: string, keepPlan = false): Promise<BrainPlan | null> => {
     setBusy('analyze')
     try {
       const data = await call({ action: 'analyze', snapshot: snap, startDate: start })
       setAnalysis({ choices: data.choices, profile: data.profile })
-      setPlan(data.calibration)
-      setPlanSource('Calibration week · built by code · $0')
+      if (!keepPlan) { setPlan(data.calibration); setPlanSource(CALIBRATION_SOURCE) }
+      return data.calibration
     } catch (e: any) {
       toast.error(e.message)
+      return null
     } finally {
       setBusy('')
     }
   }
 
-  // Hill access and start date change the decisions, so re-run the free analysis.
-  const changeHill = (v: HillChoice) => {
+  // Hill access and start date change the decisions, so re-run the free analysis. A plan the AI built
+  // stays; only an untouched calibration week is rebuilt.
+  const changeHill = async (v: HillChoice) => {
     setHill(v)
-    if (snapshot) { const s = { ...snapshot, overrides: { hill_access: v } }; setSnapshot(s); analyze(s, startDate) }
+    if (!snapshot) return
+    const s = { ...snapshot, overrides: { hill_access: v } }
+    setSnapshot(s)
+    const keep = !planSource.startsWith('Calibration')
+    const cal = await analyze(s, startDate, keep)
+    persist(current({ hill: v, ...(keep || !cal ? {} : { plan: cal, planSource: CALIBRATION_SOURCE }) }))
   }
-  const changeStart = (v: string) => {
+  const changeStart = async (v: string) => {
     setStartDate(v)
-    if (snapshot && /^\d{4}-\d{2}-\d{2}$/.test(v) && planSource.startsWith('Calibration')) analyze(snapshot, v)
+    if (!snapshot || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return
+    if (planSource.startsWith('Calibration')) {
+      const cal = await analyze(snapshot, v)
+      persist(current({ startDate: v, ...(cal ? { plan: cal, planSource: CALIBRATION_SOURCE } : {}) }))
+    } else {
+      persist(current({ startDate: v }))
+    }
+  }
+
+  const startOver = async () => {
+    if (!snapshot || !confirm("Forget this athlete's saved plan and conversation on this page? Their schedule in the app isn't touched.")) return
+    await clearMemory(snapshot.athleteId).catch(() => toast.error("Couldn't clear the saved conversation."))
+    setMessages([]); setExportedDates([]); setSavedAt(null)
+    await analyze(snapshot, startDate)
   }
 
   const send = async (kind: 'ask' | 'build') => {
     const text = input.trim()
     if (!text || !snapshot || busy) return
     const history = messages.map(({ role, content }) => ({ role, content }))
-    setMessages((m) => [...m, { role: 'user', content: text, kind }])
+    const asked: Msg = { role: 'user', content: text, kind, at: new Date().toISOString() }
+    setMessages((m) => [...m, asked])
     setInput('')
     setBusy(kind)
     try {
       const data = await call({ action: kind, snapshot, message: text, messages: history, plan, startDate })
       setSpent((s) => s + (data.cost || 0))
-      setMessages((m) => [...m, { role: 'assistant', content: data.reply || data.error || '', cost: data.cost, kind }])
-      if (data.plan) { setPlan(data.plan); setPlanSource(`Built by the AI · $${(data.cost || 0).toFixed(2)}`) }
+      if (data.usage && user) {
+        // Same log the rest of the app's AI uses: shows in Settings -> AI usage and the budget pill.
+        logAiUsage({ route: 'haim-brain', model: data.model, athleteId: snapshot.athleteId, coachId: user.id, usage: data.usage })
+        setMonth((m) => m && { ...m, spent: m.spent + (data.cost || 0) })
+      }
+      const answer: Msg = { role: 'assistant', content: data.reply || data.error || '', cost: data.cost, kind, at: new Date().toISOString() }
+      const nextMessages = [...messages, asked, answer]
+      setMessages(nextMessages)
+      const nextPlan = data.plan || plan
+      const nextSource = data.plan ? `Built by the AI · $${(data.cost || 0).toFixed(2)} · ${format(new Date(), 'd MMM')}` : planSource
+      if (data.plan) { setPlan(data.plan); setPlanSource(nextSource) }
       if (data.error) toast.error(data.error)
+      persist(current({ messages: nextMessages, plan: nextPlan, planSource: nextSource }))
     } catch (e: any) {
       setMessages((m) => [...m, { role: 'assistant', content: e.message }])
     } finally {
@@ -200,6 +267,12 @@ export function AiCoachBrain() {
       toast.error(done ? `Stopped after ${done} workouts: couldn't add the rest.` : "Couldn't add the workouts.")
     } finally {
       setExporting(false)
+      // Remember what actually reached the schedule, even if the export stopped partway.
+      if (done) {
+        const nextExported = [...new Set([...exportedDates, ...exportable.add.slice(0, done).map((d) => d.date!)])].sort()
+        setExportedDates(nextExported)
+        persist(current({ exportedDates: nextExported }))
+      }
     }
   }
 
@@ -250,7 +323,7 @@ export function AiCoachBrain() {
           <Card>
             <CardHeader>
               <CardTitle>What the brain read</CardTitle>
-              <CardDescription>From {athleteName}'s profile, {logged8w} logged sessions in the last 8 weeks, and {upcoming} workouts already scheduled.</CardDescription>
+              <CardDescription>From {athleteName}'s profile, {logged8w} logged sessions{plan?.start_date && plan.start_date < format(subWeeks(new Date(), 8), 'yyyy-MM-dd') ? ` since ${plan.start_date}` : ' in the last 8 weeks'}, and {upcoming} workouts already scheduled.</CardDescription>
             </CardHeader>
             <CardContent>
               <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm text-muted-foreground">
@@ -288,11 +361,19 @@ export function AiCoachBrain() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <CardTitle>{plan.title}</CardTitle>
-                    <CardDescription>{planSource} · {plan.start_date} to {plan.end_date}</CardDescription>
+                    <CardDescription>
+                      {planSource} · {plan.start_date} to {plan.end_date}
+                      {savedAt ? ` · saved ${format(new Date(savedAt), 'd MMM, HH:mm')}` : ''}
+                    </CardDescription>
                   </div>
-                  <Button size="sm" onClick={() => setExportOpen(true)} disabled={!exportable.add.length && !exportable.busyDays.length}>
-                    <Upload className="h-4 w-4" /> Export
-                  </Button>
+                  <div className="flex gap-2 shrink-0">
+                    <Button size="sm" variant="ghost" onClick={startOver} disabled={!!busy} title="Forget the saved plan and conversation">
+                      <RotateCcw className="h-4 w-4" /> Start over
+                    </Button>
+                    <Button size="sm" onClick={() => setExportOpen(true)} disabled={!exportable.add.length && !exportable.busyDays.length}>
+                      <Upload className="h-4 w-4" /> Export
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -326,6 +407,9 @@ export function AiCoachBrain() {
                               <span className="w-20 shrink-0 text-muted-foreground tabular-nums">{d.weekday?.slice(0, 3)} {d.date?.slice(5)}</span>
                               <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: ZONE_COLOR[d.zone] }} aria-hidden />
                               <span className={`flex-1 ${d.type === 'rest' ? 'text-muted-foreground' : 'font-medium'}`}>{d.title}</span>
+                              {exportedDates.includes(d.date!) && d.type !== 'rest' ? (
+                                <span className="flex items-center gap-1 text-xs text-muted-foreground"><Check className="h-3.5 w-3.5" /> exported</span>
+                              ) : null}
                               <span className="text-xs text-muted-foreground tabular-nums">{size}</span>
                               {d.type !== 'rest' ? (open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />) : <span className="w-4" />}
                             </button>
@@ -354,8 +438,13 @@ export function AiCoachBrain() {
               <CardTitle className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-gold" /> Talk to the brain about {athleteName}</CardTitle>
               <CardDescription>
                 Ask reads the athlete's data (about $0.05). Build writes or changes the plan above, e.g. "build the season to the goal race",
-                "make week 2 smaller", "no double threshold" (about $0.30-0.90). Spent this session: ${spent.toFixed(2)}.
+                "make week 2 smaller", "no double threshold" (about $0.30-0.90). The conversation and plan are saved for next time.
               </CardDescription>
+              <p className={`text-xs ${month?.budget && month.spent > month.budget ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+                This session ${spent.toFixed(2)}
+                {month ? ` · all AI this month $${month.spent.toFixed(2)}${month.budget ? ` of your $${month.budget.toFixed(0)} budget` : ''}` : ''}
+                {month?.budget && month.spent > month.budget ? ' · over budget' : ''}
+              </p>
             </CardHeader>
             <CardContent className="space-y-3">
               {messages.map((m, i) => (

@@ -12,7 +12,8 @@ import { addDoc, collection, doc, getDoc, getDocs, orderBy, query, serverTimesta
 import { db } from '@/lib/firebase'
 import { costFor, type AnthropicUsage } from '@/lib/ai-coach/pricing'
 
-export type AiRoute = 'agent' | 'generate-skeleton' | 'generate-plan'
+// 'haim-brain' = the AI Coach page (components/coach/ai-coach-brain.tsx).
+export type AiRoute = 'agent' | 'generate-skeleton' | 'generate-plan' | 'haim-brain'
 
 export interface AiUsageEntry {
   id: string

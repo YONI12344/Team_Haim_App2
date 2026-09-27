@@ -106,12 +106,14 @@ export async function runCoachAI(req: CoachRequest, apiKey = process.env.ANTHROP
   }).finalMessage()
   const text = msg.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map((b) => b.text).join('\n')
   const cost = costOf(msg.usage)
-  if (action === 'ask') return { reply: text.trim(), plan: null, cost, model: BRAIN_MODEL }
+  // Raw usage goes back to the page, which records it in the app's AI usage log (lib/ai-coach/usage-log).
+  const meta = { cost, model: BRAIN_MODEL, usage: msg.usage }
+  if (action === 'ask') return { reply: text.trim(), plan: null, ...meta }
   const parsed = extractJson(text) || {}
   const plan = parsed.plan?.weeks ? normalizePlan(parsed.plan, start) : null
   if (!plan) {
-    return { reply: parsed.reply || text, plan: null, cost, model: BRAIN_MODEL,
+    return { reply: parsed.reply || text, plan: null, ...meta,
       error: 'The plan came back malformed, so nothing changed. Try again or shorten the request.' }
   }
-  return { reply: parsed.reply || text, plan, cost, model: BRAIN_MODEL }
+  return { reply: parsed.reply || text, plan, ...meta }
 }
