@@ -3,6 +3,7 @@
 
 import { format } from 'date-fns'
 import type { WorkoutType } from '@/lib/types'
+import { pyRound } from './paces'
 
 export type Zone = 'easy' | 'golden' | 'above' | 'rest'
 export type SessionType = 'rest' | 'easy' | 'golden' | 'long' | 'test' | 'x' | 'strength' | 'race'
@@ -42,6 +43,10 @@ export interface BrainPlan {
   weeks: { week: number; phase?: string; focus?: string; days: PlanDay[] }[]
   notes: string[]
   template?: { name: string; level: string; adjustments: string[]; cost_usd: number }
+  /** Set by the code-checked rules (enforce.ts): weekly km, the cycle, and every change they made. */
+  safety?: { cycle: string; cycle_text: string; baseline_km: number | null; baseline_source: string; ceiling_km: number | null;
+    ceiling_kind: string; weekly_km: number[]; adjustments: string[]; laws: string[] }
+  volume_story?: string
   start_date?: string
   end_date?: string
 }
@@ -70,6 +75,8 @@ export function normalizePlan(raw: any, start: Date, maxWeeks = 20): BrainPlan {
       if (d.type === 'rest') d.zone = 'rest'
       d.steps = (Array.isArray(d.steps) ? d.steps : []).filter((s: any) => s && typeof s === 'object')
       for (const s of d.steps) if (!STEP_KINDS.includes(s.kind)) s.kind = 'note'
+      if (typeof d.km === 'number') d.km = d.km > 0 ? Math.max(1, pyRound(d.km)) : null // whole km
+      if (typeof d.minutes === 'number') d.minutes = pyRound(d.minutes)
       d.title = d.title || 'Session'
       i++
     }

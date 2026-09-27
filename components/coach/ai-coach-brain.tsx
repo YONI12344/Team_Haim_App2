@@ -379,6 +379,24 @@ export function AiCoachBrain() {
               <CardContent className="space-y-4">
                 {plan.summary ? <p className="text-sm">{plan.summary}</p> : null}
                 {plan.pace_source ? <p className="text-xs text-muted-foreground">{plan.pace_source}</p> : null}
+                {plan.volume_story ? <p className="text-sm">{plan.volume_story}</p> : null}
+                {plan.safety?.weekly_km?.length ? (
+                  <details className="rounded-md border px-3 py-2 text-sm">
+                    <summary className="cursor-pointer font-medium">
+                      Checked by the brain's rules: {plan.safety.weekly_km.join(' / ')} km a week
+                      {plan.safety.adjustments.length ? ` · ${plan.safety.adjustments.length} change${plan.safety.adjustments.length === 1 ? '' : 's'}` : ' · no changes needed'}
+                    </summary>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Starting from {plan.safety.baseline_km ?? '?'} km ({plan.safety.baseline_source}); {plan.safety.cycle_text}
+                      {plan.safety.ceiling_km ? `; ceiling ${plan.safety.ceiling_km} km` : ''}. These rules run in code after the AI writes the plan and can only make it safer.
+                    </p>
+                    {plan.safety.adjustments.length ? (
+                      <ul className="mt-2 list-disc ps-5 text-xs text-muted-foreground space-y-0.5">
+                        {plan.safety.adjustments.map((a, i) => <li key={i}>{a}</li>)}
+                      </ul>
+                    ) : null}
+                  </details>
+                ) : null}
                 {Object.keys(plan.paces || {}).length ? (
                   <div className="flex flex-wrap gap-1.5">
                     {Object.entries(plan.paces).filter(([, v]) => v).map(([k, v]) => (

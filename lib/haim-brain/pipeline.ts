@@ -120,7 +120,7 @@ export function resolvePace(profile: BrainProfile, extraTexts: unknown[] = []): 
     reasoning = `Level is ${levelKey} -- using the protocol's default starting method for that level.`
   }
   const result: Record<string, any> = { status: 'needs_test', method }
-  const race = findRaceResult([profile.recent_pr, profile.known_threshold_pace, ...extraTexts])
+  const race = findRaceResult([profile.recent_pr, profile.known_threshold_pace, profile.strava_best_effort, ...extraTexts])
   if (race) {
     const est = pacesFromRace(race.distance_km, race.seconds)
     result.race_estimate = { from: race.text, vdot: est.vdot, t_pace: est.t_pace, paces: est.paces, race_pace: est.race_pace }
@@ -206,8 +206,40 @@ export function decideXSession(cat: Step, profile: BrainProfile): Step {
   return step('6. X-session & hills', src, { hills: false, access, ...flat, why }, `Hill access is '${access}' -- flat alternatives instead of hills.`)
 }
 
+/** How many days a week the athlete runs: their training days, else days_per_week, else 4. */
+export function runDays(profile: BrainProfile): number {
+  const names = String(profile.training_days_preference || '').split(/[,\s/]+/)
+    .map((d) => d.charAt(0).toUpperCase() + d.slice(1).toLowerCase())
+    .filter((d) => ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].includes(d))
+  if (names.length) return new Set(names).size
+  const n = parseKm(profile.days_per_week)
+  return n ? Math.trunc(n) : 4
+}
+
+/** Step 7: how many workouts (quality days) a week the run days can carry, and the volume goal.
+ *  The three key sessions work only when every other run is genuinely easy (Ch. 5); tone peaks the day after
+ *  a hard session, so easy days between hard ones are protected (Ch. 3-4); the X-session is optional. */
+export function decideSessionBudget(cat: Step, profile: BrainProfile): Step {
+  const n = runDays(profile)
+  let quality: number, why: string
+  if (cat.result.category === BEGINNER) {
+    quality = 1; why = 'one gentle Golden Zone session; everything else easy while the base is built'
+  } else if (n <= 3) {
+    quality = 1; why = `runs ${n} days a week, so one Golden Zone session plus easy running and the long run. Two workouts in three days would leave no easy day between them`
+  } else if (n <= 5) {
+    quality = 2; why = `runs ${n} days a week: two Golden Zone sessions (one long-rep, one short-rep) with easy days between. The optional X-session doesn't fit without taking an easy day`
+  } else {
+    quality = 3; why = `runs ${n} days a week: two Golden Zone sessions plus an optional X-session, still with easy days between every hard one`
+  }
+  const goal = String(profile.volume_goal || '').toLowerCase()
+  const volume = /keep|same|maintain|current/.test(goal) ? 'maintain' : parseKm(goal) ? 'target' : 'build'
+  return step('7. Workouts per week & volume goal', 'Chapters 3-5 (three key sessions, protected easy days, X-session optional), applied to run days',
+    { run_days: n, max_quality_sessions: quality, why, volume_goal: volume, volume_target_km: volume === 'target' ? parseKm(goal) : null },
+    `${n} run days -> at most ${quality} quality session(s) a week; volume goal: ${volume}.`)
+}
+
 export function explainChoices(steps: Step[]): Choice[] {
-  const [cat, dt, pace, strength, , xs] = steps
+  const [cat, dt, pace, strength, , xs, budget] = steps
   const category: string = cat.result.category
   const short = category.split(' (')[0].split(' /')[0]
   const levelWhy: Record<string, string> = {
@@ -222,6 +254,8 @@ export function explainChoices(steps: Step[]): Choice[] {
   else if (r.deferred) out.push({ topic: 'Double threshold', choice: 'Not yet', why: 'The level would use it, but the athlete is coming back from a break. Rebuild single sessions first, then add the second session of the day.' })
   else out.push({ topic: 'Double threshold', choice: 'No', why: 'Double threshold is for runners training about 6-8+ hours a week (Bakken, Ch. 6-7). At this level, three well-run key sessions give the best return.' })
   out.push({ topic: 'Hills', choice: xs.result.hills ? 'Yes' : 'No', why: xs.result.why })
+  const b = budget.result
+  out.push({ topic: 'Workouts a week', choice: String(b.max_quality_sessions), why: `${b.why.charAt(0).toUpperCase()}${b.why.slice(1)} (Bakken, Ch. 3-5).` })
   const v = strength.result.verdict
   const strengthWhy: Record<string, string> = {
     yes_definitely: "Bone-stress history, the book's clearest case for strength training. It goes on the same day as the X-session, the placement runners tolerated best (Bakken, Ch. 10).",
@@ -230,7 +264,8 @@ export function explainChoices(steps: Step[]): Choice[] {
   out.push({ topic: 'Strength training', choice: v === 'yes_definitely' ? 'Yes' : v === 'worth_considering' ? 'Worth considering' : 'Not needed now',
     why: strengthWhy[v] || 'For a healthy runner under 50 with no plateau, the book says more running gives a better return than strength work.' })
   const p = pace.result
-  const method = String(p.method || '').split(' -- ')[0].split(' (VDOT')[0].toLowerCase()
+  const raw = String(p.method || '').split(' -- ')[0].split(' (VDOT')[0]
+  const method = /^[A-Z]{2}/.test(raw) ? raw : raw.charAt(0).toLowerCase() + raw.slice(1) // keep "VDOT ...", lower "Three-point ..."
   if (p.status === 'known') out.push({ topic: 'Paces', choice: 'From known threshold', why: 'A threshold pace is on file, so the plan uses it and checks it against how sessions feel.' })
   else if (p.race_estimate) out.push({ topic: 'Paces', choice: 'From race, test to confirm', why: `The ${p.race_estimate.from} gives starting paces (VDOT ${p.race_estimate.vdot}, Bakken Ch. 2). The first week's test confirms or corrects them: ${method}.` })
   else out.push({ topic: 'Paces', choice: 'Test first', why: `No recent race on file, so the first week's test sets the paces: ${method}.` })
@@ -246,12 +281,14 @@ export function runPipeline(profile: BrainProfile, extraTexts: unknown[] = []) {
     'Shape is read from logged sessions by the coach; start at the category default.')
   const s5 = assembleSkeleton(s1)
   const s6 = decideXSession(s1, profile)
+  const s7 = decideSessionBudget(s1, profile)
   return {
-    trace: [s1, s1b, s2, s3, s4, s5, s6],
+    trace: [s1, s1b, s2, s3, s4, s5, s6, s7],
     planRequest: {
       category: s1.result.category, double_threshold: s1b.result, pace: s2.result, strength_decision: s3.result,
       shape_adjustment: s4.result, session_skeleton: s5.result, x_session_and_hills: s6.result,
-    },
-    choices: explainChoices([s1, s1b, s2, s3, s4, s6]),
+      weekly_structure: s7.result,
+    } as Record<string, any>,
+    choices: explainChoices([s1, s1b, s2, s3, s4, s6, s7]),
   }
 }

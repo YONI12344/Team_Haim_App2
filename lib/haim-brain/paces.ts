@@ -1,6 +1,15 @@
 // Pace maths from Chapter 2 of the brain (no AI): race result -> VDOT -> training paces.
 // Ported from the TeamHaim brain's paces.py so both give identical numbers.
 
+/** Python's round(): halves go to the even neighbour (2.5 -> 2, 3.5 -> 4). Keeps numbers identical to the
+ *  Python brain, which Math.round (halves always up) would not. */
+export function pyRound(x: number, digits = 0): number {
+  const m = 10 ** digits
+  const v = x * m
+  const r = Math.round(v)
+  return (Math.abs(v % 1) === 0.5 ? (r % 2 === 0 ? r : r - 1) : r) / m
+}
+
 export function paceToS(p: unknown): number | null {
   if (typeof p === 'number') return p
   const m = String(p ?? '').match(/^\s*(\d{1,2}):(\d{2})\s*$/)

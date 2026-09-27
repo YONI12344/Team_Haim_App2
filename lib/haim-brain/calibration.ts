@@ -2,7 +2,7 @@
 // Costs nothing. Ported from the TeamHaim brain's calibration.py; keep the two in step.
 
 import { BEGINNER, type BrainProfile, hillAccess, parseKm } from './pipeline'
-import { rangeMid, sToPace } from './paces'
+import { pyRound, rangeMid, sToPace } from './paces'
 import type { PlanDay, PlanStep, BrainPlan } from './plan'
 
 export const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
@@ -36,7 +36,7 @@ export function trainingDays(profile: BrainProfile): { days: Set<string>; source
   const names = String(profile.training_days_preference || '').split(/[,\s/]+/)
   const days = names.map((n) => n.trim()).map((n) => n.charAt(0).toUpperCase() + n.slice(1).toLowerCase()).filter((n) => WEEKDAYS.includes(n))
   if (days.length) return { days: new Set(days), source: 'the chosen training days' }
-  const n = Math.min(Math.max(Math.round(parseKm(profile.days_per_week) || 4), 2), 7)
+  const n = Math.min(Math.max(Math.trunc(parseKm(profile.days_per_week) || 4), 2), 7)
   return { days: new Set(DEFAULT_DAYS[n]), source: `${n} days a week` }
 }
 
@@ -133,7 +133,7 @@ export function sessionMinutes(day: PlanDay): number {
       total += (reps - 1) * (sec ? Number(sec[1]) / 60 : min ? Number(min[1]) : 0)
     }
   }
-  return Math.round(total)
+  return pyRound(total)
 }
 
 function* permutations<T>(items: T[], k: number, prefix: T[] = []): Generator<T[]> {
@@ -203,6 +203,11 @@ export function buildCalibration(profile: BrainProfile, paceResult: Record<strin
   }
   const useLong = slots.length >= 3
   const items = [...hard.map(([k]) => k), ...(useLong ? ['long'] : [])]
+  // Schedule anchors: the athlete's freshest day, gym days, and the day with the most time.
+  const keyDay = WEEKDAYS.includes(profile.key_session_day || '') ? profile.key_session_day! : null
+  const gym = new Set(String(profile.gym_days || '').split(/[,\s]+/).filter((d) => WEEKDAYS.includes(d)))
+  const longDay = WEEKDAYS.includes(profile.long_run_day || '') ? profile.long_run_day! : null
+  const wdAt = (i: number) => weekdayOf(addDays(start, i))
   let best: Record<string, number> = {}
   let bestScore: number | null = null
   for (const perm of permutations(slots, items.length)) {
@@ -221,7 +226,26 @@ export function buildCalibration(profile: BrainProfile, paceResult: Record<strin
     }
     score -= hardPos.includes(0) ? 3 : 0 // the first day together is an easy one
     score -= hardPos.length > 1 && hardPos[0] > hardPos[1] ? 1 : 0
+    score += keyDay && wdAt(hardPos[0]) === keyDay ? 4 : 0
+    hardPos.forEach((h, n) => { // no hard running on a gym day or the day after one
+      if (gym.has(wdAt(h)) || gym.has(wdAt(h - 1))) score -= n === 0 ? 6 : 3
+    })
+    if ('long' in pos && longDay) score += wdAt(pos.long) === longDay ? 5 : 0
     if (bestScore === null || score > bestScore) { best = pos; bestScore = score }
+  }
+  const testDay = wdAt(best[hard[0][0]])
+  if (keyDay) {
+    adjustments.push(`Pace test on ${testDay}` + (testDay === keyDay ? ', the freshest day.'
+      : ` (${keyDay} is the day after a gym day, isn't a training day, or clashed with the plan).`))
+  }
+  if (gym.size) {
+    const clash = gym.has(testDay) || gym.has(wdAt(best[hard[0][0]] - 1))
+    adjustments.push(`Gym days (${[...gym].sort((a, b) => WEEKDAYS.indexOf(a) - WEEKDAYS.indexOf(b)).join(', ')}) kept `
+      + (clash ? 'as far from the test as the week allows.' : 'away from the test day and the day before it.'))
+  }
+  const niggles = String(profile.current_niggles || '')
+  if (niggles && !/^\s*(nothing|none|no)\b/.test(niggles.toLowerCase())) {
+    adjustments.push(`Mentioned: '${niggles}'. Watch it this week.`)
   }
   const restDays = [0, 1, 2, 3, 4, 5, 6].filter((i) => !slots.includes(i)).map((i) => weekdayOf(addDays(start, i)).slice(0, 3))
   if (restDays.length) adjustments.push(`Rest on ${restDays.join(', ')} (${daysSource}).`)
@@ -234,14 +258,14 @@ export function buildCalibration(profile: BrainProfile, paceResult: Record<strin
   if (weekly && level !== 'beginner') {
     const factor = returning || injured ? 0.75 : 0.9
     const target = weekly * factor
-    adjustments.push(`About ${Math.round(target)} km this week: ${Math.round(factor * 100)}% of the current ${Math.round(weekly)} km, so the test finds fresh legs.`)
+    adjustments.push(`About ${pyRound(target)} km this week: ${Math.round(factor * 100)}% of the current ${pyRound(weekly)} km, so the test finds fresh legs.`)
     const hardKm = hard.reduce((a, [, s]) => a + (sessionMinutes(s) * 60) / easyS, 0)
     const longest = parseKm(profile.longest_run_last_3_weeks)
     const longKm = useLong ? Math.min(longest || target * 0.3, target * 0.3) : 0
     const left = Math.max(target - hardKm - longKm, 0)
     let easyKm = easyIdx.length ? left / easyIdx.length : 0
     easyKm = Math.max(Math.min(easyKm, longKm ? longKm * 0.8 : easyKm), 4)
-    const toMin = (km: number) => Math.max(20, Math.round((km * easyS) / 60 / 5) * 5)
+    const toMin = (km: number) => Math.max(20, pyRound((km * easyS) / 60 / 5) * 5)
     const floor: Record<string, number> = { recreational: 30, ambitious: 40, elite: 50 }
     if (useLong) week[best.long] = easy(toMin(Math.max(longKm, easyKm)), easyPace, 'long')
     for (const i of easyIdx) week[i] = easy(Math.max(toMin(easyKm), floor[level] || 30), easyPace)
@@ -258,7 +282,7 @@ export function buildCalibration(profile: BrainProfile, paceResult: Record<strin
     const day = d ?? rest()
     if (day.type !== 'rest') {
       day.minutes = sessionMinutes(day)
-      day.km = day.type === 'easy' || day.type === 'long' ? Math.round((day.minutes * 60 / easyS) * 2) / 2 : null
+      day.km = day.type === 'easy' || day.type === 'long' ? Math.max(1, pyRound(day.minutes * 60 / easyS)) : null // whole km
     }
     return day
   })

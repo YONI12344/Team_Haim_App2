@@ -5,9 +5,11 @@
 // Server-only. Never writes to Firestore: the coach exports plans from the page.
 
 import Anthropic from '@anthropic-ai/sdk'
-import { runPipeline } from './pipeline'
+import { parseKm, runPipeline } from './pipeline'
 import { buildCalibration } from './calibration'
-import { normalizePlan, type BrainPlan } from './plan'
+import { allDays, normalizePlan, type BrainPlan } from './plan'
+import { pyRound } from './paces'
+import { enforceAll, isRecoveryWeek, progressionCycle, rulesText, volumeCeiling, VOLUME_LAWS } from './enforce'
 import { type AthleteSnapshot, contextText, toBrainProfile } from './athlete-context'
 import { ADAPTIVE_PROTOCOL, chapterIndexText, chapterScience, compactChapter, routeChapters, seasonChapters } from './brain'
 import { ASK_TAIL, BUILD_TAIL, METHOD_GUARDRAILS, PERSONA, PLAN_RULES, PLAN_SCHEMA } from './prompts'
@@ -77,22 +79,46 @@ export async function runCoachAI(req: CoachRequest, apiKey = process.env.ANTHROP
   const message = String(req.message || '').trim().slice(0, 4000)
   if (!message) throw new CoachAIError('Write a message first.')
 
+  // Volume starting point and the longest recent run, for the volume law. A calibration week on the page
+  // counts as recent training when the app has no weekly km.
+  const calKms = req.plan?.template ? allDays(req.plan).map((d) => d.km).filter((k): k is number => typeof k === 'number') : []
+  const loggedKm = parseKm(profile.weekly_mileage)
+  const [baseline, baselineSrc] = loggedKm ? [loggedKm, 'the weekly km in the app']
+    : calKms.length ? [calKms.reduce((a, b) => a + b, 0), 'the calibration week'] : [null, 'unknown']
+  const recentLongest = Math.max(parseKm(profile.longest_run_last_3_weeks) || 0, ...calKms) || null
+  if (action === 'build') {
+    const [cycle, cycleText] = progressionCycle(profile, 12)
+    const [ceiling] = volumeCeiling(profile, baseline)
+    pipeline.planRequest.progression = {
+      baseline_weekly_km: baseline ? pyRound(baseline, 1) : null, baseline_source: baselineSrc,
+      cycle, cycle_text: cycleText,
+      recovery_weeks: Array.from({ length: 18 }, (_, i) => i + 1).filter((i) => isRecoveryWeek(cycle, i)).slice(0, 6),
+      max_increase_between_build_weeks: '10% and at most 8 km', recovery_drop: '20-25%', week_1: 'at most 5% above baseline',
+      ceiling_km: ceiling ? pyRound(ceiling) : null, athlete_volume_goal: profile.volume_goal || null, laws: VOLUME_LAWS,
+    }
+    pipeline.planRequest.schedule_anchors = Object.fromEntries(
+      (['rest_day', 'long_run_day', 'gym_days'] as const).filter((k) => profile[k]).map((k) => [k, profile[k]]))
+  }
+
   const athlete = contextText(snapshot, profile)
   const decisions = "=== Pipeline result (computed in code from the book's rules) ===\n" + JSON.stringify(pipeline.planRequest)
   const age = Number(profile.age) || null
   // The big, stable part of the prompt goes first and is cached, so repeat requests in a session are cheaper.
   const knowledge = action === 'build'
     ? `Chapter index (for the 'chapter' field):\n${chapterIndexText()}` + chapterScience(seasonChapters(pipeline.planRequest, age))
+      + '\n\nTeamHaim training-plan rules (from the brain). Follow every one; the rules checked in code are enforced after '
+      + 'you answer anyway, so a plan that breaks them gets cut back:\n' + rulesText(['plan', 'code'])
     : 'Relevant method knowledge:' + (routeChapters(message + ' ' + history.slice(-2).map((m) => m.content).join(' ')).map(compactChapter).join('')
       || ' (no chapter matched -- answer from general coaching judgment and say so)')
       + '\n\nadaptive_progression protocol:\n' + JSON.stringify(ADAPTIVE_PROTOCOL)
+      + '\n\nCoaching rules from the brain (use them when you answer):\n' + rulesText(['coach'])
 
   const system: Anthropic.TextBlockParam[] = [
     { type: 'text', text: `${PERSONA}\n\n${METHOD_GUARDRAILS}\n\n${knowledge}`, cache_control: { type: 'ephemeral' } },
     { type: 'text', text: [
       '=== The athlete (data from the TeamHaim app) ===', athlete, decisions,
       action === 'build' ? `Plan starts on the coach's chosen start date. Calendar:\n${calendarText(start)}` : '',
-      req.plan?.weeks?.length ? `=== Current plan on the page (the coach may ask to change it) ===\n${JSON.stringify({ ...req.plan, template: undefined })}` : '',
+      req.plan?.weeks?.length ? `=== Current plan on the page (the coach may ask to change it) ===\n${JSON.stringify({ ...req.plan, template: undefined, safety: undefined })}` : '',
       action === 'build' ? BUILD_TAIL + PLAN_SCHEMA + '\n\n' + PLAN_RULES : ASK_TAIL,
     ].filter(Boolean).join('\n\n') },
   ]
@@ -110,10 +136,16 @@ export async function runCoachAI(req: CoachRequest, apiKey = process.env.ANTHROP
   const meta = { cost, model: BRAIN_MODEL, usage: msg.usage }
   if (action === 'ask') return { reply: text.trim(), plan: null, ...meta }
   const parsed = extractJson(text) || {}
-  const plan = parsed.plan?.weeks ? normalizePlan(parsed.plan, start) : null
-  if (!plan) {
+  const written = parsed.plan?.weeks ? normalizePlan(parsed.plan, start) : null
+  if (!written) {
     return { reply: parsed.reply || text, plan: null, ...meta,
       error: 'The plan came back malformed, so nothing changed. Try again or shorten the request.' }
   }
+  // The code-checked rules run on every plan the AI writes; they can only make it safer.
+  const plan = enforceAll(written, {
+    profile, category: pipeline.planRequest.category,
+    maxQuality: pipeline.planRequest.weekly_structure?.max_quality_sessions,
+    baseline, baselineSrc, recentLongest,
+  })
   return { reply: parsed.reply || text, plan, ...meta }
 }

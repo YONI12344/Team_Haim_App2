@@ -105,6 +105,13 @@ export function toBrainProfile(s: AthleteSnapshot): BrainProfile {
   ].filter(Boolean).join(', ')
 
   const shape = String(p.currentShape || '')
+  // The week template's first rest day, and the days of the coach's recurring strength sessions.
+  const restDay = p.weekSchedule
+    ? cap(DAY_KEYS.find((d) => p.weekSchedule[d] === 'rest') || DAY_KEYS.find((d) => p.weekSchedule[d] === 'off') || '')
+    : ''
+  const gymDays = [...new Set<string>((p.recurringActivities || [])
+    .filter((a: any) => a?.type === 'strength' && a?.dayOfWeek)
+    .map((a: any) => cap(String(a.dayOfWeek).toLowerCase())))]
   return {
     name: p.name,
     age: String(ageFrom(p.dateOfBirth, s.today) ?? ''),
@@ -128,6 +135,11 @@ export function toBrainProfile(s: AthleteSnapshot): BrainProfile {
     equipment_access: equipment,
     training_environment: '',
     hill_access: s.overrides.hill_access || '',
+    // Schedule anchors and volume, as the brain's code-checked rules read them.
+    long_run_day: p.longRunDay ? cap(String(p.longRunDay).toLowerCase()) : '',
+    rest_day: restDay,
+    gym_days: gymDays.join(', '),
+    volume_goal: p.weeklyKmRange?.max ? `${p.weeklyKmRange.max} km` : '',
   }
 }
 
@@ -149,6 +161,8 @@ export function contextText(s: AthleteSnapshot, profile: BrainProfile): string {
   add('Weekly training hours', p.weeklyTrainingHours)
   add('Days per week', p.daysPerWeek)
   add('Training days', profile.training_days_preference)
+  add('Rest day (week template)', profile.rest_day)
+  add('Gym days (recurring strength)', profile.gym_days)
   add('Long run', [p.longRunDay, p.longRunMinutes && `${p.longRunMinutes} min`].filter(Boolean).join(', '))
   add('Current shape', p.currentShape)
   add('Resting / max HR', [p.restingHR, p.maxHR].some(Boolean) ? `${p.restingHR || '?'} / ${p.maxHR || '?'}` : '')

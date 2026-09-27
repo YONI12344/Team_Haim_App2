@@ -1,0 +1,750 @@
+{
+  "meta": {
+    "title": "TeamHaim training plan rules",
+    "purpose": "Every rule a training plan must follow, distilled from all 18 chapters and the four protocols of the brain. The season writer gets all of them; the rules marked enforced_by 'code' are checked again after the plan is written and can only make it safer (lower volume, fewer workouts, easier days).",
+    "sourcing": "Rules are written in TeamHaim's own words. The training science behind them is credited to Marius Bakken, 'The Norwegian Method'; source_chapters lists where each comes from. Rules with no chapter are TeamHaim's own.",
+    "enforced_by": {
+      "code": "checked in athlete_api.py after the plan is written",
+      "plan": "the season writer must follow it",
+      "coach": "used by the coach in chat and run feedback"
+    },
+    "count": 62
+  },
+  "rules": [
+    {
+      "id": "INT-1",
+      "category": "Intensity",
+      "rule": "All threshold work is done below the threshold (the Golden Zone), never at or above it.",
+      "why": "The method's volume only works if the muscles can absorb it; just above threshold the muscular cost jumps disproportionately.",
+      "source_chapters": [
+        "1",
+        "2",
+        "4"
+      ],
+      "applies_to": "all",
+      "enforced_by": "plan"
+    },
+    {
+      "id": "INT-2",
+      "category": "Intensity",
+      "rule": "Every easy run stays below 70% of max heart rate, the whole run, at every level.",
+      "why": "Easy days exist to lower muscle tone; the grey zone between easy and threshold costs load without the benefit.",
+      "source_chapters": [
+        "3",
+        "5"
+      ],
+      "applies_to": "all",
+      "enforced_by": "plan"
+    },
+    {
+      "id": "INT-3",
+      "category": "Intensity",
+      "rule": "Golden Zone pace depends on rep length: short reps at T-pace to +7 s/km, medium +7 to +14, long +14 to +21 s/km slower.",
+      "why": "Longer reps must run slower to stay under the threshold for the whole rep.",
+      "source_chapters": [
+        "2"
+      ],
+      "applies_to": "all",
+      "enforced_by": "code"
+    },
+    {
+      "id": "INT-4",
+      "category": "Intensity",
+      "rule": "Start the first rep 5-7 s/km slower than target and build through the session; never make the first or last rep the hardest.",
+      "why": "A soft start leaves room to adjust if the body isn't responding that day.",
+      "source_chapters": [
+        "3",
+        "5"
+      ],
+      "applies_to": "all",
+      "enforced_by": "plan"
+    },
+    {
+      "id": "INT-5",
+      "category": "Intensity",
+      "rule": "When in doubt, run slower. Paces from calculators or watches get a margin below them (watch thresholds often read 3-5% too high).",
+      "why": "Threshold shifts with sleep, stress, heat and fatigue; a few seconds too fast turns a controlled week into a lost one.",
+      "source_chapters": [
+        "2",
+        "4",
+        "5"
+      ],
+      "applies_to": "all",
+      "enforced_by": "coach"
+    },
+    {
+      "id": "INT-6",
+      "category": "Intensity",
+      "rule": "Runners new to threshold training start with a conservative Golden Zone (below about 3.0 mmol/L) for their first months.",
+      "why": "An adaptation period lets untrained muscles catch up before the zone is pushed.",
+      "source_chapters": [
+        "1",
+        "13"
+      ],
+      "applies_to": "new to threshold work",
+      "enforced_by": "plan"
+    },
+    {
+      "id": "INT-7",
+      "category": "Intensity",
+      "rule": "A green-light day means adding reps, never adding speed.",
+      "why": "Receptive days are for more volume in the zone, not for crossing it.",
+      "source_chapters": [
+        "5",
+        "13"
+      ],
+      "applies_to": "all",
+      "enforced_by": "coach"
+    },
+    {
+      "id": "INT-8",
+      "category": "Intensity",
+      "rule": "Pace adjustments inside a session are small: 2-5 s/km, not 10+.",
+      "why": "Needing a big change means the day or the setup is off; change the session instead of forcing it.",
+      "source_chapters": [
+        "13"
+      ],
+      "applies_to": "all",
+      "enforced_by": "coach"
+    },
+    {
+      "id": "WEEK-1",
+      "category": "Weekly structure",
+      "rule": "Workouts per week follow run days: 3 run days -> 1 workout; 4-5 -> 2; 6 or more -> up to 3 (the third, the X-session, is optional). Every other run is easy or the long run.",
+      "why": "The three key sessions only work when all other runs are genuinely easy, and hard days need easy days between them.",
+      "source_chapters": [
+        "3",
+        "5"
+      ],
+      "applies_to": "all",
+      "enforced_by": "code",
+      "params": {
+        "3": 1,
+        "4": 2,
+        "5": 2,
+        "6": 3,
+        "7": 3
+      }
+    },
+    {
+      "id": "WEEK-2",
+      "category": "Weekly structure",
+      "rule": "Never two hard days back to back. The main threshold session has an easy day before and after it.",
+      "why": "Muscle tone peaks the day after a hard session; the easy day lets it drop before the next one.",
+      "source_chapters": [
+        "3",
+        "4",
+        "5"
+      ],
+      "applies_to": "all",
+      "enforced_by": "code"
+    },
+    {
+      "id": "WEEK-3",
+      "category": "Weekly structure",
+      "rule": "Easy days are protected: no speed work, strength or drills on them.",
+      "why": "Anything extra on an easy day keeps tone up, so the next quality session starts heavy.",
+      "source_chapters": [
+        "3",
+        "15"
+      ],
+      "applies_to": "all",
+      "enforced_by": "plan"
+    },
+    {
+      "id": "WEEK-4",
+      "category": "Weekly structure",
+      "rule": "The main threshold session (long reps, 10+ min, or varied continuous running for marathoners) happens at most once a week.",
+      "why": "It's the week's highest-load session and too demanding to repeat.",
+      "source_chapters": [
+        "5"
+      ],
+      "applies_to": "all",
+      "enforced_by": "plan"
+    },
+    {
+      "id": "WEEK-5",
+      "category": "Weekly structure",
+      "rule": "The support session uses short reps: up to 3 minutes (occasionally 6), often 45/15.",
+      "why": "Short reps give quality time in the zone at lower cost, balancing the main session.",
+      "source_chapters": [
+        "5"
+      ],
+      "applies_to": "all",
+      "enforced_by": "plan"
+    },
+    {
+      "id": "WEEK-6",
+      "category": "Weekly structure",
+      "rule": "The X-session is optional and the first thing cut at any sign of overload or injury.",
+      "why": "It's the spice, not the base; the two threshold sessions carry the plan.",
+      "source_chapters": [
+        "5",
+        "6"
+      ],
+      "applies_to": "all",
+      "enforced_by": "code"
+    },
+    {
+      "id": "WEEK-7",
+      "category": "Weekly structure",
+      "rule": "Vary rep length across the week and from week to week (short, medium, long); don't repeat one session type all the time.",
+      "why": "Variation prevents plateaus; sticking to one interval length is the most common mistake.",
+      "source_chapters": [
+        "3",
+        "7"
+      ],
+      "applies_to": "all",
+      "enforced_by": "plan"
+    },
+    {
+      "id": "WEEK-8",
+      "category": "Weekly structure",
+      "rule": "Keep weeks simple and similar; complexity belongs in the season's phases, not inside one week.",
+      "why": "Predictable weeks mean predictable muscle tone and fewer risky transitions.",
+      "source_chapters": [
+        "5",
+        "15"
+      ],
+      "applies_to": "all",
+      "enforced_by": "plan"
+    },
+    {
+      "id": "WEEK-9",
+      "category": "Weekly structure",
+      "rule": "With 4-6 hours a week, aim for roughly 60-65% easy, 20-30% Golden Zone and 5-10% above threshold.",
+      "why": "The 80/20 split was measured on elites training 15-25 hours; at low hours it leaves too little quality time.",
+      "source_chapters": [
+        "5"
+      ],
+      "applies_to": "recreational (4-6 h/week)",
+      "enforced_by": "plan"
+    },
+    {
+      "id": "WEEK-10",
+      "category": "Weekly structure",
+      "rule": "Under time pressure, keep at least one threshold session a week and never go more than a week without one.",
+      "why": "A minimum dose keeps the adaptations alive through busy periods.",
+      "source_chapters": [
+        "5"
+      ],
+      "applies_to": "all",
+      "enforced_by": "coach"
+    },
+    {
+      "id": "WEEK-11",
+      "category": "Weekly structure",
+      "rule": "A missed quality session is not made up later; the plan moves on.",
+      "why": "Squeezing it in breaks the easy days that protect the next sessions.",
+      "source_chapters": [
+        "6"
+      ],
+      "applies_to": "all",
+      "enforced_by": "coach"
+    },
+    {
+      "id": "WEEK-12",
+      "category": "Weekly structure",
+      "rule": "Very long reps (11-20 min) appear at most once every 10-14 days.",
+      "why": "They're easy to start too hard and turn into a fight against lactate.",
+      "source_chapters": [
+        "3"
+      ],
+      "applies_to": "all",
+      "enforced_by": "plan"
+    },
+    {
+      "id": "VOL-1",
+      "category": "Volume & progression",
+      "rule": "Week 1 of a season starts where the athlete is now: at most 5% above their recent weekly average.",
+      "why": "Transitions in load are when injuries happen; the season shouldn't open with one.",
+      "source_chapters": [
+        "3",
+        "9"
+      ],
+      "applies_to": "all",
+      "enforced_by": "code"
+    },
+    {
+      "id": "VOL-2",
+      "category": "Volume & progression",
+      "rule": "A build week rises at most 10% (and at most 8 km) over the build week before it.",
+      "why": "Gradual increases let tendons and muscles keep up with the heart and lungs, which adapt faster.",
+      "source_chapters": [
+        "5",
+        "6",
+        "9"
+      ],
+      "applies_to": "all",
+      "enforced_by": "code",
+      "params": {
+        "max_pct": 10,
+        "max_km": 8
+      }
+    },
+    {
+      "id": "VOL-3",
+      "category": "Volume & progression",
+      "rule": "No single run grows more than about 10% beyond the athlete's longest run of the last few weeks, and none is ever double it.",
+      "why": "Injury risk tracks single-session spikes more than weekly totals; doubling the longest recent run sharply raises it.",
+      "source_chapters": [
+        "9"
+      ],
+      "applies_to": "all",
+      "enforced_by": "code",
+      "params": {
+        "max_pct_over_recent_longest": 10
+      }
+    },
+    {
+      "id": "VOL-4",
+      "category": "Volume & progression",
+      "rule": "Volume never goes above the athlete's weekly goal; without one, never above their biggest week of the past year (or 20% above now).",
+      "why": "More kilometres help only if the body absorbs them; the athlete's life and goal set the ceiling.",
+      "source_chapters": [
+        "5",
+        "6"
+      ],
+      "applies_to": "all",
+      "enforced_by": "code"
+    },
+    {
+      "id": "VOL-5",
+      "category": "Volume & progression",
+      "rule": "If the athlete wants to keep their kilometres, weeks stay within 5% of them and progress comes from the sessions.",
+      "why": "Many runners improve for a long time on threshold quality alone.",
+      "source_chapters": [
+        "5"
+      ],
+      "applies_to": "all",
+      "enforced_by": "code"
+    },
+    {
+      "id": "VOL-6",
+      "category": "Volume & progression",
+      "rule": "When volume rises, only the easy runs grow. The quality sessions stay the same size.",
+      "why": "Quality sessions are the priority and are never traded for kilometres.",
+      "source_chapters": [
+        "6"
+      ],
+      "applies_to": "all",
+      "enforced_by": "plan"
+    },
+    {
+      "id": "VOL-7",
+      "category": "Volume & progression",
+      "rule": "Never raise volume and intensity at the same time; structure first, then volume, then (only if needed) intensity.",
+      "why": "Changing two loads at once is the classic path to overload.",
+      "source_chapters": [
+        "5",
+        "6",
+        "9"
+      ],
+      "applies_to": "all",
+      "enforced_by": "plan"
+    },
+    {
+      "id": "VOL-8",
+      "category": "Volume & progression",
+      "rule": "A top-up block of about 6 weeks at roughly +10% a week can build toward a race, finishing about 4 weeks before it.",
+      "why": "Gradual extra easy volume before a goal race gives a lift at low risk.",
+      "source_chapters": [
+        "5",
+        "6"
+      ],
+      "applies_to": "athletes building toward a race",
+      "enforced_by": "plan"
+    },
+    {
+      "id": "LONG-1",
+      "category": "Long run",
+      "rule": "For 5K and 10K goals the long run is 60-90 minutes of easy running; for half and full marathon it builds progressively week by week.",
+      "why": "Short-race athletes need the aerobic volume, not the extra mechanical load of very long runs.",
+      "source_chapters": [
+        "5",
+        "12"
+      ],
+      "applies_to": "all",
+      "enforced_by": "code",
+      "params": {
+        "max_minutes_up_to_10k": 90
+      }
+    },
+    {
+      "id": "LONG-2",
+      "category": "Long run",
+      "rule": "The long run is fully easy (below 70% max HR). A long run with 45/15 at the end counts as a hard day and is followed by an easy day.",
+      "why": "The combination is loading enough on its own.",
+      "source_chapters": [
+        "3",
+        "8"
+      ],
+      "applies_to": "all",
+      "enforced_by": "plan"
+    },
+    {
+      "id": "LONG-3",
+      "category": "Long run",
+      "rule": "The day after a hill session or the X-session is an easy, slightly longer run (60-90 minutes lowers tone well).",
+      "why": "Easy distance after hard hill work brings muscle tone down fastest.",
+      "source_chapters": [
+        "15"
+      ],
+      "applies_to": "all",
+      "enforced_by": "plan"
+    },
+    {
+      "id": "DT-1",
+      "category": "Double threshold",
+      "rule": "Double threshold is for athletes training about 6+ hours a week. Recreational runners: none or one double day a week; ambitious: up to two; never beginners.",
+      "why": "It works because intensity stays controlled; without a solid base it becomes two hard sessions in one day.",
+      "source_chapters": [
+        "5",
+        "6",
+        "7"
+      ],
+      "applies_to": "all",
+      "enforced_by": "code"
+    },
+    {
+      "id": "DT-2",
+      "category": "Double threshold",
+      "rule": "Morning session: longer reps, run clearly slower (expect 10-15 s/km slower than the evening's short reps). Evening: shorter reps, same effort, never pushed harder because it feels good.",
+      "why": "Longer reps in the morning keep tone from climbing all day; lower evening lactate means receptive, not permission to speed up.",
+      "source_chapters": [
+        "7",
+        "14",
+        "15"
+      ],
+      "applies_to": "all",
+      "enforced_by": "plan"
+    },
+    {
+      "id": "DT-3",
+      "category": "Double threshold",
+      "rule": "6-8 hours between the two sessions (2-3 hours can work; over 10-12 they become two separate sessions).",
+      "why": "The body treats the pair as one block when they sit inside the receptive window.",
+      "source_chapters": [
+        "7",
+        "14"
+      ],
+      "applies_to": "all",
+      "enforced_by": "plan"
+    },
+    {
+      "id": "DT-4",
+      "category": "Double threshold",
+      "rule": "At least one easy day between double days, and at first the days after (and before) a double day are completely easy.",
+      "why": "The stress response peaks the day after, which must stay easy.",
+      "source_chapters": [
+        "7",
+        "15"
+      ],
+      "applies_to": "all",
+      "enforced_by": "code"
+    },
+    {
+      "id": "DT-5",
+      "category": "Double threshold",
+      "rule": "Build into it in steps: easy run AM + threshold PM for 4-6 weeks first, and keep each session to 15-20 minutes of work at the start.",
+      "why": "A gradual entry avoids the most common error: two sessions that are both a little too hard.",
+      "source_chapters": [
+        "7"
+      ],
+      "applies_to": "athletes new to double threshold",
+      "enforced_by": "plan"
+    },
+    {
+      "id": "DT-6",
+      "category": "Double threshold",
+      "rule": "No double threshold on physically demanding workdays; rest between the sessions.",
+      "why": "Standing or physical work between sessions raises muscular load and injury risk.",
+      "source_chapters": [
+        "7",
+        "15"
+      ],
+      "applies_to": "all",
+      "enforced_by": "coach"
+    },
+    {
+      "id": "X-1",
+      "category": "Above threshold",
+      "rule": "Work above the threshold stays small: under about 30 minutes a week for ambitious athletes, only when fully recovered; at 4-6 hours a week no extra hard sessions beyond the X-session.",
+      "why": "Intense work costs far more recovery and can switch the body toward anaerobic habits too early.",
+      "source_chapters": [
+        "5",
+        "6"
+      ],
+      "applies_to": "all",
+      "enforced_by": "plan"
+    },
+    {
+      "id": "X-2",
+      "category": "Above threshold",
+      "rule": "45/15 or other hard reps never go the day after a hard session.",
+      "why": "They need fresh legs to be done well.",
+      "source_chapters": [
+        "8"
+      ],
+      "applies_to": "all",
+      "enforced_by": "code"
+    },
+    {
+      "id": "X-3",
+      "category": "Above threshold",
+      "rule": "Hills (when the athlete has one) are the X-session in the build phase; closer to racing they alternate with flat race-pace work, then give way to race-specific sessions.",
+      "why": "Uphill running is built-in strength work at lower speed and lower injury risk.",
+      "source_chapters": [
+        "5",
+        "6"
+      ],
+      "applies_to": "all",
+      "enforced_by": "code"
+    },
+    {
+      "id": "X-4",
+      "category": "Above threshold",
+      "rule": "Race-pace work is regulated by rest and rep length, not by running faster.",
+      "why": "You get kilometres at race pace while keeping the overall effort near threshold.",
+      "source_chapters": [
+        "6"
+      ],
+      "applies_to": "all",
+      "enforced_by": "plan"
+    },
+    {
+      "id": "CYC-1",
+      "category": "Recovery & phases",
+      "rule": "An easier week every 4th week (every 3rd when returning from a break or injury; alternating in short blocks): at least 20% fewer kilometres and one fewer workout.",
+      "why": "The lighter week should lift performance above the weeks before it, not just rest.",
+      "source_chapters": [
+        "5",
+        "9"
+      ],
+      "applies_to": "all",
+      "enforced_by": "code"
+    },
+    {
+      "id": "CYC-2",
+      "category": "Recovery & phases",
+      "rule": "Every change is gradual: phases, surfaces, shoes, adding a new session type. Allow weeks, not days, to move between phases.",
+      "why": "Transitions are where injuries come from.",
+      "source_chapters": [
+        "3",
+        "5",
+        "6",
+        "9"
+      ],
+      "applies_to": "all",
+      "enforced_by": "plan"
+    },
+    {
+      "id": "CYC-3",
+      "category": "Recovery & phases",
+      "rule": "New to the method: a flat, threshold-only structure first (threshold sessions plus easy running); add 45/15 or an X-session only once that's absorbed and injury-free.",
+      "why": "A stable base normalizes the muscles before variation and intensity are added.",
+      "source_chapters": [
+        "5",
+        "9"
+      ],
+      "applies_to": "beginners and athletes new to the method",
+      "enforced_by": "code"
+    },
+    {
+      "id": "CYC-4",
+      "category": "Recovery & phases",
+      "rule": "Check progress at least every 4 weeks and adjust paces and load to what the body is doing.",
+      "why": "Performance should rise through the hard weeks and come back stronger after the easier ones.",
+      "source_chapters": [
+        "5",
+        "6"
+      ],
+      "applies_to": "all",
+      "enforced_by": "coach"
+    },
+    {
+      "id": "CYC-5",
+      "category": "Recovery & phases",
+      "rule": "In the racing season, two threshold sessions a week are enough: the goal is maintenance plus race-specific work.",
+      "why": "Keeping the threshold base is what speed is built on; losing it can't be fixed by speed alone.",
+      "source_chapters": [
+        "6",
+        "14"
+      ],
+      "applies_to": "all",
+      "enforced_by": "plan"
+    },
+    {
+      "id": "TAPER-1",
+      "category": "Taper & race",
+      "rule": "The final two weeks cut volume but keep the number of sessions; sessions get shorter, not faster.",
+      "why": "Muscles need to stay active while the body rests; race form is mostly muscular state on the day.",
+      "source_chapters": [
+        "6",
+        "15"
+      ],
+      "applies_to": "all",
+      "enforced_by": "plan"
+    },
+    {
+      "id": "TAPER-2",
+      "category": "Taper & race",
+      "rule": "In race week: a sharper session about 4 days out and a short threshold session about 2 days out.",
+      "why": "This steers muscle tone toward its best on race day.",
+      "source_chapters": [
+        "15"
+      ],
+      "applies_to": "all",
+      "enforced_by": "plan"
+    },
+    {
+      "id": "TAPER-3",
+      "category": "Taper & race",
+      "rule": "Taper weeks never go up in volume.",
+      "why": "Taper is for arriving fresh.",
+      "source_chapters": [
+        "15"
+      ],
+      "applies_to": "all",
+      "enforced_by": "code"
+    },
+    {
+      "id": "RET-1",
+      "category": "Returning & injury",
+      "rule": "Returning from a break or injury: same structure, threshold time capped at 20-25 minutes per session, and volume only rises after the body has re-adapted.",
+      "why": "Choose the structure first and increase volume second, never the reverse.",
+      "source_chapters": [
+        "5"
+      ],
+      "applies_to": "returning or injured",
+      "enforced_by": "plan"
+    },
+    {
+      "id": "RET-2",
+      "category": "Returning & injury",
+      "rule": "Fever or symptoms below the neck: no running. Mild symptoms above the neck: at most 10-15 minutes of easy jogging and a few strides.",
+      "why": "Training through a fever risks a long setback.",
+      "source_chapters": [
+        "9"
+      ],
+      "applies_to": "all",
+      "enforced_by": "coach"
+    },
+    {
+      "id": "RET-3",
+      "category": "Returning & injury",
+      "rule": "Coming back after illness: 2-3 short-rep sessions (30/30, 45/15) a week for two weeks, just under threshold, while rebuilding volume.",
+      "why": "Short reps restore muscle elasticity quickly at low risk.",
+      "source_chapters": [
+        "8",
+        "9"
+      ],
+      "applies_to": "all",
+      "enforced_by": "coach"
+    },
+    {
+      "id": "RET-4",
+      "category": "Returning & injury",
+      "rule": "If an injury is suspected, stop the session and take one to two days off.",
+      "why": "Early stops prevent long breaks.",
+      "source_chapters": [
+        "9"
+      ],
+      "applies_to": "all",
+      "enforced_by": "coach"
+    },
+    {
+      "id": "RET-5",
+      "category": "Returning & injury",
+      "rule": "Signs of overload (heavy stairs, waking at 3-5 am, no good session in 10 days, rising effort at the same pace): cut intensity, not volume; keep most runs around 70% max HR with a little 45/15.",
+      "why": "Easy running helps muscles normalize; complete rest often makes the return harder.",
+      "source_chapters": [
+        "11"
+      ],
+      "applies_to": "all",
+      "enforced_by": "coach"
+    },
+    {
+      "id": "RET-6",
+      "category": "Returning & injury",
+      "rule": "Achilles, calf or foot problems: no hill running until pain-free.",
+      "why": "Uphill running loads the Achilles and calf hardest (a TeamHaim safety rule).",
+      "source_chapters": [
+        "9"
+      ],
+      "applies_to": "all",
+      "enforced_by": "code"
+    },
+    {
+      "id": "STR-1",
+      "category": "Strength & extras",
+      "rule": "Strength work only when there's a reason (over 50, bone-stress history, recurring injury, plateau); most healthy runners under 40 don't need it.",
+      "why": "It raises muscle tone and eats into threshold volume.",
+      "source_chapters": [
+        "10"
+      ],
+      "applies_to": "all",
+      "enforced_by": "code"
+    },
+    {
+      "id": "STR-2",
+      "category": "Strength & extras",
+      "rule": "When it's in: 1-2 short sessions a week for 6-12 weeks, then 1 to maintain; heavy-ish, eccentric-focused (hamstrings, calves), about 80% of an 'ideal' program; placed right after a threshold session, not on easy days.",
+      "why": "Minimum effective dose at the lowest cost to the running.",
+      "source_chapters": [
+        "10"
+      ],
+      "applies_to": "all",
+      "enforced_by": "plan"
+    },
+    {
+      "id": "STR-3",
+      "category": "Strength & extras",
+      "rule": "Very little cross-training in the plan; running-specific load is what adapts runners.",
+      "why": "Adaptation to load is running-specific.",
+      "source_chapters": [
+        "3"
+      ],
+      "applies_to": "all",
+      "enforced_by": "plan"
+    },
+    {
+      "id": "STR-4",
+      "category": "Strength & extras",
+      "rule": "New shoes: start with 20-30% of weekly volume in them, then add 10-15% a week.",
+      "why": "A shoe change is a load transition like any other.",
+      "source_chapters": [
+        "10"
+      ],
+      "applies_to": "all",
+      "enforced_by": "coach"
+    },
+    {
+      "id": "PRES-1",
+      "category": "Units & presentation",
+      "rule": "Kilometres only, paces in min/km; miles are converted (1 mile = 1.60934 km).",
+      "why": "One unit everywhere prevents mistakes.",
+      "source_chapters": [],
+      "applies_to": "all",
+      "enforced_by": "code"
+    },
+    {
+      "id": "PRES-2",
+      "category": "Units & presentation",
+      "rule": "Distances are whole kilometres (8 km, not 8.3 km).",
+      "why": "Plans should be easy to read and follow.",
+      "source_chapters": [],
+      "applies_to": "all",
+      "enforced_by": "code"
+    },
+    {
+      "id": "PRES-3",
+      "category": "Units & presentation",
+      "rule": "Explain the plan like a coach: why these sessions and these kilometres suit this athlete and their goal. Don't show the athlete rule names or 'safety checks'.",
+      "why": "The athlete should understand and trust the plan; the rules are the coach's tools.",
+      "source_chapters": [],
+      "applies_to": "all",
+      "enforced_by": "plan"
+    }
+  ]
+}

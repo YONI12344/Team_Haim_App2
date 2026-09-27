@@ -23,7 +23,9 @@ slower than T-pace).
 - Easy runs stay below 70% of max heart rate.
 - Tests are not training sessions: a 30-minute time trial or hill max-HR test is meant to be hard; rising effort in it is expected.
 - Protect easy days between hard days: muscle tone peaks the day AFTER a hard session.
-- Fever, or symptoms below the neck: no running.`
+- Fever, or symptoms below the neck: no running.
+- Kilometres only: every distance in km and every pace in min/km. If a number is in miles, convert it \
+(1 mile = 1.60934 km) before using it.`
 
 export const PLAN_SCHEMA = `{
   "title": "short plan title",
@@ -56,8 +58,17 @@ book's rules -- follow it. If double_threshold.applies is false, no double thres
 'probably_not_necessary', no strength sessions. If x_session_and_hills.hills is true, the build-phase X-session is the given \
 hill session (hill in the title), alternating with flat race-pace work in the specific phase and no hills in the last 3 \
 weeks; if false, never program hills.
+- Workouts per week: never more quality days (Golden Zone, X-session, tests) than weekly_structure.max_quality_sessions; \
+every other run day is an easy run or the long run.
+- Distances in whole kilometres (8 km, not 8.3 km), and every day that has running needs "km" so weekly totals can be checked.
+- Volume law (checked again in code after you answer, so follow it exactly): the progression cycle, recovery weeks, \
+baseline and ceiling are in the pipeline result under "progression". Week 1 starts at or below 5% over the baseline; build \
+weeks rise at most 10% (and at most 8 km) over the previous build week; recovery weeks drop 20-25%; never above the ceiling.
+- Schedule anchors ("schedule_anchors" in the pipeline result): rest on rest_day, long run on long_run_day, never hard \
+running on or the day after a gym day.
 - The coach's instruction wins over these defaults when they conflict (e.g. "make it smaller", "no double threshold"), \
-as long as it doesn't break the method rules. Say in the reply what you changed and why.`
+as long as it doesn't break the method rules. The rules checked in code are applied after you answer whatever the \
+instruction, so a plan that breaks them gets cut back. Say in the reply what you changed and why.`
 
 export const ASK_TAIL = `Answer the coach in plain text: short paragraphs, lists only when they help, no markdown headings. \
 Keep it under about 250 words unless the coach asks for detail.`
