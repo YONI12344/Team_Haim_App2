@@ -24,6 +24,8 @@ export interface PlanDay {
   zone: Zone
   title: string
   summary?: string
+  /** A session is prescribed by time OR by distance, never both (like the coach's workout builder). */
+  measure?: 'time' | 'distance'
   km?: number | null
   minutes?: number | null
   steps: PlanStep[]
@@ -31,6 +33,45 @@ export interface PlanDay {
   chapter?: string | null
   date?: string
   weekday?: string
+}
+
+const TIME_HINT = /\d+\s*(min|minutes|דק|ד')/i
+const KM_HINT = /\d+(\.\d+)?\s*(km|k\b|ק["״]?מ)/i
+
+/** Time or distance, never both: keeps the one the session is really prescribed in and clears the other.
+ *  Uses the day's own "measure" when the AI gave one, else the title ("90 min" / "12 km"), else the kind of
+ *  session (interval and test days run on the clock; easy, long and race days by distance when a km is given). */
+export function applyMeasure(d: PlanDay): PlanDay {
+  if (d.type === 'rest') return d
+  const hasKm = typeof d.km === 'number' && d.km > 0
+  const hasMin = typeof d.minutes === 'number' && d.minutes > 0
+  let measure = d.measure === 'time' || d.measure === 'distance' ? d.measure : undefined
+  if (!measure) {
+    if (hasKm && !hasMin) measure = 'distance'
+    else if (hasMin && !hasKm) measure = 'time'
+    else if (TIME_HINT.test(d.title || '') && !KM_HINT.test(d.title || '')) measure = 'time'
+    else if (KM_HINT.test(d.title || '')) measure = 'distance'
+    else measure = ['golden', 'x', 'test'].includes(d.type) || !hasKm ? 'time' : 'distance'
+  }
+  d.measure = measure
+  if (measure === 'time' && hasMin) d.km = null
+  if (measure === 'distance' && hasKm) d.minutes = null
+  for (const s of d.steps || []) {
+    const sKm = typeof s.km === 'number' && s.km > 0
+    const sMin = typeof s.minutes === 'number' && s.minutes > 0
+    if (sKm && sMin) {
+      if (KM_HINT.test(s.label || '') || (measure === 'distance' && s.kind === 'steady')) s.minutes = null
+      else s.km = null
+    }
+  }
+  return d
+}
+
+/** Estimated km of a session, for weekly totals only: its distance, else its time at the easy pace. */
+export function estimatedKm(d: PlanDay, easySecPerKm: number): number {
+  if (d.type === 'rest') return 0
+  if (typeof d.km === 'number' && d.km > 0) return d.km
+  return typeof d.minutes === 'number' ? (d.minutes * 60) / easySecPerKm : 0
 }
 
 export interface BrainPlan {
@@ -78,6 +119,7 @@ export function normalizePlan(raw: any, start: Date, maxWeeks = 20): BrainPlan {
       if (typeof d.km === 'number') d.km = d.km > 0 ? Math.max(1, pyRound(d.km)) : null // whole km
       if (typeof d.minutes === 'number') d.minutes = pyRound(d.minutes)
       d.title = d.title || 'Session'
+      applyMeasure(d)
       i++
     }
     w.days = days
@@ -133,7 +175,8 @@ export function toWorkoutFields(day: PlanDay) {
     ...(warm ? { warmup: warm, warmupEn: warm } : {}),
     ...(cool ? { cooldown: cool, cooldownEn: cool } : {}),
     ...(notes ? { notes, notesEn: notes } : {}),
-    ...(day.minutes ? { duration: Math.round(day.minutes) } : {}),
-    ...(day.km ? { distance: day.km } : {}),
+    // Time OR distance, like the coach's builder: never both.
+    ...(day.measure !== 'distance' && day.minutes ? { duration: Math.round(day.minutes) } : {}),
+    ...(day.measure !== 'time' && day.km ? { distance: day.km } : {}),
   }
 }

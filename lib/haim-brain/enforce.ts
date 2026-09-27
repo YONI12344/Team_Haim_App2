@@ -77,18 +77,31 @@ function dayKm(d: PlanDay, easyS: number): number {
 function scaleDay(d: PlanDay, f: number) {
   for (const key of ['km', 'minutes'] as const) if (isNum(d[key])) d[key] = Math.max(1, pyRound((d[key] as number) * f)) // whole km and minutes
   if ((d.type === 'easy' || d.type === 'long') && isNum(d.km)) d.title = (d.title || '').replace(/\b\d+(\.\d+)?\s*km\b/, `${d.km} km`)
+  if ((d.type === 'easy' || d.type === 'long') && isNum(d.minutes)) d.title = (d.title || '').replace(/\b\d+\s*min\b/, `${d.minutes} min`)
   for (const st of d.steps || []) {
     if (isNum(st.minutes) && ['steady', 'warmup', 'cooldown'].includes(st.kind)) st.minutes = pyRound(st.minutes * f, 1)
   }
 }
 
-function easyVersion(d: PlanDay, km: number, paces: Record<string, string> | undefined) {
+type EasySize = { km?: number | null; minutes?: number | null }
+
+/** An easy run of the given size: by time when the week's easy runs are by time, else by distance. */
+function easyVersion(d: PlanDay, size: EasySize | number, paces: Record<string, string> | undefined) {
+  const { km, minutes } = typeof size === 'number' ? { km: size, minutes: null } : size
+  const byTime = !km && !!minutes
   Object.assign(d, {
-    type: 'easy', zone: 'easy', title: `Easy ${km} km`, km, minutes: null,
+    type: 'easy', zone: 'easy', measure: byTime ? 'time' : 'distance',
+    title: byTime ? `Easy ${minutes} min` : `Easy ${km} km`, km: byTime ? null : km, minutes: byTime ? minutes : null,
     summary: 'Relaxed and conversational the whole way.',
-    steps: [{ kind: 'steady', label: 'Easy run', km, minutes: null, pace: paces?.easy || 'Conversational: below 70% of max HR' }],
+    steps: [{ kind: 'steady', label: 'Easy run', km: byTime ? null : km, minutes: byTime ? minutes : null, pace: paces?.easy || 'Conversational: below 70% of max HR' }],
     why: 'An easy day, so the legs are fresh for the next Golden Zone session (Bakken, Ch. 3).', chapter: '3',
   })
+}
+
+/** The size of the week's first easy run (its km, or its minutes when it's a time-based run). */
+function weekEasySize(days: PlanDay[]): EasySize | null {
+  const e = days.find((d) => d.type === 'easy' && (d.km || d.minutes))
+  return e ? (e.km ? { km: e.km } : { minutes: e.minutes }) : null
 }
 
 /** Swap two days' sessions; each day keeps its own date, weekday and id. */
@@ -111,9 +124,10 @@ export function enforceSessionBudget(plan: SafePlan, maxQuality?: number | null)
     const rank = (d: PlanDay) => (d.type !== 'x' ? 2 : 0) + (/double/i.test(d.title || '') ? 1 : 0)
     quality.sort((a, b) => rank(a) - rank(b))
     const easyKm = w.days.find((d) => d.type === 'easy' && d.km)?.km
+    const easySize = easyKm ? { km: easyKm } : weekEasySize(w.days)
     for (const d of quality.slice(0, quality.length - maxQuality)) {
-      const km = easyKm || Math.max(3, pyRound((d.km || 8) * 0.8))
-      easyVersion(d, km, plan.paces)
+      const size = easySize || (d.km || !d.minutes ? { km: Math.max(3, pyRound((d.km || 8) * 0.8)) } : { minutes: Math.max(20, pyRound(d.minutes * 0.8)) })
+      easyVersion(d, size, plan.paces)
       notes.push(`[WEEK-1] Week ${w.week}: ${d.weekday} changed to an easy run (at most ${maxQuality} workouts a week).`)
     }
   }
@@ -147,15 +161,19 @@ export function enforceLongRuns(plan: SafePlan, profile: BrainProfile, recentLon
   const notes: string[] = []
   for (const w of plan.weeks) {
     for (const d of w.days) {
-      let km = isNum(d.km) ? d.km : null
+      // Time-based easy and long runs count too, by their time at the easy pace.
+      const timed = !isNum(d.km) && isNum(d.minutes) && (d.type === 'easy' || d.type === 'long')
+      let km = isNum(d.km) ? d.km : timed ? ((d.minutes as number) * 60) / easyS : null
       if (!km || d.type === 'race' || d.type === 'rest') continue
       let limit = longest ? pyRound(longest * 1.1) : null
       if (d.type === 'long' && cap90) limit = limit ? Math.min(limit, cap90) : cap90
       if (limit && km > limit) {
         scaleDay(d, limit / km)
         const rule = cap90 && limit === cap90 ? '[LONG-1] long run up to 90 minutes for a 5K/10K goal' : '[VOL-3] at most 10% over the longest recent run'
-        notes.push(`Week ${w.week}: ${d.title} (${d.weekday}) ${km} -> ${d.km} km (${rule}).`)
-        km = d.km as number
+        notes.push(timed
+          ? `Week ${w.week}: ${d.title} (${d.weekday}) cut to ${d.minutes} min (${rule}).`
+          : `Week ${w.week}: ${d.title} (${d.weekday}) ${km} -> ${d.km} km (${rule}).`)
+        km = timed ? ((d.minutes as number) * 60) / easyS : (d.km as number)
       }
       longest = Math.max(longest || 0, km)
     }
@@ -252,9 +270,9 @@ export function enforceEasierWeekWorkouts(plan: SafePlan, maxQuality?: number | 
     if (!/recovery/i.test(String(w.focus || ''))) return
     const quality = w.days.filter((d) => QUALITY_TYPES.includes(d.type)).sort((a, b) => Number(a.type !== 'x') - Number(b.type !== 'x'))
     for (const d of quality.slice(0, Math.max(0, quality.length - (maxQuality - 1)))) {
-      const easyKm = w.days.find((x) => x.type === 'easy' && x.km)?.km || 6
+      const size = weekEasySize(w.days) || { km: 6 }
       const title = d.title
-      easyVersion(d, easyKm, plan.paces)
+      easyVersion(d, size, plan.paces)
       notes.push(`[CYC-1] Week ${idx + 1}: ${title} on ${d.weekday} became an easy run (easier week: one workout fewer).`)
     }
   })
@@ -304,9 +322,9 @@ export function enforceSpacing(plan: SafePlan): SafePlan {
         swapDays(days, n, spot)
         notes.push(`[WEEK-2] Week ${w.week}: ${a.title} moved from ${a.weekday} to ${b.weekday} (no hard days back to back).`)
       } else {
-        const easyKm = days.find((d) => d.type === 'easy' && d.km)?.km || 6
+        const size = weekEasySize(days) || { km: 6 }
         const title = days[n].title
-        easyVersion(days[n], easyKm, plan.paces)
+        easyVersion(days[n], size, plan.paces)
         notes.push(`[WEEK-2] Week ${w.week}: ${title} on ${days[n].weekday} became an easy run (it followed a hard day).`)
       }
     }

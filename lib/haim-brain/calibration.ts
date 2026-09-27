@@ -43,7 +43,8 @@ export function trainingDays(profile: BrainProfile): { days: Set<string>; source
 const easy = (minutes: number, pace: string | undefined, kind: 'easy' | 'long' = 'easy'): PlanDay => {
   const long = kind === 'long'
   return {
-    type: long ? 'long' : 'easy', zone: 'easy', title: long ? 'Long easy run' : 'Easy run',
+    // Built in minutes, so prescribed by time (never time and distance together).
+    type: long ? 'long' : 'easy', zone: 'easy', measure: 'time', title: long ? 'Long easy run' : 'Easy run',
     summary: long ? 'The longest run this week, fully easy.' : 'Relaxed and conversational the whole way.',
     minutes,
     steps: [{ kind: 'steady', label: long ? 'Long easy run' : 'Easy run', minutes, pace: pace || 'Conversational: below 70% of max HR',

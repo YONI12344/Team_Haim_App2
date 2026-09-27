@@ -8,8 +8,8 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { parseKm, runPipeline } from './pipeline'
 import { buildCalibration } from './calibration'
-import { allDays, normalizePlan, type BrainPlan } from './plan'
-import { pyRound } from './paces'
+import { allDays, estimatedKm, normalizePlan, type BrainPlan } from './plan'
+import { pyRound, rangeMid } from './paces'
 import { enforceAll, isRecoveryWeek, progressionCycle, rulesText, volumeCeiling, VOLUME_LAWS } from './enforce'
 import { type AthleteSnapshot, contextText, toBrainProfile } from './athlete-context'
 import { ADAPTIVE_PROTOCOL, chapterIndexText, chapterScience, compactChapter, routeChapters, seasonChapters } from './brain'
@@ -84,7 +84,8 @@ export async function runCoachAI(req: CoachRequest, apiKey = process.env.ANTHROP
 
   // Volume starting point and the longest recent run, for the volume law. A calibration week on the page
   // counts as recent training when the app has no weekly km.
-  const calKms = req.plan?.template ? allDays(req.plan).map((d) => d.km).filter((k): k is number => typeof k === 'number') : []
+  const calEasyS = rangeMid(req.plan?.paces?.easy) || 330
+  const calKms = req.plan?.template ? allDays(req.plan).map((d) => estimatedKm(d, calEasyS)).filter((k) => k > 0).map((k) => pyRound(k)) : []
   const loggedKm = parseKm(profile.weekly_mileage)
   const [baseline, baselineSrc] = loggedKm ? [loggedKm, 'the weekly km in the app']
     : calKms.length ? [calKms.reduce((a, b) => a + b, 0), 'the calibration week'] : [null, 'unknown']

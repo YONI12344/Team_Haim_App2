@@ -38,7 +38,8 @@ export const PLAN_SCHEMA = `{
     "type": one of ["rest","easy","golden","long","test","x","strength","race"],
     "title": "short session name, e.g. '6 x 6 min Golden Zone'",
     "summary": "one line the athlete reads",
-    "km": number or null, "minutes": number or null,
+    "measure": "time" or "distance" (how the session is prescribed),
+    "km": number (distance sessions only, else null), "minutes": number (time sessions only, else null),
     "zone": one of ["easy","golden","above","rest"],
     "steps": [{"kind": one of ["warmup","reps","steady","recovery","cooldown","test","strength","note"], "label": "...",
                "reps": integer or null, "minutes": number or null (per rep when reps is set), "km": number or null,
@@ -60,7 +61,10 @@ hill session (hill in the title), alternating with flat race-pace work in the sp
 weeks; if false, never program hills.
 - Workouts per week: never more quality days (Golden Zone, X-session, tests) than weekly_structure.max_quality_sessions; \
 every other run day is an easy run or the long run.
-- Distances in whole kilometres (8 km, not 8.3 km), and every day that has running needs "km" so weekly totals can be checked.
+- Time OR distance, never both: a session is prescribed either by time ("90 min easy": measure "time", minutes 90, km null)
+or by distance ("12 km easy": measure "distance", km 12, minutes null). The title says the same thing as the numbers.
+If you aren't sure of the distance, prescribe by time. Steps follow the same rule (a rep is minutes OR km).
+Distances in whole kilometres (8 km, not 8.3 km). Weekly totals are estimated in code from time at the easy pace.
 - Volume law (checked again in code after you answer, so follow it exactly): the progression cycle, recovery weeks, \
 baseline and ceiling are in the pipeline result under "progression". Week 1 starts at or below 5% over the baseline; build \
 weeks rise at most 10% (and at most 8 km) over the previous build week; recovery weeks drop 20-25%; never above the ceiling.
@@ -82,7 +86,8 @@ Plan shape:
 `
 
 export const PLAN_SCHEMA_DAY = `{"type": one of ["rest","easy","golden","long","test","x","strength","race"], "title": "...", "summary": "...",
- "km": number or null, "minutes": number or null, "zone": one of ["easy","golden","above","rest"],
+ "measure": "time" or "distance", "km": number (distance only, else null), "minutes": number (time only, else null),
+ "zone": one of ["easy","golden","above","rest"],
  "steps": [{"kind": one of ["warmup","reps","steady","recovery","cooldown","test","strength","note"], "label": "...", "reps": integer or null,
    "minutes": number or null, "km": number or null, "pace": "...", "rest": "... or null", "detail": "... or null"}],
  "why": "1-2 sentences", "chapter": "chapter id or null"}`

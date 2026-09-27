@@ -19,7 +19,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { type PlanDay, toWorkoutFields } from '@/lib/haim-brain/plan'
-import type { CoachExample, WrittenWorkout } from '@/lib/coach-voice/write'
+import { setText, type CoachExample, type WrittenWorkout } from '@/lib/coach-voice/write'
 import { clearDraft, loadDraft, saveDraft } from '@/lib/coach-voice/drafts'
 
 const BATCH = 14
@@ -28,8 +28,13 @@ const TEXT_FIELDS = ['warmup', 'cooldown', 'notes'] as const
 
 /** The coach's own recent workouts for this athlete (their style), topped up from the coach's library. */
 async function loadExamples(athleteId: string, coachId: string): Promise<CoachExample[]> {
+  // The coach's sets as the builder saves them, minus ids and lab-personalisation fields the rewrite doesn't use.
+  const row = (r: any) => Object.fromEntries(Object.entries({ distance: r.distance, duration: r.duration, distanceMeters: r.distanceMeters,
+    durationSec: r.durationSec, pace: r.pace, rest: r.rest }).filter(([, v]) => v !== undefined && v !== null && v !== ''))
   const pick = (w: any): CoachExample => ({ title: w.title, description: w.description, warmup: w.warmup, cooldown: w.cooldown,
-    notes: w.notes, type: w.type, distance: w.distance, duration: w.duration })
+    notes: w.notes, type: w.type, distance: w.distance, duration: w.duration,
+    sets: (w.sets || []).map((st: any) => ({ reps: st.reps, ...row(st), restBetweenReps: st.restBetweenReps || undefined,
+      restAfterSet: st.restAfterSet || undefined, notes: st.notes || undefined, intervals: (st.intervals || []).map(row) })) })
   const own = (w: any) => w && RUNNING.includes(w.type) && !['haim_brain', 'bakken'].includes(w.source) && (w.title || w.description)
   const since = format(subDays(new Date(), 180), 'yyyy-MM-dd')
   const aw = await getDocs(query(collection(db, 'assignedWorkouts'), where('athleteId', '==', athleteId), where('scheduledDate', '>=', since)))
@@ -133,10 +138,12 @@ export function CoachVoiceReview({ open, onClose, athlete, days, busyDates, onSe
         const text: Record<string, string> = {}
         for (const k of ['title', 'description', ...TEXT_FIELDS] as const) {
           if (w[k]) text[k] = w[k]
-          const en = w[`${k}En` as keyof WrittenWorkout]
+          const en = w[`${k}En` as keyof WrittenWorkout] as string
           if (en) text[`${k}En`] = en
         }
-        const base = { ...text, type, ...(duration ? { duration } : {}), ...(distance ? { distance } : {}),
+        // Sets exactly as the coach's builder saves them (one of distanceMeters / durationSec per row).
+        const sets = (w.sets || []).map((st) => ({ ...st, reps: st.reps || 1, intervals: st.intervals || [] }))
+        const base = { ...text, ...(sets.length ? { sets } : {}), type, ...(duration ? { duration } : {}), ...(distance ? { distance } : {}),
           source: 'haim_brain' as const, libraryHidden: true, createdBy: user.id, createdAt: new Date(), updatedAt: new Date() }
         const ref = await addDoc(collection(db, 'workouts'), { ...base, createdAt: serverTimestamp(), updatedAt: serverTimestamp() })
         await addDoc(collection(db, 'assignedWorkouts'), {
@@ -164,7 +171,7 @@ export function CoachVoiceReview({ open, onClose, athlete, days, busyDates, onSe
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><PenLine className="h-4 w-4" /> In my words: {athlete.name}</DialogTitle>
           <DialogDescription>
-            The plan's {days.length} session{days.length === 1 ? '' : 's'} rewritten the way you write workouts for {athlete.name.split(' ')[0]}.
+            The plan's {days.length} session{days.length === 1 ? '' : 's'} rewritten and built as sets the way you write workouts for {athlete.name.split(' ')[0]}.
             Numbers stay exactly as planned. Edit anything, untick what you don't want, then send. Nothing reaches the athlete before that.
           </DialogDescription>
         </DialogHeader>
@@ -208,14 +215,23 @@ export function CoachVoiceReview({ open, onClose, athlete, days, busyDates, onSe
                       <span className="tabular-nums">{day?.weekday?.slice(0, 3)} {w.date}</span> · {size}
                       {busyDates.has(w.date) ? <span className="text-destructive">· already has a workout that day</span> : null}
                     </label>
-                    <Input dir="auto" value={w[`title${f}` as keyof WrittenWorkout]} onChange={(e) => edit(w.date, `title${f}` as keyof WrittenWorkout, e.target.value)} className="font-medium" />
-                    <Textarea dir="auto" rows={3} value={w[`description${f}` as keyof WrittenWorkout]} onChange={(e) => edit(w.date, `description${f}` as keyof WrittenWorkout, e.target.value)} />
+                    <Input dir="auto" value={w[`title${f}` as keyof WrittenWorkout] as string} onChange={(e) => edit(w.date, `title${f}` as keyof WrittenWorkout, e.target.value)} className="font-medium" />
+                    <Textarea dir="auto" rows={3} value={w[`description${f}` as keyof WrittenWorkout] as string} onChange={(e) => edit(w.date, `description${f}` as keyof WrittenWorkout, e.target.value)} />
+                    {w.sets?.length ? (
+                      <div className="rounded bg-secondary/60 px-2 py-1.5 text-xs space-y-0.5" dir="auto">
+                        <p className="font-medium text-muted-foreground">Sets</p>
+                        {w.sets.map((st) => <p key={st.id} className="tabular-nums">{setText(st)}</p>)}
+                      </div>
+                    ) : null}
+                    {w.mismatches?.length ? (
+                      <p className="text-xs text-destructive">Check before sending: the plan has {w.mismatches.join(', ')}, which isn't in these sets.</p>
+                    ) : null}
                     <details className="text-xs">
                       <summary className="cursor-pointer text-muted-foreground">Warm-up, cool-down, notes</summary>
                       <div className="mt-2 space-y-2">
                         {TEXT_FIELDS.map((k) => (
                           <Textarea key={k} dir="auto" rows={2} placeholder={k}
-                            value={w[`${k}${f}` as keyof WrittenWorkout]} onChange={(e) => edit(w.date, `${k}${f}` as keyof WrittenWorkout, e.target.value)} />
+                            value={w[`${k}${f}` as keyof WrittenWorkout] as string} onChange={(e) => edit(w.date, `${k}${f}` as keyof WrittenWorkout, e.target.value)} />
                         ))}
                       </div>
                     </details>
