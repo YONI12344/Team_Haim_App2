@@ -31,7 +31,7 @@ export function AthleteLabView() {
   if (!user?.id || visible === null) {
     return (
       <div className="flex items-center justify-center min-h-[300px]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#c9a84c]" />
+        <Loader2 className="h-8 w-8 animate-spin text-gold" />
       </div>
     )
   }
@@ -39,8 +39,8 @@ export function AthleteLabView() {
   if (!visible) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[300px] text-center gap-3">
-        <div className="w-14 h-14 rounded-2xl bg-[#0a1628]/5 flex items-center justify-center">
-          <FlaskConical className="h-7 w-7 text-[#0a1628]/40" />
+        <div className="w-14 h-14 rounded-2xl bg-navy/5 flex items-center justify-center">
+          <FlaskConical className="h-7 w-7 text-navy/40" />
         </div>
         <p className="text-sm text-muted-foreground max-w-xs">
           המעבדה עוד לא הופעלה עבורך — דבר עם המאמן שלך כדי להתחיל במעקב בדיקות לקטט
@@ -52,7 +52,7 @@ export function AthleteLabView() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl md:text-3xl font-serif font-bold text-[#0a1628]">מעבדה</h1>
+        <h1 className="text-2xl md:text-3xl font-serif font-bold text-navy">מעבדה</h1>
         <p className="text-muted-foreground">ספי לקטט, קצבי אימון וטווחי דופק</p>
       </div>
       <AthletePhysiology athleteId={user.id} readOnly />

@@ -45,10 +45,10 @@ export default function AthleteChatPage() {
           <Loader2 className="h-8 w-8 animate-spin text-gold" />
         </div>
       ) : !coach ? (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-8" dir={isRTL ? 'rtl' : 'ltr'}>
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-12 text-center max-w-sm w-full">
-            <p className="text-[#0a1628] font-semibold text-lg mb-2">{t.coachNotJoinedTitle}</p>
-            <p className="text-gray-400 text-sm">{t.tryAgainLaterText}</p>
+        <div className="min-h-screen flex items-center justify-center bg-muted p-8" dir={isRTL ? 'rtl' : 'ltr'}>
+          <div className="bg-card rounded-3xl shadow-sm border border-border p-12 text-center max-w-sm w-full">
+            <p className="text-navy font-semibold text-lg mb-2">{t.coachNotJoinedTitle}</p>
+            <p className="text-muted-foreground text-sm">{t.tryAgainLaterText}</p>
           </div>
         </div>
       ) : (

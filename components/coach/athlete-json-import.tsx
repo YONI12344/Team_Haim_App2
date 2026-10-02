@@ -101,7 +101,7 @@ export function AthleteJsonImport({ athleteId }: { athleteId: string }) {
             className="w-full min-h-[160px] rounded-md border border-input bg-background px-3 py-2 text-xs font-mono"
             dir="ltr"
           />
-          {parseError && <p className="text-sm text-red-600">{parseError}</p>}
+          {parseError && <p className="text-sm text-rust-deep">{parseError}</p>}
           {!preview ? (
             <Button variant="outline" onClick={handlePreview} disabled={!raw.trim()}>Preview</Button>
           ) : (

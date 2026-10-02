@@ -160,7 +160,7 @@ function SetTimer({ targetSec, savedSec, completed, onDone, ui }: {
   if (running) {
     return (
       <div className="flex items-center gap-2">
-        <span className="font-mono text-base font-semibold text-[#0a1628] w-10 text-center">{remaining}</span>
+        <span className="font-mono text-base font-semibold text-navy w-10 text-center">{remaining}</span>
         <Button type="button" size="sm" variant="outline" onClick={stop} className="h-9 text-xs">
           <Square className="h-3.5 w-3.5 mr-1" />{ui.stop}
         </Button>
@@ -207,7 +207,7 @@ function SetControl({ ex, setIdx, set, onToggle, onWeight, onDuration, ui }: {
         aria-pressed={set.completed}
         className={`flex h-9 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition-colors ${
           set.completed
-            ? 'bg-emerald-600 border-emerald-600 text-white'
+            ? 'bg-pine border-pine text-white'
             : 'border-input text-muted-foreground bg-muted/40'
         }`}
       >
@@ -250,7 +250,7 @@ function AlternatePicker({ primaryName, alternateName, isAlt, onChoose, ui }: {
           type="button"
           onClick={() => onChoose(false)}
           className={`flex-1 px-2 py-1.5 rounded-md text-xs font-semibold border transition-colors ${
-            !isAlt ? 'bg-[#0a1628] text-white border-[#0a1628]' : 'bg-white text-gray-500 border-gray-200'
+            !isAlt ? 'bg-navy text-white border-navy' : 'bg-card text-muted-foreground border-border'
           }`}
         >
           {primaryName}
@@ -259,7 +259,7 @@ function AlternatePicker({ primaryName, alternateName, isAlt, onChoose, ui }: {
           type="button"
           onClick={() => onChoose(true)}
           className={`flex-1 px-2 py-1.5 rounded-md text-xs font-semibold border transition-colors ${
-            isAlt ? 'bg-[#0a1628] text-white border-[#0a1628]' : 'bg-white text-gray-500 border-gray-200'
+            isAlt ? 'bg-navy text-white border-navy' : 'bg-card text-muted-foreground border-border'
           }`}
         >
           {alternateName}
@@ -276,7 +276,7 @@ function InstructionList({ text, className }: { text?: string | null; className?
     <ul className={className}>
       {lines.map((line, i) => (
         <li key={i} className="flex items-start gap-1.5">
-          <span className="text-[#c9a84c] shrink-0">•</span>
+          <span className="text-gold shrink-0">•</span>
           <span>{line}</span>
         </li>
       ))}
@@ -498,9 +498,9 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
         // B's" (the old layout) didn't communicate that at all.
         <div className="space-y-4">
           {Array.from({ length: maxSetsInBlock }).map((_, roundIdx) => (
-            <div key={roundIdx} className="rounded-xl border-2 border-[#0a1628]/15 overflow-hidden">
-              <div className="bg-[#0a1628]/5 px-3 py-2">
-                <p className="text-sm font-bold text-[#0a1628]">{ui.roundOf(roundIdx + 1, maxSetsInBlock)}</p>
+            <div key={roundIdx} className="rounded-xl border-2 border-navy/15 overflow-hidden">
+              <div className="bg-navy/5 px-3 py-2">
+                <p className="text-sm font-bold text-navy">{ui.roundOf(roundIdx + 1, maxSetsInBlock)}</p>
               </div>
               <div className="p-3 space-y-3">
                 {block.exercises.map((rawEx, exIdx) => {
@@ -547,7 +547,7 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
                           )}
                           {roundIdx === 0 && <InstructionList text={ex.instructions} className="text-xs text-muted-foreground space-y-0.5" />}
                           {ex.notes && <p className="text-xs text-primary">{ex.notes}</p>}
-                          <p className="text-xs font-semibold text-[#0a1628]/70">
+                          <p className="text-xs font-semibold text-navy/70">
                             {formatSetTarget(language, ex.targetReps, ex.targetDurationSec)}
                           </p>
                           <SetControl
@@ -569,8 +569,8 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
                 })}
               </div>
               {roundIdx < maxSetsInBlock - 1 && (
-                <div className="bg-amber-50 px-3 py-2 text-center border-t border-amber-100">
-                  <p className="text-xs font-semibold text-amber-700">{ui.restThenNext}</p>
+                <div className="bg-ochre/10 px-3 py-2 text-center border-t border-ochre/25">
+                  <p className="text-xs font-semibold text-ochre-deep">{ui.restThenNext}</p>
                 </div>
               )}
             </div>
@@ -644,7 +644,7 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
           <ChevronRight className="h-4 w-4 mr-1" />{ui.prev}
         </Button>
         {isLastBlock ? (
-          <Button onClick={finishWorkout} disabled={finishing} className="flex-1 bg-emerald-600 hover:bg-emerald-700">
+          <Button onClick={finishWorkout} disabled={finishing} className="flex-1 bg-pine hover:bg-pine">
             {finishing && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
             {ui.finish}
           </Button>

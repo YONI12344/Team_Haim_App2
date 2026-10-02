@@ -30,15 +30,15 @@ const WorkoutBuilder = dynamic(() => import('@/components/coach/workout-builder'
 const DAY_LABELS = ['א','ב','ג','ד','ה','ו','ש']
 
 const TYPE_COLORS: Record<string, string> = {
-  easy: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  easy: 'bg-pine/15 text-pine border-pine/25',
   long_run: 'bg-orange-100 text-orange-700 border-orange-200',
   tempo: 'bg-purple-100 text-purple-700 border-purple-200',
   intervals: 'bg-blue-100 text-blue-700 border-blue-200',
-  hill_repeats: 'bg-amber-100 text-amber-700 border-amber-200',
+  hill_repeats: 'bg-ochre/15 text-ochre-deep border-ochre/25',
   fartlek: 'bg-cyan-100 text-cyan-700 border-cyan-200',
-  recovery: 'bg-gray-100 text-gray-600 border-gray-200',
+  recovery: 'bg-muted text-foreground/80 border-border',
   rest: 'bg-muted text-muted-foreground',
-  race: 'bg-red-100 text-red-700 border-red-200',
+  race: 'bg-rust/15 text-rust-deep border-rust/25',
 }
 
 interface AthleteWeekData {
@@ -274,8 +274,8 @@ export function CoachPlanningHub() {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-2">
             <div className="flex gap-1 bg-muted rounded-full p-0.5">
-              <button onClick={() => setViewMode('week')} className={cn('text-xs px-3 py-1 rounded-full transition-all', viewMode==='week' ? 'bg-white text-navy font-semibold shadow-sm' : 'text-muted-foreground')}>שבוע</button>
-              <button onClick={() => setViewMode('month')} className={cn('text-xs px-3 py-1 rounded-full transition-all', viewMode==='month' ? 'bg-white text-navy font-semibold shadow-sm' : 'text-muted-foreground')}>חודש</button>
+              <button onClick={() => setViewMode('week')} className={cn('text-xs px-3 py-1 rounded-full transition-all', viewMode==='week' ? 'bg-card text-navy font-semibold shadow-sm' : 'text-muted-foreground')}>שבוע</button>
+              <button onClick={() => setViewMode('month')} className={cn('text-xs px-3 py-1 rounded-full transition-all', viewMode==='month' ? 'bg-card text-navy font-semibold shadow-sm' : 'text-muted-foreground')}>חודש</button>
             </div>
             <Button variant="ghost" size="icon" onClick={() => setCurrentDate(d => viewMode==='week' ? subWeeks(d,1) : subMonths(d,1))}><ChevronRight className="h-4 w-4"/></Button>
             <span className="text-sm font-semibold text-navy">
@@ -327,7 +327,7 @@ export function CoachPlanningHub() {
               className={cn('flex items-center gap-1.5 rounded-full px-3 py-1 text-xs border transition-all',
                 selectedAthletes.includes(d.athlete.id)
                   ? 'bg-navy text-white border-navy'
-                  : 'bg-white text-muted-foreground border-border hover:border-navy/40'
+                  : 'bg-card text-muted-foreground border-border hover:border-navy/40'
               )}>
               <Avatar className="h-4 w-4">
                 <AvatarImage src={d.athlete.photoURL}/>
@@ -343,7 +343,7 @@ export function CoachPlanningHub() {
           {visibleAthletes.map(data => {
             const weekKm = getWeekKm(data, weekDays)
             return (
-              <div key={data.athlete.id} className="rounded-2xl border border-border bg-white overflow-hidden">
+              <div key={data.athlete.id} className="rounded-2xl border border-border bg-card overflow-hidden">
                 {/* Athlete header */}
                 <div className="flex items-center justify-between px-4 py-2.5 border-b bg-muted/20">
                   <div className="flex items-center gap-3">
@@ -356,7 +356,7 @@ export function CoachPlanningHub() {
                       <div className="flex items-center gap-2 flex-wrap">
                         {data.journeyStage && <Badge variant="outline" className="text-[10px] bg-navy/5 text-navy border-navy/20">{data.journeyStage}</Badge>}
                         {data.athlete.weeklyKmRange && <span className="text-[10px] text-muted-foreground">יעד: {data.athlete.weeklyKmRange.min}–{data.athlete.weeklyKmRange.max} ק"מ</span>}
-                        {weekKm > 0 && <span className={cn('text-[10px] font-medium', data.athlete.weeklyKmRange && weekKm >= data.athlete.weeklyKmRange.min ? 'text-emerald-600' : 'text-amber-600')}>{weekKm} ק"מ</span>}
+                        {weekKm > 0 && <span className={cn('text-[10px] font-medium', data.athlete.weeklyKmRange && weekKm >= data.athlete.weeklyKmRange.min ? 'text-pine' : 'text-ochre-deep')}>{weekKm} ק"מ</span>}
                       </div>
                     </div>
                   </div>
@@ -435,7 +435,7 @@ export function CoachPlanningHub() {
                       <div className="flex items-center gap-1.5">
                         <button onClick={() => { setCopiedWorkout(selectedAssignedWorkout); setSelectedAssignedWorkout(null); toast.success('הועתק') }} className="flex items-center gap-1 bg-muted/40 hover:bg-muted rounded px-2 py-1 text-xs font-medium text-navy"><Copy className="h-3 w-3"/>העתק</button>
                         <button onClick={() => { handleOpenEdit(selectedAssignedWorkout); setSelectedAssignedWorkout(null) }} className="flex items-center gap-1 bg-muted/40 hover:bg-muted rounded px-2 py-1 text-xs font-medium text-navy"><Pencil className="h-3 w-3"/>ערוך</button>
-                        <button onClick={() => { handleDeleteWorkout(selectedAssignedWorkout); setSelectedAssignedWorkout(null) }} className="flex items-center gap-1 bg-red-50 hover:bg-red-100 rounded px-2 py-1 text-xs font-medium text-red-600"><Trash2 className="h-3 w-3"/>מחק</button>
+                        <button onClick={() => { handleDeleteWorkout(selectedAssignedWorkout); setSelectedAssignedWorkout(null) }} className="flex items-center gap-1 bg-rust/10 hover:bg-rust/15 rounded px-2 py-1 text-xs font-medium text-rust-deep"><Trash2 className="h-3 w-3"/>מחק</button>
                         <button onClick={(e) => { e.stopPropagation(); setShowAthleteView(true) }} className="flex items-center gap-1 bg-blue-50 hover:bg-blue-100 rounded px-2 py-1 text-xs font-medium text-blue-600"><Eye className="h-3 w-3"/>תצוגת אתלט</button>
                       </div>
                       <div className="flex items-center gap-2">
@@ -572,8 +572,8 @@ export function CoachPlanningHub() {
       {/* Athlete View Popup */}
       {showAthleteView && selectedAssignedWorkout && (
         <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4" onClick={() => setShowAthleteView(false)}>
-          <div className="bg-white rounded-2xl w-full max-w-md max-h-[85vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()} dir="rtl">
-            <div className="flex items-center justify-between px-4 py-3 border-b sticky top-0 bg-white">
+          <div className="bg-card rounded-2xl w-full max-w-md max-h-[85vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()} dir="rtl">
+            <div className="flex items-center justify-between px-4 py-3 border-b sticky top-0 bg-card">
               <button onClick={() => setShowAthleteView(false)}><X className="h-5 w-5 text-muted-foreground"/></button>
               <p className="font-bold text-navy">{selectedAssignedWorkout.workout?.title}</p>
             </div>

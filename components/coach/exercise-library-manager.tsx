@@ -271,7 +271,7 @@ export function ExerciseLibraryManager() {
             onClick={() => setFilterCategory(opt.value)}
             className={cn(
               'px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors',
-              filterCategory === opt.value ? 'bg-[#0a1628] text-white border-[#0a1628]' : 'bg-white text-gray-500 border-gray-200',
+              filterCategory === opt.value ? 'bg-navy text-white border-navy' : 'bg-card text-muted-foreground border-border',
             )}
           >
             {opt.label}
@@ -307,7 +307,7 @@ export function ExerciseLibraryManager() {
                 <div>
                   <div className="flex items-center gap-1.5">
                     <p className="text-sm font-semibold">{ex.name}</p>
-                    {ex.isTimed && <Timer className="h-3 w-3 text-[#c9a84c] shrink-0" />}
+                    {ex.isTimed && <Timer className="h-3 w-3 text-gold shrink-0" />}
                     {ex.videoMuted && <VolumeX className="h-3 w-3 text-muted-foreground shrink-0" />}
                   </div>
                   {ex.isTimed ? (

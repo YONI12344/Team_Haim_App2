@@ -19,7 +19,7 @@ function WorkoutsContent() {
         <TabsTrigger value="library">ספריית אימונים</TabsTrigger>
         <TabsTrigger value="bank">בנק אימונים</TabsTrigger>
         <TabsTrigger value="cleanup">ניקוי וארגון</TabsTrigger>
-        <TabsTrigger value="restore" className="text-red-600 data-[state=active]:text-red-700">שחזור אימונים</TabsTrigger>
+        <TabsTrigger value="restore" className="text-rust-deep data-[state=active]:text-rust-deep">שחזור אימונים</TabsTrigger>
         <TabsTrigger value="exercises">ספריית תרגילים</TabsTrigger>
         <TabsTrigger value="planning">מרכז תכנון</TabsTrigger>
       </TabsList>

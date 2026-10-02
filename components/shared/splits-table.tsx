@@ -92,12 +92,12 @@ export function SplitsTable({
           <col style={{ width: '18%' }} />
         </colgroup>
         <thead>
-          <tr className="bg-[#0a1628]/5">
-            <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{showRepHeader ? '#' : 'km'}</th>
-            <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{t.timeInputLabel}</th>
-            <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{t.tempoLabel}</th>
-            <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{t.heartRateLabel}</th>
-            <th className="py-1.5 text-center font-bold text-[#0a1628] whitespace-nowrap">{showRepHeader ? t.targetDistanceLabel : 'Zone'}</th>
+          <tr className="bg-navy/5">
+            <th className="py-1.5 text-center font-bold text-navy whitespace-nowrap">{showRepHeader ? '#' : 'km'}</th>
+            <th className="py-1.5 text-center font-bold text-navy whitespace-nowrap">{t.timeInputLabel}</th>
+            <th className="py-1.5 text-center font-bold text-navy whitespace-nowrap">{t.tempoLabel}</th>
+            <th className="py-1.5 text-center font-bold text-navy whitespace-nowrap">{t.heartRateLabel}</th>
+            <th className="py-1.5 text-center font-bold text-navy whitespace-nowrap">{showRepHeader ? t.targetDistanceLabel : 'Zone'}</th>
           </tr>
         </thead>
         <tbody>
@@ -106,12 +106,12 @@ export function SplitsTable({
             const hr = row.heartRate ?? '—'
             const isfast = !row.isRest && row.pace && parseFloat(row.pace) < parseFloat(referencePace || '99')
             return (
-              <tr key={i} className={cn('border-t border-border/40', row.isRest ? 'bg-gray-50' : i % 2 === 0 ? 'bg-white' : 'bg-muted/20')}>
-                <td className={cn('py-2 text-center font-bold truncate px-0.5', row.isRest ? 'text-gray-400 text-[9px]' : 'text-[#0a1628]')}>{row.label}</td>
-                <td className={cn('py-2 text-center font-mono', row.isRest && 'text-gray-400')}>{row.time}</td>
-                <td className={cn('py-2 text-center font-mono font-semibold', row.isRest ? 'text-gray-300' : isfast ? 'text-emerald-600' : 'text-[#0a1628]')}>{row.isRest ? '—' : pace}</td>
-                <td className={cn('py-2 text-center font-mono', row.isRest ? 'text-gray-400' : typeof hr === 'number' && hr > 160 ? 'text-red-500' : typeof hr === 'number' && hr > 140 ? 'text-orange-500' : 'text-[#0a1628]')}>{hr}</td>
-                <td className={cn('py-2 text-center font-bold', row.isRest ? 'text-gray-300' : 'text-emerald-600')}>{row.targetLabel}</td>
+              <tr key={i} className={cn('border-t border-border/40', row.isRest ? 'bg-muted' : i % 2 === 0 ? 'bg-card' : 'bg-muted/20')}>
+                <td className={cn('py-2 text-center font-bold truncate px-0.5', row.isRest ? 'text-muted-foreground text-[9px]' : 'text-navy')}>{row.label}</td>
+                <td className={cn('py-2 text-center font-mono', row.isRest && 'text-muted-foreground')}>{row.time}</td>
+                <td className={cn('py-2 text-center font-mono font-semibold', row.isRest ? 'text-muted-foreground' : isfast ? 'text-pine' : 'text-navy')}>{row.isRest ? '—' : pace}</td>
+                <td className={cn('py-2 text-center font-mono', row.isRest ? 'text-muted-foreground' : typeof hr === 'number' && hr > 160 ? 'text-rust-deep' : typeof hr === 'number' && hr > 140 ? 'text-orange-500' : 'text-navy')}>{hr}</td>
+                <td className={cn('py-2 text-center font-bold', row.isRest ? 'text-muted-foreground' : 'text-pine')}>{row.targetLabel}</td>
               </tr>
             )
           })}

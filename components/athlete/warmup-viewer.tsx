@@ -96,7 +96,7 @@ export function WarmupViewer({ workoutId }: { workoutId: string }) {
               const target = formatSetTarget(language, ex.targetReps, ex.targetDurationSec, ex.targetSets)
               const isDone = !!done[ex.id]
               return (
-                <div key={ex.id} className={`rounded-md border overflow-hidden ${isDone ? 'border-emerald-300' : 'border-border/60'}`}>
+                <div key={ex.id} className={`rounded-md border overflow-hidden ${isDone ? 'border-pine/50' : 'border-border/60'}`}>
                   {ex.videoUrl ? (
                     <video src={ex.videoUrl} muted={ex.videoMuted} className="w-full aspect-video bg-black" controls playsInline preload="metadata" />
                   ) : (
@@ -116,7 +116,7 @@ export function WarmupViewer({ workoutId }: { workoutId: string }) {
                         type="button"
                         onClick={() => setDone((prev) => ({ ...prev, [ex.id]: !prev[ex.id] }))}
                         className={`flex h-7 shrink-0 items-center gap-1 rounded-md border px-2 text-[11px] font-semibold transition-colors ${
-                          isDone ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-input text-muted-foreground'
+                          isDone ? 'bg-pine border-pine text-white' : 'border-input text-muted-foreground'
                         }`}
                       >
                         {isDone ? <Check className="h-3.5 w-3.5" /> : <span className="h-3.5 w-3.5 rounded-full border-2 border-current" />}
@@ -128,7 +128,7 @@ export function WarmupViewer({ workoutId }: { workoutId: string }) {
                       <ul className="text-xs text-muted-foreground space-y-0.5">
                         {lines.map((line, i) => (
                           <li key={i} className="flex items-start gap-1.5">
-                            <span className="text-[#c9a84c] shrink-0">•</span>
+                            <span className="text-gold shrink-0">•</span>
                             <span>{line}</span>
                           </li>
                         ))}

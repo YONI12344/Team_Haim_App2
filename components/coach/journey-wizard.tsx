@@ -237,7 +237,7 @@ export function JourneyWizard({ open, onOpenChange, athleteId, onCreated }: Prop
               <select
                 value={experienceLevel}
                 onChange={e => setExperienceLevel(e.target.value as ExperienceLevel)}
-                className="h-9 w-full text-sm rounded-lg border border-border bg-white px-2 font-medium text-navy">
+                className="h-9 w-full text-sm rounded-lg border border-border bg-card px-2 font-medium text-navy">
                 <option value="">—</option>
                 <option value="beginner">מתחיל</option>
                 <option value="intermediate">בינוני</option>
@@ -276,7 +276,7 @@ export function JourneyWizard({ open, onOpenChange, athleteId, onCreated }: Prop
                   className={cn('text-xs font-semibold px-3 py-1.5 rounded-full border transition-all active:scale-95',
                     selectedTypes.includes(ty)
                       ? 'bg-navy text-white border-navy'
-                      : 'bg-white text-gray-500 border-border hover:border-navy/40')}>
+                      : 'bg-card text-muted-foreground border-border hover:border-navy/40')}>
                   {workoutTypeLabels[ty]}
                 </button>
               ))}
@@ -299,14 +299,14 @@ export function JourneyWizard({ open, onOpenChange, athleteId, onCreated }: Prop
                 <div className="flex items-center gap-1.5">
                   <Input value={race.event} onChange={e => updateRace(i, { event: e.target.value })}
                     placeholder="חצי מרתון תל אביב" className="h-8 text-xs flex-1" />
-                  <button onClick={() => removeRace(i)} className="w-6 h-6 rounded-full flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 flex-shrink-0">
+                  <button onClick={() => removeRace(i)} className="w-6 h-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-rust-deep hover:bg-rust/10 flex-shrink-0">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
                 <div className="grid grid-cols-2 gap-1.5">
                   <Input type="date" value={race.date} onChange={e => updateRace(i, { date: e.target.value })} className="h-8 text-xs" />
                   <select value={race.type || 'time_trial'} onChange={e => updateRace(i, { type: e.target.value as 'race' | 'time_trial' })}
-                    className="h-8 text-xs rounded-lg border border-border bg-white px-2 font-medium text-navy">
+                    className="h-8 text-xs rounded-lg border border-border bg-card px-2 font-medium text-navy">
                     <option value="time_trial">מבחן זמן</option>
                     <option value="race">תחרות הכנה</option>
                   </select>
