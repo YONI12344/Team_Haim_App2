@@ -11,7 +11,7 @@ import { toast } from 'sonner'
 import { useLanguage } from '@/contexts/language-context'
 import {
   ACTIVITY_KINDS, MANUAL_ACTIVITY_KINDS, activityLabel,
-  isRunningKind, isGymKind, type ActivityKind,
+  isRunningKind, isManualOnlyWorkout, type ActivityKind,
 } from '@/lib/activity-types'
 
 interface AddActivityDialogProps {
@@ -83,12 +83,12 @@ export function AddActivityDialog({ open, onOpenChange, athleteId, athleteName, 
         ))
         for (const aw of awSnap.docs) {
           if (aw.data().status === 'completed') continue
+          // Gym and stretching workouts are checked off on their exercises, not by an activity.
+          if (isManualOnlyWorkout(aw.data().workout)) continue
           const wType = aw.data().workout?.type || ''
-          const isStrengthW = ['strength', 'cross_training'].includes(wType)
           const plannedDist = aw.data().workout?.distance ?? 0
           let shouldComplete = false
-          if (isStrengthW) shouldComplete = isGymKind(kind)
-          else if (wType === 'swim') shouldComplete = kind === 'swim'
+          if (wType === 'swim') shouldComplete = kind === 'swim'
           else if (wType === 'bike') shouldComplete = kind === 'ride'
           else if (isRunningKind(kind) && parsedDistance) {
             shouldComplete = plannedDist === 0 || parsedDistance >= plannedDist * 0.7

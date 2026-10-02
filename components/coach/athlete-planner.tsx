@@ -328,8 +328,9 @@ export function AthletePlanner({ athleteId }: Props) {
   // workouts THIS specific athlete has actually been assigned before —
   // no separate fetch needed, derived straight from assignedWorkouts
   // (already loaded for the calendar), deduped by workoutId so a workout
-  // given 5 times shows once.
-  const [bankSource, setBankSource] = useState<'level' | 'history'>('level')
+  // given 5 times shows once. 'all' = the coach's full library, filtered
+  // the same way the library page is.
+  const [bankSource, setBankSource] = useState<'level' | 'history' | 'all'>('level')
   useEffect(() => {
     if (!athlete?.experienceLevel) { setBankWorkouts([]); return }
     getDocs(query(collection(db, 'workouts'), where('bankLevel', '==', athlete.experienceLevel)))
@@ -351,7 +352,13 @@ export function AthletePlanner({ athleteId }: Props) {
     return list
   }, [assignedWorkouts])
 
-  const displayedBankWorkouts = bankSource === 'level' ? bankWorkouts : historyWorkouts
+  const fullLibraryWorkouts = useMemo(
+    () => allWorkouts.filter((w) => !w.libraryHidden && w.source !== 'bakken'),
+    [allWorkouts],
+  )
+
+  const displayedBankWorkouts =
+    bankSource === 'level' ? bankWorkouts : bankSource === 'history' ? historyWorkouts : fullLibraryWorkouts
 
   const setAthleteLevel = async (level: ExperienceLevel) => {
     if (!athlete) return
@@ -1622,6 +1629,9 @@ export function AthletePlanner({ athleteId }: Props) {
                 {bankSource === 'history' && (
                   <span className="text-xs font-normal text-muted-foreground">— {athlete?.name || 'ספורטאי'}</span>
                 )}
+                {bankSource === 'all' && (
+                  <span className="text-xs font-normal text-muted-foreground">— כל הספרייה</span>
+                )}
               </CardTitle>
               {/* Switch between the shared level-wide bank and this specific
                   athlete's own assignment history — no separate fetch for
@@ -1636,6 +1646,10 @@ export function AthletePlanner({ athleteId }: Props) {
                   className={cn('text-[10px] px-2.5 py-1 rounded-md font-semibold transition-all', bankSource === 'history' ? 'bg-card text-navy shadow-sm' : 'text-muted-foreground')}>
                   היסטוריית ספורטאי
                 </button>
+                <button type="button" onClick={() => setBankSource('all')}
+                  className={cn('text-[10px] px-2.5 py-1 rounded-md font-semibold transition-all', bankSource === 'all' ? 'bg-white text-navy shadow-sm' : 'text-muted-foreground')}>
+                  כל הספרייה
+                </button>
               </div>
             </CardHeader>
             <CardContent className="px-4 pb-4">
@@ -1643,7 +1657,7 @@ export function AthletePlanner({ athleteId }: Props) {
                 <p className="text-xs text-muted-foreground">בחרו רמה למעלה כדי לראות את הבנק המתאים.</p>
               ) : bankByType.length === 0 ? (
                 <p className="text-xs text-muted-foreground">
-                  {bankSource === 'level' ? 'אין עדיין אימונים בבנק לרמה הזו.' : 'לספורטאי הזה עדיין לא שובצו אימונים.'}
+                  {bankSource === 'level' ? 'אין עדיין אימונים בבנק לרמה הזו.' : bankSource === 'history' ? 'לספורטאי הזה עדיין לא שובצו אימונים.' : 'הספרייה ריקה.'}
                 </p>
               ) : (
                 <div className="space-y-1.5 max-h-[70vh] overflow-y-auto pr-1">

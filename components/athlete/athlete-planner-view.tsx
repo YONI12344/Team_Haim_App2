@@ -38,9 +38,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { AddActivityDialog } from '@/components/athlete/add-activity-dialog'
 import { MoveWorkoutDialog } from '@/components/athlete/move-workout-dialog'
 import {
-  getActivityInfo, getActivityKind, isRunningKind, isGymKind,
+  getActivityInfo, getActivityKind, isRunningKind,
   formatDurationMin, activityLabel,
-  STRAVA_RUNNING_TYPES, STRAVA_GYM_TYPES,
+  STRAVA_RUNNING_TYPES, isManualOnlyWorkout,
 } from '@/lib/activity-types'
 
 const WEEKDAY_KEYS = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'] as const
@@ -497,16 +497,12 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
    */
   const computeStravaMatch = useCallback((w: AssignedWorkout, dateStr: string, isMulti: boolean) => {
     if (isMulti) return null
+    // Gym and stretching workouts are only ever done by the athlete's own check-off.
+    if (isManualOnlyWorkout(w.workout)) return null
     try {
       const activityLogs = weekLogs.filter(l => l.date === dateStr && isActivityLog(l))
       if (activityLogs.length === 0) return null
       const workoutType = w.workout?.type || ''
-      const isStrengthW = ['strength', 'cross_training'].includes(workoutType)
-      if (isStrengthW) {
-        const gymLog = activityLogs.find(l => isGymKind(getActivityKind(l)))
-        if (!gymLog) return null
-        return { status: 'completed' as const, actual: gymLog.actualDistance || 0, planned: 0 }
-      }
       if (workoutType === 'swim' || workoutType === 'bike') {
         const match = activityLogs.find(l => {
           const k = getActivityKind(l)
