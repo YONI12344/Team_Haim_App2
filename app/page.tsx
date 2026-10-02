@@ -84,7 +84,7 @@ export default function LoginPage() {
               className="w-20 h-20 object-contain"
             />
           </div>
-          <h1 className="font-display-serif text-4xl md:text-5xl font-bold text-navy mb-3 text-balance">
+          <h1 className="poster-caps text-6xl md:text-7xl text-ink mb-3 text-balance" dir="ltr">
             {t.teamHaim}
           </h1>
           <div className="navy-rule mb-3" aria-hidden />
