@@ -15,7 +15,7 @@ import {
 } from 'date-fns'
 import { cn, resolveText, isCoachMessageRecent } from '@/lib/utils'
 import { db } from '@/lib/firebase'
-import { collection, doc, getDoc, getDocs, query, where, updateDoc } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, query, where, updateDoc, serverTimestamp } from 'firebase/firestore'
 import type { AthleteProfile, AssignedWorkout, TrainingDayType, JourneyDoc } from '@/lib/types'
 import { sortBySession, setRestAfter, setRestBetweenReps } from '@/lib/types'
 import { listJourneys, computeJourneyProgress, stageDisplayName, isRestWeek, weekSeasonInfo, weekTargetKm } from '@/lib/journey'
@@ -818,7 +818,30 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
           </Link>
         </div>
       )}
-      {/* עדכן אימון / Strava / log form */}
+      {/* Gym / stretching: one Done button, no Strava, no effort form */}
+      {isManualOnlyWorkout(w.workout) ? (
+        <div className="border-t border-border p-4" dir={isRTL ? 'rtl' : 'ltr'}>
+          {w.status === 'completed' ? (
+            <div className="flex items-center justify-between gap-3">
+              <span className="flex items-center gap-2 text-sm font-bold text-pine">
+                <CheckCircle2 className="h-5 w-5" />
+                {isRTL ? 'בוצע' : 'Done'}
+              </span>
+              <button
+                onClick={() => setManualOnlyDone(w, false)}
+                className="text-xs text-muted-foreground underline underline-offset-2">
+                {isRTL ? 'בטל סימון' : 'Undo'}
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setManualOnlyDone(w, true)}
+              className="w-full h-11 rounded-xl bg-pine text-white text-sm font-bold active:scale-[0.98] transition-all">
+              {isRTL ? '✓ סיימתי את האימון' : '✓ I did this workout'}
+            </button>
+          )}
+        </div>
+      ) : (
       <div className="border-t border-border">
         {(() => {
           const stravaForDate = weekLogs.find(l => l.date === w.scheduledDate && l.source === 'strava')
@@ -870,6 +893,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
           )
         })()}
       </div>
+      )}
     </div>
     )
   }
@@ -880,6 +904,23 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
    *  attempts) can't leave stale/duplicate data around to confuse the next
    *  test. Not meant for real day-to-day use — just for verifying the
    *  Strava-matching logic against a clean slate. */
+  /** Gym/stretching workouts: the athlete marks them done (or undoes it) with
+   *  one tap — same status-only write as finishing in Lift Mode. */
+  const setManualOnlyDone = async (w: AssignedWorkout, done: boolean) => {
+    const status = done ? 'completed' : 'scheduled'
+    try {
+      await updateDoc(doc(db, 'assignedWorkouts', w.id), {
+        status,
+        completedAt: done ? serverTimestamp() : null,
+        updatedAt: serverTimestamp(),
+      })
+      setAssignedWorkouts(prev => prev.map(a => a.id === w.id ? { ...a, status } : a))
+    } catch (e) {
+      console.error('Marking workout done failed:', e)
+      toast.error(isRTL ? 'השמירה נכשלה, נסה שוב' : 'Could not save, try again')
+    }
+  }
+
   const handleResetDayDebug = async () => {
     if (!confirm(`מחיקת כל הנתונים של ${format(currentDate, 'd/M/yyyy')} — בטוח?`)) return
     try {
