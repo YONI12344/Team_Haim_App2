@@ -451,7 +451,7 @@ export function AthleteOnboarding() {
               <p className="mt-3 text-[15px] leading-relaxed text-stock/80">{c.welcomeBody}</p>
               <button
                 onClick={() => setStep(2)}
-                className="poster-caps mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-md bg-pine text-[24px] text-stock transition-transform active:scale-[0.98]"
+                className="poster-caps mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-md bg-ink text-[24px] text-stock transition-transform active:scale-[0.98]"
               >
                 {c.start} <Forward className="h-5 w-5" />
               </button>
@@ -680,7 +680,7 @@ export function AthleteOnboarding() {
                 <Backward className="h-5 w-5" /> {c.back}
               </button>
               <button onClick={next} disabled={saving}
-                className="poster-caps flex h-12 flex-1 items-center justify-center gap-2 rounded-md bg-pine text-[22px] text-stock transition-transform active:scale-[0.98] disabled:opacity-60">
+                className="poster-caps flex h-12 flex-1 items-center justify-center gap-2 rounded-md bg-ink text-[22px] text-stock transition-transform active:scale-[0.98] disabled:opacity-60">
                 {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : step === 6 ? c.finish : <>{c.next} <Forward className="h-5 w-5" /></>}
               </button>
               </div>

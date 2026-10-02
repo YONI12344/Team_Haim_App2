@@ -161,7 +161,7 @@ export function LeadsList() {
                     <Copy className="h-3.5 w-3.5 mr-1" /> {t.leadsCopyEmailBtn}
                   </Button>
                   {lead.status !== 'accepted' && lead.status !== 'converted' && (
-                    <Button size="sm" className="bg-pine hover:bg-pine text-white" disabled={updatingId === lead.id}
+                    <Button size="sm" className="bg-ink hover:bg-ink/90 text-stock" disabled={updatingId === lead.id}
                       onClick={() => setStatus(lead, 'accepted')}>
                       <Check className="h-3.5 w-3.5 mr-1" /> {t.leadsAcceptBtn}
                     </Button>

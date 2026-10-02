@@ -644,7 +644,7 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
           <ChevronRight className="h-4 w-4 mr-1" />{ui.prev}
         </Button>
         {isLastBlock ? (
-          <Button onClick={finishWorkout} disabled={finishing} className="flex-1 bg-pine hover:bg-pine">
+          <Button onClick={finishWorkout} disabled={finishing} className="flex-1 bg-ink hover:bg-ink/90 text-stock">
             {finishing && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
             {ui.finish}
           </Button>

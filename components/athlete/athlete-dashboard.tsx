@@ -652,7 +652,7 @@ export function AthleteDashboard() {
                     setCoachMessages(prev => prev.filter(m => m.id !== msg.id)) // instant hide
                     updateDoc(doc(db, 'coachMessages', msg.id), { read: true, readAt: Date.now() }).catch(() => {})
                   }}
-                  className="poster-caps flex h-8 items-center gap-1.5 rounded-md bg-pine px-3 text-[16px] text-stock transition-transform active:scale-95"
+                  className="poster-caps flex h-8 items-center gap-1.5 rounded-md bg-ink px-3 text-[16px] text-stock transition-transform active:scale-95"
                 >
                   <CheckCircle2 className="h-3.5 w-3.5" />
                   {t.markedAsReadBtn}

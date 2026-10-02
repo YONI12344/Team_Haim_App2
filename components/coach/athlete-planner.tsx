@@ -1282,7 +1282,7 @@ export function AthletePlanner({ athleteId }: Props) {
               </p>
             </div>
             <div className="flex items-center gap-1.5">
-              <Button size="sm" className="h-7 text-xs bg-pine hover:bg-pine text-white"
+              <Button size="sm" className="h-7 text-xs bg-ink hover:bg-ink/90 text-stock"
                 onClick={() => copyWeekTo(copiedWeekStart, addWeeks(copiedWeekStart, 1))}>
                 לשבוע הבא
               </Button>
@@ -1346,7 +1346,7 @@ export function AthletePlanner({ athleteId }: Props) {
                 </Button>
               )}
               {viewMode === 'week' && copiedWeekStart && !isSameDay(weekStart, copiedWeekStart) && (
-                <Button size="sm" className="h-7 text-xs bg-pine hover:bg-pine text-white"
+                <Button size="sm" className="h-7 text-xs bg-ink hover:bg-ink/90 text-stock"
                   onClick={() => copyWeekTo(copiedWeekStart, weekStart)}>
                   <ClipboardPaste className="h-3 w-3 mr-1"/>הדבק לשבוע זה
                 </Button>
@@ -1570,7 +1570,7 @@ export function AthletePlanner({ athleteId }: Props) {
                               <button
                                 onClick={() => copyWeekTo(copiedWeekStart, weekStartDay)}
                                 title={`הדבק לשבוע ${format(weekStartDay, 'd/M')}`}
-                                className="w-6 h-6 rounded-md bg-pine text-white flex items-center justify-center active:scale-90 transition-all">
+                                className="w-6 h-6 rounded-md bg-ink text-stock flex items-center justify-center active:scale-90 transition-all">
                                 <ClipboardPaste className="h-3 w-3"/>
                               </button>
                             ) : !copiedWeekStart ? (
