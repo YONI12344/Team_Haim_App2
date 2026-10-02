@@ -812,7 +812,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
       {(w.workout.type === 'strength' || w.workout.type === 'stretch') && !!w.workout.strengthBlocks?.length && !!athlete?.strengthToolsVisibleToAthlete && (
         <div className="px-4 py-3 border-t border-border">
           <Link href={`/athlete/lift/${w.id}`}>
-            <Button className="w-full bg-pine hover:bg-pine text-white font-bold">
+            <Button className="w-full bg-ink hover:bg-ink/90 text-stock font-bold">
               {w.workout.type === 'stretch' ? '🧘 התחל מתיחות' : '💪 התחל אימון כוח'}
             </Button>
           </Link>
@@ -836,7 +836,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
           ) : (
             <button
               onClick={() => setManualOnlyDone(w, true)}
-              className="w-full h-11 rounded-xl bg-pine text-white text-sm font-bold active:scale-[0.98] transition-all">
+              className="w-full h-11 rounded-xl bg-ink text-stock text-sm font-bold active:scale-[0.98] transition-all">
               {isRTL ? '✓ סיימתי את האימון' : '✓ I did this workout'}
             </button>
           )}
