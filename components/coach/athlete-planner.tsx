@@ -1647,7 +1647,7 @@ export function AthletePlanner({ athleteId }: Props) {
                   היסטוריית ספורטאי
                 </button>
                 <button type="button" onClick={() => setBankSource('all')}
-                  className={cn('text-[10px] px-2.5 py-1 rounded-md font-semibold transition-all', bankSource === 'all' ? 'bg-white text-navy shadow-sm' : 'text-muted-foreground')}>
+                  className={cn('text-[10px] px-2.5 py-1 rounded-md font-semibold transition-all', bankSource === 'all' ? 'bg-card text-navy shadow-sm' : 'text-muted-foreground')}>
                   כל הספרייה
                 </button>
               </div>
