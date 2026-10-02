@@ -76,6 +76,23 @@ export const STRAVA_RUNNING_TYPES = ['Run', 'VirtualRun', 'TrailRun', 'Treadmill
 /** Strava types that match strength / cross-training workouts */
 export const STRAVA_GYM_TYPES = ['WeightTraining', 'Workout', 'Crossfit', 'Yoga', 'Pilates']
 
+const MANUAL_ONLY_TYPES = ['strength', 'stretch', 'cross_training', 'rest']
+// Many stretching sessions are saved with type 'recovery' (a running type),
+// so the title is the only reliable signal for them.
+const STRETCH_TITLE = /מתיח|stretch|mobility|ניידות|גמישות/i
+const RUN_TITLE = /ריצ|run\b|ק"מ|km/i
+
+/**
+ * Planned workouts the athlete completes by hand (gym/strength exercises,
+ * stretching) — Strava activities must never fill or complete them.
+ */
+export function isManualOnlyWorkout(workout: { type?: string; title?: string } | null | undefined): boolean {
+  if (!workout) return false
+  if (MANUAL_ONLY_TYPES.includes(workout.type || '')) return true
+  const title = workout.title || ''
+  return STRETCH_TITLE.test(title) && !RUN_TITLE.test(title)
+}
+
 /** Manual-upload kinds counted as running */
 export const RUNNING_KINDS: ActivityKind[] = ['run', 'trail_run', 'treadmill']
 

@@ -19,7 +19,7 @@ import { format } from 'date-fns'
 import { toast } from 'sonner'
 import { useLanguage } from '@/contexts/language-context'
 import { expectedRepMetersForWorkout, scoreActivityFitForReps } from '@/lib/strava-lap-matching'
-import { STRAVA_RUNNING_TYPES, STRAVA_GYM_TYPES } from '@/lib/activity-types'
+import { STRAVA_RUNNING_TYPES, isManualOnlyWorkout } from '@/lib/activity-types'
 
 export interface UseStravaSyncOptions {
   /** Called once the sync + matching is fully done, so a page holding its
@@ -91,7 +91,14 @@ export function useStravaSync(athleteId: string, options: UseStravaSyncOptions =
             const existingDoc = existing.docs[0]
             const alreadyConfident = (existingDoc.data().matchTier ?? 0) >= 3
             const tooOldToRepair = activity.date < repairCutoffStr
-            if (existingDoc.data().assignedWorkoutId && (alreadyConfident || tooOldToRepair)) continue
+            const linkedId = existingDoc.data().assignedWorkoutId
+            if (linkedId && (alreadyConfident || tooOldToRepair)) {
+              // A confident link is still re-checked when it points at a
+              // gym/stretching workout: Strava must never fill those.
+              const linkedToManualOnly = !tooOldToRepair &&
+                isManualOnlyWorkout((await getDoc(doc(db, 'assignedWorkouts', linkedId))).data()?.workout)
+              if (!linkedToManualOnly) continue
+            }
             oldAssignedWorkoutId = existingDoc.data().assignedWorkoutId || null
             logRef = existingDoc.ref
           } else {
@@ -139,7 +146,6 @@ export function useStravaSync(athleteId: string, options: UseStravaSyncOptions =
         for (const [date, dayItems] of byDate) {
           try {
             const isRunAct = (a: any) => STRAVA_RUNNING_TYPES.includes(a.stravaType || 'Run')
-            const isGymAct = (a: any) => STRAVA_GYM_TYPES.includes(a.stravaType || '')
             const isSwimAct = (a: any) => a.stravaType === 'Swim'
             const isBikeAct = (a: any) => ['Ride', 'VirtualRide', 'MountainBikeRide', 'GravelRide', 'EBikeRide'].includes(a.stravaType || '')
             const awSnap = await getDocs(query(
@@ -188,8 +194,9 @@ export function useStravaSync(athleteId: string, options: UseStravaSyncOptions =
             // earliest in the day (by session tag), and so on.
             const runCandidates = awSnap.docs.filter(aw => {
               if (aw.data().status === 'completed') return false
+              if (isManualOnlyWorkout(aw.data().workout)) return false
               const wType = aw.data().workout?.type || ''
-              return !['strength', 'cross_training'].includes(wType) && wType !== 'swim' && wType !== 'bike'
+              return wType !== 'swim' && wType !== 'bike'
             })
             const allRunToday = dayItems.every(item => isRunAct(item.activity))
             const rawClusters = allRunToday ? buildTimeClusters(dayItems) : []
@@ -227,9 +234,10 @@ export function useStravaSync(athleteId: string, options: UseStravaSyncOptions =
                 // earlier sync) would see only the OTHER workout left as a
                 // candidate and wrongly reassign there by elimination.
                 if (aw.data().status === 'completed' && aw.id !== oldAssignedWorkoutId) return false
+                // Gym and stretching workouts are completed by the athlete
+                // on the exercises themselves, never from a Strava activity.
+                if (isManualOnlyWorkout(aw.data().workout)) return false
                 const wType = aw.data().workout?.type || ''
-                const isStrengthW = ['strength', 'cross_training'].includes(wType)
-                if (isStrengthW) return isGymAct(activity)
                 if (wType === 'swim') return isSwimAct(activity)
                 if (wType === 'bike') return isBikeAct(activity)
                 return isRunAct(activity)
@@ -313,10 +321,9 @@ export function useStravaSync(athleteId: string, options: UseStravaSyncOptions =
             // Phase 3 — write the final decision for each activity.
             for (const { activity, logRef, match, tier } of tentative) {
               const wType = match.data().workout?.type || ''
-              const isStrengthW = ['strength', 'cross_training'].includes(wType)
               const plannedDist = match.data().workout?.distance ?? 0
               let shouldComplete = false
-              if (isStrengthW || wType === 'swim' || wType === 'bike') {
+              if (wType === 'swim' || wType === 'bike') {
                 shouldComplete = true // discipline already confirmed via candidates filter
               } else {
                 // Sum distance across every activity THIS sync matched to
@@ -376,7 +383,29 @@ export function useStravaSync(athleteId: string, options: UseStravaSyncOptions =
             // if nothing today still points to whatever it used to be
             // linked to, that workout's "completed" status is stale and
             // must be reverted, or it stays wrongly marked done forever.
-            const oldIds = new Set(tentative.map(t => t.oldAssignedWorkoutId).filter((id): id is string => !!id))
+            // An activity that was attached to a gym/stretching workout and
+            // has no running workout to move to: detach it, so that workout
+            // is left for the athlete to complete by hand.
+            const tentativeLogIds = new Set(tentative.map(t => t.logRef.id))
+            const detachedFromManualOnly: string[] = []
+            for (const { activity, logRef, oldAssignedWorkoutId } of dayItems) {
+              if (!oldAssignedWorkoutId || tentativeLogIds.has(logRef.id)) continue
+              const oldDoc = awSnap.docs.find(d => d.id === oldAssignedWorkoutId)
+              if (!oldDoc || !isManualOnlyWorkout(oldDoc.data().workout)) continue
+              console.log('[strava-match] detaching from gym/stretch workout', { activity: activity.stravaName, title: oldDoc.data().workout?.title })
+              await updateDoc(logRef, {
+                assignedWorkoutId: null,
+                workoutId: `strava_${activity.stravaActivityId}`,
+                comparisonGroup: null,
+                matchTier: null,
+              })
+              detachedFromManualOnly.push(oldAssignedWorkoutId)
+            }
+
+            const oldIds = new Set([
+              ...tentative.map(t => t.oldAssignedWorkoutId).filter((id): id is string => !!id),
+              ...detachedFromManualOnly,
+            ])
             const newIds = new Set(tentative.map(t => t.match.id))
             for (const oldId of oldIds) {
               if (newIds.has(oldId)) continue
