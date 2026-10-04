@@ -1,5 +1,6 @@
 'use client'
 
+import { useAthleteUser } from '@/contexts/view-as-context'
 import { useEffect, useRef, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -105,7 +106,8 @@ interface ProfileForm {
 }
 
 export function AthleteProfile() {
-  const { user, firebaseUser } = useAuth()
+  const { firebaseUser } = useAuth()
+  const user = useAthleteUser()
   const { t, language, setLanguage, isRTL } = useLanguage()
 
   const handleSetLanguage = async (lang: 'he' | 'en') => {

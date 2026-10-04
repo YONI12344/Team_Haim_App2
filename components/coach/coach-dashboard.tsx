@@ -27,6 +27,7 @@ import type { AthleteProfile, AssignedWorkout } from '@/lib/types'
 import { sortBySession, setRestAfter, setRestBetweenReps } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { CoachPainReports } from '@/components/coach/coach-pain-reports'
 
 function mapDocToAthlete(d: QueryDocumentSnapshot<DocumentData>): AthleteProfile {
   const data = d.data()
@@ -391,6 +392,8 @@ export function CoachDashboard() {
           <p className={cn('text-[10px] mt-1', summary.needPlan > 0 ? 'text-white/85' : 'text-muted-foreground')}>צריך תכנית</p>
         </div>
       </div>
+
+      <CoachPainReports athletes={athletes} />
 
       {/* Per-athlete command center cards — sorted by attention */}
       <div className="space-y-4">

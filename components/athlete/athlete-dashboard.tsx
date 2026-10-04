@@ -1,5 +1,7 @@
 'use client'
 
+import { useAuth } from '@/contexts/auth-context'
+import { useAthleteUser } from '@/contexts/view-as-context'
 import { useRouter } from 'next/navigation'
 
 import { useEffect, useState, useRef } from 'react'
@@ -25,6 +27,7 @@ import {
   FlaskConical,
   RefreshCw,
   ChevronLeft,
+  HeartPulse,
 } from 'lucide-react'
 import Link from 'next/link'
 import { PosterScene, useSceneTimeNow } from '@/components/athlete/poster-scene'
@@ -49,7 +52,6 @@ import { ref, push, onValue, query as rtQuery, orderByChild, limitToLast } from 
 import { getCoachInfo, conversationId } from '@/lib/coach'
 import { isCoachEmail } from '@/lib/constants'
 import { useStravaSync } from '@/hooks/useStravaSync'
-import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
 import { useWorkoutTypeLabels, workoutTypeColors } from '@/lib/workout-labels'
 import type {
@@ -95,7 +97,8 @@ function NewAthleteRedirect() {
 
 export function AthleteDashboard() {
   const router = useRouter()
-  const { user } = useAuth()
+  const user = useAthleteUser()
+  const { user: authUser } = useAuth()
   const { permission, enableNotifications } = useNotifications()
   const [notifBannerDismissed, setNotifBannerDismissed] = useState(false)
   const sceneTime = useSceneTimeNow()
@@ -116,11 +119,13 @@ export function AthleteDashboard() {
   // unauthenticated request failed with nothing shown anywhere — the
   // athlete would see "connected" with no error, but sync could later
   // fail depending on what state was actually persisted.
+  // Always the signed-in person who just connected Strava — never the
+  // athlete a coach is viewing as.
   useEffect(() => {
     if (typeof window === "undefined") return
     const params = new URLSearchParams(window.location.search)
     if (params.get("strava") !== "connected") return
-    if (!user?.id) return
+    if (!authUser?.id) return
     const stravaId = params.get("stravaId")
     const stravaName = params.get("stravaName")
     const accessToken = params.get("accessToken")
@@ -136,7 +141,7 @@ export function AthleteDashboard() {
           // and had no owner field at all before, so any signed-in athlete
           // could read or overwrite any OTHER athlete's Strava tokens by
           // guessing/enumerating strava_<id> doc ids.
-          userId: user.id,
+          userId: authUser.id,
           name: stravaName || "",
           accessToken,
           refreshToken: refreshToken || "",
@@ -145,7 +150,7 @@ export function AthleteDashboard() {
         }, { merge: true }).then(() => {
           console.log("✅ Strava saved!")
           // Also save stravaId to user document
-          return setDoc(doc(db, "users", user.id), { stravaId: Number(stravaId), stravaConnected: true }, { merge: true })
+          return setDoc(doc(db, "users", authUser.id), { stravaId: Number(stravaId), stravaConnected: true }, { merge: true })
         }).then(() => {
           window.history.replaceState({}, "", "/athlete")
         }).catch((err) => {
@@ -154,7 +159,7 @@ export function AthleteDashboard() {
         })
       })
     })
-  }, [user?.id])
+  }, [authUser?.id])
   // logs/assigned below are on real-time onSnapshot listeners, so a
   // successful sync's Firestore writes flow into this screen automatically
   // — no manual refetch callback needed here (unlike the Schedule page's
@@ -247,6 +252,7 @@ export function AthleteDashboard() {
             visibleWeeksAhead: typeof data.visibleWeeksAhead === 'number' ? data.visibleWeeksAhead : 2,
             labVisibleToAthlete: data.labVisibleToAthlete === true,
             strengthToolsVisibleToAthlete: data.strengthToolsVisibleToAthlete === true,
+            rehabVisibleToAthlete: data.rehabVisibleToAthlete === true,
           })
         } else {
           setProfile({ name: user.name, events: [], personalRecords: [], goals: [] })
@@ -740,6 +746,7 @@ export function AthleteDashboard() {
             badge: unreadCount > 0 ? (unreadCount > 9 ? '9+' : String(unreadCount)) : null,
             show: true,
           },
+          { href: '/athlete/rehab', icon: HeartPulse, label: L.rehabTitle, sub: L.rehabSub, badge: null, show: !!profile?.rehabVisibleToAthlete },
           { href: '/athlete/progress', icon: TrendingUp, label: L.strengthTitle, sub: L.strengthSub, badge: null, show: !!profile?.strengthToolsVisibleToAthlete },
           { href: '/athlete/lab', icon: FlaskConical, label: t.labLabel, sub: t.labDesc, badge: null, show: !!profile?.labVisibleToAthlete },
         ].filter(r => r.show).map((r) => (
@@ -774,6 +781,8 @@ const HOME_COPY = {
     dayState: { done: 'done', planned: 'planned', skipped: 'skipped', rest: 'rest day' },
     strengthTitle: 'Strength progress',
     strengthSub: 'Weights and progress by exercise',
+    rehabTitle: 'Pain and rehab',
+    rehabSub: 'Something hurts? Tap the spot and your coach builds you a plan',
   },
   he: {
     today: 'היום',
@@ -784,5 +793,7 @@ const HOME_COPY = {
     dayState: { done: 'בוצע', planned: 'מתוכנן', skipped: 'דולג', rest: 'מנוחה' },
     strengthTitle: 'התקדמות בכוח',
     strengthSub: 'משקלים והתקדמות לפי תרגיל',
+    rehabTitle: 'כאב ושיקום',
+    rehabSub: 'משהו כואב? מסמנים על הגוף והמאמן בונה תוכנית',
   },
 } as const

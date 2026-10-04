@@ -48,6 +48,7 @@ const workoutTypeOrder: WorkoutType[] = [
   'recovery',
   'strength',
   'stretch',
+  'rehab',
   'cross_training',
   'swim',
   'bike',
@@ -580,7 +581,7 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton, initialType,
             targetOffsetSec: iv.targetOffsetSec ?? null,
           })),
         })),
-        strengthBlocks: (type === 'strength' || type === 'stretch') && strengthBlocks.length > 0 ? strengthBlocks : null,
+        strengthBlocks: (type === 'strength' || type === 'stretch' || type === 'rehab') && strengthBlocks.length > 0 ? strengthBlocks : null,
         isWarmup: type === 'stretch' && isWarmup,
         linkedRoutines: (() => {
           const complete = linkedRoutines.filter((l) => l.workoutId && l.label.trim())
@@ -922,8 +923,8 @@ export function WorkoutBuilder({ workoutId, onDone, hideBackButton, initialType,
         {/* Workout Sets — strength and stretch workouts get the structured
             block/superset builder (powers Lift Mode) instead of the
             generic running-oriented sets UI below. */}
-        {type === 'strength' || type === 'stretch' ? (
-          <StrengthBlockBuilder blocks={strengthBlocks} onChange={setStrengthBlocks} category={type === 'stretch' ? 'stretch' : 'strength'} />
+        {type === 'strength' || type === 'stretch' || type === 'rehab' ? (
+          <StrengthBlockBuilder blocks={strengthBlocks} onChange={setStrengthBlocks} category={type === 'strength' ? 'strength' : type} />
         ) : (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">

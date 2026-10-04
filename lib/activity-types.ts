@@ -76,7 +76,7 @@ export const STRAVA_RUNNING_TYPES = ['Run', 'VirtualRun', 'TrailRun', 'Treadmill
 /** Strava types that match strength / cross-training workouts */
 export const STRAVA_GYM_TYPES = ['WeightTraining', 'Workout', 'Crossfit', 'Yoga', 'Pilates']
 
-const MANUAL_ONLY_TYPES = ['strength', 'stretch', 'cross_training', 'rest']
+const MANUAL_ONLY_TYPES = ['strength', 'stretch', 'cross_training', 'rest', 'rehab']
 // Many stretching sessions are saved with type 'recovery' (a running type),
 // so the title is the only reliable signal for them.
 const STRETCH_TITLE = /מתיח|stretch|mobility|ניידות|גמישות/i

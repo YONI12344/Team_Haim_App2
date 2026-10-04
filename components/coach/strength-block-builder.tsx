@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Plus, Trash2, Loader2, Pencil } from 'lucide-react'
-import type { ExerciseLibraryItem, StrengthBlock, StrengthBlockExercise } from '@/lib/types'
+import type { ExerciseCategory, ExerciseLibraryItem, StrengthBlock, StrengthBlockExercise } from '@/lib/types'
 import { listExercises } from '@/lib/exercise-library'
 import { ExerciseEditDialog } from '@/components/coach/exercise-edit-dialog'
 import { resolveExerciseDisplay } from '@/lib/utils'
@@ -30,8 +30,9 @@ interface Props {
   // both 'stretch' and 'warmup' — there's no separate WorkoutType for
   // warm-ups, a warm-up routine is just a 'stretch' workout built entirely
   // from 'warmup'-category exercises, so both need to be selectable here.
-  // Defaults to 'strength' for any caller that predates this.
-  category?: 'strength' | 'stretch' | 'warmup'
+  // Defaults to 'strength' for any caller that predates this. A rehab
+  // session can pick from the whole library, rehab exercises first.
+  category?: ExerciseCategory
 }
 
 // Builds the structured strength/stretch-workout content that powers Lift
@@ -58,14 +59,17 @@ export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }
     listExercises().then(setAllExercises).catch(console.error).finally(() => setLoadingLibrary(false))
   }, [])
 
-  const library = allExercises.filter((ex) => {
-    const exCategory = ex.category || 'strength'
-    return category === 'strength' ? exCategory === 'strength' : exCategory !== 'strength'
-  })
+  const library = category === 'rehab'
+    ? [...allExercises].sort((a, b) => Number(b.category === 'rehab') - Number(a.category === 'rehab'))
+    : allExercises.filter((ex) => {
+        const exCategory = ex.category || 'strength'
+        if (exCategory === 'rehab') return false
+        return category === 'strength' ? exCategory === 'strength' : exCategory !== 'strength'
+      })
   const subcategories = Array.from(new Set(library.map((ex) => ex.subcategory).filter((s): s is string => !!s))).sort()
   const pickableLibrary = subcategoryFilter ? library.filter((ex) => ex.subcategory === subcategoryFilter) : library
   const libraryById = new Map(allExercises.map((e) => [e.id, e]))
-  const blockLabelPrefix = category === 'stretch' ? 'מתיחה' : 'סט'
+  const blockLabelPrefix = category === 'stretch' ? 'מתיחה' : category === 'rehab' ? 'תרגיל' : 'סט'
 
   const addBlock = () => {
     onChange([...blocks, { id: genId('block'), label: `${blockLabelPrefix} ${blocks.length + 1}`, exercises: [] }])
@@ -105,6 +109,7 @@ export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }
       // videoUrl/instructions hit this exact case for any exercise that
       // doesn't have one yet ("failed to save workout" on every add).
       ...(ex.videoUrl ? { videoUrl: ex.videoUrl } : {}),
+      ...(ex.imageUrl ? { imageUrl: ex.imageUrl } : {}),
       ...(ex.instructions ? { instructions: ex.instructions } : {}),
       ...(ex.isTimed ? { targetDurationSec: ex.defaultDurationSec || 30 } : {}),
     }
@@ -112,7 +117,7 @@ export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }
     // A block with 2+ exercises is a superset by definition — relabel it
     // automatically unless the coach already gave it a custom name.
     const block = blocks.find((b) => b.id === blockId)
-    if (block && block.exercises.length === 1 && /^(סט|מתיחה) \d+$/.test(block.label)) {
+    if (block && block.exercises.length === 1 && /^(סט|מתיחה|תרגיל) \d+$/.test(block.label)) {
       onChange(blocks.map((b) => (b.id === blockId
         ? { ...b, label: `סופרסט`, exercises: [...b.exercises, newExercise] }
         : b)))
@@ -152,6 +157,7 @@ export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }
         videoUrl: saved.videoUrl,
         videoMuted: saved.videoMuted ?? false,
         instructions: saved.instructions,
+        imageUrl: saved.imageUrl,
         category: saved.category ?? 'strength',
       })
     } else if (creatingForBlockId) {
@@ -173,7 +179,7 @@ export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }
           <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
         ) : library.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-6">
-            אין עדיין תרגילי {category === 'stretch' ? 'מתיחות' : 'כוח'} בספרייה — הוסיפו תרגילים בלשונית &quot;ספריית תרגילים&quot; (קטגוריית {category === 'stretch' ? 'מתיחות' : 'כוח'}) לפני בניית אימון מובנה.
+            אין עדיין תרגילי {category === 'stretch' ? 'מתיחות' : category === 'rehab' ? 'שיקום' : 'כוח'} בספרייה — הוסיפו תרגילים בלשונית &quot;ספריית תרגילים&quot; (קטגוריית {category === 'stretch' ? 'מתיחות' : category === 'rehab' ? 'שיקום' : 'כוח'}) לפני בניית אימון מובנה.
           </p>
         ) : blocks.length === 0 ? (
           <p className="text-muted-foreground text-center py-8">לא נוספו בלוקים עדיין</p>
@@ -291,7 +297,7 @@ export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }
                       <SelectContent>
                         {pickableLibrary.map((ex) => (
                           <SelectItem key={ex.id} value={ex.id}>
-                            {ex.name}{category !== 'strength' && ex.category === 'warmup' ? ' (חימום)' : ''}
+                            {ex.name}{category !== 'strength' && ex.category === 'warmup' ? ' (חימום)' : ''}{category === 'rehab' && ex.category === 'rehab' ? ' (שיקום)' : ''}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -316,7 +322,7 @@ export function StrengthBlockBuilder({ blocks, onChange, category = 'strength' }
       <ExerciseEditDialog
         exerciseId={editTarget?.exerciseId ?? null}
         open={!!editTarget || !!creatingForBlockId}
-        defaultCategory={creatingForBlockId ? (category === 'strength' ? 'strength' : 'stretch') : undefined}
+        defaultCategory={creatingForBlockId ? (category === 'strength' ? 'strength' : category === 'rehab' ? 'rehab' : 'stretch') : undefined}
         onOpenChange={(open) => { if (!open) { setEditTarget(null); setCreatingForBlockId(null) } }}
         onSaved={handleExerciseSaved}
       />

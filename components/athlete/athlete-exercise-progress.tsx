@@ -1,9 +1,9 @@
 'use client'
 
+import { useAthleteUser } from '@/contexts/view-as-context'
 import { useEffect, useMemo, useState } from 'react'
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { useAuth } from '@/contexts/auth-context'
 import { isCoachEmail } from '@/lib/constants'
 import { Loader2, ChevronLeft, Dumbbell, Trophy, Sparkles } from 'lucide-react'
 import {
@@ -48,7 +48,7 @@ function loadLogs(uid: string): Promise<ExerciseLogEntry[]> {
 }
 
 export function AthleteExerciseProgress() {
-  const { user } = useAuth()
+  const user = useAthleteUser()
   const [logs, setLogs] = useState<ExerciseLogEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [visible, setVisible] = useState<boolean | null>(null)

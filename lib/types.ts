@@ -75,6 +75,9 @@ export interface AthleteProfile {
   // athlete-facing surfaces, not just used to hide entry points, same
   // defense-in-depth spirit as labVisibleToAthlete.
   strengthToolsVisibleToAthlete?: boolean
+  // Coach opens the rehab platform (pain body map, rehab page, rehab
+  // sessions) per athlete — off by default, only the coach sees it until then.
+  rehabVisibleToAthlete?: boolean
   // Coach-set default routine links (same shape as Workout.linkedRoutines)
   // for THIS athlete — auto-applied to a workout when it's assigned to
   // them and doesn't already carry its own linkedRoutines (e.g. a specific
@@ -330,6 +333,9 @@ export type WorkoutType =
   | 'race'
   | 'time_trial'
   | 'threshold'
+  // Injury rehab session: built from strengthBlocks like a lift day, played
+  // in Lift Mode's rehab mode, where the athlete rates pain per exercise.
+  | 'rehab'
 
 // Workout
 export interface Workout {
@@ -445,6 +451,8 @@ export interface Workout {
   updatedAt: Date
 }
 
+export type ExerciseCategory = 'strength' | 'stretch' | 'warmup' | 'rehab'
+
 // Coach-managed exercise library — reusable across every strength workout
 // so a video/instructions only need to be uploaded once per exercise.
 export interface ExerciseLibraryItem {
@@ -471,8 +479,12 @@ export interface ExerciseLibraryItem {
   // mobility drills (see lib/seed-ancillary-routines.ts) — a 'stretch'-type
   // workout can pick from both 'stretch' and 'warmup' exercises (see
   // components/coach/strength-block-builder.tsx), but the library and its
-  // filter tabs keep them visually apart.
-  category?: 'strength' | 'stretch' | 'warmup'
+  // filter tabs keep them visually apart. 'rehab' exercises belong to injury
+  // rehab sessions (WorkoutType 'rehab').
+  category?: ExerciseCategory
+  // Still illustration of the movement (e.g. /rehab/calf-01.png) — shown in
+  // Lift Mode when there's no demo video, or above it.
+  imageUrl?: string
   // Free-text folder within a category — e.g. "Rope Stretching" / "Dynamic
   // Stretching" / "Static (Post-Run)" for stretch, "Heavy Weight" / "Light
   // Weight" / "Stability" / "Lower Leg" for strength. Purely a picker-
@@ -512,8 +524,9 @@ export interface StrengthBlockExercise {
   instructions?: string // denormalized
   // Denormalized from ExerciseLibraryItem.category — 'stretch'/'warmup'
   // exercises skip the weight input in Lift Mode (components/athlete/
-  // lift-mode.tsx SetControl); only 'strength' logs weight.
-  category?: 'strength' | 'stretch' | 'warmup'
+  // lift-mode.tsx SetControl); 'strength' and 'rehab' log weight.
+  category?: ExerciseCategory
+  imageUrl?: string // denormalized
   targetSets: number
   targetReps: string // free text, e.g. "8-12" or "10 each side"
   // Denormalized from ExerciseLibraryItem.isTimed/defaultDurationSec at
@@ -643,6 +656,10 @@ export interface AssignedWorkout {
   // stepping through components/athlete/lift-mode.tsx. durationSec is set
   // instead of weightKg for timed exercises (StrengthBlockExercise.targetDurationSec).
   strengthProgress?: Record<string, Array<{ completed: boolean; weightKg?: number | null; durationSec?: number | null }>>
+  // 'rehab' workouts only: pain the athlete felt during each exercise, 0-10,
+  // keyed by StrengthBlockExercise.id. Written live from Lift Mode's rehab
+  // mode; the finished session is also copied to rehabSessions/{id}.
+  rehabPain?: Record<string, number>
   // True when workout.linkedRoutines here came from the athlete's default
   // routine rules (components/coach/athlete-planner.tsx withAthleteDefaultRoutines),
   // not from the workout template's own linkedRoutines. Lets saving a
@@ -676,6 +693,81 @@ export interface ExerciseLogEntry {
   sets: Array<{ weightKg?: number | null; durationSec?: number | null; completed: boolean }>
   maxWeightKg?: number | null // derived at write time, for quick PB display
   maxDurationSec?: number | null // derived at write time, for timed exercises
+  createdAt: Date
+  updatedAt: Date
+}
+
+// --- Injury rehab ---
+// One injury the coach is rehabbing with an athlete (e.g. "calf strain,
+// left"). Coach-written; the athlete reads their own. Everything below hangs
+// off it: daily pain check-ins and finished rehab sessions.
+export interface RehabCase {
+  id: string
+  athleteId: string
+  title: string
+  bodyArea: string // lib/rehab.ts BODY_AREAS key, e.g. 'back:calves'
+  reportId?: string | null // the RehabReport it was opened from
+  side?: 'left' | 'right' | 'both' | null
+  injuryDate: string // yyyy-MM-dd
+  status: 'active' | 'resolved'
+  goal?: string | null // shown to the athlete, e.g. "back to easy running"
+  coachNotes?: string | null // shown to the athlete as the coach's guidance
+  resolvedDate?: string | null
+  createdBy: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+// "Something hurts": the athlete taps the spot on the body map and sends it
+// to the coach, who talks to them and opens a RehabCase from it.
+export interface RehabReport {
+  id: string
+  athleteId: string
+  areaKey: string // lib/rehab.ts BODY_AREAS key, e.g. 'back:calves'
+  side?: 'left' | 'right' | 'both' | null
+  pain: number // 0-10 right now
+  since: string // yyyy-MM-dd, when it started
+  triggers: string[] // lib/rehab.ts PAIN_TRIGGERS keys
+  notes?: string | null
+  status: 'new' | 'seen' | 'case_opened' | 'closed'
+  caseId?: string | null
+  createdAt: Date
+  updatedAt: Date
+}
+
+// The athlete's daily pain check-in for one case. Doc id is
+// `${caseId}_${date}` so a second save the same day updates it.
+export interface RehabCheckin {
+  id: string
+  caseId: string
+  athleteId: string
+  date: string // yyyy-MM-dd
+  morningPain?: number | null // 0-10, first steps out of bed
+  eveningPain?: number | null // 0-10, end of the day
+  feeling?: number | null // 1-5, overall
+  notes?: string | null
+  updatedAt: Date
+}
+
+// A finished rehab session (doc id = assignedWorkoutId), written when the
+// athlete taps Finish in rehab mode. Durable history for the pain journey,
+// unlike the overwritable assignedWorkouts.rehabPain.
+export interface RehabSessionLog {
+  id: string
+  athleteId: string
+  caseId?: string | null
+  assignedWorkoutId: string
+  workoutTitle: string
+  date: string // yyyy-MM-dd, the session's scheduled date
+  exercises: Array<{
+    exerciseId: string
+    name: string
+    pain: number | null
+    setsDone: number
+    setsTotal: number
+    maxWeightKg?: number | null
+  }>
+  maxPain: number | null
   createdAt: Date
   updatedAt: Date
 }

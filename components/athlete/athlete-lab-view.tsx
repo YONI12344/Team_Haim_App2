@@ -1,10 +1,10 @@
 'use client'
 
+import { useAthleteUser } from '@/contexts/view-as-context'
 import { useEffect, useState } from 'react'
 import { Loader2, FlaskConical } from 'lucide-react'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { useAuth } from '@/contexts/auth-context'
 import { AthletePhysiology } from '@/components/coach/athlete-physiology'
 
 /**
@@ -18,7 +18,7 @@ import { AthletePhysiology } from '@/components/coach/athlete-physiology'
  * without the coach having enabled it yet doesn't show anything.
  */
 export function AthleteLabView() {
-  const { user } = useAuth()
+  const user = useAthleteUser()
   const [visible, setVisible] = useState<boolean | null>(null)
 
   useEffect(() => {
