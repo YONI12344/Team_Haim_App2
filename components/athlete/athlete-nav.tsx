@@ -1,6 +1,8 @@
 'use client'
 
 import { useAuth } from '@/contexts/auth-context'
+import { useAthleteUser } from '@/contexts/view-as-context'
+import { useRehabVisible } from '@/hooks/useRehabVisible'
 import { useLanguage } from '@/contexts/language-context'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
@@ -25,10 +27,13 @@ import {
   ChevronDown,
   Compass,
   FileText,
+  HeartPulse,
 } from 'lucide-react'
 
 export function AthleteNav() {
-  const { user, signOut } = useAuth()
+  const { signOut } = useAuth()
+  const user = useAthleteUser()
+  const rehabVisible = useRehabVisible()
   const { t } = useLanguage()
   const pathname = usePathname()
   const router = useRouter()
@@ -37,6 +42,7 @@ export function AthleteNav() {
     { href: '/athlete', label: t.dashboard, icon: LayoutDashboard },
     { href: '/athlete/schedule', label: t.schedule, icon: Calendar },
     { href: '/athlete/journey', label: t.journey, icon: Compass },
+    ...(rehabVisible ? [{ href: '/athlete/rehab', label: t.rehabWorkoutType, icon: HeartPulse }] : []),
     { href: '/athlete/profile', label: t.profile, icon: User },
     { href: '/athlete/stats', label: t.statistics, icon: BarChart3 },
     { href: '/athlete/chat', label: t.chat, icon: MessageCircle },

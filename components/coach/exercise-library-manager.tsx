@@ -17,7 +17,7 @@ import { Plus, Pencil, Trash2, Loader2, Dumbbell, Video, Timer, Download, Volume
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/auth-context'
 import { isCoachEmail } from '@/lib/constants'
-import type { ExerciseLibraryItem } from '@/lib/types'
+import type { ExerciseCategory, ExerciseLibraryItem } from '@/lib/types'
 import { listExercises, deleteExercise, backfillExerciseTranslations } from '@/lib/exercise-library'
 import { seedRunningStrengthProgram } from '@/lib/seed-running-strength-program'
 import { seedRunnerStretchProgram } from '@/lib/seed-runner-stretch-program'
@@ -25,13 +25,15 @@ import { seedStrapStretchProgram } from '@/lib/seed-strap-stretch-program'
 import { seedAncillaryRoutines } from '@/lib/seed-ancillary-routines'
 import { seedPowerConditioningProgram } from '@/lib/seed-power-conditioning-program'
 import { seedUpperBodyAlon } from '@/lib/seed-upper-body-alon'
+import { seedCalfRehabProgram } from '@/lib/seed-calf-rehab-program'
 import { ExerciseEditDialog } from '@/components/coach/exercise-edit-dialog'
 import { cn } from '@/lib/utils'
 
-const CATEGORY_OPTIONS: { value: 'strength' | 'stretch' | 'warmup'; label: string }[] = [
+const CATEGORY_OPTIONS: { value: ExerciseCategory; label: string }[] = [
   { value: 'strength', label: 'כוח' },
   { value: 'stretch', label: 'מתיחות' },
   { value: 'warmup', label: 'חימום / הפעלה' },
+  { value: 'rehab', label: 'שיקום' },
 ]
 
 export function ExerciseLibraryManager() {
@@ -44,8 +46,8 @@ export function ExerciseLibraryManager() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ExerciseLibraryItem | null>(null)
   const [deleting, setDeleting] = useState(false)
-  const [filterCategory, setFilterCategory] = useState<'strength' | 'stretch' | 'warmup'>('strength')
-  const [importingKey, setImportingKey] = useState<'strength' | 'stretch' | 'strap' | 'ancillary' | 'power' | 'upper-body-alon' | null>(null)
+  const [filterCategory, setFilterCategory] = useState<ExerciseCategory>('strength')
+  const [importingKey, setImportingKey] = useState<'strength' | 'stretch' | 'strap' | 'ancillary' | 'power' | 'upper-body-alon' | 'calf-rehab' | null>(null)
   const [translatingAll, setTranslatingAll] = useState(false)
 
   const load = async () => {
@@ -201,6 +203,26 @@ export function ExerciseLibraryManager() {
     }
   }
 
+  const handleImportCalfRehab = async () => {
+    if (!user) return
+    setImportingKey('calf-rehab')
+    try {
+      const result = await seedCalfRehabProgram(user.id || '')
+      if (result.alreadyExisted) {
+        toast.info('תוכנית שיקום התאומים כבר יובאה בעבר')
+      } else {
+        toast.success(`יובאו ${result.exerciseCount} תרגילים ואימון "שיקום תאומים וסולאוס" — זמין בספריית האימונים`)
+        setFilterCategory('rehab')
+        await load()
+      }
+    } catch (err) {
+      console.error('Error importing calf rehab program:', err)
+      toast.error('הייבוא נכשל')
+    } finally {
+      setImportingKey(null)
+    }
+  }
+
   const handleBackfillTranslations = async () => {
     setTranslatingAll(true)
     try {
@@ -254,6 +276,10 @@ export function ExerciseLibraryManager() {
           <Button onClick={handleImportUpperBodyAlon} disabled={importingKey !== null} size="sm" variant="outline">
             {importingKey === 'upper-body-alon' ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Download className="h-4 w-4 mr-1" />}
             ייבוא: Upper Body Alon
+          </Button>
+          <Button onClick={handleImportCalfRehab} disabled={importingKey !== null} size="sm" variant="outline">
+            {importingKey === 'calf-rehab' ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Download className="h-4 w-4 mr-1" />}
+            ייבוא: שיקום תאומים וסולאוס
           </Button>
           <Button onClick={handleBackfillTranslations} disabled={translatingAll} size="sm" variant="outline" title="מתרגם תרגילים ללא גרסה באנגלית">
             {translatingAll ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Languages className="h-4 w-4 mr-1" />}

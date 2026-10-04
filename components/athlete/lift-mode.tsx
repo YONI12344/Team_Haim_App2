@@ -7,12 +7,13 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Loader2, ChevronLeft, ChevronRight, Check, X, TrendingUp, Play, Square, Pencil } from 'lucide-react'
+import { Loader2, ChevronLeft, ChevronRight, Check, X, TrendingUp, Play, Square, Pencil, HeartPulse } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
 import { isCoachEmail } from '@/lib/constants'
-import { instructionLines, resolveExerciseDisplay, resolveText, formatSetTarget, translateBlockLabel, normalizeExerciseName } from '@/lib/utils'
+import { cn, instructionLines, resolveExerciseDisplay, resolveText, formatSetTarget, translateBlockLabel, normalizeExerciseName } from '@/lib/utils'
+import { PAIN_ZONE_CLASSES, painZone, listRehabCases, currentCase, type PainZone } from '@/lib/rehab'
 import { ExerciseEditDialog } from '@/components/coach/exercise-edit-dialog'
 import { listExercises } from '@/lib/exercise-library'
 import type { AssignedWorkout, StrengthBlockExercise, ExerciseLibraryItem } from '@/lib/types'
@@ -20,7 +21,7 @@ import type { AssignedWorkout, StrengthBlockExercise, ExerciseLibraryItem } from
 type SetProgress = { completed: boolean; weightKg?: number | null; durationSec?: number | null }
 type Progress = Record<string, SetProgress[]>
 
-const LIFT_MODE_TYPES = ['strength', 'stretch'] as const
+const LIFT_MODE_TYPES = ['strength', 'stretch', 'rehab'] as const
 
 // Static UI chrome for this screen — not coach-authored data (no AI
 // translation needed), just an English/Hebrew pair per string so an
@@ -56,6 +57,12 @@ interface LmText {
   doneSuffix: string
   weightPlaceholder: string
   whatToday: string
+  painQuestion: string
+  painAdvice: Record<PainZone, string>
+  painRule: string
+  finishRehab: string
+  rehabFinishedToast: string
+  myRehab: string
 }
 
 const LM: Record<'he' | 'en', LmText> = {
@@ -89,6 +96,16 @@ const LM: Record<'he' | 'en', LmText> = {
     doneSuffix: ' · בוצע',
     weightPlaceholder: 'משקל ק"ג',
     whatToday: 'מה עושים היום?',
+    painQuestion: 'כמה כאב הרגשת בתרגיל? 0 בלי כאב, 10 הכי חזק',
+    painAdvice: {
+      ok: 'מצוין. ממשיכים כרגיל.',
+      back: 'מעל 2. בפעם הבאה: פחות חזרות, פחות טווח או בלי משקל.',
+      stop: 'כאב חזק. עוצרים את התרגיל להיום ומעדכנים את המאמן.',
+    },
+    painRule: 'הכלל בשיקום: הכאב לא עובר 2 מתוך 10. כואב יותר? חוזרים שלב אחורה.',
+    finishRehab: 'סיימתי את השיקום',
+    rehabFinishedToast: 'נשמר. כל הכבוד על ההתמדה',
+    myRehab: 'השיקום שלי',
   },
   en: {
     notFound: 'Workout not found',
@@ -120,6 +137,16 @@ const LM: Record<'he' | 'en', LmText> = {
     doneSuffix: ' · done',
     weightPlaceholder: 'Weight kg',
     whatToday: 'What are you doing today?',
+    painQuestion: 'How much did it hurt? 0 no pain, 10 the worst',
+    painAdvice: {
+      ok: 'Good. Carry on as planned.',
+      back: 'Above 2. Next time: fewer reps, less range or no weight.',
+      stop: 'Strong pain. Stop this exercise for today and tell your coach.',
+    },
+    painRule: 'The rehab rule: pain never above 2 out of 10. If it hurts more, step back.',
+    finishRehab: 'Finish rehab',
+    rehabFinishedToast: 'Saved. Well done for sticking with it',
+    myRehab: 'My rehab',
   },
 }
 
@@ -198,7 +225,7 @@ function SetControl({ ex, setIdx, set, onToggle, onWeight, onDuration, ui }: {
     )
   }
   // Stretch/warmup reps-based sets don't track weight — just mark done.
-  const tracksWeight = (ex.category || 'strength') === 'strength'
+  const tracksWeight = ['strength', 'rehab'].includes(ex.category || 'strength')
   return (
     <div className="flex items-center gap-2">
       <button
@@ -269,6 +296,60 @@ function AlternatePicker({ primaryName, alternateName, isAlt, onChoose, ui }: {
   )
 }
 
+// Rehab mode: the athlete rates how much this exercise hurt, 0-10, in the
+// same three zones as the printed protocol (0-2 carry on, 3-4 step back,
+// 5+ stop), and gets that zone's instruction straight away.
+function PainPicker({ value, onChange, ui }: { value?: number; onChange: (pain: number) => void; ui: LmText }) {
+  const zone = value != null ? painZone(value) : null
+  return (
+    <div className="space-y-2 border-t border-border pt-3">
+      <p className="text-xs font-semibold">{ui.painQuestion}</p>
+      <div className="grid grid-cols-11 gap-1">
+        {Array.from({ length: 11 }, (_, n) => {
+          const z = painZone(n)
+          const selected = value === n
+          return (
+            <button
+              key={n}
+              type="button"
+              onClick={() => onChange(n)}
+              aria-pressed={selected}
+              className={cn(
+                'h-9 rounded-md border text-sm font-bold tabular transition-[transform,background-color] active:scale-95',
+                selected ? PAIN_ZONE_CLASSES[z].solid : cn('border-border bg-card', PAIN_ZONE_CLASSES[z].text),
+              )}
+            >
+              {n}
+            </button>
+          )
+        })}
+      </div>
+      {zone && (
+        <p className={cn('rounded-md border px-2.5 py-1.5 text-xs font-semibold', PAIN_ZONE_CLASSES[zone].soft, PAIN_ZONE_CLASSES[zone].text)}>
+          {ui.painAdvice[zone]}
+        </p>
+      )}
+    </div>
+  )
+}
+
+// The exercise's demo: the coach's video when there is one, the line
+// drawing when there is one, both stacked when both exist.
+function ExerciseMedia({ ex, ui, compact }: { ex: StrengthBlockExercise; ui: LmText; compact?: boolean }) {
+  if (!ex.videoUrl && !ex.imageUrl) {
+    return <div className="w-full h-16 bg-muted flex items-center justify-center text-muted-foreground text-sm">{ui.noVideo}</div>
+  }
+  return (
+    <>
+      {ex.imageUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={ex.imageUrl} alt={ex.name} className={cn('w-full bg-white object-contain', compact ? 'max-h-40' : 'max-h-60')} />
+      )}
+      {ex.videoUrl && <video src={ex.videoUrl} muted={ex.videoMuted} className="w-full aspect-video bg-black" controls playsInline preload="metadata" />}
+    </>
+  )
+}
+
 function InstructionList({ text, className }: { text?: string | null; className?: string }) {
   const lines = instructionLines(text)
   if (!lines.length) return null
@@ -293,6 +374,8 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [progress, setProgress] = useState<Progress>({})
+  // Rehab mode only: pain 0-10 per StrengthBlockExercise.id.
+  const [pain, setPain] = useState<Record<string, number>>({})
   // Which either/or slots (StrengthBlockExercise.alternateExerciseId) the
   // athlete picked the ALTERNATE for this session — keyed by block-
   // exercise instance id, true = alternate. Not persisted on the workout
@@ -338,13 +421,15 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
           return
         }
         // Feature still in testing — coach turns it on per athlete
-        // (users.strengthToolsVisibleToAthlete). Checked here directly, not
+        // (users.strengthToolsVisibleToAthlete, or rehabVisibleToAthlete for
+        // a rehab session). Checked here directly, not
         // just used to hide the entry button, so a direct URL visit before
         // the coach enables it stays blocked too. The coach account itself
         // always passes, so testing/building this doesn't get locked out.
         if (!isCoachEmail(user?.email)) {
           const athleteSnap = await getDoc(doc(db, 'users', data.athleteId))
-          if (!athleteSnap.exists() || athleteSnap.data().strengthToolsVisibleToAthlete !== true) {
+          const flag = data.workout.type === 'rehab' ? 'rehabVisibleToAthlete' : 'strengthToolsVisibleToAthlete'
+          if (!athleteSnap.exists() || athleteSnap.data()[flag] !== true) {
             setError(ui.notEnabled)
             return
           }
@@ -357,6 +442,7 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
           }
         }
         setProgress(initial)
+        setPain(data.rehabPain || {})
       } catch (err) {
         console.error('Error loading lift workout:', err)
         setError(ui.loadFailed)
@@ -368,6 +454,7 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
   }, [assignedWorkoutId])
 
   const blocks = assigned?.workout.strengthBlocks || []
+  const isRehab = assigned?.workout.type === 'rehab'
   const block = blocks[blockIndex]
   const isLastBlock = blockIndex === blocks.length - 1
   const isSuperset = (block?.exercises.length || 0) > 1
@@ -381,6 +468,15 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
     } catch (err) {
       console.error('Error saving lift progress:', err)
     }
+  }
+
+  const setExercisePain = (exerciseId: string, value: number) => {
+    setPain((prev) => {
+      const next = { ...prev, [exerciseId]: value }
+      updateDoc(doc(db, 'assignedWorkouts', assignedWorkoutId), { rehabPain: next, updatedAt: serverTimestamp() })
+        .catch((err) => console.error('Error saving rehab pain:', err))
+      return next
+    })
   }
 
   const toggleSet = (exerciseId: string, setIdx: number) => {
@@ -413,14 +509,50 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
       const batch = writeBatch(db)
       batch.update(doc(db, 'assignedWorkouts', assignedWorkoutId), {
         strengthProgress: progress,
+        ...(isRehab ? { rehabPain: pain } : {}),
         status: 'completed',
         completedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       })
+      if (isRehab && assigned) {
+        // Durable rehab history for the athlete's injury journey (pain per
+        // exercise, sets done), filed under their current injury case.
+        let caseId: string | null = null
+        try {
+          caseId = currentCase(await listRehabCases(assigned.athleteId))?.id ?? null
+        } catch (err) {
+          console.error('Error finding the current rehab case:', err)
+        }
+        const exercises = blocks.flatMap((b) => b.exercises).map((rawEx) => {
+          const sets = progress[rawEx.id] || []
+          const weights = sets.map((x) => x.weightKg).filter((w): w is number => typeof w === 'number')
+          return {
+            exerciseId: rawEx.exerciseId,
+            name: rawEx.name,
+            pain: typeof pain[rawEx.id] === 'number' ? pain[rawEx.id] : null,
+            setsDone: sets.filter((x) => x.completed).length,
+            setsTotal: sets.length,
+            maxWeightKg: weights.length ? Math.max(...weights) : null,
+          }
+        })
+        const pains = exercises.map((e) => e.pain).filter((n): n is number => typeof n === 'number')
+        batch.set(doc(db, 'rehabSessions', assignedWorkoutId), {
+          athleteId: assigned.athleteId,
+          caseId,
+          assignedWorkoutId,
+          workoutTitle: assigned.workout.title,
+          date: assigned.scheduledDate,
+          exercises,
+          maxPain: pains.length ? Math.max(...pains) : null,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        }, { merge: true })
+      }
       // Durable per-exercise history for the progress chart — separate from
       // strengthProgress above, which gets overwritten if this workout is
-      // ever reopened. See ExerciseLogEntry in lib/types.ts.
-      for (const block of blocks) {
+      // ever reopened. See ExerciseLogEntry in lib/types.ts. Rehab sessions
+      // keep their own history above instead of mixing into strength progress.
+      for (const block of isRehab ? [] : blocks) {
         for (const rawEx of block.exercises) {
           const sets = progress[rawEx.id] || []
           if (!sets.length) continue
@@ -449,8 +581,8 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
         }
       }
       await batch.commit()
-      toast.success(ui.finishedToast)
-      router.push('/athlete/schedule')
+      toast.success(isRehab ? ui.rehabFinishedToast : ui.finishedToast)
+      router.push(isRehab && !isCoachViewer ? '/athlete/rehab' : '/athlete/schedule')
     } catch (err) {
       console.error('Error finishing lift workout:', err)
       toast.error(ui.finishFailed)
@@ -478,17 +610,23 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
         <Button variant="ghost" size="sm" onClick={() => router.back()}><X className="h-4 w-4 mr-1" />{ui.exit}</Button>
         <p className="text-xs text-muted-foreground">{ui.setsDone(doneSets, totalSets)}</p>
         <Button variant="ghost" size="sm" asChild>
-          <Link href="/athlete/progress"><TrendingUp className="h-4 w-4 mr-1" />{ui.progress}</Link>
+          {isRehab
+            ? <Link href="/athlete/rehab"><HeartPulse className="h-4 w-4 mr-1" />{ui.myRehab}</Link>
+            : <Link href="/athlete/progress"><TrendingUp className="h-4 w-4 mr-1" />{ui.progress}</Link>}
         </Button>
       </div>
 
       <div>
         <p className="text-xs text-muted-foreground">
-          {assigned.workout.type === 'stretch' ? '🧘' : '💪'} {resolveText(language, assigned.workout.title, assigned.workout.titleEn)}
+          {isRehab ? '' : assigned.workout.type === 'stretch' ? '🧘 ' : '💪 '}{resolveText(language, assigned.workout.title, assigned.workout.titleEn)}
         </p>
         <h1 className="text-lg font-semibold">{translateBlockLabel(block.label, language)}</h1>
         <p className="text-xs text-muted-foreground">{ui.blockOf(blockIndex + 1, blocks.length)}</p>
       </div>
+
+      {isRehab && (
+        <p className="rounded-md border border-ochre/40 bg-ochre/10 px-3 py-2 text-xs font-semibold leading-relaxed">{ui.painRule}</p>
+      )}
 
       {isSuperset ? (
         // Superset block: grouped by ROUND, not by exercise — each round is
@@ -516,11 +654,7 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
                     <div key={rawEx.id}>
                       <div className="rounded-lg border border-border overflow-hidden">
                         {roundIdx === 0 ? (
-                          ex.videoUrl ? (
-                            <video src={ex.videoUrl} muted={ex.videoMuted} className="w-full aspect-video bg-black" controls playsInline preload="metadata" />
-                          ) : (
-                            <div className="w-full h-16 bg-muted flex items-center justify-center text-muted-foreground text-sm">{ui.noVideo}</div>
-                          )
+                          <ExerciseMedia ex={ex} ui={ui} compact />
                         ) : ex.videoUrl && (
                           <details>
                             <summary className="text-xs text-muted-foreground p-2 cursor-pointer">{ui.showVideo}</summary>
@@ -559,6 +693,9 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
                             onDuration={(sec) => setDuration(ex.id, roundIdx, sec)}
                             ui={ui}
                           />
+                          {isRehab && roundIdx === (progress[rawEx.id]?.length || 1) - 1 && (
+                            <PainPicker value={pain[rawEx.id]} onChange={(v) => setExercisePain(rawEx.id, v)} ui={ui} />
+                          )}
                         </div>
                       </div>
                       {exIdx < block.exercises.length - 1 && (
@@ -587,11 +724,7 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
             const altLive = rawEx.alternateExerciseId ? libraryById.get(rawEx.alternateExerciseId) : undefined
             return (
             <div key={rawEx.id} className="rounded-xl border border-border overflow-hidden">
-              {ex.videoUrl ? (
-                <video src={ex.videoUrl} muted={ex.videoMuted} className="w-full aspect-video bg-black" controls playsInline preload="metadata" />
-              ) : (
-                <div className="w-full h-16 bg-muted flex items-center justify-center text-muted-foreground text-sm">{ui.noVideo}</div>
-              )}
+              <ExerciseMedia ex={ex} ui={ui} />
               <div className="p-3 space-y-2">
                 <div className="flex items-center justify-between gap-2">
                   <h2 className="font-semibold">{ex.name}</h2>
@@ -632,6 +765,7 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
                 <p className="text-[11px] text-muted-foreground pt-0.5">
                   {ex.targetDurationSec != null ? ui.tapStartTimer : ui.tapSetToMark}
                 </p>
+                {isRehab && <PainPicker value={pain[rawEx.id]} onChange={(v) => setExercisePain(rawEx.id, v)} ui={ui} />}
               </div>
             </div>
             )
@@ -646,7 +780,7 @@ export function LiftMode({ assignedWorkoutId }: { assignedWorkoutId: string }) {
         {isLastBlock ? (
           <Button onClick={finishWorkout} disabled={finishing} className="flex-1 bg-ink hover:bg-ink/90 text-stock">
             {finishing && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            {ui.finish}
+            {isRehab ? ui.finishRehab : ui.finish}
           </Button>
         ) : (
           <Button onClick={() => setBlockIndex((i) => Math.min(blocks.length - 1, i + 1))} className="flex-1">

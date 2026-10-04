@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { AthletePlanner } from '@/components/coach/athlete-planner'
 import { AthletePlannerView } from '@/components/athlete/athlete-planner-view'
 import { AthletePhysiology } from '@/components/coach/athlete-physiology'
+import { ViewAsButton } from '@/components/coach/view-as-button'
 
 /** Controls the active tab via the `?tab=` URL param, so other views
  *  (e.g. the lab summary card in AthletePlanner) can deep-link into a
@@ -31,7 +32,11 @@ export function AthletePlannerTabs({ athleteId }: { athleteId: string }) {
       <TabsContent value="coach">
         <AthletePlanner athleteId={athleteId} />
       </TabsContent>
-      <TabsContent value="athlete">
+      <TabsContent value="athlete" className="space-y-3">
+        <div dir="rtl" className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2">
+          <p className="text-xs text-muted-foreground">כאן רואים רק את היומן. כל שאר העמודים, בדיוק כמו שהספורטאי רואה אותם עכשיו:</p>
+          <ViewAsButton athleteId={athleteId} />
+        </div>
         <AthletePlannerView overrideAthleteId={athleteId} />
       </TabsContent>
       <TabsContent value="lab">

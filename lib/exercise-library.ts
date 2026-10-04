@@ -20,7 +20,7 @@ import {
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage'
 import { db } from '@/lib/firebase'
 import { storage } from '@/lib/firebase-storage'
-import type { ExerciseLibraryItem } from '@/lib/types'
+import type { ExerciseCategory, ExerciseLibraryItem } from '@/lib/types'
 import { translateTexts } from '@/lib/translate'
 
 function genId(prefix = 'id'): string {
@@ -37,8 +37,9 @@ interface RawExerciseDoc {
   instructions?: string
   defaultSets?: number
   defaultReps?: string
-  category?: 'strength' | 'stretch' | 'warmup'
+  category?: ExerciseCategory
   subcategory?: string
+  imageUrl?: string
   isTimed?: boolean
   defaultDurationSec?: number
   injuryZones?: string[]
@@ -61,6 +62,7 @@ function mapExercise(id: string, data: RawExerciseDoc): ExerciseLibraryItem {
     defaultReps: data.defaultReps,
     category: data.category,
     subcategory: data.subcategory,
+    imageUrl: data.imageUrl || undefined,
     isTimed: data.isTimed,
     defaultDurationSec: data.defaultDurationSec,
     injuryZones: data.injuryZones,
@@ -103,6 +105,7 @@ export async function saveExercise(
       defaultReps: exercise.defaultReps ?? null,
       category: exercise.category ?? 'strength',
       subcategory: exercise.subcategory?.trim() || null,
+      imageUrl: exercise.imageUrl ?? existing.data()?.imageUrl ?? null,
       isTimed: exercise.isTimed ?? false,
       defaultDurationSec: exercise.defaultDurationSec ?? null,
       injuryZones: exercise.injuryZones ?? [],

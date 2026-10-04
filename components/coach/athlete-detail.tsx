@@ -1,5 +1,6 @@
 'use client'
 
+import { ViewAsButton } from '@/components/coach/view-as-button'
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -513,6 +514,10 @@ export function AthleteDetail({ athleteId }: AthleteDetailProps) {
                   </Link>
                   <Link href={`/coach/athletes/${athleteId}/planner`}>
                     <Button className="bg-navy hover:bg-navy/90 text-white">📅 Training Planner</Button>
+                  </Link>
+                  <ViewAsButton athleteId={athleteId} label="תצוגת ספורטאי" />
+                  <Link href={`/coach/athletes/${athleteId}/rehab`}>
+                    <Button variant="outline" className="border-rust/50 text-rust hover:bg-rust/10">שיקום</Button>
                   </Link>
                   <Link href={`/coach/athletes/${athleteId}/documents`}>
                     <Button variant="outline" className="border-navy/40 text-navy hover:bg-navy/10">📄 מסמכים</Button>

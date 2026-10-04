@@ -450,6 +450,7 @@ export function AthletePlanner({ athleteId }: Props) {
             physiology: d.physiology,
             labVisibleToAthlete: d.labVisibleToAthlete === true,
             strengthToolsVisibleToAthlete: d.strengthToolsVisibleToAthlete === true,
+            rehabVisibleToAthlete: d.rehabVisibleToAthlete === true,
             defaultLinkedRoutines: Array.isArray(d.defaultLinkedRoutines) ? d.defaultLinkedRoutines : [],
             defaultLinkedRoutinesByType: Array.isArray(d.defaultLinkedRoutinesByType) ? d.defaultLinkedRoutinesByType : [],
             coachPrivateNotes: d.coachPrivateNotes || '',
@@ -1972,6 +1973,34 @@ export function AthletePlanner({ athleteId }: Props) {
                 }}
               />
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Rehab platform (pain body map, rehab page, rehab sessions) —
+            locked for every athlete until the coach opens it here; the
+            coach always sees it at /coach/athletes/[id]/rehab. */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm">שיקום ופציעות</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground mb-3">
+              מפת גוף לדיווח כאב, עמוד שיקום ואימוני שיקום. סגור לכל הספורטאים עד שפותחים כאן.
+            </p>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-muted-foreground">גלוי לספורטאי</span>
+              <Switch
+                checked={!!athlete?.rehabVisibleToAthlete}
+                onCheckedChange={async (checked) => {
+                  setAthlete(prev => prev ? { ...prev, rehabVisibleToAthlete: checked } : prev)
+                  const { updateDoc: ud, doc: dc } = await import('firebase/firestore')
+                  await ud(dc(db, 'users', athleteId), { rehabVisibleToAthlete: checked })
+                }}
+              />
+            </div>
+            <Link href={`/coach/athletes/${athleteId}/rehab`} className="mt-3 inline-block text-xs font-semibold underline underline-offset-4">
+              לעמוד השיקום של הספורטאי
+            </Link>
           </CardContent>
         </Card>
 

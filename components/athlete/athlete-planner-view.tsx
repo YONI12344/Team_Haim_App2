@@ -1,5 +1,6 @@
 'use client'
 
+import { useViewAs } from '@/contexts/view-as-context'
 import { useEffect, useState, useMemo, useCallback, type CSSProperties } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -219,7 +220,9 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
   const dayLabels = [t.sun, t.mon, t.tue, t.wed, t.thu, t.fri, t.sat]
   const dayEN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
   const formatHeDateLong = (d: Date) => d.toLocaleDateString(isRTL ? 'he-IL' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-  const athleteId = overrideAthleteId || user?.id || ''
+  // Coach athlete view (contexts/view-as-context.tsx) shows that athlete's schedule.
+  const viewAs = useViewAs()
+  const athleteId = overrideAthleteId || viewAs?.id || user?.id || ''
   const isCoachViewer = isCoachEmail(user?.email)
   const { steps: latestSteps } = useLatestStepTest(athleteId)
   const { grouped: workoutGroups } = useWorkoutLactateGroups(athleteId)
@@ -338,6 +341,7 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
             kmWeekStartDay: d.kmWeekStartDay === 0 ? 0 : 1,
             labVisibleToAthlete: d.labVisibleToAthlete === true,
             strengthToolsVisibleToAthlete: d.strengthToolsVisibleToAthlete === true,
+            rehabVisibleToAthlete: d.rehabVisibleToAthlete === true,
             physiology: d.physiology || undefined,
             createdAt: d.createdAt?.toDate?.() || new Date(),
             updatedAt: d.updatedAt?.toDate?.() || new Date(),
@@ -809,6 +813,17 @@ export function AthletePlannerView({ overrideAthleteId, initialDate, autoExpandW
       {/* Structured strength/stretch workout — step through exercises with
           video + weight/timer logging instead of the generic log form below.
           Coach-gated: strengthToolsVisibleToAthlete (feature still in testing). */}
+      {/* Rehab session: opens rehab mode (pain per exercise) once the coach
+          has opened the rehab platform for this athlete. */}
+      {w.workout.type === 'rehab' && !!w.workout.strengthBlocks?.length && !!athlete?.rehabVisibleToAthlete && (
+        <div className="px-4 py-3 border-t border-border">
+          <Link href={`/athlete/lift/${w.id}`}>
+            <Button className="w-full bg-pine hover:bg-pine/90 text-stock font-bold">
+              {isRTL ? 'התחלת אימון שיקום' : 'Start rehab session'}
+            </Button>
+          </Link>
+        </div>
+      )}
       {(w.workout.type === 'strength' || w.workout.type === 'stretch') && !!w.workout.strengthBlocks?.length && !!athlete?.strengthToolsVisibleToAthlete && (
         <div className="px-4 py-3 border-t border-border">
           <Link href={`/athlete/lift/${w.id}`}>

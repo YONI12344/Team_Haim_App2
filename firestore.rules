@@ -32,7 +32,8 @@ service cloud.firestore {
             && (resource == null
                 || !request.resource.data.diff(resource.data).affectedKeys()
                      .hasAny(['physiology', 'labVisibleToAthlete',
-                              'strengthToolsVisibleToAthlete'])));
+                              'strengthToolsVisibleToAthlete',
+                              'rehabVisibleToAthlete'])));
       match /journey/{journeyId} {
         allow read, write: if isSelf(userId) || isCoach();
       }
@@ -99,7 +100,7 @@ service cloud.firestore {
             && request.resource.data.diff(resource.data).affectedKeys()
                .hasOnly(['status', 'completedAt', 'athleteNotes', 'updatedAt',
                          'scheduledDate', 'movedByAthlete', 'movedFromDate',
-                         'strengthProgress']));
+                         'strengthProgress', 'rehabPain']));
     }
 
     // Coach-managed exercise library (name, uploaded demo video, target
@@ -133,6 +134,52 @@ service cloud.firestore {
             || (resource.data.athleteId == request.auth.uid
                 && resource.data.visibleToAthlete == true));
       allow write: if isCoach();
+    }
+
+    // Injury rehab (lib/rehab.ts). Every doc carries athleteId: the athlete
+    // reads their own, the coach reads everything.
+    // Pain reports: the athlete taps where it hurts and sends it to the
+    // coach, always as status 'new'; only the coach moves it on from there.
+    match /rehabReports/{docId} {
+      allow read: if request.auth != null
+        && (isCoach() || resource.data.athleteId == request.auth.uid);
+      allow create: if isCoach()
+        || (request.auth != null
+            && request.resource.data.athleteId == request.auth.uid
+            && request.resource.data.status == 'new');
+      allow update, delete: if isCoach();
+    }
+
+    // The injury itself and its program details: coach-written only.
+    match /rehabCases/{docId} {
+      allow read: if request.auth != null
+        && (isCoach() || resource.data.athleteId == request.auth.uid);
+      allow write: if isCoach();
+    }
+
+    // Daily morning/evening pain check-ins and finished rehab sessions:
+    // self-serve for the athlete, who can't touch anyone else's.
+    match /rehabCheckins/{docId} {
+      allow read: if request.auth != null
+        && (isCoach() || resource.data.athleteId == request.auth.uid);
+      allow create: if isCoach()
+        || (request.auth != null && request.resource.data.athleteId == request.auth.uid);
+      allow update: if isCoach()
+        || (request.auth != null
+            && resource.data.athleteId == request.auth.uid
+            && request.resource.data.athleteId == request.auth.uid);
+      allow delete: if isCoach();
+    }
+    match /rehabSessions/{docId} {
+      allow read: if request.auth != null
+        && (isCoach() || resource.data.athleteId == request.auth.uid);
+      allow create: if isCoach()
+        || (request.auth != null && request.resource.data.athleteId == request.auth.uid);
+      allow update: if isCoach()
+        || (request.auth != null
+            && resource.data.athleteId == request.auth.uid
+            && request.resource.data.athleteId == request.auth.uid);
+      allow delete: if isCoach();
     }
 
     match /logs/{logId} {

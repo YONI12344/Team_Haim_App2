@@ -1,9 +1,9 @@
 'use client'
 
+import { useAthleteUser } from '@/contexts/view-as-context'
 import { useState, useEffect } from 'react'
 import { storage } from '@/lib/firebase-storage'
 import { ref, getDownloadURL, listAll } from 'firebase/storage'
-import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
 import { FileText, ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -16,7 +16,7 @@ interface Document {
 }
 
 export function AthleteDocumentsView({ compact = false }: { compact?: boolean }) {
-  const { user } = useAuth()
+  const user = useAthleteUser()
   const { t, isRTL } = useLanguage()
   const [documents, setDocuments] = useState<Document[]>([])
   const [loading, setLoading] = useState(true)

@@ -235,6 +235,7 @@ export function WorkoutLibrary() {
     'strength',
     'stretch',
     'warmup',
+    'rehab',
     'easy',
     'long_run',
     'tempo',

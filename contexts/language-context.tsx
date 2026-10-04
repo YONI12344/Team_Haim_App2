@@ -278,6 +278,7 @@ export interface Translations {
   recovery: string
   strength: string
   stretch: string
+  rehabWorkoutType: string
   crossTraining: string
   swimLabel: string
   bikeLabel: string
@@ -1211,6 +1212,7 @@ const translations: Record<Language, Translations> = {
     recovery: 'Recovery',
     strength: 'Strength',
     stretch: 'Stretch / Mobility',
+    rehabWorkoutType: 'Rehab',
     crossTraining: 'Cross Training',
     swimLabel: 'Swim',
     bikeLabel: 'Bike',
@@ -2107,6 +2109,7 @@ const translations: Record<Language, Translations> = {
     recovery: 'התאוששות',
     strength: 'כוח',
     stretch: 'מתיחות / ניידות',
+    rehabWorkoutType: 'שיקום',
     crossTraining: 'אימון משולב',
     swimLabel: 'שחייה',
     bikeLabel: 'אופניים',

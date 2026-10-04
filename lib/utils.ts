@@ -61,6 +61,7 @@ export function resolveExerciseDisplay(
         videoMuted: live.videoMuted,
         instructions: live.instructions,
         category: live.category ?? ex.category,
+        imageUrl: live.imageUrl ?? ex.imageUrl,
       }
     : ex
   if (language !== 'en') return merged

@@ -29,6 +29,7 @@ export const workoutTypeColors: Record<WorkoutType, string> = {
   race: 'bg-gold/20 text-gold border-gold/30',
   time_trial: 'bg-rose-100 text-rose-700 border-rose-200',
   threshold: 'bg-pink-100 text-pink-700 border-pink-200',
+  rehab: 'bg-orange-50 text-rust border-rust/30',
 }
 
 /**
@@ -73,5 +74,6 @@ export function useWorkoutTypeLabels(): Record<WorkoutType, string> {
     race: t.race,
     time_trial: t.timeTrial,
     threshold: t.thresholdWorkoutType,
+    rehab: t.rehabWorkoutType,
   }
 }

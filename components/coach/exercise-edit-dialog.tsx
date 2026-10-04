@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Loader2, Timer, Trash2, VolumeX, Languages } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/auth-context'
-import type { ExerciseLibraryItem } from '@/lib/types'
+import type { ExerciseCategory, ExerciseLibraryItem } from '@/lib/types'
 import { getExercise, saveExercise, uploadExerciseVideo, deleteExerciseVideoFile } from '@/lib/exercise-library'
 import { translateTexts } from '@/lib/translate'
 import { cn } from '@/lib/utils'
@@ -20,7 +20,7 @@ const emptyForm = {
   instructions: '',
   nameEn: '',
   instructionsEn: '',
-  category: 'strength' as 'strength' | 'stretch' | 'warmup',
+  category: 'strength' as ExerciseCategory,
   subcategory: '',
   isTimed: false,
   defaultDurationSec: '',
@@ -30,19 +30,21 @@ const emptyForm = {
   videoMuted: false,
 }
 
-const CATEGORY_OPTIONS: { value: 'strength' | 'stretch' | 'warmup'; label: string }[] = [
+const CATEGORY_OPTIONS: { value: ExerciseCategory; label: string }[] = [
   { value: 'strength', label: 'כוח' },
   { value: 'stretch', label: 'מתיחות' },
   { value: 'warmup', label: 'חימום / הפעלה' },
+  { value: 'rehab', label: 'שיקום' },
 ]
 
 // Suggested folders per category — coach can also just type a custom one.
 // Purely organizational (see lib/types.ts ExerciseLibraryItem.subcategory),
 // not a fixed enum, so this list is a starting point, not a constraint.
-const SUBCATEGORY_SUGGESTIONS: Record<'strength' | 'stretch' | 'warmup', string[]> = {
+const SUBCATEGORY_SUGGESTIONS: Record<ExerciseCategory, string[]> = {
   strength: ['משקל כבד', 'משקל קל', 'יציבות', 'שוק תחתונה'],
   stretch: ['מתיחות חבל', 'מתיחות דינמיות', 'מתיחות סטטיות (אחרי ריצה)'],
   warmup: ['הפעלה כללית', 'הפעלה ספציפית'],
+  rehab: ['שוק / תאומים', 'גיד אכילס', 'כף רגל וקרסול', 'ברך', 'ירך אחורית'],
 }
 
 /**
@@ -75,7 +77,7 @@ export function ExerciseEditDialog({
   exerciseId: string | null
   open: boolean
   onOpenChange: (open: boolean) => void
-  defaultCategory?: 'strength' | 'stretch' | 'warmup'
+  defaultCategory?: ExerciseCategory
   onSaved?: (exercise: ExerciseLibraryItem) => void
 }) {
   const { user } = useAuth()
@@ -203,6 +205,7 @@ export function ExerciseEditDialog({
         ...baseFields,
         videoUrl: finalVideoUrl,
         videoPath: finalVideoPath,
+        imageUrl: editing?.imageUrl,
         createdAt: editing?.createdAt || new Date(),
         updatedAt: new Date(),
       })

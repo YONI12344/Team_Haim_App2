@@ -1,5 +1,6 @@
 'use client'
 
+import { useAthleteUser } from '@/contexts/view-as-context'
 import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -19,7 +20,6 @@ import {
 import { Activity, Clock, Flame, Loader2, Trophy } from 'lucide-react'
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
 import {
   format,
@@ -106,7 +106,7 @@ function bucketBy(
 }
 
 export function AthleteStats() {
-  const { user } = useAuth()
+  const user = useAthleteUser()
   const { t } = useLanguage()
   const [logs, setLogs] = useState<WorkoutLog[]>([])
   const [prs, setPrs] = useState<PersonalRecord[]>([])

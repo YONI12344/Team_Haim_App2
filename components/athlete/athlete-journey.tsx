@@ -1,9 +1,9 @@
 'use client'
 
+import { useAthleteUser } from '@/contexts/view-as-context'
 import { useEffect, useState } from 'react'
 import { Loader2, Compass } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
-import { useAuth } from '@/contexts/auth-context'
 import { useLanguage } from '@/contexts/language-context'
 import { listJourneys } from '@/lib/journey'
 import { JourneyTimeline } from '@/components/journey/journey-timeline'
@@ -17,7 +17,7 @@ import { toast } from 'sonner'
 // pencil/trash icons here risked them accidentally rewriting or deleting a
 // stage the coach had carefully planned, with no coach oversight.
 export function AthleteJourneyView() {
-  const { user } = useAuth()
+  const user = useAthleteUser()
   const { t } = useLanguage()
   const [loading, setLoading] = useState(true)
   const [journeys, setJourneys] = useState<JourneyDoc[]>([])
