@@ -254,6 +254,19 @@ export async function saveRehabCheckin(
   )
 }
 
+/** One-tap save from the home screen: writes only the pain value tapped, keeping the rest of that day's check-in. */
+export async function saveRehabPain(
+  input: Pick<RehabCheckin, 'caseId' | 'athleteId' | 'date'>,
+  field: 'morningPain' | 'eveningPain',
+  value: number,
+): Promise<void> {
+  await setDoc(
+    doc(db, 'rehabCheckins', `${input.caseId}_${input.date}`),
+    { caseId: input.caseId, athleteId: input.athleteId, date: input.date, [field]: value, updatedAt: serverTimestamp() },
+    { merge: true },
+  )
+}
+
 // ---------- Sessions ----------
 
 export async function listRehabSessions(athleteId: string, caseId?: string): Promise<RehabSessionLog[]> {

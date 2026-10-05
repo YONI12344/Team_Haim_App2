@@ -31,6 +31,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { PosterScene, useSceneTimeNow } from '@/components/athlete/poster-scene'
+import { RehabHomeCard } from '@/components/athlete/rehab-home-card'
 import { listJourneys, stageDisplayName } from '@/lib/journey'
 import { cn, isCoachMessageRecent } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -401,7 +402,8 @@ export function AthleteDashboard() {
 
   const profileName = profile?.name || user?.name || t.athleteFallback
   // The coach previewing the athlete app is never sent through athlete onboarding.
-  const isNewAthlete = !loading && profile !== null && !profile?.onboardingComplete && !isCoachEmail(user?.email)
+  // authUser, not user: in athlete view `user` is the athlete being viewed.
+  const isNewAthlete = !loading && profile !== null && !profile?.onboardingComplete && !isCoachEmail(authUser?.email)
   const unreadCoachMessages = coachMessages.filter(m => !m.read)
   const L = HOME_COPY[isRTL ? 'he' : 'en']
 
@@ -579,6 +581,9 @@ export function AthleteDashboard() {
           )}
         </div>
       </section>
+
+      {/* ── The injury, once the coach has opened rehab and started a case ── */}
+      {profile?.rehabVisibleToAthlete && user?.id && <RehabHomeCard athleteId={user.id} language={isRTL ? 'he' : 'en'} />}
 
       {/* ── This week as a strip of seven stamps ── */}
       <section aria-label={t.yourWeekLabel}>
