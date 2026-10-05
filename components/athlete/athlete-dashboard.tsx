@@ -402,7 +402,8 @@ export function AthleteDashboard() {
 
   const profileName = profile?.name || user?.name || t.athleteFallback
   // The coach previewing the athlete app is never sent through athlete onboarding.
-  const isNewAthlete = !loading && profile !== null && !profile?.onboardingComplete && !isCoachEmail(user?.email)
+  // authUser, not user: in athlete view `user` is the athlete being viewed.
+  const isNewAthlete = !loading && profile !== null && !profile?.onboardingComplete && !isCoachEmail(authUser?.email)
   const unreadCoachMessages = coachMessages.filter(m => !m.read)
   const L = HOME_COPY[isRTL ? 'he' : 'en']
 
