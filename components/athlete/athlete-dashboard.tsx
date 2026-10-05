@@ -31,6 +31,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { PosterScene, useSceneTimeNow } from '@/components/athlete/poster-scene'
+import { RehabHomeCard } from '@/components/athlete/rehab-home-card'
 import { listJourneys, stageDisplayName } from '@/lib/journey'
 import { cn, isCoachMessageRecent } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -579,6 +580,9 @@ export function AthleteDashboard() {
           )}
         </div>
       </section>
+
+      {/* ── The injury, once the coach has opened rehab and started a case ── */}
+      {profile?.rehabVisibleToAthlete && user?.id && <RehabHomeCard athleteId={user.id} language={isRTL ? 'he' : 'en'} />}
 
       {/* ── This week as a strip of seven stamps ── */}
       <section aria-label={t.yourWeekLabel}>
