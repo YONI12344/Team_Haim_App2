@@ -34,6 +34,8 @@ const COPY = {
     goal: 'המטרה',
     coachSays: 'מהמאמן',
     rule: 'הכלל: הכאב לא עובר 2 מתוך 10 באף תרגיל. כואב יותר? חוזרים שלב אחורה.',
+    phase: (n: number, of: number) => `שלב ${n} מתוך ${of}`,
+    nextPhase: (last: boolean): string => (last ? 'כדי לחזור לריצה' : 'כדי לעלות שלב'),
     sessionToday: 'אימון השיקום של היום',
     sessionNext: 'אימון השיקום הבא',
     noSession: 'המאמן עוד לא הוסיף אימוני שיקום ליומן.',
@@ -82,6 +84,8 @@ const COPY = {
     goal: 'Goal',
     coachSays: 'From your coach',
     rule: 'The rule: pain never above 2 out of 10 in any exercise. If it hurts more, step back.',
+    phase: (n: number, of: number) => `Phase ${n} of ${of}`,
+    nextPhase: (last: boolean): string => (last ? 'Back to running when' : 'Next phase when'),
     sessionToday: "Today's rehab session",
     sessionNext: 'Next rehab session',
     noSession: "Your coach hasn't added rehab sessions to your plan yet.",
@@ -260,6 +264,7 @@ function CaseCard({ rehabCase, gender, L }: { rehabCase: RehabCase; gender: 'mal
     <section className="poster-plate grid grid-cols-[1fr_auto] items-start gap-4 p-4 sm:grid-cols-[1fr_200px]">
       <div className="space-y-3">
         <p className="poster-caps text-[40px] leading-none text-ochre-deep">{L.day(day)}</p>
+        {rehabCase.phase && <PhaseLine phase={rehabCase.phase} L={L} />}
         {rehabCase.goal && (
           <div>
             <p className="text-xs font-bold text-ink/60">{L.goal}</p>
@@ -281,6 +286,32 @@ function CaseCard({ rehabCase, gender, L }: { rehabCase: RehabCase; gender: 'mal
         labels={{ front: L.front, back: L.back }}
       />
     </section>
+  )
+}
+
+/** Which physical-therapy phase the injury is in, and what moves it to the next one. */
+function PhaseLine({ phase: p, L }: { phase: NonNullable<RehabCase['phase']>; L: Copy }) {
+  const last = p.phase >= p.phaseCount
+  return (
+    <div className="space-y-1.5">
+      <p className="flex flex-wrap items-baseline gap-x-2">
+        <span className="poster-caps text-[22px] leading-none">{L.phase(p.phase, p.phaseCount)}</span>
+        <span className="text-sm font-semibold">{p.name}</span>
+      </p>
+      <ol aria-hidden className="flex max-w-[220px] gap-1">
+        {Array.from({ length: p.phaseCount }, (_, i) => (
+          <li
+            key={i}
+            className={cn('h-1.5 flex-1 rounded-sm', i + 1 < p.phase ? 'bg-ink' : i + 1 === p.phase ? 'bg-rust' : 'border border-ink/30')}
+          />
+        ))}
+      </ol>
+      {p.nextWhen && (
+        <p className="text-xs leading-relaxed text-ink/75">
+          <span className="font-bold text-ink/60">{L.nextPhase(last)}: </span>{p.nextWhen}
+        </p>
+      )}
+    </div>
   )
 }
 

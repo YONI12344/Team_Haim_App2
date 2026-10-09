@@ -408,6 +408,11 @@ export interface Workout {
   // showing the exact exercise it was built with even if the library entry
   // is edited/deleted later.
   strengthBlocks?: StrengthBlock[]
+  // 'rehab' workouts that are one phase of a graded physical-therapy
+  // program: every template sharing rehabPhase.program is a phase of the
+  // same injury's rehab, in rehabPhase.phase order. The coach moves the
+  // athlete between phases as the injury allows (lib/rehab.ts setRehabPhase).
+  rehabPhase?: RehabPhaseInfo
   // A 'stretch'-type workout that's specifically a pre-run/pre-workout
   // warm-up (vs. a general stretch/cooldown routine) — lets the Workout
   // Library filter to just warm-ups instead of lumping every stretch
@@ -713,9 +718,22 @@ export interface RehabCase {
   goal?: string | null // shown to the athlete, e.g. "back to easy running"
   coachNotes?: string | null // shown to the athlete as the coach's guidance
   resolvedDate?: string | null
+  // Where the injury is in a graded program (Workout.rehabPhase): the
+  // current phase, shown to the athlete, and the day each phase started.
+  phase?: (RehabPhaseInfo & { phaseCount: number }) | null
+  phaseHistory?: { phase: number; date: string }[]
   createdBy: string
   createdAt: Date
   updatedAt: Date
+}
+
+/** One phase of a graded rehab program (see Workout.rehabPhase). */
+export interface RehabPhaseInfo {
+  program: string // e.g. 'shin-anterior'
+  programTitle: string // e.g. 'שיקום שוקה קדמית'
+  phase: number // 1-based
+  name: string // e.g. 'הרגעה ותנועה'
+  nextWhen?: string | null // when the injury is ready for the next phase
 }
 
 // "Something hurts": the athlete taps the spot on the body map and sends it

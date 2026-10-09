@@ -10,6 +10,7 @@
 
 import {
   addDoc,
+  arrayUnion,
   collection,
   doc,
   type FieldValue,
@@ -331,6 +332,96 @@ export async function assignRehabProgram(opts: {
     created++
   }
   return created
+}
+
+// ---------- Graded programs (physical-therapy phases) ----------
+
+export interface RehabProgramLadder {
+  program: string
+  programTitle: string
+  phases: Workout[] // one template per phase, in phase order
+}
+
+/** The phased rehab templates, one ladder per program. */
+export function rehabPrograms(templates: Workout[]): RehabProgramLadder[] {
+  const byProgram = new Map<string, RehabProgramLadder>()
+  for (const t of templates) {
+    const p = t.rehabPhase
+    if (!p) continue
+    let ladder = byProgram.get(p.program)
+    if (!ladder) { ladder = { program: p.program, programTitle: p.programTitle, phases: [] }; byProgram.set(p.program, ladder) }
+    ladder.phases.push(t)
+  }
+  for (const l of byProgram.values()) l.phases.sort((a, b) => (a.rehabPhase?.phase ?? 0) - (b.rehabPhase?.phase ?? 0))
+  return [...byProgram.values()]
+}
+
+export interface PhaseReadiness {
+  sessions: { ok: number; need: number }
+  mornings: { ok: number; need: number }
+  ready: boolean
+}
+
+/**
+ * The pain rule applied to moving up a phase: the last `need` rehab
+ * sessions and the last `need` mornings since the phase began, all at or
+ * under PAIN_LIMIT. A guide for the coach, who makes the call.
+ */
+export function phaseReadiness(sessions: RehabSessionLog[], checkins: RehabCheckin[], since: string, need = 3): PhaseReadiness {
+  const lastSessions = sessions
+    .filter((s) => s.date >= since && typeof s.maxPain === 'number')
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(-need)
+  const lastMornings = checkins
+    .filter((c) => c.date >= since && typeof c.morningPain === 'number')
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(-need)
+  const sessionsOk = lastSessions.filter((s) => (s.maxPain as number) <= PAIN_LIMIT).length
+  const morningsOk = lastMornings.filter((c) => (c.morningPain as number) <= PAIN_LIMIT).length
+  return {
+    sessions: { ok: sessionsOk, need },
+    mornings: { ok: morningsOk, need },
+    ready: sessionsOk >= need && morningsOk >= need,
+  }
+}
+
+/** Record which phase the injury is in, without touching the calendar. */
+export async function markCasePhase(caseId: string, ladder: RehabProgramLadder, phase: number): Promise<Workout> {
+  const workout = ladder.phases.find((w) => w.rehabPhase?.phase === phase)
+  if (!workout?.rehabPhase) throw new Error(`No phase ${phase} in ${ladder.program}`)
+  await updateDoc(doc(db, 'rehabCases', caseId), {
+    phase: { ...workout.rehabPhase, nextWhen: workout.rehabPhase.nextWhen ?? null, phaseCount: ladder.phases.length },
+    phaseHistory: arrayUnion({ phase, date: todayStr() }),
+    updatedAt: serverTimestamp(),
+  })
+  return workout
+}
+
+/**
+ * Move the injury to another phase: the case records it, and every upcoming
+ * session of the same program the athlete hasn't started becomes that
+ * phase's workout. Returns how many calendar sessions changed.
+ */
+export async function setRehabPhase(opts: {
+  rehabCase: RehabCase
+  ladder: RehabProgramLadder
+  phase: number
+  assignments: AssignedWorkout[]
+}): Promise<number> {
+  const workout = await markCasePhase(opts.rehabCase.id, opts.ladder, opts.phase)
+  const today = todayStr()
+  const toSwap = opts.assignments.filter((a) =>
+    a.workout?.rehabPhase?.program === opts.ladder.program
+    && a.workoutId !== workout.id
+    && a.status !== 'completed'
+    && (a.scheduledDate > today || (a.scheduledDate === today && !a.strengthProgress && !a.rehabPain)),
+  )
+  await Promise.all(toSwap.map((a) => updateDoc(doc(db, 'assignedWorkouts', a.id), {
+    workoutId: workout.id,
+    workout,
+    updatedAt: serverTimestamp(),
+  })))
+  return toSwap.length
 }
 
 // ---------- Journey summary ----------
