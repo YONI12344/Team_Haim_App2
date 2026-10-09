@@ -19,6 +19,7 @@ const COPY = {
   he: {
     section: 'השיקום שלי',
     day: (n: number) => `יום ${n}`,
+    phaseDay: (phase: number, n: number) => `שלב ${phase} · יום ${n}`,
     ask: { morningPain: 'איך הרגל הבוקר?', eveningPain: 'איך הרגל הערב?' },
     slot: { morningPain: 'בוקר', eveningPain: 'ערב' },
     scaleHint: '0 בלי כאב, 10 הכי חזק. נשמר בלחיצה.',
@@ -37,6 +38,7 @@ const COPY = {
   en: {
     section: 'My rehab',
     day: (n: number) => `Day ${n}`,
+    phaseDay: (phase: number, n: number) => `Phase ${phase} · Day ${n}`,
     ask: { morningPain: 'How is it this morning?', eveningPain: 'How is it this evening?' },
     slot: { morningPain: 'morning', eveningPain: 'evening' },
     scaleHint: '0 no pain, 10 the worst. Saves when you tap.',
@@ -140,6 +142,7 @@ export function RehabHomeCardView({ rehabCase, checkins, assignments, language, 
   const avgNow = averagePain(checkins, 6, 0)
   const avgPrev = averagePain(checkins, 13, 7)
   const Chevron = isRTL ? ChevronLeft : ChevronRight
+  const day = Math.max(1, rehabDayNumber(rehabCase))
 
   return (
     <section aria-label={L.section}>
@@ -151,7 +154,7 @@ export function RehabHomeCardView({ rehabCase, checkins, assignments, language, 
       <div className="overflow-hidden rounded-md border-2 border-rust bg-[color-mix(in_oklab,var(--color-stock)_70%,white)]">
         <div className="flex items-baseline justify-between gap-3 bg-rust px-4 py-2.5 text-stock">
           <p className="min-w-0 truncate text-sm font-semibold">{rehabCase.title}</p>
-          <p className="poster-caps shrink-0 text-[24px] leading-none">{L.day(Math.max(1, rehabDayNumber(rehabCase)))}</p>
+          <p className="poster-caps shrink-0 text-[24px] leading-none">{rehabCase.phase ? L.phaseDay(rehabCase.phase.phase, day) : L.day(day)}</p>
         </div>
 
         <div className="space-y-5 p-4">

@@ -11,23 +11,13 @@
 
 import { addDoc, collection, getDocs, query, serverTimestamp, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { saveExercise } from '@/lib/exercise-library'
-import type { StrengthBlock, StrengthBlockExercise } from '@/lib/types'
+import { buildRehabBlocks, type SeedRehabExercise } from '@/lib/seed-rehab-shared'
 
 export const CALF_REHAB_WORKOUT_TITLE = 'שיקום תאומים וסולאוס'
 
-interface SeedExercise {
-  name: string
-  instructions: string
-  imageUrl: string
-  sets: number
-  reps: string
-  durationSec?: number
-}
-
 // Two sets on a one-leg exercise = right leg, then left leg (same convention
-// as the stretch seeds).
-const SEED: SeedExercise[] = [
+// as the stretch seeds). Exported: the shin program reuses some of these.
+export const CALF_REHAB_EXERCISES: SeedRehabExercise[] = [
   {
     name: 'הליכה על אצבעות',
     instructions: 'עולים גבוה על כריות כף הרגל, הגוף זקוף.\nהולכים 20 צעדים קצרים. העקבים לא יורדים לרצפה עד הסוף.\nכשמתעייפים העקבים נוטים לשקוע: עדיף לעצור לפני.',
@@ -80,43 +70,13 @@ const SEED: SeedExercise[] = [
   },
 ]
 
-function genId(prefix: string): string {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
-}
-
 export async function seedCalfRehabProgram(createdBy: string): Promise<{ workoutId: string; exerciseCount: number; alreadyExisted: boolean }> {
   const existing = await getDocs(query(collection(db, 'workouts'), where('title', '==', CALF_REHAB_WORKOUT_TITLE)))
   if (!existing.empty) {
     return { workoutId: existing.docs[0].id, exerciseCount: 0, alreadyExisted: true }
   }
 
-  const blocks: StrengthBlock[] = []
-  for (const [i, ex] of SEED.entries()) {
-    const id = await saveExercise({
-      name: ex.name,
-      instructions: ex.instructions,
-      imageUrl: ex.imageUrl,
-      category: 'rehab',
-      subcategory: 'שוק / תאומים',
-      isTimed: ex.durationSec != null,
-      defaultDurationSec: ex.durationSec,
-      defaultSets: ex.sets,
-      defaultReps: ex.reps || undefined,
-      createdBy,
-    })
-    const blockExercise: StrengthBlockExercise = {
-      id: genId('ex'),
-      exerciseId: id,
-      name: ex.name,
-      instructions: ex.instructions,
-      imageUrl: ex.imageUrl,
-      category: 'rehab',
-      targetSets: ex.sets,
-      targetReps: ex.reps,
-      ...(ex.durationSec != null ? { targetDurationSec: ex.durationSec } : {}),
-    }
-    blocks.push({ id: genId('block'), label: `תרגיל ${i + 1}`, exercises: [blockExercise] })
-  }
+  const blocks = await buildRehabBlocks(CALF_REHAB_EXERCISES, 'שוק / תאומים', createdBy)
 
   const workoutRef = await addDoc(collection(db, 'workouts'), {
     title: CALF_REHAB_WORKOUT_TITLE,
@@ -130,5 +90,5 @@ export async function seedCalfRehabProgram(createdBy: string): Promise<{ workout
     updatedAt: serverTimestamp(),
   })
 
-  return { workoutId: workoutRef.id, exerciseCount: SEED.length, alreadyExisted: false }
+  return { workoutId: workoutRef.id, exerciseCount: CALF_REHAB_EXERCISES.length, alreadyExisted: false }
 }

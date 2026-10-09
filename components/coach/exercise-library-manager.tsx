@@ -26,6 +26,7 @@ import { seedAncillaryRoutines } from '@/lib/seed-ancillary-routines'
 import { seedPowerConditioningProgram } from '@/lib/seed-power-conditioning-program'
 import { seedUpperBodyAlon } from '@/lib/seed-upper-body-alon'
 import { seedCalfRehabProgram } from '@/lib/seed-calf-rehab-program'
+import { seedShinRehabProgram } from '@/lib/seed-shin-rehab-program'
 import { ExerciseEditDialog } from '@/components/coach/exercise-edit-dialog'
 import { cn } from '@/lib/utils'
 
@@ -47,7 +48,7 @@ export function ExerciseLibraryManager() {
   const [deleteTarget, setDeleteTarget] = useState<ExerciseLibraryItem | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [filterCategory, setFilterCategory] = useState<ExerciseCategory>('strength')
-  const [importingKey, setImportingKey] = useState<'strength' | 'stretch' | 'strap' | 'ancillary' | 'power' | 'upper-body-alon' | 'calf-rehab' | null>(null)
+  const [importingKey, setImportingKey] = useState<'strength' | 'stretch' | 'strap' | 'ancillary' | 'power' | 'upper-body-alon' | 'calf-rehab' | 'shin-rehab' | null>(null)
   const [translatingAll, setTranslatingAll] = useState(false)
 
   const load = async () => {
@@ -223,6 +224,26 @@ export function ExerciseLibraryManager() {
     }
   }
 
+  const handleImportShinRehab = async () => {
+    if (!user) return
+    setImportingKey('shin-rehab')
+    try {
+      const result = await seedShinRehabProgram(user.id || '')
+      if (result.alreadyExisted) {
+        toast.info('תוכנית שיקום השוקה הקדמית כבר יובאה בעבר')
+      } else {
+        toast.success(`יובאו ${result.workoutIds.length} אימוני שיקום, שלב לכל אימון — זמינים בספריית האימונים`)
+        setFilterCategory('rehab')
+        await load()
+      }
+    } catch (err) {
+      console.error('Error importing shin rehab program:', err)
+      toast.error('הייבוא נכשל')
+    } finally {
+      setImportingKey(null)
+    }
+  }
+
   const handleBackfillTranslations = async () => {
     setTranslatingAll(true)
     try {
@@ -280,6 +301,10 @@ export function ExerciseLibraryManager() {
           <Button onClick={handleImportCalfRehab} disabled={importingKey !== null} size="sm" variant="outline">
             {importingKey === 'calf-rehab' ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Download className="h-4 w-4 mr-1" />}
             ייבוא: שיקום תאומים וסולאוס
+          </Button>
+          <Button onClick={handleImportShinRehab} disabled={importingKey !== null} size="sm" variant="outline">
+            {importingKey === 'shin-rehab' ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Download className="h-4 w-4 mr-1" />}
+            ייבוא: שיקום שוקה קדמית (3 שלבים)
           </Button>
           <Button onClick={handleBackfillTranslations} disabled={translatingAll} size="sm" variant="outline" title="מתרגם תרגילים ללא גרסה באנגלית">
             {translatingAll ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Languages className="h-4 w-4 mr-1" />}

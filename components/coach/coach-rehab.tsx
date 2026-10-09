@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { doc, getDoc, updateDoc } from 'firebase/firestore'
-import { format, parseISO } from 'date-fns'
+import { differenceInCalendarDays, format, parseISO } from 'date-fns'
 import { he as heLocale } from 'date-fns/locale'
 import { toast } from 'sonner'
-import { ArrowRight, CalendarPlus, Check, Download, Loader2, MessageCircle, Plus, RotateCcw } from 'lucide-react'
+import { ArrowDown, ArrowRight, ArrowUp, CalendarPlus, Check, Download, Loader2, MessageCircle, Plus, RotateCcw } from 'lucide-react'
 import { db } from '@/lib/firebase'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/auth-context'
@@ -17,11 +17,12 @@ import { Switch } from '@/components/ui/switch'
 import { ViewAsButton } from '@/components/coach/view-as-button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
-  BODY_AREAS, areaLabel, assignRehabProgram, createRehabCase, listRehabAssignments, listRehabCases, listRehabCheckins,
-  listRehabReports, listRehabSessions, listRehabTemplates, todayStr, triggerLabel, updateRehabCase, updateRehabReport,
-  type RehabCaseInput,
+  BODY_AREAS, PAIN_LIMIT, areaLabel, assignRehabProgram, createRehabCase, listRehabAssignments, listRehabCases, listRehabCheckins,
+  listRehabReports, listRehabSessions, listRehabTemplates, markCasePhase, phaseReadiness, rehabPrograms, setRehabPhase, todayStr,
+  triggerLabel, updateRehabCase, updateRehabReport, type RehabCaseInput, type RehabProgramLadder,
 } from '@/lib/rehab'
-import { seedCalfRehabProgram } from '@/lib/seed-calf-rehab-program'
+import { CALF_REHAB_WORKOUT_TITLE, seedCalfRehabProgram } from '@/lib/seed-calf-rehab-program'
+import { SHIN_PROGRAM, seedShinRehabProgram } from '@/lib/seed-shin-rehab-program'
 import type { AssignedWorkout, RehabCase, RehabCheckin, RehabReport, RehabSessionLog, Workout } from '@/lib/types'
 import { BodyMap } from '@/components/rehab/body-map'
 import { PainChip } from '@/components/rehab/pain-scale'
@@ -91,6 +92,7 @@ export function CoachRehab({ athleteId }: { athleteId: string }) {
     () => (selected ? sessions.filter((s) => s.caseId === selected.id || (!s.caseId && selected.status === 'active')) : []),
     [sessions, selected],
   )
+  const ladders = useMemo(() => rehabPrograms(templates), [templates])
 
   const openCaseFromReport = (r: RehabReport) => {
     setDraft({
@@ -284,10 +286,22 @@ export function CoachRehab({ athleteId }: { athleteId: string }) {
                   </button>
                 }
               />
+              {selected.status === 'active' && ladders.length > 0 && (
+                <PhaseCard
+                  rehabCase={selected}
+                  ladders={ladders}
+                  assignments={assignments}
+                  sessions={caseSessions}
+                  checkins={caseCheckins}
+                  onChanged={load}
+                />
+              )}
               {selected.status === 'active' && (
                 <AssignProgram
                   athleteId={athleteId}
+                  rehabCase={selected}
                   templates={templates}
+                  ladders={ladders}
                   assignments={assignments}
                   coachId={user?.id || ''}
                   onChanged={load}
@@ -386,20 +400,186 @@ function CaseForm({ initial, title, submitLabel, onSubmit, onCancel, footer }: {
   )
 }
 
-function AssignProgram({ athleteId, templates, assignments, coachId, onChanged }: {
+/** Ready-made programs the coach can import into the library from here. */
+const READY_PROGRAMS: { key: string; label: string; present: (t: Workout[]) => boolean; run: (coachId: string) => Promise<boolean> }[] = [
+  {
+    key: 'shin',
+    label: 'שוקה קדמית, 3 שלבים',
+    present: (t) => t.some((w) => w.rehabPhase?.program === SHIN_PROGRAM),
+    run: async (coachId) => !(await seedShinRehabProgram(coachId)).alreadyExisted,
+  },
+  {
+    key: 'calf',
+    label: 'תאומים וסולאוס',
+    present: (t) => t.some((w) => w.title === CALF_REHAB_WORKOUT_TITLE),
+    run: async (coachId) => !(await seedCalfRehabProgram(coachId)).alreadyExisted,
+  },
+]
+
+/**
+ * Where the injury is in a phased program, whether the last sessions and
+ * mornings say it's ready for more, and the controls to move it up or back.
+ * Moving swaps every upcoming, not-yet-started session of that program on
+ * the athlete's calendar to the new phase's workout.
+ */
+function PhaseCard({ rehabCase, ladders, assignments, sessions, checkins, onChanged }: {
+  rehabCase: RehabCase
+  ladders: RehabProgramLadder[]
+  assignments: AssignedWorkout[]
+  sessions: RehabSessionLog[]
+  checkins: RehabCheckin[]
+  onChanged: () => Promise<void> | void
+}) {
+  const current = rehabCase.phase || null
+  const ladder = ladders.find((l) => l.program === current?.program) || null
+  const [program, setProgram] = useState(ladders[0]?.program || '')
+  const [busy, setBusy] = useState(false)
+
+  const since = rehabCase.phaseHistory?.filter((h) => h.phase === current?.phase).at(-1)?.date || rehabCase.injuryDate
+  const readiness = phaseReadiness(sessions, checkins, since)
+  const daysIn = Math.max(0, differenceInCalendarDays(parseISO(todayStr()), parseISO(since)))
+
+  const move = async (target: RehabProgramLadder, phase: number) => {
+    const upcoming = assignments.filter((a) => a.workout?.rehabPhase?.program === target.program && a.scheduledDate >= todayStr() && a.status !== 'completed').length
+    const name = target.phases.find((w) => w.rehabPhase?.phase === phase)?.rehabPhase?.name
+    if (current && !window.confirm(`להעביר לשלב ${phase}${name ? `: ${name}` : ''}?${upcoming ? ` ${upcoming} אימוני שיקום עתידיים ביומן יתחלפו לאימון של השלב הזה.` : ''}`)) return
+    setBusy(true)
+    try {
+      const swapped = await setRehabPhase({ rehabCase, ladder: target, phase, assignments })
+      toast.success(swapped ? `עבר לשלב ${phase}. ${swapped} אימונים ביומן עודכנו` : `השלב עודכן לשלב ${phase}. אין אימונים עתידיים ביומן: מוסיפים למטה`)
+      await onChanged()
+    } catch (err) {
+      console.error('Error changing rehab phase:', err)
+      toast.error('החלפת השלב נכשלה')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (!current || !ladder) {
+    return (
+      <section className="poster-plate space-y-3 p-4">
+        <h3 className="poster-caps text-[24px]">שלב השיקום</h3>
+        <p className="text-sm text-ink/75">תוכנית בשלבים מתחילה בשלב 1, ועולים שלב כשהפציעה מאפשרת.</p>
+        {ladders.length > 1 && (
+          <Select value={program} onValueChange={setProgram}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {ladders.map((l) => <SelectItem key={l.program} value={l.program}>{l.programTitle}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
+        <button
+          type="button"
+          disabled={busy || !program}
+          onClick={() => { const l = ladders.find((x) => x.program === program); if (l) move(l, 1) }}
+          className="flex h-10 w-full items-center justify-center gap-1.5 rounded-md bg-ink text-sm font-semibold text-stock disabled:opacity-60"
+        >
+          {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+          {ladders.length === 1 ? `${ladders[0].programTitle}: התחלה בשלב 1` : 'התחלה בשלב 1'}
+        </button>
+      </section>
+    )
+  }
+
+  const total = ladder.phases.length
+  const checks = [
+    { label: `${readiness.sessions.need} אימונים אחרונים בשלב: כאב עד ${PAIN_LIMIT}`, ok: readiness.sessions.ok, need: readiness.sessions.need },
+    { label: `${readiness.mornings.need} בקרים אחרונים: כאב עד ${PAIN_LIMIT}`, ok: readiness.mornings.ok, need: readiness.mornings.need },
+  ]
+
+  return (
+    <section className="poster-plate space-y-4 p-4">
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 className="poster-caps text-[24px]">שלב השיקום</h3>
+        <p className="truncate text-xs text-ink/65">{ladder.programTitle}</p>
+      </div>
+
+      <ol className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${total}, minmax(0, 1fr))` }}>
+        {ladder.phases.map((w) => {
+          const n = w.rehabPhase?.phase ?? 0
+          const state = n < current.phase ? 'done' : n === current.phase ? 'now' : 'next'
+          return (
+            <li key={w.id} aria-current={state === 'now' ? 'step' : undefined} className="min-w-0 space-y-1">
+              <span className={cn('block h-2 rounded-sm', state === 'done' && 'bg-ink', state === 'now' && 'bg-rust', state === 'next' && 'border border-ink/30')} />
+              <p className={cn('poster-caps text-[17px] leading-none', state === 'next' ? 'text-ink/45' : 'text-ink')}>שלב {n}</p>
+              <p className={cn('truncate text-[11px] leading-tight', state === 'now' ? 'font-semibold text-ink' : 'text-ink/55')}>{w.rehabPhase?.name}</p>
+            </li>
+          )
+        })}
+      </ol>
+
+      <p className="text-xs text-ink/70">
+        {daysIn === 0 ? `התחיל את שלב ${current.phase} היום.` : `${daysIn} ימים בשלב ${current.phase}, מאז ${fmt(since, 'd/M')}.`}
+      </p>
+
+      <div className="space-y-2 border-t border-ink/15 pt-3">
+        <p className="text-sm font-semibold">{current.phase < total ? `מוכן לשלב ${current.phase + 1}?` : 'מוכן לחזור לריצה?'}</p>
+        <ul className="space-y-1.5">
+          {checks.map((c) => (
+            <li key={c.label} className="flex items-center justify-between gap-3 text-xs">
+              <span className={cn('flex items-center gap-1.5', c.ok >= c.need ? 'text-pine' : 'text-ink/70')}>
+                {c.ok >= c.need ? <Check className="h-3.5 w-3.5" /> : <span className="h-1.5 w-1.5 rounded-full bg-ink/35" />}
+                {c.label}
+              </span>
+              <span className="tabular shrink-0 font-semibold">{c.ok}/{c.need}</span>
+            </li>
+          ))}
+        </ul>
+        {current.nextWhen && <p className="text-xs leading-relaxed text-ink/75">{current.nextWhen}</p>}
+      </div>
+
+      <div className="flex gap-2">
+        {current.phase < total && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => move(ladder, current.phase + 1)}
+            className={cn(
+              'flex h-10 flex-1 items-center justify-center gap-1.5 rounded-md text-sm font-semibold disabled:opacity-60',
+              readiness.ready ? 'bg-pine text-stock' : 'border-2 border-ink',
+            )}
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-4 w-4" />}העלאה לשלב {current.phase + 1}
+          </button>
+        )}
+        {current.phase > 1 && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => move(ladder, current.phase - 1)}
+            className="flex h-10 items-center justify-center gap-1.5 rounded-md px-3 text-sm font-semibold text-ink/75 disabled:opacity-60"
+          >
+            <ArrowDown className="h-4 w-4" />חזרה לשלב {current.phase - 1}
+          </button>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function AssignProgram({ athleteId, rehabCase, templates, ladders, assignments, coachId, onChanged }: {
   athleteId: string
+  rehabCase: RehabCase
   templates: Workout[]
+  ladders: RehabProgramLadder[]
   assignments: AssignedWorkout[]
   coachId: string
   onChanged: () => Promise<void> | void
 }) {
-  const [templateId, setTemplateId] = useState<string>(templates[0]?.id || '')
+  // The current phase's workout is the natural next thing to schedule.
+  const phaseTemplateId = templates.find((t) =>
+    t.rehabPhase && t.rehabPhase.program === rehabCase.phase?.program && t.rehabPhase.phase === rehabCase.phase?.phase)?.id
+  const [templateId, setTemplateId] = useState<string>(phaseTemplateId || templates[0]?.id || '')
   const [startDate, setStartDate] = useState(todayStr())
   const [days, setDays] = useState('12')
   const [busy, setBusy] = useState(false)
+  const [importing, setImporting] = useState<string | null>(null)
   const upcoming = assignments.filter((a) => a.scheduledDate >= todayStr())
+  const missing = READY_PROGRAMS.filter((p) => !p.present(templates))
 
   useEffect(() => { if (!templateId && templates[0]) setTemplateId(templates[0].id) }, [templates, templateId])
+  useEffect(() => { if (phaseTemplateId) setTemplateId(phaseTemplateId) }, [phaseTemplateId])
 
   const assign = async () => {
     const workout = templates.find((t) => t.id === templateId)
@@ -407,6 +587,12 @@ function AssignProgram({ athleteId, templates, assignments, coachId, onChanged }
     setBusy(true)
     try {
       const n = await assignRehabProgram({ athleteId, workout, startDate, days: Math.max(1, Number(days) || 1), assignedBy: coachId })
+      // Scheduling one phase of a phased program also records that phase on the injury.
+      const p = workout.rehabPhase
+      const ladder = p && ladders.find((l) => l.program === p.program)
+      if (p && ladder && (rehabCase.phase?.program !== p.program || rehabCase.phase?.phase !== p.phase)) {
+        await markCasePhase(rehabCase.id, ladder, p.phase)
+      }
       toast.success(`נוספו ${n} אימוני שיקום ליומן`)
       await onChanged()
     } catch (err) {
@@ -417,29 +603,39 @@ function AssignProgram({ athleteId, templates, assignments, coachId, onChanged }
     }
   }
 
-  const importCalf = async () => {
-    setBusy(true)
+  const importProgram = async (p: (typeof READY_PROGRAMS)[number]) => {
+    setImporting(p.key)
     try {
-      const r = await seedCalfRehabProgram(coachId)
-      toast.success(r.alreadyExisted ? 'התוכנית כבר קיימת בספרייה' : 'תוכנית שיקום התאומים נוספה לספרייה')
+      const added = await p.run(coachId)
+      toast.success(added ? `התוכנית "${p.label}" נוספה לספרייה` : 'התוכנית כבר קיימת בספרייה')
       await onChanged()
     } catch (err) {
-      console.error('Error importing calf rehab program:', err)
+      console.error('Error importing rehab program:', err)
       toast.error('הייבוא נכשל')
     } finally {
-      setBusy(false)
+      setImporting(null)
     }
   }
+
+  const importButtons = missing.map((p) => (
+    <button
+      key={p.key}
+      type="button"
+      onClick={() => importProgram(p)}
+      disabled={importing !== null}
+      className="flex h-10 w-full items-center justify-center gap-1.5 rounded-md border-2 border-ink text-sm font-semibold disabled:opacity-60"
+    >
+      {importing === p.key ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}ייבוא: {p.label}
+    </button>
+  ))
 
   return (
     <section className="poster-plate space-y-3 p-4">
       <h3 className="poster-caps text-[24px]">תוכנית ביומן</h3>
       {templates.length === 0 ? (
         <div className="space-y-2 text-sm">
-          <p className="text-ink/75">אין עדיין אימוני שיקום בספרייה. בונים אחד בספריית האימונים (סוג: שיקום), או מייבאים את תוכנית התאומים המוכנה.</p>
-          <button type="button" onClick={importCalf} disabled={busy} className="flex h-10 w-full items-center justify-center gap-1.5 rounded-md border-2 border-ink font-semibold disabled:opacity-60">
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}ייבוא: שיקום תאומים וסולאוס
-          </button>
+          <p className="text-ink/75">אין עדיין אימוני שיקום בספרייה. בונים אחד בספריית האימונים (סוג: שיקום), או מייבאים תוכנית מוכנה.</p>
+          {importButtons}
         </div>
       ) : (
         <>
@@ -466,6 +662,7 @@ function AssignProgram({ athleteId, templates, assignments, coachId, onChanged }
           <button type="button" onClick={assign} disabled={busy || !templateId} className="flex h-10 w-full items-center justify-center gap-1.5 rounded-md bg-pine font-semibold text-stock disabled:opacity-60">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarPlus className="h-4 w-4" />}הוספה ליומן
           </button>
+          {missing.length > 0 && <div className="space-y-2 border-t border-ink/15 pt-3">{importButtons}</div>}
         </>
       )}
       {upcoming.length > 0 && (
